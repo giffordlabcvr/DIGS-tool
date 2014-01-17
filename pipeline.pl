@@ -32,10 +32,10 @@ use Base::FileIO;
 use Interface::BLAST;   # Interface to BLAST 
 
 # Paleovirology program modules
-use DGGS::Pipeline;
-use DGGS::ScreenBuild;
-use DGGS::GenomeControl;
-use DGGS::DB;
+use DIGS::Pipeline;
+use DIGS::ScreenBuild;
+use DIGS::GenomeControl;
+use DIGS::DB;
 
 ############################################################################
 # Paths & Globals
@@ -51,7 +51,7 @@ my $output_path           = './process/';        # Process directory
 # Database connection 
 my $mysql_server   = 'localhost'; # SET ON INSTALL IF YOU WANT TO USE A REMOTE DB
 my $mysql_username = 'root';      # SET ON INSTALL IF YOU WANT A NON-ROOT USER
-my $mysql_password = '';          # SET THIS ON INSTALL
+my $mysql_password = '';   # SET THIS ON INSTALL
 	
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
@@ -90,7 +90,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my($USAGE) = "\n #### Screening:";
+my($USAGE) = "\n #### DIGS Tool:";
   $USAGE  .= "\n\t\t  -s=[ctl file]             : Run screen using ctl file";
   $USAGE  .= "\n\t\t  -u=[option] -i=[ctl file] : Utility functions";
   $USAGE  .= "\n\n  usage: $0 [options] \n\n";

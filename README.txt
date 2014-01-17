@@ -1,5 +1,5 @@
 ############################################################################
-# README for Database-Guided Genome Screening Tool
+# README for Database-Integrated Genome Screening Tool
 ############################################################################
 
 This package comprises a framework - implemented in PERL - for performing
@@ -15,7 +15,7 @@ second similarity search, wherein they are compared to a set of 'reference'
 sequences representing genetic diversity among the sequences under
 investigation.
 
-The database-guided genome screening (DGGS) tool uses the BLAST+ program
+The database-guided genome screening (DIGS) tool uses the BLAST+ program
 suite to perform sequence similarity searches, and captures data in MySQL
 database tables.
 
@@ -153,7 +153,7 @@ process/              # contains files generated during screening process
 ### modules directory -  PERL modules
 modules/Base/         # Some base functions (IO etc), used by everything
 modules/Interface/    # Interfaces to BLAST and MySQL
-modules/DGGS/         # Program-specific functionality
+modules/DIGS/         # Program-specific functionality
 
 ############################################################################
 # LICENSE
