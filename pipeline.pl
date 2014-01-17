@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:      pipeline.pl 
-# Description: control script for performing database-guided genome screening
+# Description: control script for DIGS
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
