@@ -162,6 +162,10 @@ sub select_rows {
 
 	my $dbh       = $self->{dbh};
 	my $fields = join(',', @$field_ref);	
+	
+	# remove any quotations
+	$fields =~ s/"//g;
+	
 	my $query = "SELECT $fields FROM $self->{name}";
 	if ($where) { $query .= " $where"; }
 
@@ -170,7 +174,6 @@ sub select_rows {
 	
 	# DEBUG
 	#print "\n\n\t$query\n\n"; 
-
 	my $row_count = 0;
 	while (my $row = $sth->fetchrow_arrayref) {
 		
@@ -178,6 +181,14 @@ sub select_rows {
 		my $i = 0;
 		my %row;
 		foreach my $field (@$field_ref) {
+			
+			# Deal with an aliased field
+			if ($field =~ m/ AS /) {
+              	my @field = split(/\'/,$field);
+				my $alias = pop @field; 
+                #print "\n\t $field aliased to $alias"; die;
+				$field = $alias;
+			}
 			
 			my $value = @$row[$i];
 			$row{$field} = $value;

@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:       Console.pm 
-# Description:  
-# History:      Rob Gifford, Novemeber 2006: Creation
+# Description:  Functions for text console programs 
+# History:      Rob Gifford, November 2006: Creation
 ############################################################################
 package Console;
 
@@ -60,7 +60,6 @@ sub new {
 sub refresh {
 
 	my ($self) = @_;
-
 	my $command = 'clear';
 	system $command;
 }
@@ -186,8 +185,6 @@ sub ask_default_question {
 #              $answer_format: regular expression string to which the
 #                              answer must conform
 # Returns:     $answer: the response of the user
-# NOTE:        this actually supercedes some of the fxns below, but I have
-#              left the others in for now anyway
 #***************************************************************************
 sub ask_strict_question {
 

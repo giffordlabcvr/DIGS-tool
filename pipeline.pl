@@ -51,7 +51,11 @@ my $output_path           = './process/';        # Process directory
 # Database connection 
 my $mysql_server   = 'localhost'; # SET ON INSTALL IF YOU WANT TO USE A REMOTE DB
 my $mysql_username = 'root';      # SET ON INSTALL IF YOU WANT A NON-ROOT USER
-my $mysql_password = '';   # SET THIS ON INSTALL
+my $mysql_password = 'blenat2';   # SET THIS ON INSTALL
+unless ($mysql_server and $mysql_username and $mysql_password) {
+	die "\n\t MYSQL connection globals in $0 script have not been set\n\n";
+}
+
 	
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;

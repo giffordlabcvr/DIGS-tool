@@ -29,7 +29,8 @@ use DIGS::ScreenBuild; # Functions to set up screen
 ############################################################################
 
 # Default minimum length of BLAST hit to extract 
-my $default_min_seqlen = 100; 
+my $default_min_seqlen = 100; # minimum sequence length of BLAST hit to extract
+my $process_dir_warn   = 100; # folders in process directory to trigger warning 
 
 # Base objects
 my $fileio    = FileIO->new();
@@ -120,6 +121,9 @@ sub initialise {
 		exit;
 	}	
 
+	# Check the size of the process directory
+	$self->check_process_dir_status();
+	
 	# Initialise target sequence library
 	my $genome_obj = GenomeControl->new($self); 
 	$genome_obj->refresh_genomes();
@@ -131,7 +135,7 @@ sub initialise {
 	#$devtools->print_hash($queries_ref); die;	# DEBUG
 	my $num_queries = scalar keys %$queries_ref;
 	unless ( $num_queries ) {
-		die "\n\n\t ### Error: no screening queries were loaded\n\n\n";
+		die "\n\t ### No screening queries were loaded\n\n\n";
 	}
 }
 
@@ -757,6 +761,30 @@ sub initialise_reassign {
 }
 
 #***************************************************************************
+# Subroutine:  check_process_dir_status
+# Description: check the size of the process directory and warn if it is
+#              getting very large 
+#***************************************************************************
+sub check_process_dir_status {
+
+	my ($self) = @_;
+
+	# Read in the process directory
+	my $output_path = $self->{output_path};
+	unless ($output_path) { die; }
+
+	my @process_dir;
+	$fileio->read_directory_to_array($output_path, @process_dir);
+	my $num_folders = scalar @process_dir;
+
+	if ($num_folders > $process_dir_warn) {
+		print "\n\t ### Process directory contains > $process_dir_warn folders";
+		print "\n\t #     consider cleaning up the contents e.g.";
+		sleep 2;
+	}
+}
+
+#***************************************************************************
 # Subroutine:  show_title
 # Description: show command line title blurb 
 #***************************************************************************
@@ -764,7 +792,7 @@ sub show_title {
 
 	$console->refresh();
 	my $title       = 'Database-Integrated Genome Screening (DIGS)';
-	my $version     = '2.0';
+	my $version     = '1.0';
 	my $description = 'Sequence database screening using BLAST and MySQL';
 	my $author      = 'Robert J. Gifford';
 	my $contact	    = '<robert.gifford@glasgow.ac.uk>';

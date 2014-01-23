@@ -393,6 +393,156 @@ sub index_previously_executed_queries {
 }
 
 ############################################################################
+# UPDATING DATABASES AND TABLES
+############################################################################
+
+#***************************************************************************
+# Subroutine:  summarise_db
+# Description: 
+#***************************************************************************
+sub summarise_db {
+
+	my ($self) = @_;
+	
+	# Summarise status table
+	$self->summarise_status_table();	
+
+	# Summarise BLAST_results  table
+	$self->summarise_BLAST_results_table();
+
+	# Summarise Extracted  table
+	$self->summarise_extracted_table();
+
+}
+
+#***************************************************************************
+# Subroutine:  summarise_status_table
+# Description: 
+#***************************************************************************
+sub summarise_status_table {
+
+	my ($self, $done_ref) = @_;
+	
+	my $status_table = $self->{status_table};
+	my @data;
+	my @fields = qw [ organism probe_name probe_gene ];
+	$status_table->select_rows(\@fields, \@data);
+	my $executed;
+	my %organism;
+	my %probe_id;
+	foreach my $data_ref (@data) {
+
+		my $organism   = $data_ref->{organism};
+		my $probe_name = $data_ref->{probe_name};
+		my $probe_gene = $data_ref->{probe_gene};
+		my $probe_id   = $probe_name . '_' . $probe_gene;
+	
+		# Counts
+		$executed++;
+		# By organism
+		if ($organism{$organism}) {
+			$organism{$organism}++;
+		}
+		else {
+			$organism{$organism} = 1;
+		}
+		# By probe ID
+		if ($probe_id{$probe_id}) {
+			$probe_id{$probe_id}++;
+		}
+		else {
+			$probe_id{$probe_id} = 1;
+		}
+	}
+
+	# Show data
+	print "\n\n\t # A total of $executed queries have been executed";
+	my @organisms = sort keys %organism; 
+	foreach my $organism (@organisms) {
+		my $by_organism = $organism{$organism};
+		print "\n\t #  $by_organism searches of $organism databases";
+	}
+	my @probe_ids = sort keys %probe_id; 
+	foreach my $probe_id (@probe_ids) {
+		my $by_probe_id = $probe_id{$probe_id};
+		print "\n\t #  $by_probe_id searches using $probe_id";
+	}
+	sleep 1;
+	$self->{status_table_count} = $executed;
+}
+
+#***************************************************************************
+# Subroutine:  summarise BLAST_results table
+# Description: 
+#***************************************************************************
+sub summarise_BLAST_results_table {
+
+	my ($self, $done_ref) = @_;
+	
+	my $blast_table = $self->{blast_results_table};
+	my @data;
+	my @fields = qw [ organism chunk_name  ];
+	push (@fields,  "count(*) AS 'number'");
+	my $where = "GROUP BY  Organism, Chunk_name
+                 ORDER BY  Organism, count(*) DESC";
+	$blast_table->select_rows(\@fields, \@data, $where);
+	
+	my $blast = 0;
+	foreach my $data_ref (@data) {
+		my $number = $data_ref->{number};
+		$blast = $blast + $number;
+	}
+	print "\n\n\t # The BLAST results table contains a total of '$blast' rows";
+	foreach my $data_ref (@data) {
+		# get the data	
+		my $organism    = $data_ref->{organism};
+		my $chunk_name  = $data_ref->{chunk_name};
+		my $number      = $data_ref->{number};
+		print "\n\t #  $number hits in:";
+		print "    $organism genome, target file $chunk_name\t";
+	}
+	sleep 1;
+
+}
+
+#***************************************************************************
+# Subroutine:  summarise Extracted table
+# Description: 
+#***************************************************************************
+sub summarise_extracted_table {
+
+	my ($self, $done_ref) = @_;
+	
+	my $extracted_table = $self->{extracted_table};
+	my @data;
+	my @fields = qw [ organism assigned_to assigned_to_gene ];
+	push (@fields,  "count(*) AS 'number'");
+	my $where = "GROUP BY  Organism, Assigned_to 
+                 ORDER BY  Organism, count(*) DESC";
+	$extracted_table->select_rows(\@fields, \@data, $where);
+	
+	my $extracted = 0;
+	foreach my $data_ref (@data) {
+		my $number = $data_ref->{number};
+		$extracted = $extracted + $number;
+	}
+	print "\n\n\t # The extracted table contains a total of '$extracted' rows";
+	foreach my $data_ref (@data) {
+		
+		# get the data	
+		my $organism         = $data_ref->{organism};
+		my $assigned_to      = $data_ref->{assigned_to};
+		my $assigned_to_gene = $data_ref->{assigned_to_gene};
+		my $number           = $data_ref->{number};
+		print "\n\t #  $number matches to:  ";
+		print " $assigned_to,$assigned_to_gene";
+		print " in $organism \t";
+	}
+	sleep 1;
+
+}
+
+############################################################################
 # DROPPING AND FLUSHING DBs
 ############################################################################
 

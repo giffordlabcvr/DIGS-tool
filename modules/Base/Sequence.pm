@@ -1,8 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:       Sequence 
-# Description:  Object for representing a sequence with common sequence
-#               processing functions
+# Description:  Sequence analysis functions
 # History:      Rob Gifford, Decemeber 2006: Creation
 ############################################################################
 package Sequence;
@@ -69,9 +68,7 @@ my $console   = Console->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: Parameters
-#    Member variables:
-#       sequence_table: reference to a table object for the sequence table
+# Description: create a new Sequence.pm object
 #***************************************************************************
 sub new {
 
@@ -106,17 +103,17 @@ sub translate {
 
 	my ($self, $sequence, $frame) = @_;
 
+	
 	my @sequence = split ('', $sequence);
 	
 	# do frame adjustment
-	if ($frame) {
-		if    ($frame eq 1)  {  }
-		elsif ($frame eq 2)  { shift (@sequence); }
-		elsif ($frame eq 3)  { shift (@sequence);	
-			                   shift (@sequence); }
-		else {
-			die "\n\t translation in frame '$frame' not implemented\n\n";
-		}
+	unless ($frame) { die; }
+	if    ($frame eq 1)  {  }
+	elsif ($frame eq 2)  { shift (@sequence); }
+	elsif ($frame eq 3)  { shift (@sequence);	
+		                   shift (@sequence); }
+	else {
+		die "\n\t translation in frame '$frame' not implemented\n\n";
 	}
 
 	# Translate the sequence
@@ -181,7 +178,6 @@ sub reverse_and_complement {
 	}
 	return $rc_sequence;
 }
-
 
 #***************************************************************************
 # Subroutine:  extract_subsequence

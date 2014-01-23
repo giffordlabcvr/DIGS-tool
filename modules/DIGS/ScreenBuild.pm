@@ -98,6 +98,11 @@ sub set_up_screen  {
 	# Load screening database (includes some MacroLineage Tables
 	$self->set_screening_db();
 
+	# Show metrics for db
+	my $db_obj = $self->{db}; 
+	unless ($db_obj) { die; }
+	$db_obj->summarise_db();
+	
 	# Set up the reference library
 	if ($self->{reference_aa_fasta}) {
 		$self->load_aa_fasta_reference_library();
@@ -328,6 +333,8 @@ sub set_targets {
 	my %target_data;
 	my $target_paths_ref = $self->{target_paths};
 	my @organisms = keys %$target_paths_ref;
+	my $num_organisms = scalar @organisms;
+	unless ($num_organisms) { die; }
 	foreach my $organism (@organisms) {
 
 		my $data_ref = $target_paths_ref->{$organism};
@@ -340,11 +347,12 @@ sub set_targets {
 			
 			my @leaves;
 			$fileio->read_directory_tree_leaves_simple($path, \@leaves);
-			
+			my $num_files = scalar @organisms;
+			unless ($num_files) { die "\n\t No files read for $organism: PATH $path"; }
 			#$devtools->print_array(\@leaves);
+			
 			foreach my $file_ref (@leaves) {
 				my $file      = $file_ref->{file};
-				#print "\n\t $file";
 				my $file_type = $fileio->get_infile_type($file);
 				if ($file_type eq 'fa') {
 					$file_ref->{organism} = $organism;
@@ -583,7 +591,7 @@ sub set_queries {
 		$probe_ref->{probe_path}   = $query_seq_file;
 		$probe_ref->{probe_length} = $probe_len;
 		$probe_ref->{result_path}  = $self->{tmp_path};
-		print "\n\t probe $probe_id";		
+		#print "\n\t probe $probe_id";		
 
 		# Iterate through targets
 		my @target_names = sort keys %$targets_ref;
@@ -738,12 +746,22 @@ sub validate_screen_setup {
 	print "\n\n\t ### Validating screening parameters";
 	unless ($db_name)          { die "\n\t No screening DB specified in ctl file"; }
 	unless ($target_paths_ref) { die "\n\t No targets for screening defined\n\n";  }
-	if ($query_aa_fasta) {
+	
+	# TODO 
+	# Attempt to read the target genomes
+
+	# Check the probe files and correspondence to parameters for BLAST
+	if ($query_aa_fasta) { # If a set of protein probes has been specified
+		# TODO 
+		# Attempt to read the sequences
+		# Check if BLAST bitscore or evalue minimum set
 		unless ($blastn_min) { # Set to default minimum
 			$self->{bit_score_min_tblastn} = $default_blastn_min;
 		}
 	}
 	if ($query_nt_fasta) {
+		# TODO 
+		# Attempt to read the sequences
 		unless ($tblastn_min) { # Set to default minimum
 			$self->{bit_score_min_tblastn} = $default_tblastn_min;
 		}
@@ -752,7 +770,6 @@ sub validate_screen_setup {
 		die "\n\t No probe set specified in control file\n\n";
 	}
 	#print "\n\t ORF lib, $blast_orf_lib_path, \n\t UTR lib, $blast_utr_lib_path";
-
 	#else {
 	#	die "\n\t No reference library for reciprocal BLAST defined\n\n"; 
 	#}	
