@@ -395,7 +395,7 @@ sub index_previously_executed_queries {
 }
 
 ############################################################################
-# UPDATING DATABASES AND TABLES
+# RETRIEVING DATA
 ############################################################################
 
 #***************************************************************************
@@ -552,6 +552,20 @@ sub summarise_extracted_table {
 	}
 	sleep 1;
 
+}
+
+#***************************************************************************
+# Subroutine:  retrieve_sequences
+# Description: 
+#***************************************************************************
+sub retrieve_sequences {
+
+	my ($self, $data_ref, $select_ref, $where) = @_;
+	
+	my $extracted_table = $self->{extracted_table};
+	unless ($extracted_table) { die; }
+	$extracted_table->select_rows($select_ref, $data_ref, $where);
+	die;
 }
 
 ############################################################################

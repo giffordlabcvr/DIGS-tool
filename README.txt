@@ -40,12 +40,6 @@ The PIPELINE screening framework is controlled using the 'pipeline.pl' script
 You must initially set a small number of paths and variables in the header
 section of 'pipeline.pl' before it can be used.
 
-These variables are specific to your local BLAST and MySQL setup, as follows:
-
-$mysql_server:   MySQL server to use (e.g. 'localhost' if using local database) 
-$mysql_username: Name of user with CREATE, DROP, SELECT, ALTER, DELETE privileges
-$mysql_password: Password of the above user
-
 If the BLAST+ executables are installed in your local path you do not need
 to set a path for BLAST.
 
@@ -113,8 +107,14 @@ sequence library to use in the second 'classify' round.
 The control file follows the format of NEXUS files, with blocks defined by
 'BEGIN' and 'ENDBLOCK' tokens.
 
-BEGIN PARAMS;           
-db_name=Example_DB;                # Name of screening DB (avoid special chars)
+BEGIN SCREENDB;
+db_name=Bornavirus_EVEs; # Name of screening DB (avoid special chars)
+mysql_server=localhost;  # MySQL server to use (e.g. 'localhost' if using local database) 
+mysql_username=;         # Name of user with CREATE, DROP, SELECT, ALTER, DELETE privileges
+mysql_password=;         # $mysql_password: Password of the above user
+ENDBLOCK;
+
+BEGIN SCREENSETS;
 query_aa_fasta=db/probes.fa;       # Path to file with amino acid probe sequences
 query_nt_fasta=db/probes.fa;       # Path to file with nucleic acid probe sequences
 reference_aa_fasta=db/refseqs.fa;  # Path to file with amino acid reference sequences
@@ -124,9 +124,16 @@ bit_score_min_blastn=80;           # Minimum bit score of BLASTn hit to extract
 seq_length_minimum=100;            # Minimum sequence length of BLAST hit to extract
 ENDBLOCK;
 
+BEGIN PARAMS;           
+ENDBLOCK;
+
 BEGIN TARGETS;                     # List of target databases
 Mammalia/Homo_sapiens/
 Mammalia/Pan_troglodytes/
+ENDBLOCK;
+
+BEGIN SCREENSQL;
+
 ENDBLOCK;
 
 Note that not all the parameters shown above need to be defined.
@@ -145,7 +152,7 @@ To start screening run pipeline.pl as follows
 ./pipeline.pl         # Main process control script
 
 ### db directory 
-db/                   # a folder to store probe and reference sequences
+screenset/            # defaukt directory to store probe and reference sequences
 
 ### process directory
 process/              # contains files generated during screening process

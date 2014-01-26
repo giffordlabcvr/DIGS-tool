@@ -64,10 +64,6 @@ sub new {
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		
-		# DB connection variables
-		server                 => $parameter_ref->{server},
-		username               => $parameter_ref->{username},
-		password               => $parameter_ref->{password},
 	};
 	
 	bless ($self, $class);
@@ -133,6 +129,7 @@ sub set_up_screen  {
 	}
 
 	# transfer parameters from this object to the pipeline object
+	$pipeline_obj->{db}                 = $self->{db};
 	$pipeline_obj->{mysql_server}       = $self->{mysql_server};
 	$pipeline_obj->{mysql_username}     = $self->{mysql_username};
 	$pipeline_obj->{mysql_password}     = $self->{mysql_password};
@@ -140,7 +137,8 @@ sub set_up_screen  {
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{seq_length_minimum} = $self->{seq_length_minimum};
-	$pipeline_obj->{db}                 = $self->{db};
+	$pipeline_obj->{select_list}        = $self->{select_list};
+	$pipeline_obj->{where_statement}    = $self->{where_statement};
 
 }
 
@@ -412,7 +410,7 @@ sub get_path_elements {
 # Subroutine:  
 # Description: 
 #***************************************************************************
-sub validate_a_genome_file {
+sub validate_genome_file {
 	
 	my ($self, $elements_ref, $path) = @_;
 
@@ -696,6 +694,12 @@ sub parse_control_file {
 
 	my ($self, $ctl_file) = @_;
 	
+	# Get parameters inherited from Pipeline.pm
+	my $process_id    = $self->{process_id};
+	my $genome_path   = $self->{genome_use_path};
+	my $output_path   = $self->{output_path};
+	unless ($genome_path and $process_id and $output_path) { die; }
+	
 	# Read input file
 	my @ctl_file;
 	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
@@ -789,12 +793,16 @@ sub parse_control_file {
 		$targets++;
 	}
 
-	# Get parameters inherited from Pipeline.pm
-	my $process_id    = $self->{process_id};
-	my $genome_path   = $self->{genome_use_path};
-	my $output_path   = $self->{output_path};
-	unless ($genome_path and $process_id and $output_path) { die; }
-	
+	# READ the 'SCREENSQL' block
+	$start = 'BEGIN SCREENSQL';
+	$stop  = 'ENDBLOCK';
+	my $sql_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	unless ($sql_block)  {
+		die "\n\n\t Control file error: nothing in 'SCREENSQL' block\n\n\n";
+	}
+	my $select_list     = $self->{select_list};
+	my $where_statement = $self->{where_statement};
+
 }
 
 #***************************************************************************

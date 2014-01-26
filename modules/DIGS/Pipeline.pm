@@ -105,8 +105,7 @@ sub run_screen_function {
 		$db->summarise_db();
 	}
 	elsif ($option eq 4) {  
-		die "\n\t ### Unimplemented!\n\n\n";
-		$db->retrieve_sequences();
+		$self->retrieve();
 	}
 	elsif ($option eq 5) {  
 		$db->flush_screening_db();
@@ -741,6 +740,38 @@ sub initialise_reassign {
 	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
 	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
 }
+
+############################################################################
+# SECTION: Retrieve data from screening database
+############################################################################
+
+#***************************************************************************
+# Subroutine:   retrieve 
+# Description:  retrieve data from screening database
+#***************************************************************************
+sub retrieve {
+
+	my ($self, $ctl_file) = @_;
+
+	# Get params from self	
+	my $select = $self->{select_list};
+	my $where  = $self->{where_statement};
+	unless ($select) { die; }
+
+	my $db = $self->{db};
+	my @select = split(/'/, $select);
+
+	# Get params from self	
+	my @sequences;
+	$devtools->print_hash($self); die;
+	$db->retrieve_sequences(\@sequences, \@select, $where);
+	die;
+
+}
+
+############################################################################
+# SECTION: Utility Fxns
+############################################################################
 
 #***************************************************************************
 # Subroutine:  check_process_dir_status
