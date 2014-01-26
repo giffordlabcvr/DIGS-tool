@@ -88,21 +88,6 @@ sub run_screen_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# Show title
-	$self->show_title();
-
-  	# USAGE statement	
-	my $USAGE  .= "\n\t ### -m = mode\n";
-  	$USAGE  .= "\n\t -m=1 -i=[ctl file]   execute a round of bidrectional BLAST screening"; 
-  	$USAGE  .= "\n\t -m=2 -i=[ctl file]   reclassify sequences in Extracted table"; 
-  	$USAGE  .= "\n\t -m=3 -i=[ctl file]   summarise a screening DB"; 
-  	$USAGE  .= "\n\t -m=4 -i=[ctl file]   retrieve FASTA sequences from a screening DB"; 
-  	$USAGE  .= "\n\t -m=5 -i=[ctl file]   flush a screening DB"; 
-  	$USAGE  .= "\n\t -m=6 -i=[ctl file]   drop a screening DB"; 
- 	$USAGE  .= "\n\n";
-	unless ($ctl_file) { die $USAGE; }
-	unless ($option > 0 and $option < 7) { die $USAGE; }
-
 	# Initialise
 	print "\n\t ### Initialising database-guided genome screening\n";
 	$self->initialise($ctl_file);
@@ -129,10 +114,6 @@ sub run_screen_function {
 	elsif ($option eq 6) {  
 		$db->drop_screening_db();    
 	}
-	else { 
-		die $USAGE;
-	}
-	print "\n\n\t DONE\n\n\n";
 }
 
 ############################################################################
@@ -159,7 +140,7 @@ sub initialise {
 	$self->check_process_dir_status();
 	
 	# Get parameters
-	print "\n\t ### Reading control file";
+	#print "\n\t ### Reading control file";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file);
 		

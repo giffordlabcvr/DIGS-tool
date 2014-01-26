@@ -92,9 +92,6 @@ sub set_up_screen  {
 	# Set parameters for screening
 	$self->parse_control_file($ctl_file);
 
-	# Check we have everything we need
-	$self->validate_screen_setup($self);
-	
 	# Load screening database (includes some MacroLineage Tables
 	$self->set_screening_db();
 
@@ -411,6 +408,22 @@ sub get_path_elements {
 
 }
 
+#***************************************************************************
+# Subroutine:  
+# Description: 
+#***************************************************************************
+sub validate_a_genome_file {
+	
+	my ($self, $elements_ref, $path) = @_;
+
+	#my $error = $fileio->check_file_exists($path);
+	#if ($error) {
+	#	return $error;
+	#}
+	# TODO Attempt to read the target genomes
+	#die;
+}
+
 ############################################################################
 # SET UP PROBES
 ############################################################################
@@ -481,7 +494,6 @@ sub load_nt_fasta_probes {
 			$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
 		}
 	}
-	die;
 }
 
 #***************************************************************************
@@ -506,13 +518,13 @@ sub parse_fasta_header_data {
 		$gene_name = "unknown";
 	}
 	
+	$data_ref->{name}     = $name;
+	$data_ref->{gene_name} = $gene_name;
+
 	# DEBUG	
 	#print "\n\t # HEADER $header";	
 	#print "\n\t # NAME   $name";	
 	#print "\n\t # ORF    $gene_name";	
-	$data_ref->{name}     = $name;
-	$data_ref->{gene_name} = $gene_name;
-
 }
 
 #***************************************************************************
@@ -688,19 +700,34 @@ sub parse_control_file {
 	my @ctl_file;
 	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
 
-	# Parse the SCREENDB block
+	# Parse the 'SCREENDB' block
 	my $start = 'BEGIN SCREENDB';
 	my $stop  = 'ENDBLOCK';
 	my $db_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
 	unless ($db_block)  {
-		die "\n\n\t Control file error: no 'SCREENDB' block found\n\n\n";
+		die "\n\t Control file error: no 'SCREENDB' block found\n\n\n";
 	}
+	
+	# Get the 'SCREENDB' block values and validate
+	my $db_name  = $self->{db_name};
 	my $server   = $self->{mysql_server};
 	my $user     = $self->{mysql_username};
 	my $password = $self->{mysql_password};
-	unless ($server and $user and $password) { die; }	
 
-	# Parse the SCREENSETS block
+	unless ($db_name)  {
+		die "\n\t Control file error: 'db_name' undefined in 'SCREENDB' block\n\n\n";
+	}
+	unless ($server)  {
+		die "\n\t Control file error: 'mysql_server' undefined in 'SCREENDB' block\n\n\n";
+	}
+	unless ($user)  {
+		die "\n\t Control file error: 'mysql_username' undefined in 'SCREENDB' block\n\n\n";
+	}
+	unless ($password)  {
+		die "\n\t Control file error: 'mysql_password' undefined in 'SCREENDB' block\n\n\n";
+	}
+
+	# Parse the 'SCREENSETS' block
 	$start = 'BEGIN SCREENSETS';
 	$stop  = 'ENDBLOCK';
 	my $block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
@@ -708,114 +735,94 @@ sub parse_control_file {
 		die "\n\n\t Control file error: no 'SCREENSETS' block found\n\n\n";
 	}
 
-	# READ the TARGETS block
+	# Get the 'SCREENSETS' block values and validate
+	my $tblastn_min        = $self->{bit_score_min_tblastn};
+	my $blastn_min         = $self->{bit_score_min_blastn};
+	my $query_aa_fasta     = $self->{query_aa_fasta};
+	my $query_nt_fasta     = $self->{query_nt_fasta};
+	my $reference_aa_fasta = $self->{reference_aa_fasta};
+	my $reference_nt_fasta = $self->{reference_nt_fasta};
+
+	# Check the probe files and correspondence to parameters for BLAST
+	if ($query_aa_fasta) { # If a set of protein probes has been specified
+		# Check if BLAST bitscore or evalue minimum set
+		unless ($blastn_min) { # Set to default minimum
+			$self->{bit_score_min_tblastn} = $default_blastn_min;
+		}
+		unless ($reference_aa_fasta) { # Set to default minimum
+		  die "\n\t Control file error: no AA reference library defined for AA query set\n\n\n";
+		}
+		# TODO Attempt to read the sequences
+		# Validate reference and probe FASTA
+
+	}
+	if ($query_nt_fasta) {
+		unless ($tblastn_min) { # Set to default minimum
+			$self->{bit_score_min_tblastn} = $default_tblastn_min;
+		}
+		unless ($reference_nt_fasta) { # Set to default minimum
+		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
+		}
+		# TODO Attempt to read the sequences
+		# Validate reference and probe FASTA
+	}
+	unless ($query_aa_fasta or $query_nt_fasta) {
+		die "\n\t Control file error: no probe library defined\n\n\n";
+	}
+
+	# READ the 'TARGETS' block
 	my @target_block;
 	$start = 'BEGIN TARGETS';
 	$stop  = 'ENDBLOCK';
 	$fileio->extract_text_block(\@ctl_file, \@target_block, $start, $stop);
 	my $screenset_lines = scalar @target_block;
 	unless ($screenset_lines)  {
-		die "\n\n\t Control file error: no 'TARGETS' block found\n\n\n";
+		die "\n\n\t Control file error: nothing in 'TARGETS' block\n\n\n";
 	}
-
-	# read the contents of the target block
-	my @targets;
+	
+	# Parse the target strings
 	my $targets = 0;
 	foreach my $line (@target_block) {
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
 		chomp $line;
-		push (@targets, $line);
+		$self->parse_target($line);
 		$targets++;
 	}
-	unless ($screenset_lines)  {
-		die "\n\n\t Control file error: no target files found in 'TARGETS' block\n\n\n";
-	}
-
-	# validate targets
-	$self->parse_targets(\@targets);
-}
-
-#***************************************************************************
-# Subroutine:  parse_targets
-# Description: 
-#***************************************************************************
-sub parse_targets {
-
-	my ($self, $targets_ref) = @_;
-
-	# Get the target information
-	#print "\n\t ### Getting target genome data\n";
-	my %targets;
-	my $genome_path = $self->{genome_use_path};
-	foreach my $target_string (@$targets_ref) {
-		my @split_string  = split("\/", $target_string);
-		my $genome_group  = shift @split_string;
-		my $organism      = shift @split_string;
-		my $path		  = $genome_path . "/$genome_group/$organism/"; 
-		my %data;
-		$data{path}         = $path;
-		$data{genome_group} = $genome_group;
-		$data{organism}     = $organism;
-		#print "\n\t Got genome in group $genome_group species $organism";
-		$targets{$organism} = \%data;	
-	}
-	$self->{target_paths} = \%targets;	
-}
-
-#***************************************************************************
-# Subroutine:  validate screen setup
-# Description: read an input file to get parameters for screening
-#***************************************************************************
-sub validate_screen_setup {
-
-	my ($self, $pipeline_ref, $queries_ref) = @_;
 
 	# Get parameters inherited from Pipeline.pm
 	my $process_id    = $self->{process_id};
 	my $genome_path   = $self->{genome_use_path};
 	my $output_path   = $self->{output_path};
 	unless ($genome_path and $process_id and $output_path) { die; }
-
-	# Get parameters parsed from ctl file
-	my $db_name            = $self->{db_name};
-	my $tblastn_min        = $self->{bit_score_min_tblastn};
-	my $blastn_min         = $self->{bit_score_min_blastn};
-	my $target_paths_ref   = $self->{target_paths}; # Get the target paths 
-	my $query_aa_fasta     = $self->{query_aa_fasta};
-	my $query_nt_fasta     = $self->{query_nt_fasta};
-	my $query_glue         = $self->{query_glue};
 	
-	# Sanity checking - check that control file properly formed
-	print "\n\n\t ### Validating screening parameters";
-	unless ($db_name)          { die "\n\t No screening DB specified in ctl file"; }
-	unless ($target_paths_ref) { die "\n\t No targets for screening defined\n\n";  }
-	
-	# TODO 
-	# Attempt to read the target genomes
+}
 
-	# Check the probe files and correspondence to parameters for BLAST
-	if ($query_aa_fasta) { # If a set of protein probes has been specified
-		# TODO 
-		# Attempt to read the sequences
-		# Check if BLAST bitscore or evalue minimum set
-		unless ($blastn_min) { # Set to default minimum
-			$self->{bit_score_min_tblastn} = $default_blastn_min;
-		}
-	}
-	if ($query_nt_fasta) {
-		# TODO 
-		# Attempt to read the sequences
-		unless ($tblastn_min) { # Set to default minimum
-			$self->{bit_score_min_tblastn} = $default_tblastn_min;
-		}
-	}
-	unless ($query_aa_fasta or $query_nt_fasta) {
-		die "\n\t No probe set specified in control file\n\n";
-	}
-	#print "\n\t ORF lib, $blast_orf_lib_path, \n\t UTR lib, $blast_utr_lib_path";
-	#else {
-	#	die "\n\t No reference library for reciprocal BLAST defined\n\n"; 
-	#}	
+#***************************************************************************
+# Subroutine:  parse_targets
+# Description: 
+#***************************************************************************
+sub parse_target {
+
+	my ($self, $target_string) = @_;
+
+	# Get the target information
+	#print "\n\t ### Getting target genome data\n";
+	my %targets;
+	my $genome_path = $self->{genome_use_path};
+	my @split_string  = split("\/", $target_string);
+	my $genome_group  = shift @split_string;
+	my $organism      = shift @split_string;
+	my $path		  = $genome_path . "/$genome_group/$organism/"; 
+	
+	my %data;
+	$data{path}         = $path;
+	$data{genome_group} = $genome_group;
+	$data{organism}     = $organism;
+	$targets{$organism} = \%data;	
+	
+	# validate targets
+	$self->{target_paths} = \%targets;	
+	#print "\n\t Got genome in group $genome_group species $organism";
 }
 
 ############################################################################

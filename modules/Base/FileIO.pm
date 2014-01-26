@@ -70,29 +70,25 @@ sub check_directory_exists {
 
 #***************************************************************************
 # Subroutine:  check_file_exists
-# Description: routine to check if a file path is valid
+# Description: check a file exists by attempting to read it
+# Arguments:   $file: the name of the file to read
+# Returns:     0 if file does exist, $error string otehrwise
 #***************************************************************************
 sub check_file_exists {
 
 	my ($self, $file) = @_;
-	unless (open(INFILE, $file)) {
-		#die "\n\t Cannot open file \"$file\"\n\n";
-		return undef;
-	}
-}
 
-#***************************************************************************
-# Subroutine:  remove file
-# Description: remove a file
-# Arguments:   $path: string containing path to the file and the file name
-#***************************************************************************
-sub remove_file {
-
-	my ($self, $path) = @_;
-	
-	my $success = unlink "$path";
-	if ($success) { "\n\t Deleted file $path"; }
-	else          { "\n\t Failed to delete file $path"; }
+	unless (-f $file) {
+		if (-d $file) {
+			my $error = "file '$file' is directory";
+			return $error;
+		}
+		else {
+			my $error = "'$file' cannot be opened";
+			return $error;
+		}
+ 	}
+	return 0;
 }
 
 #***************************************************************************
@@ -613,7 +609,7 @@ sub extract_text_blocks {
 			$extract = 'true';         
 		}
 	}
-
+	return $extract;
 }
 
 #***************************************************************************

@@ -547,7 +547,7 @@ sub summarise_extracted_table {
 		my $assigned_to_gene = $data_ref->{assigned_to_gene};
 		my $number           = $data_ref->{number};
 		print "\n\t #  $number matches to:  ";
-		print " $assigned_to,$assigned_to_gene";
+		print " $assigned_to, $assigned_to_gene";
 		print " in $organism \t";
 	}
 	sleep 1;

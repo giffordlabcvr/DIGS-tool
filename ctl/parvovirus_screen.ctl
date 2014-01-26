@@ -1,8 +1,8 @@
 BEGIN SCREENDB;
 db_name=Parvovirus_EVEs;
 mysql_server=localhost;
-mysql_username=root;      
-mysql_password=blenat2; 
+mysql_username=;      
+mysql_password=; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;

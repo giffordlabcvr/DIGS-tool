@@ -82,8 +82,15 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my($USAGE) = "\n #### DIGS Tool:";
-  $USAGE  .= "\n\n  usage: $0 -m=[option] -i=[infile]\n\n";
+my ($USAGE)  = "\n\t #### DIGS Tool:\n";
+    $USAGE  .= "\n\t usage: $0 -m=[option] -i=[infile]\n";
+  	$USAGE  .= "\n\t -m=1  execute a round of bidirectional BLAST screening"; 
+  	$USAGE  .= "\n\t -m=2  reclassify sequences after refseq library update"; 
+  	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 
+  	$USAGE  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
+  	$USAGE  .= "\n\t -m=5  flush a screening DB"; 
+  	$USAGE  .= "\n\t -m=6  drop a screening DB"; 
+ 	$USAGE  .= "\n\n";
 
 ############################################################################
 # Main program
@@ -93,6 +100,7 @@ my($USAGE) = "\n #### DIGS Tool:";
 main();
 
 # Exit program
+print "\n\n\t DONE\n\n\n";
 exit;
 
 ############################################################################
@@ -105,12 +113,17 @@ exit;
 #***************************************************************************
 sub main {
 	
+	# Show title
+	$pipeline_obj->show_title();
+
 	# Read in options using GetOpt::Long
 	my $mode    = undef;
 	my $infile  = undef;
 	GetOptions ('mode|m=i'   => \$mode, 
 			    'infile|i=s' => \$infile,
 	) or die $USAGE;
+	unless ($mode and $infile)       { die $USAGE; }
+	unless ($mode > 0 and $mode < 7) { die $USAGE; }
 
 	# Hand off to the appropriate object
 	if ($mode and $infile) {
@@ -120,6 +133,7 @@ sub main {
 		$console->refresh();
 		die $USAGE; 
 	}
+
 }
 
 ############################################################################
