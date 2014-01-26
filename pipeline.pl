@@ -47,15 +47,6 @@ my $blast_bin_path        = '';                  # path to directory with BLAST+
 #my $blast_bin_path       = './bin/blast/';      
 my $genome_use_path       = $ENV{GENOMES};       # Genome data directory
 my $output_path           = './process/';        # Process directory
-
-# Database connection 
-my $mysql_server   = 'localhost'; # SET ON INSTALL IF YOU WANT TO USE A REMOTE DB
-my $mysql_username = 'root';      # SET ON INSTALL IF YOU WANT A NON-ROOT USER
-my $mysql_password = 'blenat2';   # SET THIS ON INSTALL
-unless ($mysql_server and $mysql_username and $mysql_password) {
-	die "\n\t MYSQL connection globals in $0 script have not been set\n\n";
-}
-
 	
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
@@ -83,9 +74,6 @@ $params{process_id}         = $process_id;
 $params{blast_bin_path}     = $blast_bin_path; 
 $params{genome_use_path}    = $genome_use_path;
 $params{output_path}        = $output_path; 
-$params{server}             = $mysql_server;
-$params{username}           = $mysql_username;
-$params{password}           = $mysql_password;
 $params{blast_obj}          = $blast_obj;
 my $pipeline_obj = Pipeline->new(\%params);
 
@@ -95,9 +83,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 
 # Initialise usage statement to print if usage is incorrect
 my($USAGE) = "\n #### DIGS Tool:";
-  $USAGE  .= "\n\t\t  -s=[ctl file]             : Run screen using ctl file";
-  $USAGE  .= "\n\t\t  -u=[option] -i=[ctl file] : Utility functions";
-  $USAGE  .= "\n\n  usage: $0 [options] \n\n";
+  $USAGE  .= "\n\n  usage: $0 -m=[option] -i=[infile]\n\n";
 
 ############################################################################
 # Main program
@@ -120,20 +106,15 @@ exit;
 sub main {
 	
 	# Read in options using GetOpt::Long
-	my $screen  = undef;
-	my $utils   = undef;
+	my $mode    = undef;
 	my $infile  = undef;
-	GetOptions ('screen|s=s' => \$screen, 
-	            'utils|u=s'  => \$utils, 
+	GetOptions ('mode|m=i'   => \$mode, 
 			    'infile|i=s' => \$infile,
 	) or die $USAGE;
 
 	# Hand off to the appropriate object
-	if ($screen) {
-		$pipeline_obj->run_screen($screen); 
-	}
-	elsif ($utils) {
-		$pipeline_obj->run_screen_utility_function($utils, $infile); 
+	if ($mode and $infile) {
+		$pipeline_obj->run_screen_function($mode, $infile); 
 	}
 	else { # command line script called without arguments
 		$console->refresh();

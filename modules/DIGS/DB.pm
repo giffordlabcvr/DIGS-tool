@@ -61,9 +61,9 @@ sub new {
 		db_name              => undef,
 		
 		# DB connection variables
-		server                => $parameters->{server},
-		username              => $parameters->{username},
-		password              => $parameters->{password},
+		server                => $parameters->{mysql_server},
+		username              => $parameters->{mysql_username},
+		password              => $parameters->{mysql_password},
 		
 		# Screening database core tables
 		status_table          => 0,
@@ -99,6 +99,8 @@ sub load_screening_db {
    	
 	# Load tables from the screening result DB we've been given
 	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
+	#my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password,
+    #                        { RaiseError => 1 } );
 	unless ($dbh) {
         print "\n\n\t ### Creating '$db_name' screening database";
 		$self->create_screening_db($db_name);
@@ -404,15 +406,20 @@ sub summarise_db {
 
 	my ($self) = @_;
 	
+	my $db_name = $self->{db_name};
+	print "\n\n\t ### Summarizing '$db_name' screening database";
+	
 	# Summarise status table
-	$self->summarise_status_table();	
+	my $executed = $self->summarise_status_table();	
+	$self->{status_table_count} = $executed;
+	if ($executed) {
 
-	# Summarise BLAST_results  table
-	$self->summarise_BLAST_results_table();
-
-	# Summarise Extracted  table
-	$self->summarise_extracted_table();
-
+		# Summarise BLAST_results  table
+		$self->summarise_BLAST_results_table();
+	
+		# Summarise Extracted  table
+		$self->summarise_extracted_table();
+	}
 }
 
 #***************************************************************************
@@ -456,19 +463,22 @@ sub summarise_status_table {
 	}
 
 	# Show data
-	print "\n\n\t # A total of $executed queries have been executed";
+	unless ($executed) { return 0; }
+	print "\n\n\t # A total of $executed queries have previously been executed";
+	print "\n\t #  ---";
 	my @organisms = sort keys %organism; 
 	foreach my $organism (@organisms) {
 		my $by_organism = $organism{$organism};
 		print "\n\t #  $by_organism searches of $organism databases";
 	}
+	print "\n\t #  ---";
 	my @probe_ids = sort keys %probe_id; 
 	foreach my $probe_id (@probe_ids) {
 		my $by_probe_id = $probe_id{$probe_id};
 		print "\n\t #  $by_probe_id searches using $probe_id";
 	}
 	sleep 1;
-	$self->{status_table_count} = $executed;
+	return $executed;
 }
 
 #***************************************************************************
@@ -493,6 +503,7 @@ sub summarise_BLAST_results_table {
 		$blast = $blast + $number;
 	}
 	print "\n\n\t # The BLAST results table contains a total of '$blast' rows";
+	print "\n\t #  ---";
 	foreach my $data_ref (@data) {
 		# get the data	
 		my $organism    = $data_ref->{organism};
@@ -527,6 +538,7 @@ sub summarise_extracted_table {
 		$extracted = $extracted + $number;
 	}
 	print "\n\n\t # The extracted table contains a total of '$extracted' rows";
+	print "\n\t #  ---";
 	foreach my $data_ref (@data) {
 		
 		# get the data	

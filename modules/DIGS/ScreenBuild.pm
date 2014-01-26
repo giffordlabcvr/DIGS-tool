@@ -129,8 +129,16 @@ sub set_up_screen  {
 	# Create the list of BLAST queries for screening
 	print "\n\n\t ### Creating the BLAST queries\n";
 	$self->set_queries(\@probes, \%targets, $queries_ref);
+	my $num_queries = scalar keys %$queries_ref;
+	unless ( $num_queries ) {
+		die "\n\t ### No screening queries were loaded\n\n\n";
+		#$devtools->print_hash($queries_ref); die;	# DEBUG
+	}
 
 	# transfer parameters from this object to the pipeline object
+	$pipeline_obj->{mysql_server}       = $self->{mysql_server};
+	$pipeline_obj->{mysql_username}     = $self->{mysql_username};
+	$pipeline_obj->{mysql_password}     = $self->{mysql_password};
 	$pipeline_obj->{tmp_path}           = $self->{tmp_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
@@ -185,7 +193,7 @@ sub load_aa_fasta_reference_library {
 		#unless ($status) { die "\n\t Input error: couldn't open FASTA probe library\n\n"; }
 		$num_fasta = scalar @fasta;
 		unless ($num_fasta) {
-			die "\n\t Reference library protein FASTA not found\n\n\n";
+			die "\n\t Reference library protein FASTA not found'\n\n\n";
 		}
 		print "\n\n\t   '$num_fasta' FASTA formatted sequences in reference library";
 		my $i = 0;
@@ -196,10 +204,10 @@ sub load_aa_fasta_reference_library {
 			my %header_data;
 			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
 			#$devtools->print_hash(\%header_data);
-			my $name     = $header_data{name};
-			my $orf_name = $header_data{orf_name};
-			my $aa_seq   = $seq_ref->{sequence};
-			my $fasta = ">$name" . "_$orf_name" . "\n$aa_seq\n\n";
+			my $name      = $header_data{name};
+			my $gene_name = $header_data{gene_name};
+			my $aa_seq    = $seq_ref->{sequence};
+			my $fasta = ">$name" . "_$gene_name" . "\n$aa_seq\n\n";
 			push (@ref_aa_fasta, $fasta);
 		}
 	}
@@ -243,9 +251,9 @@ sub load_nt_fasta_reference_library {
 			my $mode = $self->{ref_fasta_header_mode};
 			$self->parse_fasta_header_data($header, \%header_data, $fail_count, $mode);
 			my $name     = $header_data{name};
-			my $orf_name = $header_data{orf_name};
+			my $gene_name = $header_data{gene_name};
 			my $nt_seq   = $seq_ref->{sequence};
-			my $fasta = ">$name" . "_$orf_name" . "\n$nt_seq\n\n";
+			my $fasta = ">$name" . "_$gene_name" . "\n$nt_seq\n\n";
 			push (@ref_nt_fasta, $fasta);
 		}
 	}
@@ -433,10 +441,10 @@ sub load_aa_fasta_probes {
 			my %header_data;
 			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
 			my $name     = $header_data{name};
-			my $orf_name = $header_data{orf_name};
+			my $gene_name = $header_data{gene_name};
 			my $aa_seq   = $seq_ref->{sequence};
 			#$devtools->print_hash(\%header_data);
-			$self->add_aa_probe($probes_ref, $name, $orf_name, $aa_seq);
+			$self->add_aa_probe($probes_ref, $name, $gene_name, $aa_seq);
 		}
 	}
 }
@@ -467,10 +475,10 @@ sub load_nt_fasta_probes {
 			my %header_data;
 			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
 			my $name     = $header_data{name};
-			my $orf_name = $header_data{orf_name};
+			my $gene_name = $header_data{gene_name};
 			my $utr_seq   = $seq_ref->{sequence};
 			$devtools->print_hash(\%header_data);
-			$self->add_na_probe($probes_ref, $name, $orf_name, $utr_seq);
+			$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
 		}
 	}
 	die;
@@ -485,25 +493,25 @@ sub parse_fasta_header_data {
 	my ($self, $header, $data_ref, $fail_count) = @_;
 
 	my $name;
-	my $orf_name;
+	my $gene_name;
 	my @header = split (/_/, $header);
-	$orf_name  = pop   @header;
+	$gene_name  = pop   @header;
 	$name      = join('_', @header);
 
 	unless ($name) { 
 		$fail_count++;
 		$name = "unknown_$fail_count";
 	}
-	unless ($orf_name) { 
-		$orf_name = "unknown";
+	unless ($gene_name) { 
+		$gene_name = "unknown";
 	}
 	
 	# DEBUG	
 	#print "\n\t # HEADER $header";	
 	#print "\n\t # NAME   $name";	
-	#print "\n\t # ORF    $orf_name";	
+	#print "\n\t # ORF    $gene_name";	
 	$data_ref->{name}     = $name;
-	$data_ref->{orf_name} = $orf_name;
+	$data_ref->{gene_name} = $gene_name;
 
 }
 
@@ -679,31 +687,67 @@ sub parse_control_file {
 	# Read input file
 	my @ctl_file;
 	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
-	
-	# Parse the PARAMS block
-	my $start = 'BEGIN PARAMS';
-	my $stop  = 'ENDBLOCK';
-	$fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
-	#$devtools->print_hash($self);
 
-	# Read the targets block
-	#print "\n\t ### Reading target genomes block\n";
+	# Parse the SCREENDB block
+	my $start = 'BEGIN SCREENDB';
+	my $stop  = 'ENDBLOCK';
+	my $db_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	unless ($db_block)  {
+		die "\n\n\t Control file error: no 'SCREENDB' block found\n\n\n";
+	}
+	my $server   = $self->{mysql_server};
+	my $user     = $self->{mysql_username};
+	my $password = $self->{mysql_password};
+	unless ($server and $user and $password) { die; }	
+
+	# Parse the SCREENSETS block
+	$start = 'BEGIN SCREENSETS';
+	$stop  = 'ENDBLOCK';
+	my $block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	unless ($block)  {
+		die "\n\n\t Control file error: no 'SCREENSETS' block found\n\n\n";
+	}
+
+	# READ the TARGETS block
 	my @target_block;
 	$start = 'BEGIN TARGETS';
 	$stop  = 'ENDBLOCK';
 	$fileio->extract_text_block(\@ctl_file, \@target_block, $start, $stop);
+	my $screenset_lines = scalar @target_block;
+	unless ($screenset_lines)  {
+		die "\n\n\t Control file error: no 'TARGETS' block found\n\n\n";
+	}
+
+	# read the contents of the target block
 	my @targets;
+	my $targets = 0;
 	foreach my $line (@target_block) {
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
 		chomp $line;
 		push (@targets, $line);
+		$targets++;
 	}
+	unless ($screenset_lines)  {
+		die "\n\n\t Control file error: no target files found in 'TARGETS' block\n\n\n";
+	}
+
+	# validate targets
+	$self->parse_targets(\@targets);
+}
+
+#***************************************************************************
+# Subroutine:  parse_targets
+# Description: 
+#***************************************************************************
+sub parse_targets {
+
+	my ($self, $targets_ref) = @_;
 
 	# Get the target information
 	#print "\n\t ### Getting target genome data\n";
 	my %targets;
 	my $genome_path = $self->{genome_use_path};
-	foreach my $target_string (@targets) {
+	foreach my $target_string (@$targets_ref) {
 		my @split_string  = split("\/", $target_string);
 		my $genome_group  = shift @split_string;
 		my $organism      = shift @split_string;
@@ -716,7 +760,6 @@ sub parse_control_file {
 		$targets{$organism} = \%data;	
 	}
 	$self->{target_paths} = \%targets;	
-
 }
 
 #***************************************************************************

@@ -106,7 +106,7 @@ sub refresh_genomes {
 		my $path        = $genome_ref->{version_path};
 		#$devtools->print_hash($genome_ref);
 		
-		print "\n\t #~#~# CHECKING $organism, $type, $version";
+		print "\n\t #~#~# Checking '$organism' genome: '$type' version '$version'";
 		$self->check_genome_formatting($genome_ref);
 		my $unformatted_ref = $genome_ref->{unformatted};
 		my $num_unformatted = scalar @$unformatted_ref;

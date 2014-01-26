@@ -63,10 +63,10 @@ sub new {
 		output_path            => $parameter_ref->{output_path},
 
 		# Database variables
-		db_name                => $parameter_ref->{db_name},
-		server                 => $parameter_ref->{server},  
-		username               => $parameter_ref->{username},
-		password               => $parameter_ref->{password},
+		db_name                => '',
+		server                 => '',  
+		username               => '',
+		password               => '',
 	
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},
@@ -81,24 +81,58 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  run_screen
-# Description: handler fxn to launch database-guided genome screening
+# Subroutine:  run_screen_function
+# Description: handler for various utility processes 
 #***************************************************************************
-sub run_screen {
-	
-	my ($self, $ctl_file) = @_;
-	
-	# Show title screen
+sub run_screen_function {
+
+	my ($self, $option, $ctl_file) = @_;
+
+	# Show title
 	$self->show_title();
+
+  	# USAGE statement	
+	my $USAGE  .= "\n\t ### -m = mode\n";
+  	$USAGE  .= "\n\t -m=1 -i=[ctl file]   execute a round of bidrectional BLAST screening"; 
+  	$USAGE  .= "\n\t -m=2 -i=[ctl file]   reclassify sequences in Extracted table"; 
+  	$USAGE  .= "\n\t -m=3 -i=[ctl file]   summarise a screening DB"; 
+  	$USAGE  .= "\n\t -m=4 -i=[ctl file]   retrieve FASTA sequences from a screening DB"; 
+  	$USAGE  .= "\n\t -m=5 -i=[ctl file]   flush a screening DB"; 
+  	$USAGE  .= "\n\t -m=6 -i=[ctl file]   drop a screening DB"; 
+ 	$USAGE  .= "\n\n";
+	unless ($ctl_file) { die $USAGE; }
+	unless ($option > 0 and $option < 7) { die $USAGE; }
 
 	# Initialise
 	print "\n\t ### Initialising database-guided genome screening\n";
-	my %queries;
-	$self->initialise($ctl_file, \%queries);
+	$self->initialise($ctl_file);
+	my $db = $self->{db};
 	
-	# Run reciprocal BLAST pipeline
-	print "\n\n\t ### Starting database-guided genome screening";
-	$self->do_screening_process(\%queries);
+	# Hand off to functions, based on the options received
+	if ($option eq 1) { 
+		$self->run_screen($ctl_file);	
+	}
+	elsif ($option eq 2) {  
+		die "\n\t ### Unimplemented!\n\n\n";
+		#$self->reassign($loader_obj);	
+	}
+	elsif ($option eq 3) {  
+		$db->summarise_db();
+	}
+	elsif ($option eq 4) {  
+		die "\n\t ### Unimplemented!\n\n\n";
+		$db->retrieve_sequences();
+	}
+	elsif ($option eq 5) {  
+		$db->flush_screening_db();
+	}
+	elsif ($option eq 6) {  
+		$db->drop_screening_db();    
+	}
+	else { 
+		die $USAGE;
+	}
+	print "\n\n\t DONE\n\n\n";
 }
 
 ############################################################################
@@ -111,7 +145,7 @@ sub run_screen {
 #***************************************************************************
 sub initialise {
 
-	my ($self, $ctl_file, $queries_ref) = @_;
+	my ($self, $ctl_file) = @_;
 	
 	# Try opening control file first
 	my @ctl_file;
@@ -124,28 +158,47 @@ sub initialise {
 	# Check the size of the process directory
 	$self->check_process_dir_status();
 	
+	# Get parameters
+	print "\n\t ### Reading control file";
+	my $loader_obj = ScreenBuild->new($self);
+	$loader_obj->parse_control_file($ctl_file);
+		
+	# Load screening database (includes some MacroLineage Tables
+	$loader_obj->set_screening_db();
+	$self->{db} = $loader_obj->{db};
+	
+}
+
+############################################################################
+# SECTION: Running a round of bidirectional BLAST screening
+############################################################################
+
+#***************************************************************************
+# Subroutine:   run_screen
+# Description:  handler function to set up and execute a round of screening
+#***************************************************************************
+sub run_screen {
+
+	my ($self, $ctl_file) = @_;
+
 	# Initialise target sequence library
 	my $genome_obj = GenomeControl->new($self); 
 	$genome_obj->refresh_genomes();
 	
 	# Set up the screening queries
-	print "\n\n\t ### Setting up BLAST screen";
+	print "\n\n\t ### Setting up a DIGS screen from control file '$ctl_file'";
+	my %queries;
 	my $loader_obj = ScreenBuild->new($self);
-	$loader_obj->set_up_screen($self, $queries_ref, $ctl_file);
-	#$devtools->print_hash($queries_ref); die;	# DEBUG
-	my $num_queries = scalar keys %$queries_ref;
-	unless ( $num_queries ) {
-		die "\n\t ### No screening queries were loaded\n\n\n";
-	}
-}
+	$loader_obj->set_up_screen($self, \%queries, $ctl_file);
 
-############################################################################
-# SECTION: Main screening pipeline
-############################################################################
+	# Run reciprocal BLAST pipeline
+	print "\n\n\t ### Starting database-guided genome screening\n";
+	$self->do_screening_process(\%queries);
+}
 
 #***************************************************************************
 # Subroutine:   do pipeline screen 
-# Description:  excecute reciprocal BLAST procedure
+# Description:  run a round of bidrectional BLAST 
 #***************************************************************************
 sub do_screening_process {
 
@@ -165,7 +218,7 @@ sub do_screening_process {
 			# Show status 
 			my $probe_id    = $query_ref->{probe_id};
 			my $target_name = $query_ref->{target_name}; # $target refers to the target file
-			print "\n\n\t # probing target $target_name with probe $probe_id ";   
+			print "\n\t # probing target $target_name with probe $probe_id ";   
 			
 			# Do the BLAST search
 			$self->search($query_ref);	
@@ -552,59 +605,6 @@ sub check_if_locus_extracted {
 }
 
 #***************************************************************************
-# Subroutine:  run_screen_utility_function
-# Description: handler for various utility processes 
-#***************************************************************************
-sub run_screen_utility_function {
-
-	my ($self, $option, $ctl_file) = @_;
-
-	# Show title
-	$console->refresh();
-	my $title       = 'Screening Pipeline Utility Functions';
-	my $version     = '2.0';
-	my $description = 'Utilities for working with screening DBs';
-	my $author      = 'Robert J. Gifford';
-	my $contact		= '<robert.gifford@glasgow.ac.uk>';
-	$console->show_about_box($title, $version, $description, $author, $contact);
-
-  	# USAGE statement	
-	my $USAGE  .= "\n\t ### u  = utility functions\n";
-  	$USAGE  .= "\n\t -u=1 -i=[ctl file]   reclassify sequences in Extracted table"; 
-  	$USAGE  .= "\n\t -u=2 -i=[ctl file]   flush a screening DB"; 
-  	$USAGE  .= "\n\t -u=3 -i=[ctl file]   drop a screening DB"; 
- 	$USAGE  .= "\n\n";
-	unless ($ctl_file) { die $USAGE; }
-
-	# Get parameters
-	print "\n\t ### Reading control file\n";
-	my $loader_obj = ScreenBuild->new($self);
-	$loader_obj->parse_control_file($ctl_file);
-	
-	# Load screening database (includes some MacroLineage Tables
-	$loader_obj->set_screening_db();
-	$self->{db} = $loader_obj->{db};
-
-	# Hand off to functions, based on the options received
-	if ($option eq 1) { 
-		print "\n\t # Reassign Extracted table";
-		$self->reassign($loader_obj);	
-	}
-	elsif ($option eq 2) {  
-		my $db = $loader_obj->{db};
-		$db->flush_screening_db();
-	}
-	elsif ($option eq 3) {  
-		my $db = $loader_obj->{db};
-		$db->drop_screening_db();    
-	}
-	else { 
-		die $USAGE;
-	}
-	print "\n\n\t DONE\n\n\n";
-}
-
-#***************************************************************************
 # Subroutine:  reassign
 # Description: reassign sequences in the extracted_table (for use after
 #              the reference library has been updated)
@@ -614,6 +614,7 @@ sub reassign {
 	my ($self, $loader_obj) = @_;
 
 	# Set up to perform the reassign process
+	print "\n\t # Reassigning Extracted table";
 	my @assigned_seqs;
 	$self->initialise_reassign($loader_obj, \@assigned_seqs);
 
@@ -778,8 +779,8 @@ sub check_process_dir_status {
 	my $num_folders = scalar @process_dir;
 
 	if ($num_folders > $process_dir_warn) {
-		print "\n\t ### Process directory contains > $process_dir_warn folders";
-		print "\n\t #     consider cleaning up the contents e.g.";
+		print "\n\t ### Process directory '$output_path' contains > $process_dir_warn folders";
+		print "\n\t #     consider cleaning up the contents.";
 		sleep 2;
 	}
 }

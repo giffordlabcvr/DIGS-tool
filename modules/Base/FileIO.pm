@@ -548,7 +548,8 @@ sub hash_to_file {
 
 #***************************************************************************
 # Subroutine:  read_standard_field_value_block
-# Description: 
+# Description: read a NEXUS style block containing [field]=[value] lines 
+# Returns:     1 if block was found and lines were read
 #***************************************************************************
 sub read_standard_field_value_block {
 
@@ -557,9 +558,14 @@ sub read_standard_field_value_block {
 	my @block_data;
 	$self->extract_text_block($file_data_ref, \@block_data, $start_mark, $end_mark);
 	#$devtools->print_array(\@block_data); 
+	my $block_size = scalar @block_data; 
+	unless ($block_size) { # Nothing read
+		return 0;
+	} 
 
 	# Upload hierarchy and sequence
 	my %ref_data;
+	my $captured = 0;
 	foreach my $line (@block_data) {
 		
 		chomp $line;
@@ -572,9 +578,13 @@ sub read_standard_field_value_block {
 		my $value = $bits[1];
 		$value =~ s/\s+//;
 		$value =~ s/;//;
-		#print "\n\t $field='$value'";
-		$extract_ref->{$field} = $value;
+		if ($field and $value) {
+			#print "\n\t $field='$value'"; # DEBUG
+			$captured++;
+			$extract_ref->{$field} = $value;
+		}
 	}
+	return $captured;
 }
 
 #***************************************************************************
