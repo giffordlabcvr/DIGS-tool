@@ -88,36 +88,72 @@ sub run_screen_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# Initialise
-	print "\n\t ### Initialising database-guided genome screening\n";
+	# Try opening control file first
+	my @ctl_file;
+	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
+	unless ($valid) {
+		print "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+		exit;
+	}	
+	
+	# Check creating a DB for the first time, create and return
+	if ($option eq 1) {
+		$self->create_screening_db($ctl_file);
+		return;
+	}
+
+	# If DB has been created previously, initialise the DIGS tool using control file
 	$self->initialise($ctl_file);
 	my $db = $self->{db};
-	
-	# Hand off to functions, based on the options received
-	if ($option eq 1) { 
+
+	# Hand off to functions 2-7, based on the options received
+	if ($option eq 2) {  
 		$self->run_screen($ctl_file);	
 	}
-	elsif ($option eq 2) {  
+	elsif ($option eq 3) {  
 		die "\n\t ### Unimplemented!\n\n\n";
 		#$self->reassign($loader_obj);	
 	}
-	elsif ($option eq 3) {  
+	elsif ($option eq 4) {  
 		$db->summarise_db();
 	}
-	elsif ($option eq 4) {  
+	elsif ($option eq 5) {  
 		$self->retrieve();
 	}
-	elsif ($option eq 5) {  
+	elsif ($option eq 6) {  
 		$db->flush_screening_db();
 	}
-	elsif ($option eq 6) {  
+	elsif ($option eq 7) {  
 		$db->drop_screening_db();    
 	}
 }
 
+
 ############################################################################
 # SECTION: Initialise
 ############################################################################
+
+#***************************************************************************
+# Subroutine:   create_screening_db
+# Description:  create a screening datbase 
+#***************************************************************************
+sub create_screening_db {
+
+	my ($self, $ctl_file) = @_;
+
+	# Get parameters
+	unless ($ctl_file) { die; }  # Sanity checking
+	print "\n\t ### Reading control file\n";
+	my $loader_obj = ScreenBuild->new($self);
+	$loader_obj->parse_control_file($ctl_file);
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name)  { die; } 
+		
+	my $db_obj = DB->new($loader_obj);
+	$db_obj->create_screening_db($db_name);	
+	$self->{db} = $db_obj; # Store the database object reference 
+	
+}
 
 #***************************************************************************
 # Subroutine:   initialise 
@@ -127,19 +163,14 @@ sub initialise {
 
 	my ($self, $ctl_file) = @_;
 	
-	# Try opening control file first
-	my @ctl_file;
-	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
-	unless ($valid) {
-		print "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-		exit;
-	}	
-
+	# Initialise
+	print "\n\t ### Initialising database-guided genome screening\n";
+	
 	# Check the size of the process directory
 	$self->check_process_dir_status();
 	
 	# Get parameters
-	#print "\n\t ### Reading control file";
+	print "\n\t ### Reading control file\n";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file);
 		
@@ -185,7 +216,7 @@ sub do_screening_process {
 	my ($self, $queries_ref) = @_;
 
 	# Get relevant member variables and objects
-	my $db_ref       = $self->{db};
+	my $db_ref = $self->{db};
 
 	# Iterate through and excute screens
 	my @probes = keys %$queries_ref;
@@ -239,12 +270,15 @@ sub search {
 	my $probe_gene   = $query_ref->{probe_gene};
 	my $probe_path   = $query_ref->{probe_path};
 	my $organism     = $query_ref->{organism};
+	my $version      = $query_ref->{version};
+	my $data_type    = $query_ref->{data_type};
 	my $target_name  = $query_ref->{target_name};
 	my $target_path  = $query_ref->{target_path};
 	my $blast_alg    = $query_ref->{blast_alg};
 	my $cutoff       = $query_ref->{bitscore_cutoff};
 	my $result_file  = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
-	
+	#$devtools->print_hash($query_ref); die;	
+
 	# Create path to BLAST 
 	my $blast_path  = $self->{blast_bin_path};
 	my $blast_bin_path;
@@ -292,20 +326,24 @@ sub search {
 		if ($end - $start < $min_length) {  next; }
 		
 		# Record hit in BLAST results table
-		$hit_ref->{organism}    = $organism;
-		$hit_ref->{chunk_name}  = $target_name;
-		$hit_ref->{probe_id}    = $probe_id;
-		$hit_ref->{probe_name}  = $probe_name;
-		$hit_ref->{probe_gene}  = $probe_gene;
-		$hit_ref->{probe_type}  = $query_ref->{probe_type};
-		print "\n\t # Match number $i to $probe_name, $probe_gene in '$target_name'";
+		$hit_ref->{organism}     = $organism;
+		$hit_ref->{version}      = $version;
+		$hit_ref->{data_type}    = $data_type;
+		$hit_ref->{target_name}  = $target_name;
+		$hit_ref->{probe_id}     = $probe_id;
+		$hit_ref->{probe_name}   = $probe_name;
+		$hit_ref->{probe_gene}   = $probe_gene;
+		$hit_ref->{probe_type}   = $query_ref->{probe_type};
+		print "\n\t # Match $i to: $probe_name, $probe_gene";
+		print "\n\t # - in genome: $organism, $data_type, $version";
+		print "\n\t # - target file: '$target_name'";
 		$blast_results_table->insert_row($hit_ref);
 	} 
 
 	# Update the status table
 	my $status_table = $db_ref->{status_table};
 	$status_table->insert_row($query_ref);
-		
+	#$devtools->print_hash($query_ref);
 }
 
 ############################################################################
@@ -345,14 +383,17 @@ sub extract {
 	my $target_path = $query_ref->{target_path};
 
 	# Get all BLAST results from table (ordered by sequential targets)
-	my $where = " WHERE Chunk_name = '$target_name'
+	my $where = " WHERE Target_name = '$target_name'
 	                AND probe_name = '$probe_name' 
                     AND probe_gene = '$probe_gene'
 	              ORDER BY scaffold, subject_start";
 	my @matches;
-	@fields = qw [ record_id probe_name probe_gene probe_type
+	@fields = qw [ record_id 
+	               organism data_type version 
+                   probe_name probe_gene probe_type
 				   e_value_num e_value_exp bit_score align_len orientation 
-	               organism scaffold chunk_name subject_start subject_end 
+                   scaffold target_name
+                   subject_start subject_end 
 		           query_start query_end ];
 	$blast_results_table->select_rows(\@fields, \@matches, $where); 
 	#$devtools->print_array(\@matches); exit;
@@ -430,7 +471,7 @@ sub assign {
 		my $extract_end   = $hit_ref->{subject_end};
 		my $blast_id      = $hit_ref->{record_id};
 		my $sequence      = $hit_ref->{sequence};
-		my $genome        = $hit_ref->{organism};
+		my $organism      = $hit_ref->{organism};
 		my $probe_type    = $hit_ref->{probe_type};
 		
 		# Set the linking to the BLAST result table
@@ -447,7 +488,7 @@ sub assign {
 		my $result_file = $result_path . $blast_id . '.blast_result';
 			
 		# Do the BLAST accoridnmg to the type of sequence (AA or NA)
-		print "\n\t ##### BLAST HIT $blast_id, $genome";
+		print "\n\t # BLAST hit $blast_id in $organism ";
 		my $blast_alg;
 		my $lib_path;
 		unless ($probe_type) { die; }
@@ -472,28 +513,28 @@ sub assign {
 		my $query_end     = $top_match->{query_stop};
 		my $subject_start = $top_match->{aln_start};
 		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_to   = $top_match->{scaffold};	
+		my $assigned_name   = $top_match->{scaffold};	
 		
-		unless ($assigned_to) {	
+		unless ($assigned_name) {	
 			print "\n\t ### No match found in reference library\n";
 			next; 
 		}
 		
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_to = split('_', $assigned_to);
-		my $assigned_to_gene = pop @assigned_to;
-		$assigned_to = join ('_', @assigned_to);
-		print " assigned to: $assigned_to: $assigned_to_gene!";
+		my @assigned_name = split('_', $assigned_name);
+		my $assigned_gene = pop @assigned_name;
+		$assigned_name = join ('_', @assigned_name);
+		print " assigned to: $assigned_name: $assigned_gene!";
 		#$devtools->print_hash($hit_ref);
-
+		# TODO:  what is this about?
 		# Adjust to get extract coordinates using the top match
-		my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
-		my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+		#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
+	    #my $real_end = ($extract_start + $top_match->{query_stop} - 1);
 		
-		$hit_ref->{assigned_to}      = $assigned_to;
-		$hit_ref->{assigned_to_gene} = $assigned_to_gene;
-		$hit_ref->{realex_start}     = $real_st;
-		$hit_ref->{realex_end}       = $real_end;
+		$hit_ref->{assigned_name}      = $assigned_name;
+		$hit_ref->{assigned_gene} = $assigned_gene;
+		#$hit_ref->{realex_start}     = $real_st;
+		#$hit_ref->{realex_end}       = $real_end;
 		$hit_ref->{extract_start}    = $extract_start;
 		$hit_ref->{extract_end}      = $extract_end;
 		$hit_ref->{identity}         = $top_match->{identity};
@@ -531,9 +572,9 @@ sub index_extracted_loci {
 	my $db_ref          = $self->{db};
 	my $extracted_table = $db_ref->{extracted_table}; 
 	my @locus_data;
-	my @fields = qw [ record_id scaffold assigned_to
+	my @fields = qw [ record_id scaffold assigned_name
 	                  extract_start extract_end ];
-	my $where = " WHERE chunk_name = '$target_name' "; 
+	my $where = " WHERE target_name = '$target_name' "; 
 	$extracted_table->select_rows(\@fields, \@locus_data, $where);	
 	foreach my $row_ref (@locus_data) {
 		my $scaffold = $row_ref->{scaffold};
@@ -571,7 +612,7 @@ sub check_if_locus_extracted {
 			if ($hit_start >= $locus_start and $hit_end <= $locus_end) {
 				#$devtools->print_hash($locus_ref);
 				my $locus_id      = $locus_ref->{record_id};
-				my $locus_erv     = $locus_ref->{assigned_to};
+				my $locus_erv     = $locus_ref->{assigned_name};
 				my $scaffold      = $hit_ref->{scaffold};
 				my $subject_start = $hit_ref->{subject_start};
 				my $subject_end   = $hit_ref->{subject_end};
@@ -611,8 +652,8 @@ sub reassign {
 		my $sequence        = $row_ref->{sequence};
 		my $probe_type      = $row_ref->{probe_type};
 		my $blast_id        = $row_ref->{record_id};
-		my $previous_assign = $row_ref->{assigned_to};
-		my $previous_gene   = $row_ref->{assigned_to_gene};
+		my $previous_assign = $row_ref->{assigned_name};
+		my $previous_gene   = $row_ref->{assigned_gene};
 		my $extract_start   = $row_ref->{subject_start};
 		my $extract_end     = $row_ref->{subject_end};
 		my $genome          = $row_ref->{organism};
@@ -650,24 +691,24 @@ sub reassign {
 		my $query_end     = $top_match->{query_stop};
 		my $subject_start = $top_match->{aln_start};
 		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_to   = $top_match->{scaffold};	
+		my $assigned_name   = $top_match->{scaffold};	
 	
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_to = split('_', $assigned_to);
-		my $assigned_to_gene = pop @assigned_to;
-		$assigned_to = join ('_', @assigned_to);
+		my @assigned_name = split('_', $assigned_name);
+		my $assigned_gene = pop @assigned_name;
+		$assigned_name = join ('_', @assigned_name);
 		
-		if ($assigned_to ne $previous_assign 
-		or  $assigned_to_gene ne $previous_gene) {
+		if ($assigned_name ne $previous_assign 
+		or  $assigned_gene ne $previous_gene) {
 			
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
-			print " to $assigned_to ($assigned_to_gene)";
+			print " to $assigned_name ($assigned_gene)";
 			# Adjust to get extract coordinates using the top match
 			my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
 			my $real_end = ($extract_start + $top_match->{query_stop} - 1);
 			my %update_row;
-			$update_row{assigned_to}   = $assigned_to;
-			$update_row{assigned_to_gene} = $assigned_to_gene;
+			$update_row{assigned_name}   = $assigned_name;
+			$update_row{assigned_gene} = $assigned_gene;
 			$update_row{realex_start}  = $real_st;
 			$update_row{realex_end}    = $real_end;
 			$update_row{extract_start} = $extract_start;
@@ -720,7 +761,7 @@ sub initialise_reassign {
 	
 	# Get the assigned data
 	my $extracted_table = $db->{extracted_table};
-	my @fields  = qw [ record_id probe_type assigned_to assigned_to_gene 
+	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
 	                       subject_start subject_end sequence organism ];
 	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
 

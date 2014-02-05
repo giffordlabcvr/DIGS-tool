@@ -96,22 +96,14 @@ sub load_screening_db {
 
 	# Set name
 	$self->{db_name} = $db_name;
-   	
+   
 	# Load tables from the screening result DB we've been given
 	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
-	#my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password,
-    #                        { RaiseError => 1 } );
-	unless ($dbh) {
-        print "\n\n\t ### Creating '$db_name' screening database";
-		$self->create_screening_db($db_name);
-		$dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
-	}
-	else {
-		print "\n\n\t ### Loading '$db_name' screening database";
-	}
+	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
 	$self->{dbh} = $dbh;
 
 	# Main Screening DB tables
+	print "\n\n\t ### Loading '$db_name' screening database";
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
 	$self->load_status_table($dbh);
@@ -135,7 +127,9 @@ sub load_blast_results_table {
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
 		organism         => 'varchar',
-		chunk_name       => 'varchar',
+		data_type        => 'varchar',
+		version          => 'varchar',
+		target_name       => 'varchar',
 		scaffold         => 'varchar',
 		orientation      => 'varchar',
 		bit_score        => 'float',
@@ -165,14 +159,12 @@ sub load_extracted_table {
 	# Definition of the table
 	my %extract_fields = (
 		blast_id         => 'blast_id',
-		probe_name       => 'varchar',
-		probe_gene       => 'varchar',
-		probe_type       => 'varchar',
-		assigned_to      => 'varchar',
-		assigned_to_gene => 'varchar',
-		probe_type       => 'varchar',
 		organism         => 'varchar',
-		chunk_name       => 'varchar',
+		version          => 'varchar',
+		data_type        => 'varchar',
+		target_name      => 'varchar',
+		assigned_name      => 'varchar',
+		assigned_gene => 'varchar',
 		scaffold         => 'varchar',
 		extract_start    => 'varchar',
 		extract_end      => 'varchar',
@@ -183,8 +175,8 @@ sub load_extracted_table {
 		e_value_exp      => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
-		realex_start     => 'int',
-        realex_end       => 'int',	
+		#realex_start     => 'int',
+        #realex_end       => 'int',	
 		query_start      => 'int',
 	  	query_end        => 'int',
 		align_len        => 'int',
@@ -210,9 +202,11 @@ sub load_status_table {
 		probe_id       => 'varchar',
 		probe_name     => 'varchar',
 		probe_gene     => 'varchar',
+		genome_id      => 'varchar',
 		organism       => 'varchar',
+		data_type      => 'varchar',
 		version        => 'varchar',
-		chunk_name     => 'varchar',
+		target_name    => 'varchar',
 	);
 	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
 	$self->{status_table} = $status_table;
@@ -236,6 +230,7 @@ sub create_screening_db {
 	my $password = $self->{password};
 
 	# CREATE THE DB 
+	print "\n\n\t ### Creating '$db_name' screening database";
     my $drh = DBI->install_driver("mysql");
     my $rc = $drh->func("createdb", $db_name, $server, $username, $password, 'admin');
     my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
@@ -263,11 +258,15 @@ sub create_blast_results_table {
 	# BLAST results table 
 	my $blast_results = "CREATE TABLE `BLAST_results` (
 	  `Record_ID`     int(11) NOT NULL auto_increment,
+
 	  `Probe_name`    varchar(100) NOT NULL default '0',
 	  `Probe_gene`    varchar(100) NOT NULL default '0',
 	  `Probe_type`    varchar(100) NOT NULL default '0',
 	  `Organism`      varchar(100) NOT NULL default '0',
-	  `Chunk_name`    varchar(100) NOT NULL default '0',
+	  `Data_type`     varchar(100) NOT NULL default '0',
+	  `Version`       varchar(100) NOT NULL default '0',
+	  `Target_name`   varchar(100) NOT NULL default '0',
+
 	  `Scaffold`      varchar(100) default 'NULL',
 	  `Orientation`   varchar(100) NOT NULL default '0',
 	  `Bit_score`     float NOT NULL default '0',
@@ -281,6 +280,7 @@ sub create_blast_results_table {
 	  `Align_len`     int(11) NOT NULL default '0',
 	  `Gap_openings`  varchar(100) NOT NULL default '',
 	  `Mismatches`    int(11) NOT NULL default '0',
+
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -300,19 +300,20 @@ sub create_extracted_table {
 	# Extracted sequences table 
 	my $extracted = "CREATE TABLE `Extracted` (
 	  `Record_ID`        int(11) NOT NULL auto_increment,
+
 	  `BLAST_ID`         int(11) NOT NULL default '0',
-	  `Probe_name`       varchar(100) NOT NULL default '0',
-	  `Probe_gene`       varchar(100) NOT NULL default '0',
-	  `Probe_type`       varchar(100) NOT NULL default '0',
 	  `Organism`         varchar(100) NOT NULL default '0',
-	  `Chunk_name`       varchar(100) default 'NULL',
-	  `Scaffold`         varchar(100) default 'NULL',
+	  `Data_type`        varchar(100) NOT NULL default '0',
+	  `Version`          varchar(100) NOT NULL default '0',
+	  `Target_name`      varchar(100) NOT NULL default '0',
+	  `Scaffold`         varchar(100) NOT NULL default '0',
 	  `Extract_start`    int(11) NOT NULL default '0',
 	  `Extract_end`      int(11) NOT NULL default '0',
 	  `Sequence_length`  int(11) NOT NULL default '0',
 	  `Sequence`         text NOT NULL,
-	  `Assigned_to`      varchar(100) NOT NULL default '0',
-	  `Assigned_to_gene` varchar(100) NOT NULL default '0',
+
+	  `Assigned_name`    varchar(100) NOT NULL default '0',
+	  `Assigned_gene`    varchar(100) NOT NULL default '0',
 	  `Orientation`      varchar(100) NOT NULL default '0',
 	  `Bit_score`        float   NOT NULL default '0',
 	  `Identity`         float   NOT NULL default '0',
@@ -322,11 +323,10 @@ sub create_extracted_table {
 	  `Subject_end`      int(11) NOT NULL default '0',
 	  `Query_start`      int(11) NOT NULL default '0',
 	  `Query_end`        int(11) NOT NULL default '0',
-	  `RealEx_start`     int(11) NOT NULL default '0',
-      `RealEx_end`       int(11) NOT NULL default '0',
 	  `Align_len`        int(11) NOT NULL default '0',
 	  `Gap_openings`     int(11) NOT NULL default '0',
 	  `Mismatches`       int(11) NOT NULL default '0',
+
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -344,14 +344,16 @@ sub create_status_table {
 
 	# Status table (which BLAST queries have been executed)
 	my $status = "CREATE TABLE `Status` (
-	  `Record_ID`  int(11) NOT NULL auto_increment,
-	  `Probe_ID`   varchar(100) NOT NULL default '',
-	  `Probe_name` varchar(100) NOT NULL default '',
-	  `Probe_gene` varchar(100) NOT NULL default '',
-	  `Organism`   varchar(100) NOT NULL default '0',
-	  `Version`    varchar(100) NOT NULL default '0',
-	  `Chunk_name` varchar(100) NOT NULL default '0',
-	  `Timestamp`  timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  `Record_ID`   int(11) NOT NULL auto_increment,
+	  `Probe_ID`    varchar(100) NOT NULL default '',
+	  `Probe_name`  varchar(100) NOT NULL default '',
+	  `Probe_gene`  varchar(100) NOT NULL default '',
+	  `Genome_ID`   varchar(100) NOT NULL default '',
+	  `Organism`    varchar(100) NOT NULL default '',
+	  `Data_type`  varchar(100) NOT NULL default '',
+	  `Version`     varchar(100) NOT NULL default '',
+	  `Target_name` varchar(100) NOT NULL default '',
+	  `Timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
 	my $sth = $dbh->prepare($status);
@@ -372,26 +374,34 @@ sub index_previously_executed_queries {
 	
 	my $status_table = $self->{status_table};
 	my @data;
-	my @fields = qw [ organism version chunk_name probe_name probe_gene ];
-	$status_table->select_rows(\@fields, \@data);
+	my @fields = qw [ record_id organism data_type version target_name
+                      probe_name probe_gene ];
+	my $where = " ORDER BY Record_ID ";
+	$status_table->select_rows(\@fields, \@data, $where);
+	
+	# Index the executed searches
 	foreach my $data_ref (@data) {
-		my $target_name = $data_ref->{chunk_name};
-		my $version    = $data_ref->{version};
-		my $organism   = $data_ref->{organism};
-		my $probe_name = $data_ref->{probe_name};
-		my $probe_gene = $data_ref->{probe_gene};
+		my $organism    = $data_ref->{organism};
+		my $data_type   = $data_ref->{data_type};
+		my $version     = $data_ref->{version};
+		my $target_name = $data_ref->{target_name};
+		my $probe_name  = $data_ref->{probe_name};
+		my $probe_gene  = $data_ref->{probe_gene};
 		#$devtools->print_hash($data_ref); die; # DEBUG
-		unless ( $organism and $target_name and $version and $probe_name and $probe_gene) { 
-		print "\n\t $organism and $target_name and $version and $probe_name and $probe_gene"; 
+		unless ( $organism and $data_type and $version and $target_name 
+             and $probe_name and $probe_gene) { 
 			die; 
 		};
-		my @key = ( $organism,   $version, $target_name, $probe_name, $probe_gene );
-		my $key = join ('_', @key);
+		my @genome = ( $organism , $data_type, $version );
+		my $genome_id = join ('|', @genome);
+		my $probe_id  = $probe_name . '_' .  $probe_gene;
+		my @key = ( $genome_id, $target_name, $probe_id );
+		my $key = join ('|', @key);
 		#print "\n\t $key\n\n "; die;
 		$done_ref->{$key} = 1;		
 	}
 	# DEBUG
-	#$devtools->print_hash($done_ref);
+	#$devtools->print_hash($done_ref); die;
 }
 
 ############################################################################
@@ -409,35 +419,32 @@ sub summarise_db {
 	my $db_name = $self->{db_name};
 	print "\n\n\t ### Summarizing '$db_name' screening database";
 	
-	# Summarise status table
-	my $executed = $self->summarise_status_table();	
-	$self->{status_table_count} = $executed;
-	if ($executed) {
-
-		# Summarise BLAST_results  table
-		$self->summarise_BLAST_results_table();
+	# Summarise BLAST_results  table
+	my $executed = $self->summarise_BLAST_results_table();
 	
+	if ($executed) {
 		# Summarise Extracted  table
 		$self->summarise_extracted_table();
 	}
 }
 
 #***************************************************************************
-# Subroutine:  summarise_status_table
+# Subroutine:  summarise BLAST_results table
 # Description: 
 #***************************************************************************
-sub summarise_status_table {
+sub summarise_BLAST_results_table {
 
 	my ($self, $done_ref) = @_;
-	
-	my $status_table = $self->{status_table};
-	my @data;
-	my @fields = qw [ organism probe_name probe_gene ];
-	$status_table->select_rows(\@fields, \@data);
+
+	my $blast_table = $self->{blast_results_table};
+
+	my @status_data;
+	my @status_fields = qw [ organism probe_name probe_gene ];
+	$blast_table->select_rows(\@status_fields, \@status_data);
 	my $executed;
 	my %organism;
 	my %probe_id;
-	foreach my $data_ref (@data) {
+	foreach my $data_ref (@status_data) {
 
 		my $organism   = $data_ref->{organism};
 		my $probe_name = $data_ref->{probe_name};
@@ -477,23 +484,11 @@ sub summarise_status_table {
 		my $by_probe_id = $probe_id{$probe_id};
 		print "\n\t #  $by_probe_id searches using $probe_id";
 	}
-	sleep 1;
-	return $executed;
-}
 
-#***************************************************************************
-# Subroutine:  summarise BLAST_results table
-# Description: 
-#***************************************************************************
-sub summarise_BLAST_results_table {
-
-	my ($self, $done_ref) = @_;
-	
-	my $blast_table = $self->{blast_results_table};
 	my @data;
-	my @fields = qw [ organism chunk_name  ];
+	my @fields = qw [ organism target_name  ];
 	push (@fields,  "count(*) AS 'number'");
-	my $where = "GROUP BY  Organism, Chunk_name
+	my $where = "GROUP BY  Organism, Target_name
                  ORDER BY  Organism, count(*) DESC";
 	$blast_table->select_rows(\@fields, \@data, $where);
 	
@@ -507,13 +502,14 @@ sub summarise_BLAST_results_table {
 	foreach my $data_ref (@data) {
 		# get the data	
 		my $organism    = $data_ref->{organism};
-		my $chunk_name  = $data_ref->{chunk_name};
+		my $target_name  = $data_ref->{target_name};
 		my $number      = $data_ref->{number};
 		print "\n\t #  $number hits in:";
-		print "    $organism genome, target file $chunk_name\t";
+		print "    $organism genome, target file $target_name\t";
 	}
 	sleep 1;
 
+	return $executed;
 }
 
 #***************************************************************************
@@ -526,9 +522,9 @@ sub summarise_extracted_table {
 	
 	my $extracted_table = $self->{extracted_table};
 	my @data;
-	my @fields = qw [ organism assigned_to assigned_to_gene ];
+	my @fields = qw [ organism assigned_name assigned_gene ];
 	push (@fields,  "count(*) AS 'number'");
-	my $where = "GROUP BY  Organism, Assigned_to 
+	my $where = "GROUP BY  Organism, Assigned_name 
                  ORDER BY  Organism, count(*) DESC";
 	$extracted_table->select_rows(\@fields, \@data, $where);
 	
@@ -543,11 +539,11 @@ sub summarise_extracted_table {
 		
 		# get the data	
 		my $organism         = $data_ref->{organism};
-		my $assigned_to      = $data_ref->{assigned_to};
-		my $assigned_to_gene = $data_ref->{assigned_to_gene};
+		my $assigned_name    = $data_ref->{assigned_name};
+		my $assigned_gene    = $data_ref->{assigned_gene};
 		my $number           = $data_ref->{number};
 		print "\n\t #  $number matches to:  ";
-		print " $assigned_to, $assigned_to_gene";
+		print " $assigned_name, $assigned_gene";
 		print " in $organism \t";
 	}
 	sleep 1;
@@ -566,6 +562,7 @@ sub retrieve_sequences {
 	unless ($extracted_table) { die; }
 	$extracted_table->select_rows($select_ref, $data_ref, $where);
 	die;
+
 }
 
 ############################################################################
@@ -585,8 +582,6 @@ sub drop_screening_db {
 	my $username = $self->{username};
 	my $password = $self->{password};
 
-	my $dbh = DBI->connect("dbi:mysql:ScreeningDB:$server", $username, $password);
-	
 	# Get database name	
 	my $db_name = $self->{db_name};
 	
@@ -605,13 +600,6 @@ sub drop_screening_db {
 		my $sth = $dbh->prepare($drop);
     	unless ($sth->execute()) { print $drop; exit;}	
 	
-		my $dbh2 = DBI->connect("dbi:mysql:ScreeningDB:$server", $username, $password);
-		unless ($dbh2) {	die "\n\t # Couldn't connect to ScreeningDB database\n\n"; }
-		my $cleanup = "DELETE FROM DB_detail WHERE DB_name = '$db_name'";	
-		my $sth2 = $dbh2->prepare($cleanup);
-    	unless ($sth2->execute()) { 
-			print "\n\n\t Error: DB drop failed\n\n\n";
-		}
 	}
 }
 
@@ -632,17 +620,17 @@ sub flush_screening_db {
 		sleep 3;
 
 		# get tables
-		my $status_table         = $self->{status_table};
 		my $blast_results_table  = $self->{blast_results_table};
 		my $extracted_table      = $self->{extracted_table};
+		my $status_table         = $self->{status_table};
 		
 		# Flush result tables
-		$status_table->flush();
-		$status_table->reset_primary_keys();
 		$blast_results_table->flush();
 		$blast_results_table->reset_primary_keys();
 		$extracted_table->flush();
 		$extracted_table->reset_primary_keys();
+		$status_table->flush();
+		$status_table->reset_primary_keys();
 	}
 }
 

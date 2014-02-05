@@ -76,7 +76,7 @@ sub new {
 
 #***************************************************************************
 # Subroutine:  set_up_screen
-# Description: Set up all the queries to execute, indexed by genome chunk
+# Description: Set up all the queries to execute, indexed by genome target
 #***************************************************************************
 sub set_up_screen  {
 	
@@ -158,7 +158,6 @@ sub set_screening_db {
 	my $db_obj = DB->new($self);
 	$db_obj->load_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
-	
 }
 	
 ############################################################################
@@ -364,13 +363,20 @@ sub set_targets {
 					$self->get_path_elements(\%path_elements, $path); 
 
 					my %data;
-					$data{file}     = $file;
-					$data{path}     = $path;
-					$data{organism} = $organism;
-					$data{version}  = $path_elements{version};
-					my $key = $organism . '_' . $file;
-					$targets_ref->{$key} = \%data;	
-					#print "\n\t KEY $key";
+					$data{file}      = $file;
+					$data{path}      = $path;
+					$data{organism}  = $organism;
+					my $version      = $path_elements{version};
+					my $data_type    = $path_elements{data_type};
+					my @target = ( $organism , $data_type, $version, $file );
+					my $target_id = join ('|', @target);
+					#print "\n\t KEY $target_id"; die;
+
+					# Store using key
+					$data{version}   = $path_elements{version};
+					$data{data_type} = $path_elements{data_type};
+					$data{group}     = $path_elements{group};
+					$targets_ref->{$target_id} = \%data;	
 				}
 				elsif ($file_type eq 'fas') {
 					die;
@@ -383,7 +389,7 @@ sub set_targets {
 
 #***************************************************************************
 # Subroutine:  get_path_elements
-# Description: get path elements
+# Description: get the directory names within a genome path string 
 #***************************************************************************
 sub get_path_elements {
 	
@@ -392,23 +398,22 @@ sub get_path_elements {
 	#print "\n\t PATH '$path'";
 	$path =~ s/\/\//\//g;
 	my @path = split(/\//, $path);
-	
+	my $organism = pop @path;
+	my $version  = pop @path;
+	my $type     = pop @path;
+	my $group    = pop @path;
+	$elements_ref->{organism}  = $organism;
+	$elements_ref->{version}   = $version;
+	$elements_ref->{data_type} = $type;
+	$elements_ref->{group}     = $group;
 	#$devtools->print_array(\@path); die;
-	my $class    = $path[2];
-	my $organism = $path[3];
-	my $type     = $path[4];
-	my $version  = $path[5];
-	$elements_ref->{class}    = $class;
-	$elements_ref->{organism} = $organism;
-	$elements_ref->{type}     = $type;
-	$elements_ref->{version}  = $version;
 	#$devtools->print_hash($elements_ref); die;
 
 }
 
 #***************************************************************************
-# Subroutine:  
-# Description: 
+# Subroutine:   validate_genome_file 
+# Description:  TODO 
 #***************************************************************************
 sub validate_genome_file {
 	
@@ -488,7 +493,7 @@ sub load_nt_fasta_probes {
 			my $name     = $header_data{name};
 			my $gene_name = $header_data{gene_name};
 			my $utr_seq   = $seq_ref->{sequence};
-			$devtools->print_hash(\%header_data);
+			#$devtools->print_hash(\%header_data);
 			$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
 		}
 	}
@@ -600,16 +605,15 @@ sub set_queries {
 		my $probe_type      = $probe_ref->{probe_type};
 		my $probe_name      = $probe_ref->{probe_name};
 		my $probe_gene      = $probe_ref->{probe_gene};
-		my $probe_id        = $probe_ref->{probe_id};
 		my $sequence        = $probe_ref->{sequence};
 		my $probe_len       = length $sequence;
 		my $fasta = "\n>$probe_name\n$sequence";
+		my $probe_id  = $probe_name . '_' . $probe_gene;
 		my $query_seq_file = $report_dir . $probe_id;
 		$fileio->write_text_to_file($query_seq_file, $fasta);
 		$probe_ref->{probe_path}   = $query_seq_file;
 		$probe_ref->{probe_length} = $probe_len;
 		$probe_ref->{result_path}  = $self->{tmp_path};
-		#print "\n\t probe $probe_id";		
 
 		# Iterate through targets
 		my @target_names = sort keys %$targets_ref;
@@ -621,27 +625,38 @@ sub set_queries {
 			
 			# Get target data
 			my $target_ref   = $targets_ref->{$target_name};
-			#$devtools->print_hash($target_ref); # die; # DEBUG
 			my $organism     = $target_ref->{organism};
+			my $data_type    = $target_ref->{data_type};
+			my $version      = $target_ref->{version};
 			my $target_path  = $target_ref->{path};
 			my $target_name  = $target_ref->{file};		
-			my $version      = $target_ref->{version};
-			my @key = ( $organism, $version, $target_name, $probe_name, $probe_gene );
-			my $key = join ('_', @key);
+			#$devtools->print_hash($target_ref); # die; # DEBUG
+			unless ( $organism and  $version and $data_type and
+                     $target_name and $probe_name and $probe_gene ) {
+			 		die;
+			}
+			my @genome = ( $organism , $data_type, $version );
+			my $genome_id = join ('|', @genome);
+			my @key = ( $genome_id, $target_name, $probe_id );
+			my $key = join ('|', @key);
 			if ($done{$key}) { 
 				#print "\n\t ###### Skipping query: probe '$probe_id' vs '$target_name'";
 				next; # Skip queries that have been issued
 			} 
-			
+		
+			#$devtools->print_hash(\%done); 
+			#print "\n\t ###### KEY '$key'"; #die;	
+
 			# Else store the query
 			print "\n\t ###### Setting query: probe '$probe_id' vs '$target_name'";
+			$probe_ref->{genome_id}   = $genome_id;		
 			$probe_ref->{organism}    = $organism;		
-			$probe_ref->{target_name} = $target_name;		
-			$probe_ref->{chunk_name}  = $target_name;	# TODO: remove (old field)
-			$probe_ref->{target_path} = $target_ref->{path};;		
 			$probe_ref->{version}     = $version;
-			#$probe_ref->{source_type} = $target_ref->{source_type};
+			$probe_ref->{data_type}   = $data_type;		
+			$probe_ref->{target_name} = $target_name;		
+			$probe_ref->{target_path} = $target_ref->{path};;		
 
+			# Important - create a copy
 			my %query = %$probe_ref;
 			if ($queries_ref->{$probe_name}) {
 				my $probe_query_ref = $queries_ref->{$probe_name};
