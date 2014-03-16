@@ -137,8 +137,8 @@ sub set_up_screen  {
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{seq_length_minimum} = $self->{seq_length_minimum};
-	$pipeline_obj->{select_list}        = $self->{select_list};
-	$pipeline_obj->{where_statement}    = $self->{where_statement};
+	#$pipeline_obj->{select_list}        = $self->{select_list};
+	#$pipeline_obj->{where_statement}    = $self->{where_statement};
 
 }
 
@@ -643,7 +643,6 @@ sub set_queries {
 				#print "\n\t ###### Skipping query: probe '$probe_id' vs '$target_name'";
 				next; # Skip queries that have been issued
 			} 
-		
 			#$devtools->print_hash(\%done); 
 			#print "\n\t ###### KEY '$key'"; #die;	
 
@@ -811,13 +810,13 @@ sub parse_control_file {
 	# READ the 'SCREENSQL' block
 	$start = 'BEGIN SCREENSQL';
 	$stop  = 'ENDBLOCK';
-	my $sql_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	my $sql_block = $fileio->read_sql_block(\@ctl_file, $start, $stop, $self);
 	unless ($sql_block)  {
 		die "\n\n\t Control file error: nothing in 'SCREENSQL' block\n\n\n";
 	}
 	my $select_list     = $self->{select_list};
 	my $where_statement = $self->{where_statement};
-
+	#$devtools->print_hash($self); die;
 }
 
 #***************************************************************************

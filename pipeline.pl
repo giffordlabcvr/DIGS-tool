@@ -91,6 +91,7 @@ my ($USAGE)  = "\n\t #### DIGS Tool:\n";
   	$USAGE  .= "\n\t -m=5  retrieve FASTA sequences from a screening DB"; 
   	$USAGE  .= "\n\t -m=6  flush a screening DB"; 
   	$USAGE  .= "\n\t -m=7  drop a screening DB"; 
+  	$USAGE  .= "\n\t -m=8  summarise genome data"; 
  	$USAGE  .= "\n\n";
 
 ############################################################################
@@ -123,12 +124,16 @@ sub main {
 	GetOptions ('mode|m=i'   => \$mode, 
 			    'infile|i=s' => \$infile,
 	) or die $USAGE;
-	unless ($mode and $infile)       { die $USAGE; }
-	unless ($mode > 0 and $mode < 8) { die $USAGE; }
+
+	# Sanity checking for input 
+	if ($mode ne 8) {
+		unless ($mode and $infile)    { die $USAGE; }
+	}
+	unless ($mode > 0 and $mode <= 8) { die $USAGE; }
 
 	# Hand off to the appropriate object
 	if ($mode and $infile) {
-		$pipeline_obj->run_screen_function($mode, $infile); 
+		$pipeline_obj->run_digs_function($mode, $infile); 
 	}
 	else { # command line script called without arguments
 		$console->refresh();

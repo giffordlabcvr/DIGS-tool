@@ -552,7 +552,7 @@ sub summarise_extracted_table {
 
 #***************************************************************************
 # Subroutine:  retrieve_sequences
-# Description: 
+# Description: get sequences and create FASTA
 #***************************************************************************
 sub retrieve_sequences {
 
@@ -560,9 +560,21 @@ sub retrieve_sequences {
 	
 	my $extracted_table = $self->{extracted_table};
 	unless ($extracted_table) { die; }
-	$extracted_table->select_rows($select_ref, $data_ref, $where);
-	die;
-
+	my @data;
+	$extracted_table->select_rows($select_ref, \@data, $where);
+	foreach my $row (@data) {
+		my $sequence = $row->{sequence};
+		my @header;
+		#$devtools->print_hash($row);
+		foreach my $field (@$select_ref) {
+			if ($field eq 'sequence') { next; }
+			my $value = $row->{$field};
+			push (@header, $value);
+		}
+		my $header   = join("_", @header);
+		my $fasta    = ">$header\n$sequence\n\n";
+		push (@$data_ref, $fasta);
+	}
 }
 
 ############################################################################

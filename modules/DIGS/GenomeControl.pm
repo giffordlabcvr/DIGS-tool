@@ -26,8 +26,8 @@ use Base::Sequence;
 # Globals
 ############################################################################
 
-# Standard line length
-my $s_length = 70;
+my $s_length    = 70;           # Standard line length
+my $line_limit  = 10000000;     # Maximum number lines in file 
 
 # Create base objects
 my $fileio    = FileIO->new();
@@ -54,17 +54,14 @@ sub new {
 	$levels{2} = 'organism';
 	$levels{3} = 'source_type';
 	$levels{4} = 'version';
-	my $limit  = 10000000;
 	
 	# Set member variables
 	my $self = {
 		
 		# Paths
 		directory_levels     => \%levels,
-		limit                => $limit,
+		line_limit           => $line_limit,
 		genome_use_path      => $parameter_ref->{genome_use_path},
-		genome_data_path     => $parameter_ref->{genome_data_path},
-		tmp_path             => $parameter_ref->{tmp_path},
 		blast_bin_path       => $parameter_ref->{blast_bin_path},
 	};
 	
@@ -77,8 +74,83 @@ sub new {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  summarise_genomes
+# Description: summarise data in the 'target genomes' directory
+#***************************************************************************
+sub summarise_genomes {
+
+	my ($self) = @_;
+	
+	# Get variables from self
+	my $genome_path = $self->{genome_use_path};
+	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
+	
+	# Index genomes by key ( organism | type | version )
+	my %server_data;
+	$self->read_genome_directory(\%server_data);
+
+	# Iterate through and check formatting in each genome
+	print "\n\n\t ### Summarising genomes\n";
+	my @summary;
+	my @keys = keys %server_data;
+	foreach my $key (@keys) {
+		
+		# Get genome data
+		my $genome_ref  = $server_data{$key};
+		my $organism    = $genome_ref->{organism};
+		my $type        = $genome_ref->{source_type};
+		my $version     = $genome_ref->{version};
+		my $path        = $genome_ref->{version_path};
+		print "\n\t ### Summarising target files for '$organism'";
+		#$devtools->print_hash($genome_ref);
+
+		# Iterate through indexing by file stems
+		my $files_ref   = $genome_ref->{files};
+		my @files;
+		foreach my $file (@$files_ref) {
+			my @file_bits = split (/\./, $file);
+			my $type = pop @file_bits;
+			if ($type eq 'fa') {
+				push (@files, $file);
+			}
+		}
+		my @sorted = sort @files;
+		#$devtools->print_array(\@sorted);
+		
+		# Get statistics for each file
+		foreach my $file (@sorted) {
+		
+			# Get path to file
+			my $chunk_path = $genome_path . "/$path/$file";
+			my %data;
+			$self->get_genome_chunk_stats(\%data, $chunk_path);
+			my $total_bases    = $data{total_bases};
+			my $line_count     = $data{total_lines};
+			my $num_scaffolds  = $data{number_scaffolds};
+			#print "\n\t FILE $file: $chunk_path";
+			#$devtools->print_hash(\%data); die;
+			
+			my @line;
+			push (@line, $organism);
+			push (@line, $type);
+			push (@line, $version);
+			push (@line, $num_scaffolds);
+			push (@line, $total_bases);
+			push (@line, $line_count);
+			my $line = join("\t", @line);
+			push (@summary, "$line\n");
+		}
+	}
+
+	# write results to file
+	my $summary = "target_genomes_summary.txt";
+	print "\n\n\t ### Writing summary to '$summary'\n";
+	$fileio->write_output_file($summary, \@summary);
+}
+
+#***************************************************************************
 # Subroutine:  refresh_genomes
-# Description: check that genome data is correctly formatted for BLAST 
+# Description: refresh the 'target genomes' directory
 #***************************************************************************
 sub refresh_genomes {
 
@@ -94,7 +166,6 @@ sub refresh_genomes {
 	#$devtools->print_hash(\%server_data); die;
 
 	# Iterate through and check formatting in each genome
-	my @insert_chunks;
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
@@ -240,8 +311,6 @@ sub check_genome_formatting {
 			}
 			$stems{$stem} = \%stem_files;
 		}
-	
-	
 	}
 	#$devtools->print_hash(\%stems);
 
@@ -283,7 +352,7 @@ sub format_genome {
 
 	# Get data 
 	my $genome_path   = $self->{genome_use_path};
-	my $limit         = $self->{limit};
+	my $line_limit    = $self->{line_limit};
 	my $blast_bin_dir = $self->{blast_bin_path};
 	my $organism      = $genome_ref->{organism};
 	my $type          = $genome_ref->{source_type};
@@ -316,10 +385,10 @@ sub format_genome {
 		print "\n\t line count $line_count";
 		#$devtools->print_hash(\%data); die;
 
-		if ($num_scaffolds > 50 and $line_count > $limit) {
+		if ($num_scaffolds > 50 and $line_count > $line_limit) {
 			
 			# Work out file splitting params
-			my $split_num = int ($line_count / $limit);
+			my $split_num = int ($line_count / $line_limit);
 			if ($split_num < 1) { $split_num++; }
 			my @split_chunks;
 			my $done_split = undef;
@@ -388,7 +457,7 @@ sub get_genome_chunk_stats {
 		if ($line =~ /^\s*$/)      { next; } # discard blank line
 		$line_count++;
 		chomp $line;
-		if    ($line =~ /^>/)  { $num_scaffolds++; }
+		if  ($line =~ /^>/)  { $num_scaffolds++; }
 		else {
 			$line =~ s/\s+//g; # remove whitespace
 			my $line_length = length $line;
@@ -399,9 +468,9 @@ sub get_genome_chunk_stats {
 	
 	#open REFORMATTED_CHUNK, ">$reformat_path" or die "\n\tCan't open $reformat_path\n";
 	#print "\n\t # Paths:       $chunk_path: ";
-	print "\n\t # Line count:  $line_count";
-	print "\n\t # Base count:  $total_bases";
-	print "\n\t # Scaffolds:   $num_scaffolds";
+	#print "\n\t # Line count:  $line_count";
+	#print "\n\t # Base count:  $total_bases";
+	#print "\n\t # Scaffolds:   $num_scaffolds";
 	
 	$data_ref->{total_bases}      = $total_bases;
 	$data_ref->{total_lines}      = $line_count;
@@ -421,7 +490,7 @@ sub split_genome_chunk {
 	my ($self, $path, $file, $split_chunks_ref) = @_;
 
 	# Get data
-	my $limit = $self->{limit};
+	my $line_limit = $self->{line_limit};
 	
 	# Split the file
 	my @scaffold_chunk;
@@ -437,7 +506,7 @@ sub split_genome_chunk {
 		if  ($line =~ /^>/)  { 
 			$scaffold_count++;
 			
-			if ($line_count > $limit) {
+			if ($line_count > $line_limit) {
 				$chunk_count++;
 				my $new_path = $path . $file . '_' . $chunk_count . '.fa';
 				$fileio->write_output_file($new_path, \@scaffold_chunk);			

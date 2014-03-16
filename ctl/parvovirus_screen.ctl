@@ -1,8 +1,8 @@
 BEGIN SCREENDB;
 db_name=Parvovirus_EVEs;
 mysql_server=localhost;
-mysql_username=;      
-mysql_password=; 
+mysql_username=root;      
+mysql_password=blenat2; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;
@@ -18,5 +18,6 @@ Mammalia/Chinchilla_lanigera/
 ENDBLOCK;
 
 BEGIN SCREENSQL;
-
+select_list:Organism, assigned_name, assigned_gene, Bit_score, Scaffold, Target_name, Subject_start, Subject_end, Sequence;
+where_statement:WHERE Organism="Chinchilla_lanigera" ORDER BY Assigned_name, Bit_score DESC;
 ENDBLOCK;

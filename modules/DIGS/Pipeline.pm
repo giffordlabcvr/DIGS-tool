@@ -81,12 +81,18 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  run_screen_function
+# Subroutine:  run_digs_function
 # Description: handler for various utility processes 
 #***************************************************************************
-sub run_screen_function {
+sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
+
+	# summarizing genomes does not require a file path
+	if ($option eq 8) {  
+		my $genome_obj = GenomeControl->new($self);
+		$genome_obj->summarise_genomes();    
+	}
 
 	# Try opening control file first
 	my @ctl_file;
@@ -173,7 +179,9 @@ sub initialise {
 	print "\n\t ### Reading control file\n";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file);
-		
+	$self->{select_list}     = lc $loader_obj->{select_list};
+	$self->{where_statement} = $loader_obj->{where_statement};
+	
 	# Load screening database (includes some MacroLineage Tables
 	$loader_obj->set_screening_db();
 	$self->{db} = $loader_obj->{db};
@@ -800,14 +808,19 @@ sub retrieve {
 	unless ($select) { die; }
 
 	my $db = $self->{db};
-	my @select = split(/'/, $select);
+	my @select;
+	my @tmp  = split(/,/, $select);
+	foreach my $field (@tmp) {
+		$field =~ s/\s+//;
+		push (@select, $field);
+	}
+	#$devtools->print_array(\@select); die;
 
 	# Get params from self	
 	my @sequences;
-	$devtools->print_hash($self); die;
 	$db->retrieve_sequences(\@sequences, \@select, $where);
-	die;
-
+	my $seqfile = 'sequences.fa';
+	$fileio->write_output_file($seqfile, \@sequences);
 }
 
 ############################################################################

@@ -543,6 +543,43 @@ sub hash_to_file {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  read_sql_block
+# Description: read a NEXUS style block with elements of an SQL statement
+#***************************************************************************
+sub read_sql_block {
+
+	my ($self, $file_data_ref, $start_mark, $end_mark, $extract_ref) = @_;
+
+	# Extract the block	
+	my @block_data;
+	$self->extract_text_block($file_data_ref, \@block_data, $start_mark, $end_mark);
+	my $block_size = scalar @block_data; 
+	unless ($block_size) { # Nothing read
+		return 0;
+	} 
+
+	# Get the SQL elements from the block
+	my $captured = 0;
+	foreach my $line (@block_data) {
+		chomp $line;
+		if    ($line =~ /^\s*$/)   { next; } # discard blank line
+		elsif ($line =~ /^\s*#/)   { next; } # discard comment line 
+		my @bits = split(':', $line);
+
+		my $field = $bits[0];
+		$field =~ s/\s+//;
+		my $value = $bits[1];
+		$value =~ s/;//;
+		if ($field and $value) {
+			$captured++;
+			$extract_ref->{$field} = $value;
+			#print "\n\t $field='$value'"; # DEBUG
+		}
+	}	
+	return $captured;
+}
+
+#***************************************************************************
 # Subroutine:  read_standard_field_value_block
 # Description: read a NEXUS style block containing [field]=[value] lines 
 # Returns:     1 if block was found and lines were read
@@ -550,17 +587,16 @@ sub hash_to_file {
 sub read_standard_field_value_block {
 
 	my ($self, $file_data_ref, $start_mark, $end_mark, $extract_ref) = @_;
-	
+
+	# Extract the block	
 	my @block_data;
 	$self->extract_text_block($file_data_ref, \@block_data, $start_mark, $end_mark);
-	#$devtools->print_array(\@block_data); 
 	my $block_size = scalar @block_data; 
 	unless ($block_size) { # Nothing read
 		return 0;
 	} 
 
-	# Upload hierarchy and sequence
-	my %ref_data;
+	# Get the field-value pairs from the block
 	my $captured = 0;
 	foreach my $line (@block_data) {
 		
@@ -575,9 +611,9 @@ sub read_standard_field_value_block {
 		$value =~ s/\s+//;
 		$value =~ s/;//;
 		if ($field and $value) {
-			#print "\n\t $field='$value'"; # DEBUG
 			$captured++;
 			$extract_ref->{$field} = $value;
+			#print "\n\t $field='$value'"; # DEBUG
 		}
 	}
 	return $captured;
