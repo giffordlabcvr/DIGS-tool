@@ -142,6 +142,12 @@ sub summarise_genomes {
 		}
 	}
 
+	# add header row
+	my @header = ('Organism', 'Data type', 'Version', 'Scaffolds',
+                  '# nucleotides', '# lines');
+	my $header = join ("\t", @header);
+	$header .= "\n";
+	
 	# write results to file
 	my $summary = "target_genomes_summary.txt";
 	print "\n\n\t ### Writing summary to '$summary'\n";

@@ -137,7 +137,6 @@ sub main {
 		$pipeline_obj->run_digs_function($mode, $infile); 
 	}
 	else { # command line script called without arguments
-		$console->refresh();
 		die $USAGE; 
 	}
 
