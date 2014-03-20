@@ -88,10 +88,10 @@ my ($USAGE)  = "\n\t #### DIGS Tool:\n";
   	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
   	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 
   	$USAGE  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
-  	$USAGE  .= "\n\t -m=5  reclassify sequences after refseq library update"; 
+  	$USAGE  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
   	$USAGE  .= "\n\t -m=6  flush a screening DB"; 
   	$USAGE  .= "\n\t -m=7  drop a screening DB"; 
-  	$USAGE  .= "\n\t -m=8  summarise genome data"; 
+  	$USAGE  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
  	$USAGE  .= "\n\n";
 
 ############################################################################

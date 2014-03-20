@@ -117,14 +117,13 @@ sub run_digs_function {
 		$self->run_screen($ctl_file);	
 	}
 	elsif ($option eq 3) {  
-		die "\n\t ### Unimplemented!\n\n\n";
-		#$self->reassign($loader_obj);	
-	}
-	elsif ($option eq 4) {  
 		$db->summarise_db();
 	}
-	elsif ($option eq 5) {  
+	elsif ($option eq 4) {  
 		$self->retrieve();
+	}
+	elsif ($option eq 5) {  
+		$self->reassign();	
 	}
 	elsif ($option eq 6) {  
 		$db->flush_screening_db();
