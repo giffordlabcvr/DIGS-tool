@@ -135,7 +135,7 @@ sub summarize_module {
 	my ($self, $module_path) = @_;
 
 	my @module;
-	#$fileio->read_input_file($module_path, \@module);
+	#$fileio->read_file($module_path, \@module);
 
 	#my @expect_order = qw [ Subroutine sub ];
 	
@@ -158,7 +158,7 @@ sub summarize_module {
 	}
 
 	my $outfile = 'test';
-	#$fileio->read_input_file($outfile, \@summary);
+	#$fileio->read_file($outfile, \@summary);
 }
 
 #***************************************************************************

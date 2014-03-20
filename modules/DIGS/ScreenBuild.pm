@@ -273,7 +273,7 @@ sub create_blast_aa_lib {
 	
 	my $blast_program = 'makeblastdb';
 	my $aa_lib_path = $report_dir . "/reference_lib_aa.fas";
-	$fileio->write_output_file($aa_lib_path, $aa_lib_ref); 
+	$fileio->write_file($aa_lib_path, $aa_lib_ref); 
 	my $blast_bin_dir = $self->{blast_bin_path};
 	my $bin_path;
 	if ($blast_bin_dir) {
@@ -301,7 +301,7 @@ sub create_blast_nt_lib {
        unless ($report_dir) { die; }
        my $blast_program = 'makeblastdb';
        my $nt_lib_path = $report_dir . "/reference_lib_nt.fas";
-       $fileio->write_output_file($nt_lib_path, $nt_lib_ref);
+       $fileio->write_file($nt_lib_path, $nt_lib_ref);
 
        my $blast_bin_dir = $self->{blast_bin_path};
        my $bin_path;
@@ -716,7 +716,7 @@ sub parse_control_file {
 	
 	# Read input file
 	my @ctl_file;
-	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
 
 	# Parse the 'SCREENDB' block
 	my $start = 'BEGIN SCREENDB';

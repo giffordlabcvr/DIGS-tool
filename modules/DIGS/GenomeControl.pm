@@ -145,7 +145,7 @@ sub summarise_genomes {
 	# write results to file
 	my $summary = "target_genomes_summary.txt";
 	print "\n\n\t ### Writing summary to '$summary'\n";
-	$fileio->write_output_file($summary, \@summary);
+	$fileio->write_file($summary, \@summary);
 }
 
 #***************************************************************************
@@ -509,7 +509,7 @@ sub split_genome_chunk {
 			if ($line_count > $line_limit) {
 				$chunk_count++;
 				my $new_path = $path . $file . '_' . $chunk_count . '.fa';
-				$fileio->write_output_file($new_path, \@scaffold_chunk);			
+				$fileio->write_file($new_path, \@scaffold_chunk);			
 				push (@$split_chunks_ref, $new_path);
 				
 				$scaffold_count = 1; # reset scaffold count
@@ -532,7 +532,7 @@ sub split_genome_chunk {
 	# Store last chunk 
 	$chunk_count++;
 	my $new_path = $path . $file . '_' . $chunk_count . '.fa';
-	$fileio->write_output_file($new_path, \@scaffold_chunk);			
+	$fileio->write_file($new_path, \@scaffold_chunk);			
 	push (@$split_chunks_ref, $new_path);
 	
 	# Remove the original file

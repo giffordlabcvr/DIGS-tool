@@ -257,7 +257,7 @@ sub read_text_file_dir_to_hash {
 		}
 		else {
 			my @file;
-			$self->read_input_file($file_path, \@file);
+			$self->read_file($file_path, \@file);
 			$hash_ref->{$file} = \@file;
 		}
 	}
@@ -427,12 +427,12 @@ sub recursive_read {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  read_input_file
+# Subroutine:  read_file
 # Description: read an input file to an array
 # Arguments:   $file: the name of the file to read
 #              $array_ref: array to copy to
 #***************************************************************************
-sub read_input_file {
+sub read_file {
 
 	my ($self, $file, $array_ref) = @_;
 
@@ -496,12 +496,12 @@ sub append_text_to_file {
 }
 
 #***************************************************************************
-# Subroutine:  write_output_file
+# Subroutine:  write_file
 # Description: write an array to an ouput file
 # Arguments:   $file: the name of the file to write to 
 #              $array_ref: array to copy
 #***************************************************************************
-sub write_output_file {
+sub write_file {
 
 	my ($self, $file, $array_ref) = @_;
 	unless (open(OUTFILE, ">$file")) {

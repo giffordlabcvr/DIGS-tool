@@ -96,7 +96,7 @@ sub run_digs_function {
 
 	# Try opening control file first
 	my @ctl_file;
-	my $valid = $fileio->read_input_file($ctl_file, \@ctl_file);
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
 	unless ($valid) {
 		print "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
 		exit;
@@ -820,7 +820,7 @@ sub retrieve {
 	my @sequences;
 	$db->retrieve_sequences(\@sequences, \@select, $where);
 	my $seqfile = 'sequences.fa';
-	$fileio->write_output_file($seqfile, \@sequences);
+	$fileio->write_file($seqfile, \@sequences);
 }
 
 ############################################################################

@@ -553,7 +553,7 @@ sub write_fasta {
 		push (@fasta, $fasta);
 	}
 	
-	$fileio->write_output_file($file, \@fasta);
+	$fileio->write_file($file, \@fasta);
 }
 
 ############################################################################

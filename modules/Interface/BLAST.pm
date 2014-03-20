@@ -128,7 +128,7 @@ sub parse_tab_format_results {
 	# Read the file into an array
 	my $fileio = FileIO->new();
 	my @file;
-	$fileio->read_input_file($file, \@file);
+	$fileio->read_file($file, \@file);
 
 	# Process the file
 	my @matches;

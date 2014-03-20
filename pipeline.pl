@@ -5,12 +5,12 @@
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
-# Include a local library of PERL modules 
-use lib './modules/'; 
 unless ($ENV{GENOMES}) {
 	print  "\n\n\t PLEASE DEFINE '\$GENOMES' (Path to genome data directory)\n\n\n";
 	exit;
 }
+# Include a local library of PERL modules 
+use lib './modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -42,16 +42,16 @@ use DIGS::DB;
 ############################################################################
 
 # Paths
-my $blast_bin_path        = '';                  # path to directory with BLAST+ programs
-                                                 # leave blank if BLAST+ programs in path 
+my $blast_bin_path        = '';              # path to directory with BLAST+ programs
+                                             # leave blank if BLAST+ programs in path 
 #my $blast_bin_path       = './bin/blast/';      
-my $genome_use_path       = $ENV{GENOMES};       # Genome data directory
-my $output_path           = './process/';        # Process directory
+my $genome_use_path       = $ENV{GENOMES};   # genome data directory
+my $output_path           = './';            # default write results to same directory as script
 	
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
 my $time = time;
-my $process_id   = $pid . '_' . $time;
+my $process_id   = 'result_set_' . $pid . '_' . $time;
 
 ############################################################################
 # Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
@@ -86,9 +86,9 @@ my ($USAGE)  = "\n\t #### DIGS Tool:\n";
     $USAGE  .= "\n\t usage: $0 -m=[option] -i=[infile]\n";
   	$USAGE  .= "\n\t -m=1  create a screening DB"; 
   	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
-  	$USAGE  .= "\n\t -m=3  reclassify sequences after refseq library update"; 
-  	$USAGE  .= "\n\t -m=4  summarise a screening DB"; 
-  	$USAGE  .= "\n\t -m=5  retrieve FASTA sequences from a screening DB"; 
+  	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 
+  	$USAGE  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
+  	$USAGE  .= "\n\t -m=5  reclassify sequences after refseq library update"; 
   	$USAGE  .= "\n\t -m=6  flush a screening DB"; 
   	$USAGE  .= "\n\t -m=7  drop a screening DB"; 
   	$USAGE  .= "\n\t -m=8  summarise genome data"; 
