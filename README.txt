@@ -2,11 +2,10 @@
 # README for Database-Integrated Genome Screening Tool
 ############################################################################
 
-This package comprises a framework - implemented in PERL - for performing
-so-called 'reciprocal' or 'bi-directional' similarity search-based
+This package comprises a framework for performing bi-directional BLAST-based
 screening of biological sequence databases.
 
-In a reciprocal similarity search-based screening, a set of 'probe'
+In bidrectional BLAST-based screening, a set of 'probe'
 sequences are used to search one or more 'target' sequence files (typically
 large files, such as chromosome assemblies, or collections of whole genome
 shotgun (WGS) contigs). Sequences in target files that disclose
@@ -15,12 +14,11 @@ second similarity search, wherein they are compared to a set of 'reference'
 sequences representing genetic diversity among the sequences under
 investigation.
 
-The database-guided genome screening (DIGS) tool uses the BLAST+ program
-suite to perform sequence similarity searches, and captures data in MySQL
-database tables.
-
-It requires PERL 5.8 or higher, with the PERL DBI (database interface)
-module installed, and is designed for use with locally stored genome data.
+The database-guided genome screening (DIGS) tool is designed for use with
+locally stored genome data. It requires the BLAST+ program suite to perform
+sequence similarity searches, and captures data in MySQL database tables.
+It also requires PERL with the PERL DBI (database interface) module
+installed. 
 
 ############################################################################
 # Getting Started
@@ -102,41 +100,10 @@ specifies which sequences to use as probes, which sequence files to screen
 in the initial 'search' round of reciprocal BLAST, and which reference 
 sequence library to use in the second 'classify' round.
 
-# Structure of the control file
+An example control file can be found in this package, under:
 
-The control file follows the format of NEXUS files, with blocks defined by
-'BEGIN' and 'ENDBLOCK' tokens.
+./example/ctl/bornavirus_screen.ctl
 
-BEGIN SCREENDB;
-db_name=Bornavirus_EVEs; # Name of screening DB (avoid special chars)
-mysql_server=localhost;  # MySQL server to use (e.g. 'localhost' if using local database) 
-mysql_username=;         # Name of user with CREATE, DROP, SELECT, ALTER, DELETE privileges
-mysql_password=;         # $mysql_password: Password of the above user
-ENDBLOCK;
-
-BEGIN SCREENSETS;
-query_aa_fasta=db/probes.fa;       # Path to file with amino acid probe sequences
-query_nt_fasta=db/probes.fa;       # Path to file with nucleic acid probe sequences
-reference_aa_fasta=db/refseqs.fa;  # Path to file with amino acid reference sequences
-reference_nt_fasta=db/refseqs.fa;  # Path to file with nucleic acid reference sequences
-bit_score_min_tblastn=100;         # Minimum bit score of tBLASTn hit to extract
-bit_score_min_blastn=80;           # Minimum bit score of BLASTn hit to extract
-seq_length_minimum=100;            # Minimum sequence length of BLAST hit to extract
-ENDBLOCK;
-
-BEGIN PARAMS;           
-ENDBLOCK;
-
-BEGIN TARGETS;                     # List of target databases
-Mammalia/Homo_sapiens/
-Mammalia/Pan_troglodytes/
-ENDBLOCK;
-
-BEGIN SCREENSQL;
-
-ENDBLOCK;
-
-Note that not all the parameters shown above need to be defined.
 
 ############################################################################
 #*** STEP FOUR: run the screen
@@ -151,16 +118,13 @@ To start screening run pipeline.pl as follows
 
 ./pipeline.pl         # Main process control script
 
-### db directory 
-screenset/            # defaukt directory to store probe and reference sequences
-
-### process directory
-process/              # contains files generated during screening process
-
 ### modules directory -  PERL modules
 modules/Base/         # Some base functions (IO etc), used by everything
 modules/Interface/    # Interfaces to BLAST and MySQL
 modules/DIGS/         # Program-specific functionality
+
+### examples directory -  worked examples for DIGS
+
 
 ############################################################################
 # LICENSE
