@@ -125,20 +125,14 @@ sub main {
 			    'infile|i=s' => \$infile,
 	) or die $USAGE;
 
-	# Hand off to the appropriate object
-	if ($mode and $infile) {
-		
-		# Sanity checking for input 
-		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
-		if ($mode ne 8) {
-			unless ($mode and $infile)    { die $USAGE; }
-		}
-
-		$pipeline_obj->run_digs_function($mode, $infile); 
+	# Sanity checking for input 
+	unless ($mode > 0 and $mode <= 8) { die $USAGE; }
+	if ($mode ne 8) {
+		unless ($mode and $infile)    { die $USAGE; }
 	}
-	else { # command line script called without arguments
-		die $USAGE; 
-	}
+	
+	# Hand off to Pipeline.pm
+	$pipeline_obj->run_digs_function($mode, $infile); 
 
 }
 

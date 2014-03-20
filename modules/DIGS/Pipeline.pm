@@ -92,6 +92,7 @@ sub run_digs_function {
 	if ($option eq 8) {  
 		my $genome_obj = GenomeControl->new($self);
 		$genome_obj->summarise_genomes();    
+		return;
 	}
 
 	# Try opening control file first

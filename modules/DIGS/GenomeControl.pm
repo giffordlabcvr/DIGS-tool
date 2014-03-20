@@ -89,9 +89,16 @@ sub summarise_genomes {
 	my %server_data;
 	$self->read_genome_directory(\%server_data);
 
+	# add header row
+	my @summary;
+	my @header = ('Organism', 'Data type', 'Version', 'Scaffolds',
+                  '# nucleotides', '# lines');
+	my $header = join ("\t", @header);
+	$header .= "\n";
+	push (@summary, $header);
+
 	# Iterate through and check formatting in each genome
 	print "\n\n\t ### Summarising genomes\n";
-	my @summary;
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
@@ -142,12 +149,6 @@ sub summarise_genomes {
 		}
 	}
 
-	# add header row
-	my @header = ('Organism', 'Data type', 'Version', 'Scaffolds',
-                  '# nucleotides', '# lines');
-	my $header = join ("\t", @header);
-	$header .= "\n";
-	
 	# write results to file
 	my $summary = "target_genomes_summary.txt";
 	print "\n\n\t ### Writing summary to '$summary'\n";
