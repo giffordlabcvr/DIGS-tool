@@ -14,7 +14,7 @@ second similarity search, wherein they are compared to a set of 'reference'
 sequences representing genetic diversity among the sequences under
 investigation.
 
-The database-guided genome screening (DIGS) tool is designed for use with
+The database-integrated genome screening (DIGS) tool is designed for use with
 locally stored genome data. It requires the BLAST+ program suite to perform
 sequence similarity searches, and captures data in MySQL database tables.
 It also requires PERL with the PERL DBI (database interface) module
