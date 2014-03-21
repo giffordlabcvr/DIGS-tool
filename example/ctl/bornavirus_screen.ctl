@@ -2,7 +2,7 @@ BEGIN SCREENDB;
 db_name=Bornavirus_EVEs;
 mysql_server=localhost;
 mysql_username=root;      
-mysql_password=; 
+mysql_password=MyCVR!2; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;

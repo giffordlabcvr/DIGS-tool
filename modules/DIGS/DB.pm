@@ -419,32 +419,35 @@ sub summarise_db {
 	my $db_name = $self->{db_name};
 	print "\n\n\t ### Summarizing '$db_name' screening database";
 	
-	# Summarise BLAST_results  table
-	my $executed = $self->summarise_BLAST_results_table();
-	
+	# Summarise status table
+	my $executed = $self->summarise_status_table();	
+	$self->{status_table_count} = $executed;
 	if ($executed) {
+
+		# Summarise BLAST_results  table
+		$self->summarise_BLAST_results_table();
+	
 		# Summarise Extracted  table
 		$self->summarise_extracted_table();
 	}
 }
 
 #***************************************************************************
-# Subroutine:  summarise BLAST_results table
+# Subroutine:  summarise_status_table
 # Description: 
 #***************************************************************************
-sub summarise_BLAST_results_table {
+sub summarise_status_table {
 
 	my ($self, $done_ref) = @_;
-
-	my $blast_table = $self->{blast_results_table};
-
-	my @status_data;
-	my @status_fields = qw [ organism probe_name probe_gene ];
-	$blast_table->select_rows(\@status_fields, \@status_data);
+	
+	my $status_table = $self->{status_table};
+	my @data;
+	my @fields = qw [ organism probe_name probe_gene ];
+	$status_table->select_rows(\@fields, \@data);
 	my $executed;
 	my %organism;
 	my %probe_id;
-	foreach my $data_ref (@status_data) {
+	foreach my $data_ref (@data) {
 
 		my $organism   = $data_ref->{organism};
 		my $probe_name = $data_ref->{probe_name};
@@ -484,7 +487,19 @@ sub summarise_BLAST_results_table {
 		my $by_probe_id = $probe_id{$probe_id};
 		print "\n\t #  $by_probe_id searches using $probe_id";
 	}
+	sleep 1;
+	return $executed;
+}
 
+#***************************************************************************
+# Subroutine:  summarise BLAST_results table
+# Description: 
+#***************************************************************************
+sub summarise_BLAST_results_table {
+
+	my ($self, $done_ref) = @_;
+	
+	my $blast_table = $self->{blast_results_table};
 	my @data;
 	my @fields = qw [ organism target_name  ];
 	push (@fields,  "count(*) AS 'number'");
@@ -502,14 +517,13 @@ sub summarise_BLAST_results_table {
 	foreach my $data_ref (@data) {
 		# get the data	
 		my $organism    = $data_ref->{organism};
-		my $target_name  = $data_ref->{target_name};
+		my $chunk_name  = $data_ref->{target_name};
 		my $number      = $data_ref->{number};
 		print "\n\t #  $number hits in:";
-		print "    $organism genome, target file $target_name\t";
+		print "    $organism genome, target file $chunk_name\t";
 	}
 	sleep 1;
 
-	return $executed;
 }
 
 #***************************************************************************

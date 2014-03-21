@@ -125,8 +125,8 @@ sub set_up_screen  {
 	my $num_queries = scalar keys %$queries_ref;
 	unless ( $num_queries ) {
 		die "\n\t ### No screening queries were loaded\n\n\n";
-		#$devtools->print_hash($queries_ref); die;	# DEBUG
 	}
+	#$devtools->print_hash($queries_ref); die;	# DEBUG
 
 	# transfer parameters from this object to the pipeline object
 	$pipeline_obj->{db}                 = $self->{db};
@@ -333,58 +333,77 @@ sub set_targets {
 	# Iterate through targets set target file paths
 	my %paths;
 	my %target_data;
+	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
-	my @organisms = keys %$target_paths_ref;
-	my $num_organisms = scalar @organisms;
-	unless ($num_organisms) { die; }
-	foreach my $organism (@organisms) {
-
-		my $data_ref = $target_paths_ref->{$organism};
-		my $path     = $data_ref->{path};
-		unless ($path) { die; }
-	
-		#print "\n\t $organism: PATH $path";
-		my $exists = $fileio->check_directory_exists($path);
+	unless ($target_paths_ref) { die; } 
+	foreach my $path (@$target_paths_ref) {
+		
+		my $full_path = $genome_use_path . "/$path";	
+		my $exists = $fileio->check_directory_exists($full_path);
+		my @leaves;
 		if ($exists) {
-			
-			my @leaves;
-			$fileio->read_directory_tree_leaves_simple($path, \@leaves);
-			my $num_files = scalar @organisms;
-			unless ($num_files) { die "\n\t No files read for $organism: PATH $path"; }
-			#$devtools->print_array(\@leaves);
-			
-			foreach my $file_ref (@leaves) {
-				my $file      = $file_ref->{file};
-				my $file_type = $fileio->get_infile_type($file);
-				if ($file_type eq 'fa') {
-					$file_ref->{organism} = $organism;
-					my $path = $file_ref->{path};
-					my %path_elements;
-					$self->get_path_elements(\%path_elements, $path); 
-
-					my %data;
-					$data{file}      = $file;
-					$data{path}      = $path;
-					$data{organism}  = $organism;
-					my $version      = $path_elements{version};
-					my $data_type    = $path_elements{data_type};
-					my @target = ( $organism , $data_type, $version, $file );
-					my $target_id = join ('|', @target);
-					#print "\n\t KEY $target_id"; die;
-
-					# Store using key
-					$data{version}   = $path_elements{version};
-					$data{data_type} = $path_elements{data_type};
-					$data{group}     = $path_elements{group};
-					$targets_ref->{$target_id} = \%data;	
-				}
-				elsif ($file_type eq 'fas') {
-					die;
-				}
-			}
+		    print "\n\t Reading leaves for PATH $full_path";
+			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
+			#$devtools->print_array(\@leaves); die;
 		}
+		else {
+			#die "\n\t # Couldn't open directory '$path'\n\n\n";
+			$path =~ s/\/\//\//g;
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my %file;
+			$file{file} = $file;
+			$file{path} = $full_path;
+			push (@leaves, \%file);
+		}
+		$self->read_genome_files(\@leaves, $targets_ref);		
 	}
 	#$devtools->print_hash($targets_ref); die; # DEBUG
+}
+
+
+#***************************************************************************
+# Subroutine:  read genome files
+# Description: processes the top level (leaves) of the genome directory
+#***************************************************************************
+sub read_genome_files {
+	
+	my ($self, $leaves_ref, $targets_ref) = @_;
+
+	#print "\n\t PATH '$path'";
+	foreach my $file_ref (@$leaves_ref) {
+
+		my $file = $file_ref->{file};
+		my $path = $file_ref->{path};
+	
+		my $file_type = $fileio->get_infile_type($file);
+		#if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
+		if ($file_type eq 'fa') {
+			
+			my %path_elements;
+			$self->get_path_elements(\%path_elements, $path); 
+			
+			my $organism     = $path_elements{organism};
+			my $data_type    = $path_elements{data_type};
+			my $version      = $path_elements{version};
+			unless ($organism and $data_type and $version) { die; }
+			my @target = ( $organism , $data_type, $version, $file );
+			my $target_id = join ('|', @target);
+			#print "\n\t KEY $target_id"; die;
+
+			# Store using key
+			my %data;
+			$data{file}      = $file;
+			$data{path}      = $path;
+			$data{organism}  = $organism;
+			$data{version}   = $version;
+			$data{data_type} = $data_type;
+			$data{group}     = $path_elements{group};
+			$targets_ref->{$target_id} = \%data;	
+		}
+	}
+
+
 }
 
 #***************************************************************************
@@ -398,33 +417,19 @@ sub get_path_elements {
 	#print "\n\t PATH '$path'";
 	$path =~ s/\/\//\//g;
 	my @path = split(/\//, $path);
-	my $organism = pop @path;
+	my $file     = pop @path;
 	my $version  = pop @path;
 	my $type     = pop @path;
+	my $organism = pop @path;
 	my $group    = pop @path;
 	$elements_ref->{organism}  = $organism;
 	$elements_ref->{version}   = $version;
 	$elements_ref->{data_type} = $type;
 	$elements_ref->{group}     = $group;
+	$elements_ref->{file}      = $file;
 	#$devtools->print_array(\@path); die;
 	#$devtools->print_hash($elements_ref); die;
 
-}
-
-#***************************************************************************
-# Subroutine:   validate_genome_file 
-# Description:  TODO 
-#***************************************************************************
-sub validate_genome_file {
-	
-	my ($self, $elements_ref, $path) = @_;
-
-	#my $error = $fileio->check_file_exists($path);
-	#if ($error) {
-	#	return $error;
-	#}
-	# TODO Attempt to read the target genomes
-	#die;
 }
 
 ############################################################################
@@ -800,12 +805,14 @@ sub parse_control_file {
 	
 	# Parse the target strings
 	my $targets = 0;
+	my @targets;
 	foreach my $line (@target_block) {
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
 		chomp $line;
-		$self->parse_target($line);
+		push (@targets, $line);
 		$targets++;
 	}
+	$self->{target_paths} = \@targets;
 
 	# READ the 'SCREENSQL' block
 	$start = 'BEGIN SCREENSQL';
@@ -817,34 +824,6 @@ sub parse_control_file {
 	my $select_list     = $self->{select_list};
 	my $where_statement = $self->{where_statement};
 	#$devtools->print_hash($self); die;
-}
-
-#***************************************************************************
-# Subroutine:  parse_targets
-# Description: 
-#***************************************************************************
-sub parse_target {
-
-	my ($self, $target_string) = @_;
-
-	# Get the target information
-	#print "\n\t ### Getting target genome data\n";
-	my %targets;
-	my $genome_path = $self->{genome_use_path};
-	my @split_string  = split("\/", $target_string);
-	my $genome_group  = shift @split_string;
-	my $organism      = shift @split_string;
-	my $path		  = $genome_path . "/$genome_group/$organism/"; 
-	
-	my %data;
-	$data{path}         = $path;
-	$data{genome_group} = $genome_group;
-	$data{organism}     = $organism;
-	$targets{$organism} = \%data;	
-	
-	# validate targets
-	$self->{target_paths} = \%targets;	
-	#print "\n\t Got genome in group $genome_group species $organism";
 }
 
 ############################################################################
