@@ -342,7 +342,7 @@ sub set_targets {
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
 		if ($exists) {
-		    print "\n\t Reading leaves for PATH $full_path";
+		    #print "\n\t Reading leaves for PATH $full_path";
 			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
 			#$devtools->print_array(\@leaves); die;
 		}

@@ -112,7 +112,8 @@ sub run_digs_function {
 	# If DB has been created previously, initialise the DIGS tool using control file
 	$self->initialise($ctl_file);
 	my $db = $self->{db};
-
+	#$devtools->print_hash($self); die;
+	
 	# Hand off to functions 2-7, based on the options received
 	if ($option eq 2) {  
 		$self->run_screen($ctl_file);	
@@ -181,10 +182,20 @@ sub initialise {
 	$loader_obj->parse_control_file($ctl_file);
 	$self->{select_list}     = lc $loader_obj->{select_list};
 	$self->{where_statement} = $loader_obj->{where_statement};
+	$self->{db_name}         = $loader_obj->{db_name};
+	$self->{server}          = $loader_obj->{mysql_server};
+	$self->{password}        = $loader_obj->{mysql_password};
+	$self->{username}        = $loader_obj->{mysql_username};
+	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
+	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
+	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
+	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
+	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
 	
 	# Load screening database (includes some MacroLineage Tables
 	$loader_obj->set_screening_db();
 	$self->{db} = $loader_obj->{db};
+	$self->{loader_obj} = $loader_obj;
 	
 }
 
@@ -640,19 +651,21 @@ sub check_if_locus_extracted {
 #***************************************************************************
 sub reassign {
 	
-	my ($self, $loader_obj) = @_;
+	my ($self) = @_;
 
 	# Set up to perform the reassign process
 	print "\n\t # Reassigning Extracted table";
 	my @assigned_seqs;
-	$self->initialise_reassign($loader_obj, \@assigned_seqs);
+	$self->initialise_reassign(\@assigned_seqs);
+
 
 	# Get data structures and variables from self
 	my $blast_obj       = $self->{blast_obj};
 	my $result_path     = $self->{report_dir};
 	my $db              = $self->{db};
 	my $extracted_table = $db->{extracted_table};
-	unless ($result_path) { die; }
+	unless ($extracted_table) { die; }
+
 	
 	# Iterate through the matches
 	foreach my $row_ref (@assigned_seqs) {
@@ -678,6 +691,7 @@ sub reassign {
 		print "\n\t ##### BLAST BACK for $blast_id, $genome";
 		my $blast_alg;
 		my $lib_path;
+
 		unless ($probe_type) { die; }
 		if ($probe_type eq 'UTR') {
 			$lib_path  = $self->{blast_utr_lib_path};
@@ -712,13 +726,14 @@ sub reassign {
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
 			# Adjust to get extract coordinates using the top match
-			my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
-			my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+			#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
+			#my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+			#$update_row{realex_start}  = $real_st;
+			#$update_row{realex_end}    = $real_end;
+			
 			my %update_row;
 			$update_row{assigned_name}   = $assigned_name;
 			$update_row{assigned_gene} = $assigned_gene;
-			$update_row{realex_start}  = $real_st;
-			$update_row{realex_end}    = $real_end;
 			$update_row{extract_start} = $extract_start;
 			$update_row{extract_end}   = $extract_end;
 			$update_row{identity}      = $top_match->{identity};
@@ -748,15 +763,15 @@ sub reassign {
 #***************************************************************************
 sub initialise_reassign {
 
-	my ($self, $loader_obj, $assigned_seqs_ref) = @_;
-
-	$self->show_title();
+	my ($self, $assigned_seqs_ref) = @_;
 
 	# Create a unique ID and report directory for this run
 	my $output_path = $self->{output_path};
 	my $process_id  = $self->{process_id};
 	my $db          = $self->{db};
 	my $db_name     = $db->{db_name};
+	unless ($db and $db_name) { die; }
+
 	
 	unless ($process_id and $output_path) { die; }
 	my $report_dir  = $output_path . $process_id . '/';
@@ -765,7 +780,6 @@ sub initialise_reassign {
 	$fileio->create_unique_directory($tmp_path);
 	$self->{tmp_path}   = $tmp_path . '/';
 	$self->{report_dir} = $report_dir;
-	$loader_obj->{report_dir} = $report_dir;
 	
 	# Get the assigned data
 	my $extracted_table = $db->{extracted_table};
@@ -773,21 +787,25 @@ sub initialise_reassign {
 	                       subject_start subject_end sequence organism ];
 	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
 
-	# Transfer parameters from loader to this obj
-
 	# Set up the reference library
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->{report_dir} = $report_dir;
 	if ($loader_obj->{reference_aa_fasta}) {
 		$loader_obj->load_aa_fasta_reference_library();
 	}
 	if ($loader_obj->{reference_nt_fasta}) {
 		$loader_obj->load_nt_fasta_reference_library();
 	}
+	#$devtools->print_hash($loader_obj); die;
 
+	# Transfer parameters from loader to this obj
 	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
 	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
 	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
 	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
 	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
+	
+
 }
 
 ############################################################################

@@ -126,9 +126,14 @@ sub main {
 	) or die $USAGE;
 
 	# Sanity checking for input 
-	unless ($mode > 0 and $mode <= 8) { die $USAGE; }
-	if ($mode ne 8) {
-		unless ($mode and $infile)    { die $USAGE; }
+	if ($mode) {
+		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
+		if ($mode ne 8) {
+			unless ($mode and $infile)    { die $USAGE; }
+		}
+	}
+	else {
+		die $USAGE;
 	}
 	
 	# Hand off to Pipeline.pm
