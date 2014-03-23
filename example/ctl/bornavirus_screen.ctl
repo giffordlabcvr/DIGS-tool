@@ -7,14 +7,15 @@ ENDBLOCK;
 
 BEGIN SCREENSETS;
 query_aa_fasta=example/screensets/bornavirus/bornavirus_probes.fa;
-reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library_update.fa;
-#reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library.fa;
+reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library.fa;
+#reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library_update.fa;
 bit_score_min_tblastn=100;
 seq_length_minimum=100;
 ENDBLOCK;
 
 BEGIN TARGETS;
-Mammalia/Homo_sapiens/
+#Mammalia/Homo_sapiens/
+Mammalia/Homo_sapiens/complete/ensembl_hg19/chr9.fa
 ENDBLOCK;
 
 BEGIN SCREENSQL;

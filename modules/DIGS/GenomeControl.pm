@@ -91,7 +91,7 @@ sub summarise_genomes {
 
 	# add header row
 	my @summary;
-	my @header = ('Organism', 'Data type', 'Version', 'Scaffolds',
+	my @header = ('File', 'Organism', 'Data type', 'Version', 'Scaffolds',
                   '# nucleotides', '# lines');
 	my $header = join ("\t", @header);
 	$header .= "\n";
@@ -138,6 +138,7 @@ sub summarise_genomes {
 			#$devtools->print_hash(\%data); die;
 			
 			my @line;
+			push (@line, $file);
 			push (@line, $organism);
 			push (@line, $type);
 			push (@line, $version);
