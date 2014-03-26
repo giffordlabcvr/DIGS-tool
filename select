@@ -1,0 +1,787 @@
+modules/DIGS/DB.pm:#!/usr/bin/perl -w
+modules/DIGS/DB.pm:my $seqio     = SeqIO->new();
+modules/DIGS/DB.pm:my $fileio    = FileIO->new();
+modules/DIGS/DB.pm:my $devtools  = DevTools->new();
+modules/DIGS/DB.pm:my $console   = Console->new();
+modules/DIGS/DB.pm:		server                => $parameters->{mysql_server},
+modules/DIGS/DB.pm:		username              => $parameters->{mysql_username},
+modules/DIGS/DB.pm:		password              => $parameters->{mysql_password},
+modules/DIGS/DB.pm:	my $server   = $self->{server};
+modules/DIGS/DB.pm:	my $username = $self->{username};
+modules/DIGS/DB.pm:	my $password = $self->{password};
+modules/DIGS/DB.pm:	$self->{db_name} = $db_name;
+modules/DIGS/DB.pm:	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
+modules/DIGS/DB.pm:	$self->{dbh} = $dbh;
+modules/DIGS/DB.pm:	$self->load_blast_results_table($dbh);	
+modules/DIGS/DB.pm:	$self->load_extracted_table($dbh);	
+modules/DIGS/DB.pm:	$self->load_status_table($dbh);
+modules/DIGS/DB.pm:	my $blast_table = MySQLtable->new('BLAST_results', $dbh, \%blast_fields);
+modules/DIGS/DB.pm:	$self->{blast_results_table} = $blast_table;
+modules/DIGS/DB.pm:	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
+modules/DIGS/DB.pm:	$self->{extracted_table} = $extract_table;
+modules/DIGS/DB.pm:	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
+modules/DIGS/DB.pm:	$self->{status_table} = $status_table;
+modules/DIGS/DB.pm:	my $server   = $self->{server};
+modules/DIGS/DB.pm:	my $username = $self->{username};
+modules/DIGS/DB.pm:	my $password = $self->{password};
+modules/DIGS/DB.pm:    my $drh = DBI->install_driver("mysql");
+modules/DIGS/DB.pm:    my $rc = $drh->func("createdb", $db_name, $server, $username, $password, 'admin');
+modules/DIGS/DB.pm:    my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
+modules/DIGS/DB.pm:	$self->create_blast_results_table($dbh);
+modules/DIGS/DB.pm:	$self->create_extracted_table($dbh);
+modules/DIGS/DB.pm:	$self->create_status_table($dbh);
+modules/DIGS/DB.pm:	my $sth = $dbh->prepare($blast_results);
+modules/DIGS/DB.pm:	unless ($sth->execute()) { print "\n\t$blast_results\n\n\n"; exit;}
+modules/DIGS/DB.pm:	my $sth = $dbh->prepare($extracted);
+modules/DIGS/DB.pm:	unless ($sth->execute()) { print "\n\t$extracted\n\n\n"; exit;}
+modules/DIGS/DB.pm:	my $sth = $dbh->prepare($status);
+modules/DIGS/DB.pm:	unless ($sth->execute()) { print "\n\t$status\n\n\n"; exit;}
+modules/DIGS/DB.pm:	my $status_table = $self->{status_table};
+modules/DIGS/DB.pm:	$status_table->select_rows(\@fields, \@data, $where);
+modules/DIGS/DB.pm:		my $organism    = $data_ref->{organism};
+modules/DIGS/DB.pm:		my $data_type   = $data_ref->{data_type};
+modules/DIGS/DB.pm:		my $version     = $data_ref->{version};
+modules/DIGS/DB.pm:		my $target_name = $data_ref->{target_name};
+modules/DIGS/DB.pm:		my $probe_name  = $data_ref->{probe_name};
+modules/DIGS/DB.pm:		my $probe_gene  = $data_ref->{probe_gene};
+modules/DIGS/DB.pm:		#$devtools->print_hash($data_ref); die; # DEBUG
+modules/DIGS/DB.pm:		$done_ref->{$key} = 1;		
+modules/DIGS/DB.pm:	#$devtools->print_hash($done_ref); die;
+modules/DIGS/DB.pm:	my $db_name = $self->{db_name};
+modules/DIGS/DB.pm:	my $executed = $self->summarise_status_table();	
+modules/DIGS/DB.pm:	$self->{status_table_count} = $executed;
+modules/DIGS/DB.pm:		$self->summarise_BLAST_results_table();
+modules/DIGS/DB.pm:		$self->summarise_extracted_table();
+modules/DIGS/DB.pm:	my $status_table = $self->{status_table};
+modules/DIGS/DB.pm:	$status_table->select_rows(\@fields, \@data);
+modules/DIGS/DB.pm:		my $organism   = $data_ref->{organism};
+modules/DIGS/DB.pm:		my $probe_name = $data_ref->{probe_name};
+modules/DIGS/DB.pm:		my $probe_gene = $data_ref->{probe_gene};
+modules/DIGS/DB.pm:	print "\n\t #  ---";
+modules/DIGS/DB.pm:	print "\n\t #  ---";
+modules/DIGS/DB.pm:	my $blast_table = $self->{blast_results_table};
+modules/DIGS/DB.pm:	$blast_table->select_rows(\@fields, \@data, $where);
+modules/DIGS/DB.pm:		my $number = $data_ref->{number};
+modules/DIGS/DB.pm:	print "\n\t #  ---";
+modules/DIGS/DB.pm:		my $organism    = $data_ref->{organism};
+modules/DIGS/DB.pm:		my $chunk_name  = $data_ref->{target_name};
+modules/DIGS/DB.pm:		my $number      = $data_ref->{number};
+modules/DIGS/DB.pm:	my $extracted_table = $self->{extracted_table};
+modules/DIGS/DB.pm:	$extracted_table->select_rows(\@fields, \@data, $where);
+modules/DIGS/DB.pm:		my $number = $data_ref->{number};
+modules/DIGS/DB.pm:	print "\n\t #  ---";
+modules/DIGS/DB.pm:		my $organism         = $data_ref->{organism};
+modules/DIGS/DB.pm:		my $assigned_name    = $data_ref->{assigned_name};
+modules/DIGS/DB.pm:		my $assigned_gene    = $data_ref->{assigned_gene};
+modules/DIGS/DB.pm:		my $number           = $data_ref->{number};
+modules/DIGS/DB.pm:	my $extracted_table = $self->{extracted_table};
+modules/DIGS/DB.pm:	$extracted_table->select_rows($select_ref, \@data, $where);
+modules/DIGS/DB.pm:		my $sequence = $row->{sequence};
+modules/DIGS/DB.pm:		#$devtools->print_hash($row);
+modules/DIGS/DB.pm:			my $value = $row->{$field};
+modules/DIGS/DB.pm:	my $server   = $self->{server};
+modules/DIGS/DB.pm:	my $username = $self->{username};
+modules/DIGS/DB.pm:	my $password = $self->{password};
+modules/DIGS/DB.pm:	my $db_name = $self->{db_name};
+modules/DIGS/DB.pm:	my $answer1 = $console->ask_yes_no_question($question);
+modules/DIGS/DB.pm:		print "\n\t- - - PAUSING 5 seconds to allow for cancel - - -\n";
+modules/DIGS/DB.pm:		my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
+modules/DIGS/DB.pm:		my $sth = $dbh->prepare($drop);
+modules/DIGS/DB.pm:    	unless ($sth->execute()) { print $drop; exit;}	
+modules/DIGS/DB.pm:	my $db_name = $self->{db_name};
+modules/DIGS/DB.pm:	my $answer1 = $console->ask_yes_no_question($question);
+modules/DIGS/DB.pm:		print "\n\t- - - PAUSING 3 seconds to allow for cancel - - -\n";
+modules/DIGS/DB.pm:		my $blast_results_table  = $self->{blast_results_table};
+modules/DIGS/DB.pm:		my $extracted_table      = $self->{extracted_table};
+modules/DIGS/DB.pm:		my $status_table         = $self->{status_table};
+modules/DIGS/DB.pm:		$blast_results_table->flush();
+modules/DIGS/DB.pm:		$blast_results_table->reset_primary_keys();
+modules/DIGS/DB.pm:		$extracted_table->flush();
+modules/DIGS/DB.pm:		$extracted_table->reset_primary_keys();
+modules/DIGS/DB.pm:		$status_table->flush();
+modules/DIGS/DB.pm:		$status_table->reset_primary_keys();
+modules/DIGS/ScreenBuild.pm:#!/usr/bin/perl -w
+modules/DIGS/ScreenBuild.pm:my $fileio    = FileIO->new();
+modules/DIGS/ScreenBuild.pm:my $seqio     = SeqIO->new();
+modules/DIGS/ScreenBuild.pm:my $devtools  = DevTools->new();
+modules/DIGS/ScreenBuild.pm:my $console   = Console->new();
+modules/DIGS/ScreenBuild.pm:		process_id           => $parameter_ref->{process_id},
+modules/DIGS/ScreenBuild.pm:		output_path          => $parameter_ref->{output_path},
+modules/DIGS/ScreenBuild.pm:		genome_use_path        => $parameter_ref->{genome_use_path},
+modules/DIGS/ScreenBuild.pm:		blast_bin_path         => $parameter_ref->{blast_bin_path},
+modules/DIGS/ScreenBuild.pm:	$self->create_output_directories();
+modules/DIGS/ScreenBuild.pm:	$self->parse_control_file($ctl_file);
+modules/DIGS/ScreenBuild.pm:	$self->set_screening_db();
+modules/DIGS/ScreenBuild.pm:	my $db_obj = $self->{db}; 
+modules/DIGS/ScreenBuild.pm:	$db_obj->summarise_db();
+modules/DIGS/ScreenBuild.pm:	if ($self->{reference_aa_fasta}) {
+modules/DIGS/ScreenBuild.pm:		$self->load_aa_fasta_reference_library();
+modules/DIGS/ScreenBuild.pm:	if ($self->{reference_nt_fasta}) {
+modules/DIGS/ScreenBuild.pm:		$self->load_nt_fasta_reference_library();
+modules/DIGS/ScreenBuild.pm:	$self->set_targets(\%targets);
+modules/DIGS/ScreenBuild.pm:	if ($self->{query_aa_fasta}) {
+modules/DIGS/ScreenBuild.pm:		$self->load_aa_fasta_probes(\@probes);
+modules/DIGS/ScreenBuild.pm:	if ($self->{query_nt_fasta}) {
+modules/DIGS/ScreenBuild.pm:		$self->load_nt_fasta_probes(\@probes);
+modules/DIGS/ScreenBuild.pm:	$self->set_queries(\@probes, \%targets, $queries_ref);
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash($queries_ref); die;	# DEBUG
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{db}                 = $self->{db};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{mysql_server}       = $self->{mysql_server};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{mysql_username}     = $self->{mysql_username};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{mysql_password}     = $self->{mysql_password};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{tmp_path}           = $self->{tmp_path};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
+modules/DIGS/ScreenBuild.pm:	$pipeline_obj->{seq_length_minimum} = $self->{seq_length_minimum};
+modules/DIGS/ScreenBuild.pm:	#$pipeline_obj->{select_list}        = $self->{select_list};
+modules/DIGS/ScreenBuild.pm:	#$pipeline_obj->{where_statement}    = $self->{where_statement};
+modules/DIGS/ScreenBuild.pm:	my $db_name = $self->{db_name};
+modules/DIGS/ScreenBuild.pm:	my $db_obj = DB->new($self);
+modules/DIGS/ScreenBuild.pm:	$db_obj->load_screening_db($db_name);	
+modules/DIGS/ScreenBuild.pm:	$self->{db} = $db_obj; # Store the database object reference 
+modules/DIGS/ScreenBuild.pm:	my $ref_aa_fasta = $self->{reference_aa_fasta};
+modules/DIGS/ScreenBuild.pm:		$seqio->read_fasta($ref_aa_fasta, \@fasta);
+modules/DIGS/ScreenBuild.pm:			my $header  = $seq_ref->{header};
+modules/DIGS/ScreenBuild.pm:			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_hash(\%header_data);
+modules/DIGS/ScreenBuild.pm:			my $aa_seq    = $seq_ref->{sequence};
+modules/DIGS/ScreenBuild.pm:		$self->create_blast_aa_lib(\@ref_aa_fasta);
+modules/DIGS/ScreenBuild.pm:	my $ref_nt_fasta = $self->{reference_nt_fasta};
+modules/DIGS/ScreenBuild.pm:		$seqio->read_fasta($ref_nt_fasta, \@fasta);
+modules/DIGS/ScreenBuild.pm:			my $header  = $seq_ref->{header};
+modules/DIGS/ScreenBuild.pm:			my $mode = $self->{ref_fasta_header_mode};
+modules/DIGS/ScreenBuild.pm:			$self->parse_fasta_header_data($header, \%header_data, $fail_count, $mode);
+modules/DIGS/ScreenBuild.pm:			my $nt_seq   = $seq_ref->{sequence};
+modules/DIGS/ScreenBuild.pm:		$self->create_blast_nt_lib(\@ref_nt_fasta);
+modules/DIGS/ScreenBuild.pm:	my $report_dir   = $self->{report_dir};
+modules/DIGS/ScreenBuild.pm:	$fileio->write_file($aa_lib_path, $aa_lib_ref); 
+modules/DIGS/ScreenBuild.pm:	my $blast_bin_dir = $self->{blast_bin_path};
+modules/DIGS/ScreenBuild.pm:		 $bin_path = $self->{blast_bin_path} . $blast_program;
+modules/DIGS/ScreenBuild.pm:	my $makedb_cmd = "$bin_path -in $aa_lib_path > /dev/null";
+modules/DIGS/ScreenBuild.pm:	$self->{blast_orf_lib_path} = $aa_lib_path; 
+modules/DIGS/ScreenBuild.pm:       my $report_dir   = $self->{report_dir};
+modules/DIGS/ScreenBuild.pm:       $fileio->write_file($nt_lib_path, $nt_lib_ref);
+modules/DIGS/ScreenBuild.pm:       my $blast_bin_dir = $self->{blast_bin_path};
+modules/DIGS/ScreenBuild.pm:			$bin_path = $self->{blast_bin_path} . $blast_program;
+modules/DIGS/ScreenBuild.pm:       my $makedb_cmd = "$bin_path -in $nt_lib_path -dbtype nucl> /dev/null";
+modules/DIGS/ScreenBuild.pm:       $self->{blast_utr_lib_path} = $nt_lib_path;
+modules/DIGS/ScreenBuild.pm:	my $genome_use_path  = $self->{genome_use_path};
+modules/DIGS/ScreenBuild.pm:	my $target_paths_ref = $self->{target_paths};
+modules/DIGS/ScreenBuild.pm:		my $exists = $fileio->check_directory_exists($full_path);
+modules/DIGS/ScreenBuild.pm:			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_array(\@leaves); die;
+modules/DIGS/ScreenBuild.pm:		$self->read_genome_files(\@leaves, $targets_ref);		
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash($targets_ref); die; # DEBUG
+modules/DIGS/ScreenBuild.pm:		my $file = $file_ref->{file};
+modules/DIGS/ScreenBuild.pm:		my $path = $file_ref->{path};
+modules/DIGS/ScreenBuild.pm:		my $file_type = $fileio->get_infile_type($file);
+modules/DIGS/ScreenBuild.pm:			$self->get_path_elements(\%path_elements, $path); 
+modules/DIGS/ScreenBuild.pm:			$targets_ref->{$target_id} = \%data;	
+modules/DIGS/ScreenBuild.pm:	$elements_ref->{organism}  = $organism;
+modules/DIGS/ScreenBuild.pm:	$elements_ref->{version}   = $version;
+modules/DIGS/ScreenBuild.pm:	$elements_ref->{data_type} = $type;
+modules/DIGS/ScreenBuild.pm:	$elements_ref->{group}     = $group;
+modules/DIGS/ScreenBuild.pm:	$elements_ref->{file}      = $file;
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_array(\@path); die;
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash($elements_ref); die;
+modules/DIGS/ScreenBuild.pm:	my $query_aa_fasta = $self->{query_aa_fasta};
+modules/DIGS/ScreenBuild.pm:		$seqio->read_fasta($query_aa_fasta, \@fasta);
+modules/DIGS/ScreenBuild.pm:			my $header  = $seq_ref->{header};
+modules/DIGS/ScreenBuild.pm:			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
+modules/DIGS/ScreenBuild.pm:			my $aa_seq   = $seq_ref->{sequence};
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_hash(\%header_data);
+modules/DIGS/ScreenBuild.pm:			$self->add_aa_probe($probes_ref, $name, $gene_name, $aa_seq);
+modules/DIGS/ScreenBuild.pm:	my $query_nt_fasta = $self->{query_nt_fasta};
+modules/DIGS/ScreenBuild.pm:		$seqio->read_fasta($query_nt_fasta, \@fasta);
+modules/DIGS/ScreenBuild.pm:			my $header  = $seq_ref->{header};
+modules/DIGS/ScreenBuild.pm:			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
+modules/DIGS/ScreenBuild.pm:			my $utr_seq   = $seq_ref->{sequence};
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_hash(\%header_data);
+modules/DIGS/ScreenBuild.pm:			$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
+modules/DIGS/ScreenBuild.pm:	$data_ref->{name}     = $name;
+modules/DIGS/ScreenBuild.pm:	$data_ref->{gene_name} = $gene_name;
+modules/DIGS/ScreenBuild.pm:	my $bitscore_min = $self->{bit_score_min_tblastn};
+modules/DIGS/ScreenBuild.pm:	my $bitscore_min = $self->{bit_score_min_blastn};
+modules/DIGS/ScreenBuild.pm:	my $report_dir = $self->{report_dir};
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash($targets_ref); #die; # DEBUG
+modules/DIGS/ScreenBuild.pm:	my $db_obj = $self->{db};
+modules/DIGS/ScreenBuild.pm:	$db_obj->index_previously_executed_queries(\%done);
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash(\%done); die; # DEBUG
+modules/DIGS/ScreenBuild.pm:		my $blast_alg       = $probe_ref->{blast_alg};
+modules/DIGS/ScreenBuild.pm:		my $bitscore_cutoff = $probe_ref->{bitscore_cutoff};
+modules/DIGS/ScreenBuild.pm:		my $probe_type      = $probe_ref->{probe_type};
+modules/DIGS/ScreenBuild.pm:		my $probe_name      = $probe_ref->{probe_name};
+modules/DIGS/ScreenBuild.pm:		my $probe_gene      = $probe_ref->{probe_gene};
+modules/DIGS/ScreenBuild.pm:		my $sequence        = $probe_ref->{sequence};
+modules/DIGS/ScreenBuild.pm:		$fileio->write_text_to_file($query_seq_file, $fasta);
+modules/DIGS/ScreenBuild.pm:		$probe_ref->{probe_path}   = $query_seq_file;
+modules/DIGS/ScreenBuild.pm:		$probe_ref->{probe_length} = $probe_len;
+modules/DIGS/ScreenBuild.pm:		$probe_ref->{result_path}  = $self->{tmp_path};
+modules/DIGS/ScreenBuild.pm:			my $target_ref   = $targets_ref->{$target_name};
+modules/DIGS/ScreenBuild.pm:			my $organism     = $target_ref->{organism};
+modules/DIGS/ScreenBuild.pm:			my $data_type    = $target_ref->{data_type};
+modules/DIGS/ScreenBuild.pm:			my $version      = $target_ref->{version};
+modules/DIGS/ScreenBuild.pm:			my $target_path  = $target_ref->{path};
+modules/DIGS/ScreenBuild.pm:			my $target_name  = $target_ref->{file};		
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_hash($target_ref); # die; # DEBUG
+modules/DIGS/ScreenBuild.pm:			#$devtools->print_hash(\%done); 
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{genome_id}   = $genome_id;		
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{organism}    = $organism;		
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{version}     = $version;
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{data_type}   = $data_type;		
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{target_name} = $target_name;		
+modules/DIGS/ScreenBuild.pm:			$probe_ref->{target_path} = $target_ref->{path};;		
+modules/DIGS/ScreenBuild.pm:			# Important - create a copy
+modules/DIGS/ScreenBuild.pm:			if ($queries_ref->{$probe_name}) {
+modules/DIGS/ScreenBuild.pm:				my $probe_query_ref = $queries_ref->{$probe_name};
+modules/DIGS/ScreenBuild.pm:				$queries_ref->{$probe_name} = \@probe_queries;
+modules/DIGS/ScreenBuild.pm:	my $process_id   = $self->{process_id};
+modules/DIGS/ScreenBuild.pm:	my $output_path = $self->{output_path};
+modules/DIGS/ScreenBuild.pm:	$fileio->create_unique_directory($report_dir);
+modules/DIGS/ScreenBuild.pm:	$self->{report_dir}  = $report_dir . '/';
+modules/DIGS/ScreenBuild.pm:	$fileio->create_unique_directory($tmp_path);
+modules/DIGS/ScreenBuild.pm:	$self->{tmp_path}   = $tmp_path . '/';
+modules/DIGS/ScreenBuild.pm:	my $process_id    = $self->{process_id};
+modules/DIGS/ScreenBuild.pm:	my $genome_path   = $self->{genome_use_path};
+modules/DIGS/ScreenBuild.pm:	my $output_path   = $self->{output_path};
+modules/DIGS/ScreenBuild.pm:	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+modules/DIGS/ScreenBuild.pm:	my $db_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+modules/DIGS/ScreenBuild.pm:	my $db_name  = $self->{db_name};
+modules/DIGS/ScreenBuild.pm:	my $server   = $self->{mysql_server};
+modules/DIGS/ScreenBuild.pm:	my $user     = $self->{mysql_username};
+modules/DIGS/ScreenBuild.pm:	my $password = $self->{mysql_password};
+modules/DIGS/ScreenBuild.pm:	my $block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+modules/DIGS/ScreenBuild.pm:	my $tblastn_min        = $self->{bit_score_min_tblastn};
+modules/DIGS/ScreenBuild.pm:	my $blastn_min         = $self->{bit_score_min_blastn};
+modules/DIGS/ScreenBuild.pm:	my $query_aa_fasta     = $self->{query_aa_fasta};
+modules/DIGS/ScreenBuild.pm:	my $query_nt_fasta     = $self->{query_nt_fasta};
+modules/DIGS/ScreenBuild.pm:	my $reference_aa_fasta = $self->{reference_aa_fasta};
+modules/DIGS/ScreenBuild.pm:	my $reference_nt_fasta = $self->{reference_nt_fasta};
+modules/DIGS/ScreenBuild.pm:			$self->{bit_score_min_tblastn} = $default_blastn_min;
+modules/DIGS/ScreenBuild.pm:			$self->{bit_score_min_tblastn} = $default_tblastn_min;
+modules/DIGS/ScreenBuild.pm:	$fileio->extract_text_block(\@ctl_file, \@target_block, $start, $stop);
+modules/DIGS/ScreenBuild.pm:	$self->{target_paths} = \@targets;
+modules/DIGS/ScreenBuild.pm:	my $sql_block = $fileio->read_sql_block(\@ctl_file, $start, $stop, $self);
+modules/DIGS/ScreenBuild.pm:	my $select_list     = $self->{select_list};
+modules/DIGS/ScreenBuild.pm:	my $where_statement = $self->{where_statement};
+modules/DIGS/ScreenBuild.pm:	#$devtools->print_hash($self); die;
+modules/DIGS/Pipeline.pm:#!/usr/bin/perl -w
+modules/DIGS/Pipeline.pm:my $fileio    = FileIO->new();
+modules/DIGS/Pipeline.pm:my $devtools  = DevTools->new();
+modules/DIGS/Pipeline.pm:my $console   = Console->new();
+modules/DIGS/Pipeline.pm:		process_id             => $parameter_ref->{process_id},
+modules/DIGS/Pipeline.pm:		blast_bin_path         => $parameter_ref->{blast_bin_path},
+modules/DIGS/Pipeline.pm:		genome_use_path        => $parameter_ref->{genome_use_path},
+modules/DIGS/Pipeline.pm:		output_path            => $parameter_ref->{output_path},
+modules/DIGS/Pipeline.pm:		blast_obj              => $parameter_ref->{blast_obj},
+modules/DIGS/Pipeline.pm:		my $genome_obj = GenomeControl->new($self);
+modules/DIGS/Pipeline.pm:		$genome_obj->summarise_genomes();    
+modules/DIGS/Pipeline.pm:	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+modules/DIGS/Pipeline.pm:		$self->create_screening_db($ctl_file);
+modules/DIGS/Pipeline.pm:	$self->initialise($ctl_file);
+modules/DIGS/Pipeline.pm:	my $db = $self->{db};
+modules/DIGS/Pipeline.pm:	#$devtools->print_hash($self); die;
+modules/DIGS/Pipeline.pm:	# Hand off to functions 2-7, based on the options received
+modules/DIGS/Pipeline.pm:		$self->run_screen($ctl_file);	
+modules/DIGS/Pipeline.pm:		$db->summarise_db();
+modules/DIGS/Pipeline.pm:		$self->retrieve();
+modules/DIGS/Pipeline.pm:		$self->reassign();	
+modules/DIGS/Pipeline.pm:		$db->flush_screening_db();
+modules/DIGS/Pipeline.pm:		$db->drop_screening_db();    
+modules/DIGS/Pipeline.pm:	my $loader_obj = ScreenBuild->new($self);
+modules/DIGS/Pipeline.pm:	$loader_obj->parse_control_file($ctl_file);
+modules/DIGS/Pipeline.pm:	my $db_name = $loader_obj->{db_name};
+modules/DIGS/Pipeline.pm:	my $db_obj = DB->new($loader_obj);
+modules/DIGS/Pipeline.pm:	$db_obj->create_screening_db($db_name);	
+modules/DIGS/Pipeline.pm:	$self->{db} = $db_obj; # Store the database object reference 
+modules/DIGS/Pipeline.pm:	print "\n\t ### Initialising database-guided genome screening\n";
+modules/DIGS/Pipeline.pm:	$self->check_process_dir_status();
+modules/DIGS/Pipeline.pm:	my $loader_obj = ScreenBuild->new($self);
+modules/DIGS/Pipeline.pm:	$loader_obj->parse_control_file($ctl_file);
+modules/DIGS/Pipeline.pm:	$self->{select_list}     = lc $loader_obj->{select_list};
+modules/DIGS/Pipeline.pm:	$self->{where_statement} = $loader_obj->{where_statement};
+modules/DIGS/Pipeline.pm:	$self->{db_name}         = $loader_obj->{db_name};
+modules/DIGS/Pipeline.pm:	$self->{server}          = $loader_obj->{mysql_server};
+modules/DIGS/Pipeline.pm:	$self->{password}        = $loader_obj->{mysql_password};
+modules/DIGS/Pipeline.pm:	$self->{username}        = $loader_obj->{mysql_username};
+modules/DIGS/Pipeline.pm:	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
+modules/DIGS/Pipeline.pm:	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
+modules/DIGS/Pipeline.pm:	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
+modules/DIGS/Pipeline.pm:	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
+modules/DIGS/Pipeline.pm:	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
+modules/DIGS/Pipeline.pm:	$loader_obj->set_screening_db();
+modules/DIGS/Pipeline.pm:	$self->{db} = $loader_obj->{db};
+modules/DIGS/Pipeline.pm:	$self->{loader_obj} = $loader_obj;
+modules/DIGS/Pipeline.pm:	my $genome_obj = GenomeControl->new($self); 
+modules/DIGS/Pipeline.pm:	$genome_obj->refresh_genomes();
+modules/DIGS/Pipeline.pm:	my $loader_obj = ScreenBuild->new($self);
+modules/DIGS/Pipeline.pm:	$loader_obj->set_up_screen($self, \%queries, $ctl_file);
+modules/DIGS/Pipeline.pm:	print "\n\n\t ### Starting database-guided genome screening\n";
+modules/DIGS/Pipeline.pm:	$self->do_screening_process(\%queries);
+modules/DIGS/Pipeline.pm:	my $db_ref = $self->{db};
+modules/DIGS/Pipeline.pm:		my $probe_queries = $queries_ref->{$probe_name};
+modules/DIGS/Pipeline.pm:			my $probe_id    = $query_ref->{probe_id};
+modules/DIGS/Pipeline.pm:			my $target_name = $query_ref->{target_name}; # $target refers to the target file
+modules/DIGS/Pipeline.pm:			$self->search($query_ref);	
+modules/DIGS/Pipeline.pm:			$self->extract($query_ref, \@extracted);	
+modules/DIGS/Pipeline.pm:			$self->assign(\@extracted);	
+modules/DIGS/Pipeline.pm:# Arguments:   $query_ref - data structure with the query details
+modules/DIGS/Pipeline.pm:	my $db_ref     = $self->{db};
+modules/DIGS/Pipeline.pm:	my $blast_obj  = $self->{blast_obj};
+modules/DIGS/Pipeline.pm:	my $tmp_path   = $self->{tmp_path};
+modules/DIGS/Pipeline.pm:	my $min_length = $self->{seq_length_minimum};
+modules/DIGS/Pipeline.pm:	my $probe_id     = $query_ref->{probe_id};
+modules/DIGS/Pipeline.pm:	my $probe_name   = $query_ref->{probe_name};
+modules/DIGS/Pipeline.pm:	my $probe_gene   = $query_ref->{probe_gene};
+modules/DIGS/Pipeline.pm:	my $probe_path   = $query_ref->{probe_path};
+modules/DIGS/Pipeline.pm:	my $organism     = $query_ref->{organism};
+modules/DIGS/Pipeline.pm:	my $version      = $query_ref->{version};
+modules/DIGS/Pipeline.pm:	my $data_type    = $query_ref->{data_type};
+modules/DIGS/Pipeline.pm:	my $target_name  = $query_ref->{target_name};
+modules/DIGS/Pipeline.pm:	my $target_path  = $query_ref->{target_path};
+modules/DIGS/Pipeline.pm:	my $blast_alg    = $query_ref->{blast_alg};
+modules/DIGS/Pipeline.pm:	my $cutoff       = $query_ref->{bitscore_cutoff};
+modules/DIGS/Pipeline.pm:	#$devtools->print_hash($query_ref); die;	
+modules/DIGS/Pipeline.pm:	my $blast_path  = $self->{blast_bin_path};
+modules/DIGS/Pipeline.pm:	my $command  = "$blast_bin_path -query $probe_path -subject $target_path ";
+modules/DIGS/Pipeline.pm:	   $command .= " -out $result_file -outfmt 7"; 
+modules/DIGS/Pipeline.pm:	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
+modules/DIGS/Pipeline.pm:		$hit_ref->{subject_start} = $hit_ref->{aln_start};
+modules/DIGS/Pipeline.pm:		$hit_ref->{subject_end}   = $hit_ref->{aln_stop};
+modules/DIGS/Pipeline.pm:		$hit_ref->{query_end}     = $hit_ref->{query_stop};
+modules/DIGS/Pipeline.pm:	$self->index_extracted_loci($target_name, \%extracted);
+modules/DIGS/Pipeline.pm:	my $blast_results_table = $db_ref->{blast_results_table};
+modules/DIGS/Pipeline.pm:		my $skip = $self->check_if_locus_extracted($hit_ref, \%extracted);
+modules/DIGS/Pipeline.pm:		my $start  = $hit_ref->{subject_start};
+modules/DIGS/Pipeline.pm:		my $end    = $hit_ref->{subject_end};
+modules/DIGS/Pipeline.pm:		if ($end - $start < $min_length) {  next; }
+modules/DIGS/Pipeline.pm:		$hit_ref->{organism}     = $organism;
+modules/DIGS/Pipeline.pm:		$hit_ref->{version}      = $version;
+modules/DIGS/Pipeline.pm:		$hit_ref->{data_type}    = $data_type;
+modules/DIGS/Pipeline.pm:		$hit_ref->{target_name}  = $target_name;
+modules/DIGS/Pipeline.pm:		$hit_ref->{probe_id}     = $probe_id;
+modules/DIGS/Pipeline.pm:		$hit_ref->{probe_name}   = $probe_name;
+modules/DIGS/Pipeline.pm:		$hit_ref->{probe_gene}   = $probe_gene;
+modules/DIGS/Pipeline.pm:		$hit_ref->{probe_type}   = $query_ref->{probe_type};
+modules/DIGS/Pipeline.pm:		print "\n\t # - in genome: $organism, $data_type, $version";
+modules/DIGS/Pipeline.pm:		print "\n\t # - target file: '$target_name'";
+modules/DIGS/Pipeline.pm:		$blast_results_table->insert_row($hit_ref);
+modules/DIGS/Pipeline.pm:	my $status_table = $db_ref->{status_table};
+modules/DIGS/Pipeline.pm:	$status_table->insert_row($query_ref);
+modules/DIGS/Pipeline.pm:	#$devtools->print_hash($query_ref);
+modules/DIGS/Pipeline.pm:	my $blast_bin_path     = $self->{blast_bin_path};
+modules/DIGS/Pipeline.pm:	my $db_ref = $self->{db};
+modules/DIGS/Pipeline.pm:	my $blast_results_table = $db_ref->{blast_results_table};
+modules/DIGS/Pipeline.pm:	my $extracted_table     = $db_ref->{extracted_table}; 
+modules/DIGS/Pipeline.pm:	$extracted_table->select_rows(\@fields, \@blast_ids);	
+modules/DIGS/Pipeline.pm:		my $blast_id = $hit_ref->{blast_id};
+modules/DIGS/Pipeline.pm:	my $probe_name  = $query_ref->{probe_name};
+modules/DIGS/Pipeline.pm:	my $probe_gene  = $query_ref->{probe_gene};
+modules/DIGS/Pipeline.pm:	my $target_name = $query_ref->{target_name}; # target file name
+modules/DIGS/Pipeline.pm:	my $target_path = $query_ref->{target_path};
+modules/DIGS/Pipeline.pm:	$blast_results_table->select_rows(\@fields, \@matches, $where); 
+modules/DIGS/Pipeline.pm:	#$devtools->print_array(\@matches); exit;
+modules/DIGS/Pipeline.pm:	# Store all outstanding matches as sequential, target-ordered sets 
+modules/DIGS/Pipeline.pm:		my $record_id   = $hit_ref->{record_id};
+modules/DIGS/Pipeline.pm:		my $start       = $hit_ref->{subject_start};
+modules/DIGS/Pipeline.pm:		my $end         = $hit_ref->{subject_end};
+modules/DIGS/Pipeline.pm:		my $orientation = $hit_ref->{orientation};
+modules/DIGS/Pipeline.pm:		my $scaffold    = $hit_ref->{scaffold};
+modules/DIGS/Pipeline.pm:		# /bin/blast/blastdbcmd -db hs_alt_HuRef_chrX.fa -entry 157734237 
+modules/DIGS/Pipeline.pm:		# -range 10-60 -strand minus
+modules/DIGS/Pipeline.pm:		my $command = $blast_bin_path . "blastdbcmd -db $target_path";
+modules/DIGS/Pipeline.pm:		$command .= " -entry $scaffold ";
+modules/DIGS/Pipeline.pm:		$command .= " -range $start-$end ";
+modules/DIGS/Pipeline.pm:		if ($orientation eq '-ve') { $command .= ' -strand minus '; }
+modules/DIGS/Pipeline.pm:			$hit_ref->{sequence_length} = $seq_length;
+modules/DIGS/Pipeline.pm:			$hit_ref->{sequence} = $sequence;
+modules/DIGS/Pipeline.pm:	my $db_ref        = $self->{db};
+modules/DIGS/Pipeline.pm:	my $result_path   = $self->{tmp_path};
+modules/DIGS/Pipeline.pm:	my $blast_obj     = $self->{blast_obj};
+modules/DIGS/Pipeline.pm:	my $table = $db_ref->{extracted_table}; 
+modules/DIGS/Pipeline.pm:		my $extract_start = $hit_ref->{subject_start};
+modules/DIGS/Pipeline.pm:		my $extract_end   = $hit_ref->{subject_end};
+modules/DIGS/Pipeline.pm:		my $blast_id      = $hit_ref->{record_id};
+modules/DIGS/Pipeline.pm:		my $sequence      = $hit_ref->{sequence};
+modules/DIGS/Pipeline.pm:		my $organism      = $hit_ref->{organism};
+modules/DIGS/Pipeline.pm:		my $probe_type    = $hit_ref->{probe_type};
+modules/DIGS/Pipeline.pm:		$hit_ref->{blast_id} = $blast_id;
+modules/DIGS/Pipeline.pm:		$fileio->write_text_to_file($query_file, $fasta);
+modules/DIGS/Pipeline.pm:			$lib_path  = $self->{blast_utr_lib_path};
+modules/DIGS/Pipeline.pm:			$lib_path  = $self->{blast_orf_lib_path};
+modules/DIGS/Pipeline.pm:		$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
+modules/DIGS/Pipeline.pm:		$blast_obj->parse_tab_format_results($result_file, \@results);
+modules/DIGS/Pipeline.pm:		my $query_start   = $top_match->{query_start};
+modules/DIGS/Pipeline.pm:		my $query_end     = $top_match->{query_stop};
+modules/DIGS/Pipeline.pm:		my $subject_start = $top_match->{aln_start};
+modules/DIGS/Pipeline.pm:		my $subject_end   = $top_match->{aln_stop};
+modules/DIGS/Pipeline.pm:		my $assigned_name   = $top_match->{scaffold};	
+modules/DIGS/Pipeline.pm:		#$devtools->print_hash($hit_ref);
+modules/DIGS/Pipeline.pm:		#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
+modules/DIGS/Pipeline.pm:	    #my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+modules/DIGS/Pipeline.pm:		$hit_ref->{assigned_name}      = $assigned_name;
+modules/DIGS/Pipeline.pm:		$hit_ref->{assigned_gene} = $assigned_gene;
+modules/DIGS/Pipeline.pm:		#$hit_ref->{realex_start}     = $real_st;
+modules/DIGS/Pipeline.pm:		#$hit_ref->{realex_end}       = $real_end;
+modules/DIGS/Pipeline.pm:		$hit_ref->{extract_start}    = $extract_start;
+modules/DIGS/Pipeline.pm:		$hit_ref->{extract_end}      = $extract_end;
+modules/DIGS/Pipeline.pm:		$hit_ref->{identity}         = $top_match->{identity};
+modules/DIGS/Pipeline.pm:		$hit_ref->{mismatches}       = $top_match->{mismatches};
+modules/DIGS/Pipeline.pm:		$hit_ref->{gap_openings}     = $top_match->{gap_openings};
+modules/DIGS/Pipeline.pm:		$hit_ref->{query_end}        = $query_end;
+modules/DIGS/Pipeline.pm:		$hit_ref->{query_start}      = $query_start;
+modules/DIGS/Pipeline.pm:		$hit_ref->{subject_end}      = $subject_end;
+modules/DIGS/Pipeline.pm:		$hit_ref->{subject_start}    = $subject_start;
+modules/DIGS/Pipeline.pm:		my $extract_id = $table->insert_row($hit_ref);
+modules/DIGS/Pipeline.pm:	my $db_ref          = $self->{db};
+modules/DIGS/Pipeline.pm:	my $extracted_table = $db_ref->{extracted_table}; 
+modules/DIGS/Pipeline.pm:	$extracted_table->select_rows(\@fields, \@locus_data, $where);	
+modules/DIGS/Pipeline.pm:		my $scaffold = $row_ref->{scaffold};
+modules/DIGS/Pipeline.pm:		if ($previously_extracted_ref->{$scaffold}) {
+modules/DIGS/Pipeline.pm:			my $array_ref = $previously_extracted_ref->{$scaffold};
+modules/DIGS/Pipeline.pm:			$previously_extracted_ref->{$scaffold} = \@array;
+modules/DIGS/Pipeline.pm:# Description: self-explanatory
+modules/DIGS/Pipeline.pm:	my $scaffold = $hit_ref->{scaffold};
+modules/DIGS/Pipeline.pm:	if ($extracted_ref->{$scaffold}) {
+modules/DIGS/Pipeline.pm:		my $hit_start = $hit_ref->{subject_start};
+modules/DIGS/Pipeline.pm:		my $hit_end   = $hit_ref->{subject_end};
+modules/DIGS/Pipeline.pm:		my $loci_ref = $extracted_ref->{$scaffold};
+modules/DIGS/Pipeline.pm:			my $locus_start = $locus_ref->{extract_start};
+modules/DIGS/Pipeline.pm:			my $locus_end   = $locus_ref->{extract_end};
+modules/DIGS/Pipeline.pm:				#$devtools->print_hash($locus_ref);
+modules/DIGS/Pipeline.pm:				my $locus_id      = $locus_ref->{record_id};
+modules/DIGS/Pipeline.pm:				my $locus_erv     = $locus_ref->{assigned_name};
+modules/DIGS/Pipeline.pm:				my $scaffold      = $hit_ref->{scaffold};
+modules/DIGS/Pipeline.pm:				my $subject_start = $hit_ref->{subject_start};
+modules/DIGS/Pipeline.pm:				my $subject_end   = $hit_ref->{subject_end};
+modules/DIGS/Pipeline.pm:				print "\n\t # Will skip hit in $scaffold ($subject_start-$subject_end)";
+modules/DIGS/Pipeline.pm:	$self->initialise_reassign(\@assigned_seqs);
+modules/DIGS/Pipeline.pm:	my $blast_obj       = $self->{blast_obj};
+modules/DIGS/Pipeline.pm:	my $result_path     = $self->{report_dir};
+modules/DIGS/Pipeline.pm:	my $db              = $self->{db};
+modules/DIGS/Pipeline.pm:	my $extracted_table = $db->{extracted_table};
+modules/DIGS/Pipeline.pm:		my $sequence        = $row_ref->{sequence};
+modules/DIGS/Pipeline.pm:		my $probe_type      = $row_ref->{probe_type};
+modules/DIGS/Pipeline.pm:		my $blast_id        = $row_ref->{record_id};
+modules/DIGS/Pipeline.pm:		my $previous_assign = $row_ref->{assigned_name};
+modules/DIGS/Pipeline.pm:		my $previous_gene   = $row_ref->{assigned_gene};
+modules/DIGS/Pipeline.pm:		my $extract_start   = $row_ref->{subject_start};
+modules/DIGS/Pipeline.pm:		my $extract_end     = $row_ref->{subject_end};
+modules/DIGS/Pipeline.pm:		my $genome          = $row_ref->{organism};
+modules/DIGS/Pipeline.pm:		$fileio->write_text_to_file($query_file, $fasta);
+modules/DIGS/Pipeline.pm:			$lib_path  = $self->{blast_utr_lib_path};
+modules/DIGS/Pipeline.pm:			$lib_path  = $self->{blast_orf_lib_path};
+modules/DIGS/Pipeline.pm:		$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
+modules/DIGS/Pipeline.pm:		$blast_obj->parse_tab_format_results($result_file, \@results);
+modules/DIGS/Pipeline.pm:		my $query_start   = $top_match->{query_start};
+modules/DIGS/Pipeline.pm:		my $query_end     = $top_match->{query_stop};
+modules/DIGS/Pipeline.pm:		my $subject_start = $top_match->{aln_start};
+modules/DIGS/Pipeline.pm:		my $subject_end   = $top_match->{aln_stop};
+modules/DIGS/Pipeline.pm:		my $assigned_name   = $top_match->{scaffold};	
+modules/DIGS/Pipeline.pm:			#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
+modules/DIGS/Pipeline.pm:			#my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+modules/DIGS/Pipeline.pm:			$update_row{identity}      = $top_match->{identity};
+modules/DIGS/Pipeline.pm:			$update_row{mismatches}    = $top_match->{mismatches};
+modules/DIGS/Pipeline.pm:			$update_row{gap_openings}  = $top_match->{gap_openings};
+modules/DIGS/Pipeline.pm:			$extracted_table->update(\%update_row, $where);
+modules/DIGS/Pipeline.pm:	my $output_path = $self->{output_path};
+modules/DIGS/Pipeline.pm:	my $process_id  = $self->{process_id};
+modules/DIGS/Pipeline.pm:	my $db          = $self->{db};
+modules/DIGS/Pipeline.pm:	my $db_name     = $db->{db_name};
+modules/DIGS/Pipeline.pm:	$fileio->create_unique_directory($report_dir);
+modules/DIGS/Pipeline.pm:	$fileio->create_unique_directory($tmp_path);
+modules/DIGS/Pipeline.pm:	$self->{tmp_path}   = $tmp_path . '/';
+modules/DIGS/Pipeline.pm:	$self->{report_dir} = $report_dir;
+modules/DIGS/Pipeline.pm:	my $extracted_table = $db->{extracted_table};
+modules/DIGS/Pipeline.pm:	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
+modules/DIGS/Pipeline.pm:	my $loader_obj = $self->{loader_obj};
+modules/DIGS/Pipeline.pm:	$loader_obj->{report_dir} = $report_dir;
+modules/DIGS/Pipeline.pm:	if ($loader_obj->{reference_aa_fasta}) {
+modules/DIGS/Pipeline.pm:		$loader_obj->load_aa_fasta_reference_library();
+modules/DIGS/Pipeline.pm:	if ($loader_obj->{reference_nt_fasta}) {
+modules/DIGS/Pipeline.pm:		$loader_obj->load_nt_fasta_reference_library();
+modules/DIGS/Pipeline.pm:	#$devtools->print_hash($loader_obj); die;
+modules/DIGS/Pipeline.pm:	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
+modules/DIGS/Pipeline.pm:	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
+modules/DIGS/Pipeline.pm:	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
+modules/DIGS/Pipeline.pm:	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
+modules/DIGS/Pipeline.pm:	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
+modules/DIGS/Pipeline.pm:	my $select = $self->{select_list};
+modules/DIGS/Pipeline.pm:	my $where  = $self->{where_statement};
+modules/DIGS/Pipeline.pm:	my $db = $self->{db};
+modules/DIGS/Pipeline.pm:	#$devtools->print_array(\@select); die;
+modules/DIGS/Pipeline.pm:	$db->retrieve_sequences(\@sequences, \@select, $where);
+modules/DIGS/Pipeline.pm:	$fileio->write_file($seqfile, \@sequences);
+modules/DIGS/Pipeline.pm:	my $output_path = $self->{output_path};
+modules/DIGS/Pipeline.pm:	$fileio->read_directory_to_array($output_path, @process_dir);
+modules/DIGS/Pipeline.pm:	$console->refresh();
+modules/DIGS/Pipeline.pm:	my $title       = 'Database-Integrated Genome Screening (DIGS)';
+modules/DIGS/Pipeline.pm:	$console->show_about_box($title, $version, $description, $author, $contact);
+modules/DIGS/GenomeControl.pm:#!/usr/bin/perl -w
+modules/DIGS/GenomeControl.pm:my $fileio    = FileIO->new();
+modules/DIGS/GenomeControl.pm:my $seqio     = SeqIO->new();
+modules/DIGS/GenomeControl.pm:my $devtools  = DevTools->new();
+modules/DIGS/GenomeControl.pm:my $console   = Console->new();
+modules/DIGS/GenomeControl.pm:		genome_use_path      => $parameter_ref->{genome_use_path},
+modules/DIGS/GenomeControl.pm:		blast_bin_path       => $parameter_ref->{blast_bin_path},
+modules/DIGS/GenomeControl.pm:	my $genome_path = $self->{genome_use_path};
+modules/DIGS/GenomeControl.pm:	$self->read_genome_directory(\%server_data);
+modules/DIGS/GenomeControl.pm:		my $organism    = $genome_ref->{organism};
+modules/DIGS/GenomeControl.pm:		my $type        = $genome_ref->{source_type};
+modules/DIGS/GenomeControl.pm:		my $version     = $genome_ref->{version};
+modules/DIGS/GenomeControl.pm:		my $path        = $genome_ref->{version_path};
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash($genome_ref);
+modules/DIGS/GenomeControl.pm:		my $files_ref   = $genome_ref->{files};
+modules/DIGS/GenomeControl.pm:		#$devtools->print_array(\@sorted);
+modules/DIGS/GenomeControl.pm:			$self->get_genome_chunk_stats(\%data, $chunk_path);
+modules/DIGS/GenomeControl.pm:			#$devtools->print_hash(\%data); die;
+modules/DIGS/GenomeControl.pm:	$fileio->write_file($summary, \@summary);
+modules/DIGS/GenomeControl.pm:	my $genome_path = $self->{genome_use_path};
+modules/DIGS/GenomeControl.pm:	$self->read_genome_directory(\%server_data);
+modules/DIGS/GenomeControl.pm:	#$devtools->print_hash(\%server_data); die;
+modules/DIGS/GenomeControl.pm:		my $organism    = $genome_ref->{organism};
+modules/DIGS/GenomeControl.pm:		my $type        = $genome_ref->{source_type};
+modules/DIGS/GenomeControl.pm:		my $version     = $genome_ref->{version};
+modules/DIGS/GenomeControl.pm:		my $path        = $genome_ref->{version_path};
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash($genome_ref);
+modules/DIGS/GenomeControl.pm:		$self->check_genome_formatting($genome_ref);
+modules/DIGS/GenomeControl.pm:		my $unformatted_ref = $genome_ref->{unformatted};
+modules/DIGS/GenomeControl.pm:			my $answer   = $console->ask_yes_no_question($question);
+modules/DIGS/GenomeControl.pm:				$self->format_genome($genome_ref);
+modules/DIGS/GenomeControl.pm:	my $genome_path = $self->{genome_use_path};
+modules/DIGS/GenomeControl.pm:	my $levels_ref  = $self->{directory_levels};
+modules/DIGS/GenomeControl.pm:	# Index current, locally-held genome data 
+modules/DIGS/GenomeControl.pm:	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash($file_ref);
+modules/DIGS/GenomeControl.pm:		my $file     = $file_ref->{file};
+modules/DIGS/GenomeControl.pm:		my $type     = $file_ref->{source_type};
+modules/DIGS/GenomeControl.pm:		my $organism = $file_ref->{organism};
+modules/DIGS/GenomeControl.pm:		my $version  = $file_ref->{version};
+modules/DIGS/GenomeControl.pm:			my $field = $levels_ref->{$level};
+modules/DIGS/GenomeControl.pm:			my $value = $file_ref->{$field};
+modules/DIGS/GenomeControl.pm:		$file_ref->{version_path}  = $path;
+modules/DIGS/GenomeControl.pm:		if ($data_ref->{$key}) {
+modules/DIGS/GenomeControl.pm:			my $genome_ref = $data_ref->{$key};
+modules/DIGS/GenomeControl.pm:			my $files_ref  = $genome_ref->{files};
+modules/DIGS/GenomeControl.pm:			$file_ref->{files} = \@files;
+modules/DIGS/GenomeControl.pm:			$data_ref->{$key} = $file_ref;
+modules/DIGS/GenomeControl.pm:	my $files_ref   = $genome_ref->{files};
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash($file_ref);
+modules/DIGS/GenomeControl.pm:			if ($files_ref->{$type}) { 
+modules/DIGS/GenomeControl.pm:				#$devtools->print_hash($file_ref);
+modules/DIGS/GenomeControl.pm:				#$devtools->print_hash($files_ref);
+modules/DIGS/GenomeControl.pm:			$files_ref->{$type} = 1;
+modules/DIGS/GenomeControl.pm:				$files_ref->{stem_target} = $file;
+modules/DIGS/GenomeControl.pm:	#$devtools->print_hash(\%stems);
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash($types_ref);
+modules/DIGS/GenomeControl.pm:		my $nin = $types_ref->{nin};
+modules/DIGS/GenomeControl.pm:		my $nsq = $types_ref->{nsq};
+modules/DIGS/GenomeControl.pm:		my $nhr = $types_ref->{nhr};
+modules/DIGS/GenomeControl.pm:		#my $nsi = $chunk_data->{nsi};
+modules/DIGS/GenomeControl.pm:		#my $nsd = $chunk_data->{nsd};
+modules/DIGS/GenomeControl.pm:		my $target = $types_ref->{stem_target};
+modules/DIGS/GenomeControl.pm:	$genome_ref->{formatted}   = \@formatted;
+modules/DIGS/GenomeControl.pm:	$genome_ref->{unformatted} = \@unformatted;
+modules/DIGS/GenomeControl.pm:	my $genome_path   = $self->{genome_use_path};
+modules/DIGS/GenomeControl.pm:	my $line_limit    = $self->{line_limit};
+modules/DIGS/GenomeControl.pm:	my $blast_bin_dir = $self->{blast_bin_path};
+modules/DIGS/GenomeControl.pm:	my $organism      = $genome_ref->{organism};
+modules/DIGS/GenomeControl.pm:	my $type          = $genome_ref->{source_type};
+modules/DIGS/GenomeControl.pm:	my $version       = $genome_ref->{version};
+modules/DIGS/GenomeControl.pm:	my $version_path  = $genome_ref->{version_path};
+modules/DIGS/GenomeControl.pm:		$bin_path = $self->{blast_bin_path} . $blast_program;
+modules/DIGS/GenomeControl.pm:	my $formatted_ref   = $genome_ref->{formatted};
+modules/DIGS/GenomeControl.pm:	my $unformatted_ref = $genome_ref->{unformatted};
+modules/DIGS/GenomeControl.pm:		$self->get_genome_chunk_stats(\%data, $chunk_path);
+modules/DIGS/GenomeControl.pm:		#$devtools->print_hash(\%data); die;
+modules/DIGS/GenomeControl.pm:				$self->split_genome_chunk($path, $file, \@split_chunks);
+modules/DIGS/GenomeControl.pm:       			my $command = "$bin_path -in $file_path -dbtype nucl> /dev/null";
+modules/DIGS/GenomeControl.pm:			#$devtools->print_array(\@split_chunks); die;
+modules/DIGS/GenomeControl.pm:       				my $command = "$bin_path -in $new_chunk_path -dbtype nucl> /dev/null";
+modules/DIGS/GenomeControl.pm:       		my $command = "$bin_path -in $chunk_path -dbtype nucl> /dev/null";
+modules/DIGS/GenomeControl.pm:	$data_ref->{total_bases}      = $total_bases;
+modules/DIGS/GenomeControl.pm:	$data_ref->{total_lines}      = $line_count;
+modules/DIGS/GenomeControl.pm:	$data_ref->{number_scaffolds} = $num_scaffolds;
+modules/DIGS/GenomeControl.pm:	my $line_limit = $self->{line_limit};
+modules/DIGS/GenomeControl.pm:				$fileio->write_file($new_path, \@scaffold_chunk);			
+modules/DIGS/GenomeControl.pm:	$fileio->write_file($new_path, \@scaffold_chunk);			
+modules/DIGS/GenomeControl.pm:# Description: by number - for use with perl 'sort' 
+modules/Interface/BLAST.pm:#!/usr/bin/perl -w
+modules/Interface/BLAST.pm:my $fileio   = FileIO->new();
+modules/Interface/BLAST.pm:my $devtools = DevTools->new();
+modules/Interface/BLAST.pm:	    blast_bin_path  => $parameter_ref->{blast_bin_path},
+modules/Interface/BLAST.pm:# Subroutine:  BLAST - used with PIPELINE screens
+modules/Interface/BLAST.pm:	my $blast_path  = $self->{blast_bin_path};
+modules/Interface/BLAST.pm:	my $word_size   = $options_ref->{word_size}; 
+modules/Interface/BLAST.pm:	my $evalue		= $options_ref->{evalue};
+modules/Interface/BLAST.pm:	my $penalty     = $options_ref->{penalty};
+modules/Interface/BLAST.pm:	my $reward      = $options_ref->{reward};
+modules/Interface/BLAST.pm:	my $gapopen     = $options_ref->{gapopen};
+modules/Interface/BLAST.pm:	my $gapextend   = $options_ref->{gapextend};
+modules/Interface/BLAST.pm:	my $outfmt      = $options_ref->{outfmt};
+modules/Interface/BLAST.pm:	unless ($outfmt) { $outfmt = 7; } # default output format is tab-delimited ( -outfmt 7) 
+modules/Interface/BLAST.pm:	#$devtools->print_web_hash($options_ref); die;
+modules/Interface/BLAST.pm:	#$devtools->print_web_hash($self); die;
+modules/Interface/BLAST.pm:		$blast_type = $options_ref->{blast_type};
+modules/Interface/BLAST.pm:		$set_params = $options_ref->{set_params};
+modules/Interface/BLAST.pm:		$command  = "$blast_path -query $probe_path -subject $target_path ";
+modules/Interface/BLAST.pm:		$command .= "-out $result_path ";
+modules/Interface/BLAST.pm:		$command  = "$blast_path -query $probe_path -db $target_path ";
+modules/Interface/BLAST.pm:		$command .= "-out $result_path ";
+modules/Interface/BLAST.pm:		if ($word_size)  { $command .= " -word_size $word_size "; }
+modules/Interface/BLAST.pm:		if ($evalue)     { $command .= " -evalue $evalue "; } 
+modules/Interface/BLAST.pm:			$command .= " -penalty $penalty ";  
+modules/Interface/BLAST.pm:			$command .= " -reward $reward ";  
+modules/Interface/BLAST.pm:			$command .= " -gapopen $gapopen "; 
+modules/Interface/BLAST.pm:			$command .= " -gapextend $gapextend "; 
+modules/Interface/BLAST.pm:	$command .= "-outfmt $outfmt";
+modules/Interface/BLAST.pm:# Lower level parsing fxns - initial parsing
+modules/Interface/BLAST.pm:	my $fileio = FileIO->new();
+modules/Interface/BLAST.pm:	$fileio->read_file($file, \@file);
+modules/Interface/BLAST.pm:		$self->convert_evalue($e_value, \%match);
+modules/Interface/BLAST.pm:			$orientation = '-ve';
+modules/Interface/BLAST.pm:			# switch the start and stop around if in -ve orientation
+modules/Interface/BLAST.pm:		#$devtools->print_hash(\%match); die;
+modules/Interface/BLAST.pm:		my $query_start = $hsp_ref->{query_start};
+modules/Interface/BLAST.pm:		my $query_stop  = $hsp_ref->{query_stop};
+modules/Interface/BLAST.pm:		my $aln_start   = $hsp_ref->{aln_start};
+modules/Interface/BLAST.pm:		my $aln_stop    = $hsp_ref->{aln_stop};
+modules/Interface/BLAST.pm:		#$devtools->print_hash($hsp_ref); 
+modules/Interface/BLAST.pm:			if ($index_fwd->{$aln_start}) {
+modules/Interface/BLAST.pm:				my $previous = $index_fwd->{$aln_start};
+modules/Interface/BLAST.pm:				my $this_bitscore = $hsp_ref->{bitscore};
+modules/Interface/BLAST.pm:				my $prev_bitscore = $previous->{bitscore};
+modules/Interface/BLAST.pm:						$index_fwd->{$aln_start} = $hsp_ref;
+modules/Interface/BLAST.pm:					$index_fwd->{$aln_start} = $hsp_ref;
+modules/Interface/BLAST.pm:				$index_fwd->{$aln_start} = $hsp_ref;
+modules/Interface/BLAST.pm:			if ($index_rev->{$aln_start}) {
+modules/Interface/BLAST.pm:				my $previous = $index_rev->{$aln_start};
+modules/Interface/BLAST.pm:				my $this_bitscore = $hsp_ref->{bitscore};
+modules/Interface/BLAST.pm:				my $prev_bitscore = $previous->{bitscore};
+modules/Interface/BLAST.pm:					$index_rev->{$aln_start} = $hsp_ref;
+modules/Interface/BLAST.pm:				$index_rev->{$aln_start} = $hsp_ref;
+modules/Interface/BLAST.pm:		my @e_value_bits = split ("e-", $e_value);
+modules/Interface/BLAST.pm:	$data_ref->{e_value_num} = $e_value_num;
+modules/Interface/BLAST.pm:	$data_ref->{e_value_exp} = $e_value_exp;
+modules/Interface/MySQLtable.pm:my $devtools = DevTools->new();
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $field_ref = $self->{fields};
+modules/Interface/MySQLtable.pm:	#$devtools->print_hash($field_ref);
+modules/Interface/MySQLtable.pm:	#$devtools->print_hash($data_ref); die;
+modules/Interface/MySQLtable.pm:	my $insert_clause = "INSERT INTO $self->{name} \( $fields\)";
+modules/Interface/MySQLtable.pm:		my $value = $data_ref->{$field};
+modules/Interface/MySQLtable.pm:		my $type  = $field_ref->{$field};
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($insert);
+modules/Interface/MySQLtable.pm:	unless ($sth->execute()) { print $insert; exit; }	
+modules/Interface/MySQLtable.pm:	my $db_id = $sth->{mysql_insertid};
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "SELECT $fields FROM $self->{name} $where";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	unless ($sth->execute()) { print $query; exit;}	
+modules/Interface/MySQLtable.pm:	while (my $row = $sth->fetchrow_arrayref) {
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "SELECT $fields FROM $self->{name} $where";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	my @row = $sth->fetchrow_array;
+modules/Interface/MySQLtable.pm:		$data_ref->{$field} = $row[$i];
+modules/Interface/MySQLtable.pm:	my $dbh       = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "SELECT $fields FROM $self->{name}";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	unless ($sth->execute()) { print $query; exit; }
+modules/Interface/MySQLtable.pm:	while (my $row = $sth->fetchrow_arrayref) {
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "SELECT DISTINCT $fields FROM $self->{name}";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	while (my $row = $sth->fetchrow_arrayref) {
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "SELECT DISTINCT $field FROM $self->{name}";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	while (my $row = $sth->fetchrow_arrayref) {
+modules/Interface/MySQLtable.pm:	my $dbh          = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $fields_ref   = $self->{fields};
+modules/Interface/MySQLtable.pm:	#$devtools->print_hash($fields_ref);die;
+modules/Interface/MySQLtable.pm:		my $value = $set->{$field};
+modules/Interface/MySQLtable.pm:		my $type = $fields_ref->{$field};
+modules/Interface/MySQLtable.pm:	#my $where_clause = $self->hash_to_delimited_ist($where, ' AND ');
+modules/Interface/MySQLtable.pm:	my $query = "UPDATE $self->{name}
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	my $query = "DELETE from $self->{name} $where";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	#print "\n\t*** Emptying Table $self->{name} ***\n";
+modules/Interface/MySQLtable.pm:	my $query = "DELETE from $self->{name}";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($query);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Interface/MySQLtable.pm:	my $dbh = $self->{dbh};
+modules/Interface/MySQLtable.pm:	#print "\n\t*** Resetting Primary Key in $self->{name} ***\n";
+modules/Interface/MySQLtable.pm:	my $alter = "ALTER TABLE $self->{name} AUTO_INCREMENT=1";
+modules/Interface/MySQLtable.pm:	my $sth = $dbh->prepare($alter);
+modules/Interface/MySQLtable.pm:	$sth->execute();	
+modules/Base/Console.pm:#!/usr/bin/perl -w
+modules/Base/Console.pm:my $fileio   = FileIO->new();
+modules/Base/Console.pm:#              - $title, $version, $description, $author, $contact
+modules/Base/Console.pm:	my $border_line = "\n\t" . '#' . (' ' x ($console_width - 2)) . "#";
+modules/Base/Console.pm:	if ($text_length > ($console_width - 4)) {
+modules/Base/Console.pm:		my $space = ($console_width - ($text_length + 2));
+modules/Base/DevTools.pm:#!/usr/bin/perl -w
+modules/Base/DevTools.pm:			$self->print_hash($value, "\t");
+modules/Base/DevTools.pm:			$self->print_array($value, "\t");
+modules/Base/DevTools.pm:			$self->print_array($item, "\t");
+modules/Base/DevTools.pm:			$self->print_hash($item, "\t");
+modules/Base/SeqIO.pm:my $fileio   = FileIO->new();
+modules/Base/SeqIO.pm:my $devtools = DevTools->new();
+modules/Base/SeqIO.pm:				my $seq_obj = Sequence->new($sequence, $header, $alias_id);
+modules/Base/SeqIO.pm:				#$devtools->print_hash($seq_obj); die;
+modules/Base/SeqIO.pm:		my $seq_obj = Sequence->new($sequence, $header, $alias_id);
+modules/Base/FileIO.pm:#!/usr/bin/perl -w
+modules/Base/FileIO.pm:my $devtools = DevTools->new();
+modules/Base/FileIO.pm:	unless (-f $file) {
+modules/Base/FileIO.pm:		if (-d $file) {
+modules/Base/FileIO.pm:		$value = $level_codes->{$level};
+modules/Base/FileIO.pm:	$self->read_directory_to_array($path, \@directory);
+modules/Base/FileIO.pm:			$self->recursive_read($file_path, $leaves, \%branch_data, $level, $level_codes, $file_code); 
+modules/Base/FileIO.pm:			#$devtools->print_array($leaves);
+modules/Base/FileIO.pm:	$self->read_directory_to_array($path, \@directory);
+modules/Base/FileIO.pm:			my $value = $level_codes->{$level};
+modules/Base/FileIO.pm:			$branch_data->{$value} = $file;
+modules/Base/FileIO.pm:			#$devtools->print_hash($branch_data);
+modules/Base/FileIO.pm:			$self->recursive_read($file_path, $leaves, $branch_data, $level, $level_codes, $file_code); 
+modules/Base/FileIO.pm:			delete $branch_data->{$value};
+modules/Base/FileIO.pm:			$branch_data->{$file_code} = $file;
+modules/Base/FileIO.pm:			print "\n\t Directory depth incorrect - '$level' ne '$levels'";
+modules/Base/FileIO.pm:	$self->read_directory_to_array($path, \@directory);
+modules/Base/FileIO.pm:			$self->recursive_read2($file_path, $leaves_ref); 
+modules/Base/FileIO.pm:			#$devtools->print_array($leaves);
+modules/Base/FileIO.pm:	$self->read_directory_to_array($path, \@directory);
+modules/Base/FileIO.pm:			#$devtools->print_hash($branch_data);
+modules/Base/FileIO.pm:			$self->recursive_read2($file_path, $leaves_ref); 
+modules/Base/FileIO.pm:	unless (-f $file) {
+modules/Base/FileIO.pm:		if (-d $file) {
+modules/Base/FileIO.pm:			print "\n\t Cannot open file \"$file\" - it is a directory\n\n";
+modules/Base/FileIO.pm:	$self->extract_text_block($file_data_ref, \@block_data, $start_mark, $end_mark);
+modules/Base/FileIO.pm:			$extract_ref->{$field} = $value;
+modules/Base/FileIO.pm:	$self->extract_text_block($file_data_ref, \@block_data, $start_mark, $end_mark);
+modules/Base/FileIO.pm:	# Get the field-value pairs from the block
+modules/Base/FileIO.pm:			$extract_ref->{$field} = $value;
+modules/Base/FileIO.pm:			#$devtools->print_array(\@block);die;
+modules/Base/FileIO.pm:			die "\n\t ### Error: couldn't create output directory - check permissions\n\n";	
+modules/Base/Sequence.pm:#!/usr/bin/perl -w
+modules/Base/Sequence.pm:my $fileio    = FileIO->new();
+modules/Base/Sequence.pm:my $devtools  = DevTools->new();
+modules/Base/Sequence.pm:my $console   = Console->new();
+modules/Base/Sequence.pm:			if ($codon =~ /-/) {
+modules/Base/Sequence.pm:				$translation .= '-';
+modules/Base/Sequence.pm:				$self->get_codon_list($codon, \@codon_list);
+modules/Base/Sequence.pm:				my $aa = $self->codon2aa($list_codon);
+modules/Base/Sequence.pm:	$self->get_codon_list($codon, \@codon_list);
+modules/Base/Sequence.pm:		my $translation .= $self->codon2aa($possible_codon);
+modules/Base/Sequence.pm:		'-' => ['-'],
+modules/Base/Sequence.pm:		if ($codon =~ /[-~MRWSYKHVDBN]/) {  
+modules/Base/Sequence.pm:			return '-';
+modules/Base/Sequence.pm:			return '-';

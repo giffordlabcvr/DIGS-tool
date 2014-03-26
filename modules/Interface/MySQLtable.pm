@@ -94,62 +94,11 @@ sub insert_row {
 	#print "\n\n\t$insert\n\n";
 	unless ($sth->execute()) { print $insert; exit; }	
 	
-
 	# Get the sample ID (generated via autoincrement)
 	my $db_id = $sth->{mysql_insertid};
 
 	return $db_id;
 }	
-
-#***************************************************************************
-# Subroutine:  select
-# Description: Generic select fxn using an array to store rows of data 
-# Arguments:   $field_ref: reference to an array with fields to fetch 
-#              $data_ref:  reference to an array to store the rows
-#              $where:     the where clause of the select as a string
-#***************************************************************************
-sub select {
-
-	my ($self, $field_ref, $row_ref, $where) = @_;
-
-	my $dbh = $self->{dbh};
-	my $fields = join(',', @$field_ref);
-	my $query = "SELECT $fields FROM $self->{name} $where";
-	my $sth = $dbh->prepare($query);
-	unless ($sth->execute()) { print $query; exit;}	
-	while (my $row = $sth->fetchrow_arrayref) {
-		push(@$row_ref, (join("\t", @$row)));
-	}
-}
-
-#***************************************************************************
-# Subroutine:  select row
-# Description: Generic select fxn for a selecting a single row and storing 
-#              data in a hash 
-# Arguments:   $field_ref: reference to an array with fields to fetch 
-#              $data_ref:  reference to a hash to store the data
-#              $where:     the where clause of the select as a string
-#***************************************************************************
-sub select_row {
-
-	my ($self, $field_ref, $data_ref, $where) = @_;
-
-	my $dbh = $self->{dbh};
-	my $fields = join(',', @$field_ref);
-	my $query = "SELECT $fields FROM $self->{name} $where";
-	my $sth = $dbh->prepare($query);
-	#print "\n\t QUERY $query\n\n\n";
-	$sth->execute();	
-
-	# get the values into a hash
-	my $i = 0;
-	my @row = $sth->fetchrow_array;
-	foreach my $field (@$field_ref) {
-		
-		$data_ref->{$field} = $row[$i];
-		$i++;
-	}
-}
 
 #***************************************************************************
 # Subroutine:  select rows
@@ -228,56 +177,6 @@ sub select_distinct {
 			$i++;
 		}
 		push (@$data_ref, \%row);
-	}
-}
-
-#***************************************************************************
-# Subroutine:  select distinct single field
-# Description: Generic select distinct 
-# Arguments:   $field:     the field to do the 'select distinct' on
-#              $data_ref:  reference to an array to store the rows
-#              $where:     the where clause of the select as a string
-#***************************************************************************
-sub select_distinct_single_field {
-	
-	my ($self, $field, $data_ref, $where) = @_;
-
-	unless ($where) { $where = ''; }
-
-	my $dbh = $self->{dbh};
-	my $query = "SELECT DISTINCT $field FROM $self->{name}";
-	if ($where) { $query .= " $where"; }
-	#print "\n\t #### SELECT DISTINCT QUERY:\n\n $query \n\n";
-	my $sth = $dbh->prepare($query);
-	$sth->execute();	
-	while (my $row = $sth->fetchrow_arrayref) {
-		my $i = 0;
-		my %row;
-		my $value = @$row[$i];
-		push (@$data_ref, $value);
-	}
-}
-
-#***************************************************************************
-# Subroutine:  select value
-# Description: use when only a single value returned - e.g. with COUNT(*) 
-#***************************************************************************
-sub select_value {
-	
-	my ($self, $field, $data_ref, $where) = @_;
-
-	unless ($where) { $where = ''; }
-
-	my $dbh = $self->{dbh};
-	my $query = "SELECT $field FROM $self->{name} $where";
-	#print $query;
-
-    my $sth = $dbh->prepare($query);
-	$sth->execute();	
-	
-	while (my $row = $sth->fetchrow_arrayref) {
-		my $value = @$row[0];
-        push(@$data_ref, $value);
 	}
 }
 
