@@ -2,7 +2,7 @@
 ############################################################################
 # Module:       BLAST.pm 
 # Description:  Interface to BLAST
-# History:      Rob Gifford (rjmg@stanford.edu) January 2007: Creation
+# History:      Rob Gifford January 2007: Creation
 ############################################################################
 package BLAST;
 
@@ -189,58 +189,6 @@ sub parse_tab_format_results {
 		#$devtools->print_hash(\%match); die;
 		push(@$result_ref, \%match);
 	}		
-}
-
-#***************************************************************************
-# Subroutine:  sort_hits_into_fwd_and_rev 
-# Description: sort matches into positive and negative orientation hits 
-#***************************************************************************
-sub sort_hits_into_fwd_and_rev {
-
-	my ($self, $data_ref, $index_fwd, $index_rev) = @_;
-	
-	foreach my $hsp_ref (@$data_ref) {
-		my $query_start = $hsp_ref->{query_start};
-		my $query_stop  = $hsp_ref->{query_stop};
-		my $aln_start   = $hsp_ref->{aln_start};
-		my $aln_stop    = $hsp_ref->{aln_stop};
-		#$devtools->print_hash($hsp_ref); 
-		
-		# FORWARD
-		if ($aln_stop > $aln_start) {
-			if ($index_fwd->{$aln_start}) {
-				my $previous = $index_fwd->{$aln_start};
-				my $this_bitscore = $hsp_ref->{bitscore};
-				my $prev_bitscore = $previous->{bitscore};
-				if ($prev_bitscore) {
-					if ($this_bitscore > $prev_bitscore) {
-						$index_fwd->{$aln_start} = $hsp_ref;
-					}
-				}
-				else {
-					$index_fwd->{$aln_start} = $hsp_ref;
-				}
-			}
-			else {
-				$index_fwd->{$aln_start} = $hsp_ref;
-			}
-		}
-		
-		# REVERSE
-		else {
-			if ($index_rev->{$aln_start}) {
-				my $previous = $index_rev->{$aln_start};
-				my $this_bitscore = $hsp_ref->{bitscore};
-				my $prev_bitscore = $previous->{bitscore};
-				if ($this_bitscore > $prev_bitscore) {
-					$index_rev->{$aln_start} = $hsp_ref;
-				}
-			}
-			else {
-				$index_rev->{$aln_start} = $hsp_ref;
-			}
-		}
-	}
 }
 
 #***************************************************************************

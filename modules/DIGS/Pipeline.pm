@@ -298,18 +298,9 @@ sub search {
 	my $result_file  = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
 	#$devtools->print_hash($query_ref); die;	
 
-	# Create path to BLAST 
-	my $blast_path  = $self->{blast_bin_path};
-	my $blast_bin_path;
-	if ($blast_path) { $blast_bin_path = $blast_path . $blast_alg; }	
-	else             { $blast_bin_path = $blast_alg;               }	
-
 	# Do the BLAST search
-	my $command  = "$blast_bin_path -query $probe_path -subject $target_path ";
-	   $command .= " -out $result_file -outfmt 7"; 
-	system $command;		
-	#print $command; die; # DEBUG
-
+	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
+	
 	# Parse out the alignment
 	my @hits;
 	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
