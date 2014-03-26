@@ -63,10 +63,10 @@ sub new {
 		output_path            => $parameter_ref->{output_path},
 
 		# Database variables
-		db_name                => '',
-		server                 => '',  
-		username               => '',
-		password               => '',
+		db_name                => '',   # Obtained from control file
+		server                 => '',   # Obtained from control file
+		username               => '',   # Obtained from control file
+		password               => '',   # Obtained from control file
 	
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},

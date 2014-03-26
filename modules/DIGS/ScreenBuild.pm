@@ -537,7 +537,7 @@ sub parse_fasta_header_data {
 
 #***************************************************************************
 # Subroutine:  add_aa_probe
-# Description: 
+# Description: add an amino acid probe sequence to a BLAST query definition 
 #***************************************************************************
 sub add_aa_probe {
 	
@@ -557,7 +557,7 @@ sub add_aa_probe {
 
 #***************************************************************************
 # Subroutine:  add_na_probe
-# Description: 
+# Description: add a nucleic acid probe sequence to a BLAST query definition 
 #***************************************************************************
 sub add_na_probe {
 	
