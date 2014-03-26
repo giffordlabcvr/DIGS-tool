@@ -195,9 +195,10 @@ sub extract_subsequence {
 	unless ($sequence and $start and $stop) { 
 		die;
 	}
+	
+	# Do the extraction
 	my @chars = split ('', $sequence);
 	my $subsequence = '';
-	#print "\n\t coordinates $start and $stop";
 	my $i = 0;
 	foreach my $char (@chars) {
 		$i++;
@@ -209,7 +210,7 @@ sub extract_subsequence {
 }
 
 #***************************************************************************
-# Subroutine:  get translations 
+# Subroutine:  get_translations 
 # Description: Get all possible translations of a given codon
 # Arguments:   $data_ref: reference to hash to store all distinct AAs that 
 #              can be obtained by translating the (possibly degenerate) 
@@ -237,7 +238,7 @@ sub get_translations {
 }
 
 #***************************************************************************
-# Subroutine:  get codon list
+# Subroutine:  get_codon_list
 # Description: get a list with all the possible codons from a degenerate 
 #              codon
 # Arguments:   $codon: the degenerate codon to deal with
