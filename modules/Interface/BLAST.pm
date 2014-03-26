@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:       BLAST.pm 
+# Module:       BLAST.pm 
 # Description:  Interface to BLAST
 # History:      Rob Gifford (rjmg@stanford.edu) January 2007: Creation
 ############################################################################

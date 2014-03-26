@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:       DevTools.pm 
+# Module:       DevTools.pm 
 # Description:  Functions for viewing the contents of PERL data structures
 # History:      Rob Gifford, Novemeber 2006: Creation
 ############################################################################

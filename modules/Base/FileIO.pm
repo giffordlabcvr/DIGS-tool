@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:       FileIO.pm 
+# Module:       FileIO.pm 
 # Description:  Functions for working with ASCII text files 
 # History:      Rob Gifford, Novemeber 2006: Creation
 ############################################################################

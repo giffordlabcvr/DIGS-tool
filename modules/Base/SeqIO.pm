@@ -1,5 +1,5 @@
 ############################################################################
-# Script:       SeqIO.pm 
+# Module:       SeqIO.pm 
 # Description:  Provides fxns for reading and writing biological 
 #               sequence data 
 # History:      Rob Gifford, May 2009: Creation

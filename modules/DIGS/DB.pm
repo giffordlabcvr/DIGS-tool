@@ -3,7 +3,7 @@
 # Module:      DB.pm
 # Description: The DB module for Pipeline databases
 #              Contains routines for creating, and interacting with 
-#              DBs in the Pipeline framework
+#              DBs in the DIGS framework
 # History:     June 2011: Created by Robert Gifford 
 ############################################################################
 package DB;

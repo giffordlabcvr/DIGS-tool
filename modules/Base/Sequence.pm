@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:       Sequence 
-# Description:  Sequence analysis functions
-# History:      Rob Gifford, Decemeber 2006: Creation
+# Module:      Sequence 
+# Description: Sequence analysis functions
+# History:     Rob Gifford, Decemeber 2006: Creation
 ############################################################################
 package Sequence;
 

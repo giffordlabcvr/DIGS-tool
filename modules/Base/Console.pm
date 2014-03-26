@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:       Console.pm 
+# Module:       Console.pm 
 # Description:  Functions for text console programs 
 # History:      Rob Gifford, November 2006: Creation
 ############################################################################
