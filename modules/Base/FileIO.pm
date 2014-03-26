@@ -31,7 +31,7 @@ my $devtools = DevTools->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: Parameters
+# Description: create a new FileIO object
 #***************************************************************************
 sub new {
 
@@ -168,7 +168,7 @@ sub read_directory_tree_leaves {
 
 #***************************************************************************
 # Subroutine:  recursive_read
-# Description: 
+# Description: read everything under a given directory path 
 #***************************************************************************
 sub recursive_read {
 
@@ -254,7 +254,7 @@ sub read_directory_tree_leaves_simple {
 
 #***************************************************************************
 # Subroutine:  recursive_read2
-# Description: 
+# Description: read everything under a given path
 #***************************************************************************
 sub recursive_read2 {
 
