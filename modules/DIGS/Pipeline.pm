@@ -219,11 +219,19 @@ sub run_screen {
 	print "\n\n\t ### Setting up a DIGS screen from control file '$ctl_file'";
 	my %queries;
 	my $loader_obj = ScreenBuild->new($self);
-	$loader_obj->set_up_screen($self, \%queries, $ctl_file);
+	my $valid = $loader_obj->set_up_screen($self, \%queries, $ctl_file);
 
-	# Run reciprocal BLAST pipeline
-	print "\n\n\t ### Starting database-guided genome screening\n";
-	$self->do_screening_process(\%queries);
+	if ($valid) {
+		# Run reciprocal BLAST pipeline
+		print "\n\n\t ### Starting database-guided genome screening\n";
+		$self->do_screening_process(\%queries);
+	}
+	
+	# Cleanup
+	my $output_dir = $loader_obj->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
+
 }
 
 #***************************************************************************
@@ -536,7 +544,7 @@ sub assign {
 		$assigned_name = join ('_', @assigned_name);
 		print " assigned to: $assigned_name: $assigned_gene!";
 		#$devtools->print_hash($hit_ref);
-		# TODO:  what is this about?
+		
 		# Adjust to get extract coordinates using the top match
 		#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
 	    #my $real_end = ($extract_start + $top_match->{query_stop} - 1);
@@ -656,7 +664,6 @@ sub reassign {
 	my $db              = $self->{db};
 	my $extracted_table = $db->{extracted_table};
 	unless ($extracted_table) { die; }
-
 	
 	# Iterate through the matches
 	foreach my $row_ref (@assigned_seqs) {
@@ -666,12 +673,13 @@ sub reassign {
 		my $blast_id        = $row_ref->{record_id};
 		my $previous_assign = $row_ref->{assigned_name};
 		my $previous_gene   = $row_ref->{assigned_gene};
-		my $extract_start   = $row_ref->{subject_start};
-		my $extract_end     = $row_ref->{subject_end};
+		my $extract_start   = $row_ref->{extract_start};
+		my $extract_end     = $row_ref->{extract_end};
 		my $genome          = $row_ref->{organism};
 		unless ($sequence) { die "\n\t NO Sequence!"; }	# Sanity checking
 		print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
-		
+		print "\n\t coordinates: $extract_start-$extract_end";
+
 		# Make a file for BLAST
 		my $fasta      = ">$blast_id\n$sequence";
 		my $query_file = $result_path . $blast_id . '.fas';
@@ -704,7 +712,7 @@ sub reassign {
 		my $query_end     = $top_match->{query_stop};
 		my $subject_start = $top_match->{aln_start};
 		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_name   = $top_match->{scaffold};	
+		my $assigned_name = $top_match->{scaffold};	
 	
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
 		my @assigned_name = split('_', $assigned_name);
@@ -723,7 +731,7 @@ sub reassign {
 			#$update_row{realex_end}    = $real_end;
 			
 			my %update_row;
-			$update_row{assigned_name}   = $assigned_name;
+			$update_row{assigned_name}  = $assigned_name;
 			$update_row{assigned_gene} = $assigned_gene;
 			$update_row{extract_start} = $extract_start;
 			$update_row{extract_end}   = $extract_end;
@@ -746,6 +754,12 @@ sub reassign {
 		system $system1;
 		system $system2;
 	}
+	
+	# Cleanup
+	my $output_dir = $self->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
+
 }
 
 #***************************************************************************
@@ -775,7 +789,7 @@ sub initialise_reassign {
 	# Get the assigned data
 	my $extracted_table = $db->{extracted_table};
 	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
-	                       subject_start subject_end sequence organism ];
+	                       extract_start extract_end sequence organism ];
 	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
 
 	# Set up the reference library

@@ -124,7 +124,8 @@ sub set_up_screen  {
 	$self->set_queries(\@probes, \%targets, $queries_ref);
 	my $num_queries = scalar keys %$queries_ref;
 	unless ( $num_queries ) {
-		die "\n\t ### No screening queries were loaded\n\n\n";
+		print "\n\t ### No screening queries were loaded\n\n\n";
+		return 0;
 	}
 	#$devtools->print_hash($queries_ref); die;	# DEBUG
 
@@ -139,7 +140,7 @@ sub set_up_screen  {
 	$pipeline_obj->{seq_length_minimum} = $self->{seq_length_minimum};
 	#$pipeline_obj->{select_list}        = $self->{select_list};
 	#$pipeline_obj->{where_statement}    = $self->{where_statement};
-
+	return 1;
 }
 
 ############################################################################

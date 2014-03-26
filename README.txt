@@ -5,15 +5,6 @@
 This package comprises a framework for performing bi-directional BLAST-based
 screening of biological sequence databases.
 
-In bidrectional BLAST-based screening, a set of 'probe'
-sequences are used to search one or more 'target' sequence files (typically
-large files, such as chromosome assemblies, or collections of whole genome
-shotgun (WGS) contigs). Sequences in target files that disclose
-above-threshold similarity to probes are extracted and 'genotyped' in a
-second similarity search, wherein they are compared to a set of 'reference'
-sequences representing genetic diversity among the sequences under
-investigation.
-
 The database-integrated genome screening (DIGS) tool is designed for use with
 locally stored genome data. It requires the BLAST+ program suite to perform
 sequence similarity searches, and captures data in MySQL database tables.
