@@ -83,7 +83,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 
 # Initialise usage statement to print if usage is incorrect
 my ($USAGE)  = "\n\t #### DIGS Tool:\n";
-    $USAGE  .= "\n\t usage: $0 -m=[option] -i=[infile]\n";
+    $USAGE  .= "\n\t usage: $0 -m=[option] -i=[control file]\n";
   	$USAGE  .= "\n\t -m=1  create a screening DB"; 
   	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
   	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 

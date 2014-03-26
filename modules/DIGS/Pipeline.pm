@@ -313,7 +313,7 @@ sub search {
 	my @hits;
 	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
 	
-	# Remove the result
+	# Clean up - remove the result file
 	my $rm_command = "rm $result_file";
 	system $rm_command;
 
@@ -421,7 +421,6 @@ sub extract {
 		
 		my $record_id   = $hit_ref->{record_id};
 		if ($extracted{$record_id}) { next; }
-
 		my $start       = $hit_ref->{subject_start};
 		my $end         = $hit_ref->{subject_end};
 		my $orientation = $hit_ref->{orientation};
@@ -474,7 +473,7 @@ sub assign {
 	
 	my ($self, $extracted_ref) = @_;
 	
-	# Get data structures and variables from self
+	# Get parameterss for this Pipeline.pm instance
 	my $db_ref        = $self->{db};
 	my $result_path   = $self->{tmp_path};
 	my $blast_obj     = $self->{blast_obj};
@@ -531,7 +530,7 @@ sub assign {
 		my $query_end     = $top_match->{query_stop};
 		my $subject_start = $top_match->{aln_start};
 		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_name   = $top_match->{scaffold};	
+		my $assigned_name = $top_match->{scaffold};	
 		
 		unless ($assigned_name) {	
 			print "\n\t ### No match found in reference library\n";
@@ -548,11 +547,10 @@ sub assign {
 		# Adjust to get extract coordinates using the top match
 		#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
 	    #my $real_end = ($extract_start + $top_match->{query_stop} - 1);
-		
-		$hit_ref->{assigned_name}      = $assigned_name;
-		$hit_ref->{assigned_gene} = $assigned_gene;
 		#$hit_ref->{realex_start}     = $real_st;
 		#$hit_ref->{realex_end}       = $real_end;
+		$hit_ref->{assigned_name}      = $assigned_name;
+		$hit_ref->{assigned_gene} = $assigned_gene;
 		$hit_ref->{extract_start}    = $extract_start;
 		$hit_ref->{extract_end}      = $extract_end;
 		$hit_ref->{identity}         = $top_match->{identity};
@@ -620,6 +618,7 @@ sub check_if_locus_extracted {
 	my $scaffold = $hit_ref->{scaffold};
 	unless ($scaffold) { die; } # Sanity checking
 	if ($extracted_ref->{$scaffold}) {
+		
 		# Get hit coordinates
 		my $hit_start = $hit_ref->{subject_start};
 		my $hit_end   = $hit_ref->{subject_end};
@@ -656,7 +655,6 @@ sub reassign {
 	print "\n\t # Reassigning Extracted table";
 	my @assigned_seqs;
 	$self->initialise_reassign(\@assigned_seqs);
-
 
 	# Get data structures and variables from self
 	my $blast_obj       = $self->{blast_obj};
