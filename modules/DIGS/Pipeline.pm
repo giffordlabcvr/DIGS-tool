@@ -394,8 +394,8 @@ sub extract {
 
 	# Get all BLAST results from table (ordered by sequential targets)
 	my $where = " WHERE Target_name = '$target_name'
-	                AND probe_name = '$probe_name' 
-                    AND probe_gene = '$probe_gene'
+                  AND probe_name = '$probe_name' 
+                  AND probe_gene = '$probe_gene'
 	              ORDER BY scaffold, subject_start";
 	my @matches;
 	@fields = qw [ record_id 
