@@ -441,8 +441,8 @@ sub format_genome {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:   get_genome_chunk_stats
-# Description:  
+# Subroutine:  get_genome_chunk_stats
+# Description: get metrics on a target genome sequence file 
 #***************************************************************************
 sub get_genome_chunk_stats {
 

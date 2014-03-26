@@ -1,14 +1,14 @@
 BEGIN SCREENDB;
-db_name=Bornavirus_EVE_example;
+db_name=HERV_example;
 mysql_server=localhost;
 mysql_username=root;      
 mysql_password=MyCVR!2; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-query_aa_fasta=example/screensets/bornavirus/bornavirus_probes.fa;
-#reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library.fa;
-reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library_update.fa;
+query_aa_fasta=example/screensets/bornavirus/HERV_probes.fa;
+reference_aa_fasta=example/screensets/bornavirus/retrovirus_library.fa;
+#reference_aa_fasta=example/screensets/bornavirus/retrovirus_library_update.fa;
 bit_score_min_tblastn=100;
 seq_length_minimum=100;
 ENDBLOCK;

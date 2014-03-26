@@ -141,8 +141,8 @@ sub run_digs_function {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:   create_screening_db
-# Description:  create a screening datbase 
+# Subroutine:  create_screening_db
+# Description: create a screening datbase 
 #***************************************************************************
 sub create_screening_db {
 
@@ -163,8 +163,8 @@ sub create_screening_db {
 }
 
 #***************************************************************************
-# Subroutine:   initialise 
-# Description:  do initial checks
+# Subroutine:  initialise 
+# Description: do initial checks
 #***************************************************************************
 sub initialise {
 
@@ -204,8 +204,8 @@ sub initialise {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:   run_screen
-# Description:  handler function to set up and execute a round of screening
+# Subroutine:  run_screen
+# Description: handler function to set up and execute a round of screening
 #***************************************************************************
 sub run_screen {
 
@@ -227,8 +227,8 @@ sub run_screen {
 }
 
 #***************************************************************************
-# Subroutine:   do pipeline screen 
-# Description:  run a round of bidrectional BLAST 
+# Subroutine:  do pipeline screen 
+# Description: run a round of bidrectional BLAST 
 #***************************************************************************
 sub do_screening_process {
 
@@ -611,7 +611,7 @@ sub index_extracted_loci {
 
 #***************************************************************************
 # Subroutine:  check if locus previously extracted
-# Description: 
+# Description: self-explanatory
 #***************************************************************************
 sub check_if_locus_extracted {
 	
@@ -759,7 +759,7 @@ sub reassign {
 
 #***************************************************************************
 # Subroutine:  initialise_reassign 
-# Description: 
+# Description: set up for reassigning the sequences in the Extracted table
 #***************************************************************************
 sub initialise_reassign {
 
@@ -804,8 +804,6 @@ sub initialise_reassign {
 	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
 	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
 	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
-	
-
 }
 
 ############################################################################
@@ -813,8 +811,8 @@ sub initialise_reassign {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:   retrieve 
-# Description:  retrieve data from screening database
+# Subroutine:  retrieve 
+# Description: retrieve data from screening database
 #***************************************************************************
 sub retrieve {
 

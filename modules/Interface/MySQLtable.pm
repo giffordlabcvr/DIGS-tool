@@ -52,9 +52,9 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine: 	insert_row
-# Description:	generic fxn to submit a row of data to the table
-# Arguments:    $sample_data_ref: hash reference containing field values
+# Subroutine:  insert_row
+# Description: generic fxn to submit a row of data to the table
+# Arguments:   $sample_data_ref: hash reference containing field values
 #***************************************************************************
 sub insert_row {
 

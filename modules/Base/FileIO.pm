@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:       FileIO.pm 
-# Description:  
+# Description:  Functions for working with ASCII text files 
 # History:      Rob Gifford, Novemeber 2006: Creation
 ############################################################################
 package FileIO;
@@ -92,73 +92,6 @@ sub check_file_exists {
 }
 
 #***************************************************************************
-# Subroutine:  empty directory contents
-# Description: does what it says
-#***************************************************************************
-sub empty_directory_contents {
-	
-	my ($self, $directory_path) = @_;
-	
-	unless ($directory_path) { die "\n\t Process path undefined"; }
-	my $command = "rm $directory_path/" . '*';
-	print "\n\t ### Caution - using potentially unsafe system 'rm' call to clean up";
-	print "\n\t ### '$command'";
-	system $command;
-}
-
-#***************************************************************************
-# Subroutine:  read_filetypes_to_array
-# Description: read a directory and copy the names of all the files in it 
-#              that have a given suffix to an array
-# Arguments:   $directory: the path to the directort we're reading
-#              $array_ref: array to copy to
-#***************************************************************************
-sub read_filetypes_to_array {
-
-	my ($self, $directory, $suffix, $array_ref) = @_;
-		
-	unless (opendir(DIR, $directory)) {
-		print "\n\t Cannot open directory \"$directory\"\n\n";
-		return;
-	}
-	my $file;
-	while( defined ($file = readdir(DIR))) {
-		# don't copy anything that starts with a '.'
-		if ($file =~ /^\./) { next; }
-		else {
-			my $file_suffix = $self->get_infile_type($file);
-			if ($file_suffix eq $suffix) {
-				push(@$array_ref, $file);
-			}
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  count lines
-# Description: count number of lines in a file
-#***************************************************************************
-sub count_lines {
-
-	my ($self, $file_path) = @_;
-
-	# Count the number of lines in the file
-	print "\n\t\t ## COUNTING LINES...";
-
-	# open the file for reading, or die on failure
-	open FILE, "<$file_path" 
-	or die "\n\tCan't open $file_path\n";
-	
-	# count lines
-	my $num_lines;
-	while ( <FILE> ) { $num_lines++; }
-	close FILE;
-	
-	print "\n\t Found $num_lines lines\n\n";
-	return $num_lines;
-}
-
-#***************************************************************************
 # Subroutine:  get infile type
 # Description: returns the extension of an infile as a 'file_type'
 #***************************************************************************
@@ -193,142 +126,6 @@ sub read_directory_to_array {
 		}
 	}
 }
-
-#***************************************************************************
-# Subroutine:  read_directory_to_hash
-# Description: read a directory to a hash
-# Arguments:   $directory: the path to the directory we're reading
-#              $array_ref: array to copy to
-#***************************************************************************
-sub read_directory_to_hash {
-
-	my ($self, $directory, $hash_ref) = @_;
-		
-	unless (opendir(DIR, $directory)) {
-		print "\n\t Cannot open directory \"$directory\"\n\n";
-		return;
-	}
-	my $file;
-	while( defined ($file = readdir(DIR))) {
-		
-		if ($file =~ /^\./) { next; }
-		my $file_path = $directory . '/' . $file;
-		if (opendir(SUBDIR, $file_path)) {
-			
-			my @subdir;
-			my $subfile;
-			while( defined ($subfile = readdir(SUBDIR))) {
-				# don't copy anything that starts with a '.'
-				unless ($subfile =~ /^\./) {
-					push(@subdir, $subfile);
-				}
-			}
-			$hash_ref->{$file} = \@subdir;
-		}
-		else {
-			$hash_ref->{$file} = 'file';
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  read_text_file_dir_to_hash
-# Description: read a directory of text files to a hash of arrays indexed by
-#              file name
-# Arguments:   $directory: the path to the directory we're reading
-#              $hash_ref:data structure we're writing to
-#***************************************************************************
-sub read_text_file_dir_to_hash {
-
-	my ($self, $directory, $hash_ref) = @_;
-		
-	unless (opendir(DIR, $directory)) {
-		print "\n\t Cannot open directory \"$directory\"\n\n";
-		return;
-	}
-	my $file;
-	while( defined ($file = readdir(DIR))) {
-		
-		if ($file =~ /^\./) { next; }
-		my $file_path = $directory . '/' . $file;
-		if (opendir(SUBDIR, $file_path)) {
-			print "\n\t'$file' is  not a text file";
-			return;
-		}
-		else {
-			my @file;
-			$self->read_file($file_path, \@file);
-			$hash_ref->{$file} = \@file;
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  read_directory_tree_leaves
-# Description: read a directory tree, and store each 'leaf' 
-# Arguments:   $path: path to directory
-#              $leaves: array to store 'leaves' (files data) as hashes
-# [optional]   $level_codes: hash with correspondence between directory 
-#                            levels and values/labels/classifiers etc
-#***************************************************************************
-sub read_directory_tree_leaves_simple {
-
-	my ($self, $path, $leaves_ref) = @_;
-	
-	unless ($path and $leaves_ref) { die; }
-	
-	# Read in the top level directory
-	my @directory;
-	$self->read_directory_to_array($path, \@directory);
-	foreach my $file (@directory) {
-		
-		#print "\n\t test $file";
-		my $file_path = $path . '/' . $file;
-		if (opendir(DIR, $file_path)) {
-			$self->recursive_read2($file_path, $leaves_ref); 
-			#$devtools->print_array($leaves);
-		}
-		else {
-			my %file;
-			$file{path} = $file_path;
-			$file{file} = $file;
-			push (@$leaves_ref, \%file);
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  recursive_read2
-# Description: 
-#***************************************************************************
-sub recursive_read2 {
-
-	my ($self, $path, $leaves_ref) = @_;
-	
-	# Read in the top level directory
-	my @directory;
-	$self->read_directory_to_array($path, \@directory);
-	
-	# Iterate through
-	foreach my $file (@directory) {
-	
-		#print "\n$file: \t #### $level";
-		my $file_path = $path . '/' . $file;
-		# Recurse if's a directory
-		if (opendir(DIR, $file_path)) {
-			#print "\n\t ### going into \t $file_path";
-			#$devtools->print_hash($branch_data);
-			$self->recursive_read2($file_path, $leaves_ref); 
-		}
-		else {
-			my %file;
-			$file{path} = $file_path;
-			$file{file} = $file;
-			push (@$leaves_ref, \%file);
-		}
-	}
-}
-
 
 #***************************************************************************
 # Subroutine:  read_directory_tree_leaves
@@ -421,6 +218,72 @@ sub recursive_read {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  read_directory_tree_leaves_simple
+# Description: read a directory tree, and store each 'leaf' 
+# Arguments:   $path: path to directory
+#              $leaves: array to store 'leaves' (files data) as hashes
+# [optional]   $level_codes: hash with correspondence between directory 
+#                            levels and values/labels/classifiers etc
+#***************************************************************************
+sub read_directory_tree_leaves_simple {
+
+	my ($self, $path, $leaves_ref) = @_;
+	
+	unless ($path and $leaves_ref) { die; }
+	
+	# Read in the top level directory
+	my @directory;
+	$self->read_directory_to_array($path, \@directory);
+	foreach my $file (@directory) {
+		
+		#print "\n\t test $file";
+		my $file_path = $path . '/' . $file;
+		if (opendir(DIR, $file_path)) {
+			$self->recursive_read2($file_path, $leaves_ref); 
+			#$devtools->print_array($leaves);
+		}
+		else {
+			my %file;
+			$file{path} = $file_path;
+			$file{file} = $file;
+			push (@$leaves_ref, \%file);
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  recursive_read2
+# Description: 
+#***************************************************************************
+sub recursive_read2 {
+
+	my ($self, $path, $leaves_ref) = @_;
+	
+	# Read in the top level directory
+	my @directory;
+	$self->read_directory_to_array($path, \@directory);
+	
+	# Iterate through
+	foreach my $file (@directory) {
+	
+		#print "\n$file: \t #### $level";
+		my $file_path = $path . '/' . $file;
+		# Recurse if's a directory
+		if (opendir(DIR, $file_path)) {
+			#print "\n\t ### going into \t $file_path";
+			#$devtools->print_hash($branch_data);
+			$self->recursive_read2($file_path, $leaves_ref); 
+		}
+		else {
+			my %file;
+			$file{path} = $file_path;
+			$file{file} = $file;
+			push (@$leaves_ref, \%file);
+		}
+	}
+}
+
 
 ############################################################################
 # 2. Basic IO
@@ -455,6 +318,24 @@ sub read_file {
 	close INFILE;
 
 	return 1;
+}
+
+#***************************************************************************
+# Subroutine:  write_file
+# Description: write an array to an ouput file
+# Arguments:   $file: the name of the file to write to 
+#              $array_ref: array to copy
+#***************************************************************************
+sub write_file {
+
+	my ($self, $file, $array_ref) = @_;
+	unless (open(OUTFILE, ">$file")) {
+		print "\n\t Couldn't open file \"$file\" for writing\n\n";
+		return 0;
+	}
+	print OUTFILE @$array_ref;
+	close OUTFILE;
+	#print "\n\t File \"$file\" created!\n\n";
 }
 
 #***************************************************************************
@@ -493,49 +374,6 @@ sub append_text_to_file {
 	print OUTFILE $text;
 	close OUTFILE;
 	#print "\n\t File \"$file\" created!\n\n";
-}
-
-#***************************************************************************
-# Subroutine:  write_file
-# Description: write an array to an ouput file
-# Arguments:   $file: the name of the file to write to 
-#              $array_ref: array to copy
-#***************************************************************************
-sub write_file {
-
-	my ($self, $file, $array_ref) = @_;
-	unless (open(OUTFILE, ">$file")) {
-		print "\n\t Couldn't open file \"$file\" for writing\n\n";
-		return 0;
-	}
-	print OUTFILE @$array_ref;
-	close OUTFILE;
-	#print "\n\t File \"$file\" created!\n\n";
-}
-
-#***************************************************************************
-# Subroutine:  hash to file
-# Description: sort a hash using the keys and write to an ouput file
-# Arguments:   $file: the name of the file to write to 
-#              $hash_ref: hash to copy
-#***************************************************************************
-sub hash_to_file {
-
-	my ($self, $file, $hash_ref) = @_;
-	unless (open(OUTFILE, ">$file")) {
-		print "\n\t Couldn't open file \"$file\" for writing\n\n";
-		return;
-	}
-	
-	my @keys = keys %$hash_ref;
-	foreach my $key (sort keys %$hash_ref) {
-		my $value = $hash_ref->{$key};
-		chomp $value; # just in case there's already a line break there
-		my $data = $key . "\t" . $value . "\n";
-		print OUTFILE $data;
-	}
-	close OUTFILE;
-	print "\n\t File \"$file\" created!\n\n";
 }
 
 ############################################################################
@@ -620,8 +458,8 @@ sub read_standard_field_value_block {
 }
 
 #***************************************************************************
-# Subroutine:  extract_text_block
-# Description: does what it says 
+# Subroutine:  extract_text_blocks
+# Description: extract block(s) of text denoted by start and stop tokens 
 #***************************************************************************
 sub extract_text_blocks { 
 
@@ -650,7 +488,7 @@ sub extract_text_blocks {
 
 #***************************************************************************
 # Subroutine:  extract_text_block
-# Description: does what it says 
+# Description: extract a block of text denoted by start and stop tokens 
 #***************************************************************************
 sub extract_text_block { 
 
@@ -671,30 +509,6 @@ sub extract_text_block {
 		}
 	}
 
-}
-
-#***************************************************************************
-# Subroutine:  extract_text_block2
-# Description: extract text block and capture start token
-#***************************************************************************
-sub extract_text_block2 { 
-
-	my ($self, $input_ref, $block_ref, $start_token, $stop_token) = @_;
-
-	my $extract = undef;
-	foreach my $line (@$input_ref) {
-
-		if  ($extract) { 
-			push (@$block_ref, $line); 
-		}
-		if ($line =~ $start_token) { 
-			$extract = 'true';         
-			push (@$block_ref, $line); 
-		}
-		elsif ($line =~ $stop_token) { 
-			$extract = undef;          
-		}
-	}
 }
 
 #***************************************************************************
