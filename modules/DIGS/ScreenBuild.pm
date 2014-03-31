@@ -766,6 +766,7 @@ sub parse_control_file {
 	my $query_nt_fasta     = $self->{query_nt_fasta};
 	my $reference_aa_fasta = $self->{reference_aa_fasta};
 	my $reference_nt_fasta = $self->{reference_nt_fasta};
+	my $extract_mode       = $self->{extract_mode};
 
 	# Check the probe files and correspondence to parameters for BLAST
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
@@ -793,6 +794,11 @@ sub parse_control_file {
 	unless ($query_aa_fasta or $query_nt_fasta) {
 		die "\n\t Control file error: no probe library defined\n\n\n";
 	}
+	unless ($extract_mode) {
+		# Set extract mode to default (extract everything)
+		$self->{extract_mode} = 1;
+	}
+
 
 	# READ the 'TARGETS' block
 	my @target_block;

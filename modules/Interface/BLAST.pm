@@ -54,8 +54,8 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  BLAST - used with PIPELINE screens
-# Description: 
+# Subroutine:  BLAST
+# Description: Execute BLAST a search
 #***************************************************************************
 sub blast {
 
@@ -113,8 +113,55 @@ sub blast {
 	system $command;		
 }
 
+#***************************************************************************
+# Subroutine:  BLAST extract_sequence
+# Description: extract_sequence
+#***************************************************************************
+sub extract_sequence {
+
+	my ($self, $target_path, $hit_ref) = @_;
+
+	# Get path to BLAST binary
+	my $blast_path  = $self->{blast_bin_path};
+	
+	# Get hit parameters
+	my $start       = $hit_ref->{subject_start};
+	my $end         = $hit_ref->{subject_end};
+	my $orientation = $hit_ref->{orientation};
+	my $scaffold    = $hit_ref->{scaffold};
+	unless ($start and $end and $orientation and $scaffold and $target_path) { die; }
+
+	# Parsing for blastdbcmd
+	my @gi = split(/\|/,$scaffold);	
+	if (scalar(@gi) > 1) {
+		$scaffold = $gi[1];
+	}
+
+	# Create the command
+	# Command example: 
+	# /bin/blast/blastdbcmd -db hs_alt_HuRef_chrX.fa -entry 157734237 
+	# -range 10-60 -strand minus
+	my $command = $blast_path . "blastdbcmd -db $target_path";
+	$command .= " -entry $scaffold ";
+	$command .= " -range $start-$end ";
+	if ($orientation eq '-ve') { $command .= ' -strand minus '; }
+	
+	# Execute the command
+	my @sequence = `$command`;
+	shift @sequence;  # Remove header
+	my $sequence = join ('', @sequence);
+	$sequence =~ s/\n//g;
+
+	# Check we got sequences
+	unless ($sequence) {
+		print "\n\t ## FAILED TO EXTRACT sequence using command '$command'\n";
+	}
+	
+	return $sequence;
+}
+
 ############################################################################
-# Lower level parsing fxns - initial parsing
+# Lower level parsing fxns
 ############################################################################
 
 #***************************************************************************

@@ -135,7 +135,6 @@ sub run_digs_function {
 	}
 }
 
-
 ############################################################################
 # SECTION: Initialise
 ############################################################################
@@ -191,6 +190,7 @@ sub initialise {
 	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
 	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
 	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
+	$self->{extract_mode}          = $loader_obj->{extract_mode};
 	
 	# Load screening database (includes some MacroLineage Tables
 	$loader_obj->set_screening_db();
@@ -261,7 +261,7 @@ sub do_screening_process {
 			# Do the BLAST search
 			$self->search($query_ref);	
 	
-			# Extract matches 
+			# Extract hits 
 			my @extracted;
 			$self->extract($query_ref, \@extracted);	
 			
@@ -284,12 +284,15 @@ sub search {
 	my ($self, $query_ref) = @_;
 
 	# Get relevant member variables and objects
-	my $db_ref     = $self->{db};
-	my $blast_obj  = $self->{blast_obj};
-	my $tmp_path   = $self->{tmp_path};
-	my $min_length = $self->{seq_length_minimum};
+	my $db_ref       = $self->{db};
+	my $blast_obj    = $self->{blast_obj};
+	my $tmp_path     = $self->{tmp_path};
+	my $min_length   = $self->{seq_length_minimum};
+	my $extract_mode = $self->{extract_mode};
 	unless ($min_length) { $min_length = $default_min_seqlen; }
-	unless ($db_ref and $blast_obj and $tmp_path) { die; } # Sanity checking
+	
+	# Sanity checking
+	unless ($db_ref and $blast_obj and $tmp_path and $extract_mode) { die; } 
 
 	# Get query details
 	my $probe_id     = $query_ref->{probe_id};
@@ -326,17 +329,19 @@ sub search {
 
 	# Index loci previously extracted from this target file
 	my %extracted;
-	$self->index_extracted_loci($target_name, \%extracted);
+	$self->index_extracted_loci_by_scaffold($target_name, \%extracted);
 
-	# Store new new matches that meet conditions
+	# Store new new BLAST hits that meet conditions
 	my $blast_results_table = $db_ref->{blast_results_table};
 	my $i = 0;
 	foreach my $hit_ref (@hits) {
 		$i++;
 		
-		# Check if redundant with Loci table
-		my $skip = $self->check_if_locus_extracted($hit_ref, \%extracted);
-		if ($skip) {  next; }
+		if ($extract_mode > 1) {
+			# Check if redundant with Loci table
+			my $skip = $self->check_if_locus_extracted($hit_ref, \%extracted);
+			if ($skip) {  next; }
+		}
 
 		# Skip sequences that are too short
 		my $start  = $hit_ref->{subject_start};
@@ -364,223 +369,11 @@ sub search {
 	#$devtools->print_hash($query_ref);
 }
 
-############################################################################
-# SECTION: Extract 
-############################################################################
-
 #***************************************************************************
-# Subroutine:  extract
-# Description: extract sequences that matched probes in a BLAST search 
+# Subroutine:  index extracted loci by scaffold
+# Description: Index loci previously extracted from a target file by scaffold
 #***************************************************************************
-sub extract {
-	
-	my ($self, $query_ref, $extracted_ref) = @_;
-
-	# Get paths
-	my $blast_bin_path     = $self->{blast_bin_path};
-	
-	# Get data structures and variables from self
-	my $db_ref = $self->{db};
-	my $blast_results_table = $db_ref->{blast_results_table};
-	my $extracted_table     = $db_ref->{extracted_table}; 
-
-	# Index extracted BLAST results 
-	my %extracted;
-	my @fields = qw [ blast_id ];
-	my @blast_ids;
-	$extracted_table->select_rows(\@fields, \@blast_ids);	
-	foreach my $hit_ref (@blast_ids) {
-		my $blast_id = $hit_ref->{blast_id};
-		$extracted{$blast_id} = $hit_ref;	
-	}
-
-	# Get query params we need
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-	my $target_name = $query_ref->{target_name}; # target file name
-	my $target_path = $query_ref->{target_path};
-
-	# Get all BLAST results from table (ordered by sequential targets)
-	my $where = " WHERE Target_name = '$target_name'
-                  AND probe_name = '$probe_name' 
-                  AND probe_gene = '$probe_gene'
-	              ORDER BY scaffold, subject_start";
-	my @matches;
-	@fields = qw [ record_id 
-	               organism data_type version 
-                   probe_name probe_gene probe_type
-				   e_value_num e_value_exp bit_score align_len orientation 
-                   scaffold target_name
-                   subject_start subject_end 
-		           query_start query_end ];
-	$blast_results_table->select_rows(\@fields, \@matches, $where); 
-	#$devtools->print_array(\@matches); exit;
-
-	# Store all outstanding matches as sequential, target-ordered sets 
-	foreach my $hit_ref (@matches) {
-		
-		my $record_id   = $hit_ref->{record_id};
-		if ($extracted{$record_id}) { next; }
-		my $start       = $hit_ref->{subject_start};
-		my $end         = $hit_ref->{subject_end};
-		my $orientation = $hit_ref->{orientation};
-		my $scaffold    = $hit_ref->{scaffold};
-		
-		# Parsing for blastdbcmd
-		my @gi = split(/\|/,$scaffold);	
-		if (scalar(@gi) > 1) {
-			$scaffold = $gi[1];
-		}
-
-		# Create the command
-		# Command example: 
-		# /bin/blast/blastdbcmd -db hs_alt_HuRef_chrX.fa -entry 157734237 
-		# -range 10-60 -strand minus
-		my $command = $blast_bin_path . "blastdbcmd -db $target_path";
-		$command .= " -entry $scaffold ";
-		$command .= " -range $start-$end ";
-		if ($orientation eq '-ve') { $command .= ' -strand minus '; }
-		
-		# Execute the command
-		my @sequence = `$command`;
-		shift @sequence;  # Remove header
-		my $sequence = join ('', @sequence);
-		$sequence =~ s/\n//g;
-		
-		# Check we got sequences
-		unless ($sequence) {
-			print "FAILED TO EXTRACT sequence using command '$command'\n";
-		}
-		else {	
-			# Set sequence length
-			my $seq_length = length $sequence;
-			$hit_ref->{sequence_length} = $seq_length;
-			$hit_ref->{sequence} = $sequence;
-			push (@$extracted_ref, $hit_ref);
-		}
-	}
-}
-
-############################################################################
-# SECTION: Assign 
-############################################################################
-
-#***************************************************************************
-# Subroutine:  assign
-# Description: assign sequences that matched probes in a BLAST search 
-#***************************************************************************
-sub assign {
-	
-	my ($self, $extracted_ref) = @_;
-	
-	# Get parameterss for this Pipeline.pm instance
-	my $db_ref        = $self->{db};
-	my $result_path   = $self->{tmp_path};
-	my $blast_obj     = $self->{blast_obj};
-	my $table = $db_ref->{extracted_table}; 
-	unless ($result_path) { die; }
-
-	# Iterate through the matches
-	foreach my $hit_ref (@$extracted_ref) {
-		
-		# Copy the coordinates AS EXTRACT coordinates	
-		my $extract_start = $hit_ref->{subject_start};
-		my $extract_end   = $hit_ref->{subject_end};
-		my $blast_id      = $hit_ref->{record_id};
-		my $sequence      = $hit_ref->{sequence};
-		my $organism      = $hit_ref->{organism};
-		my $probe_type    = $hit_ref->{probe_type};
-		
-		# Set the linking to the BLAST result table
-		$hit_ref->{blast_id} = $blast_id;
-		unless ($sequence) { # Sanity checking
-			print "\n\t ###### WARNING NO Sequence!"; 
-			next;
-		}	
-		
-		# Make a file for BLAST
-		my $fasta      = ">$blast_id\n$sequence";
-		my $query_file = $result_path . $blast_id . '.fas';
-		$fileio->write_text_to_file($query_file, $fasta);
-		my $result_file = $result_path . $blast_id . '.blast_result';
-			
-		# Do the BLAST accoridnmg to the type of sequence (AA or NA)
-		print "\n\t # BLAST hit $blast_id in $organism ";
-		my $blast_alg;
-		my $lib_path;
-		unless ($probe_type) { die; }
-		if ($probe_type eq 'UTR') {
-			$lib_path  = $self->{blast_utr_lib_path};
-			$blast_alg = 'blastn';
-		}
-		elsif ($probe_type eq 'ORF') {
-			$lib_path  = $self->{blast_orf_lib_path};
-			$blast_alg = 'blastx';
-		}
-		else { die; }
-
-		unless ($lib_path) { die "\n\n\t NO BLAST LIBRARY defined\n\n\n"; }
-		$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
-		my @results;
-		$blast_obj->parse_tab_format_results($result_file, \@results);
-
-		# Get the best match from this file
-		my $top_match = shift @results;
-		my $query_start   = $top_match->{query_start};
-		my $query_end     = $top_match->{query_stop};
-		my $subject_start = $top_match->{aln_start};
-		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_name = $top_match->{scaffold};	
-		
-		unless ($assigned_name) {	
-			print "\n\t ### No match found in reference library\n";
-			next; 
-		}
-		
-		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_name = split('_', $assigned_name);
-		my $assigned_gene = pop @assigned_name;
-		$assigned_name = join ('_', @assigned_name);
-		print " assigned to: $assigned_name: $assigned_gene!";
-		#$devtools->print_hash($hit_ref);
-		
-		# Adjust to get extract coordinates using the top match
-		#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
-	    #my $real_end = ($extract_start + $top_match->{query_stop} - 1);
-		#$hit_ref->{realex_start}     = $real_st;
-		#$hit_ref->{realex_end}       = $real_end;
-		$hit_ref->{assigned_name}      = $assigned_name;
-		$hit_ref->{assigned_gene} = $assigned_gene;
-		$hit_ref->{extract_start}    = $extract_start;
-		$hit_ref->{extract_end}      = $extract_end;
-		$hit_ref->{identity}         = $top_match->{identity};
-		$hit_ref->{mismatches}       = $top_match->{mismatches};
-		$hit_ref->{gap_openings}     = $top_match->{gap_openings};
-		$hit_ref->{query_end}        = $query_end;
-		$hit_ref->{query_start}      = $query_start;
-		$hit_ref->{subject_end}      = $subject_end;
-		$hit_ref->{subject_start}    = $subject_start;
-		
-		# Insert the data
-		my $extract_id = $table->insert_row($hit_ref);
-
-		# Clean up
-		my $command1 = "rm $query_file";
-		my $command2 = "rm $result_file";
-		system $command1;
-		system $command2;
-	}
-}
-
-############################################################################
-# Utility functions
-############################################################################
-
-#***************************************************************************
-# Subroutine:  index previously extracted loci
-# Description: Index loci previously extracted from this target file
-#***************************************************************************
-sub index_extracted_loci {
+sub index_extracted_loci_by_scaffold {
 	
 	my ($self, $target_name, $previously_extracted_ref) = @_;
 
@@ -642,6 +435,232 @@ sub check_if_locus_extracted {
 	return $skip;
 }
 
+############################################################################
+# SECTION: Extract 
+############################################################################
+
+#***************************************************************************
+# Subroutine:  extract
+# Description: extract sequences that matched probes in a BLAST search 
+#***************************************************************************
+sub extract {
+	
+	my ($self, $query_ref, $extracted_ref) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+	my $target_path = $query_ref->{target_path};
+	my $db_ref      = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+
+	# Index extracted BLAST results 
+	my %extracted;
+	$self->index_extracted_loci_by_blastid(\%extracted);
+
+	# Get query params we need
+	my @hits;
+	$self->get_blast_hits_to_extract($query_ref, \@hits);
+
+	# Store all outstanding matches as sequential, target-ordered sets 
+	foreach my $hit_ref (@hits) {
+		
+		# Skip previously extracted hits
+		my $record_id   = $hit_ref->{record_id};
+		if ($extracted{$record_id}) { next; }
+		
+		# Extract the sequence
+		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		if ($sequence) {	
+			my $seq_length = length $sequence; # Set sequence length
+			$hit_ref->{sequence_length} = $seq_length;
+			$hit_ref->{sequence} = $sequence;
+			push (@$extracted_ref, $hit_ref);
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  index extracted loci by BLAST id
+# Description: Index loci previously extracted from a target file by blastid
+#***************************************************************************
+sub index_extracted_loci_by_blastid {
+	
+	my ($self, $target_name, $previously_extracted_ref) = @_;
+
+	# Get relevant variables and objects
+	my $db_ref          = $self->{db};
+	my $extracted_table = $db_ref->{extracted_table}; 
+	my @fields = qw [ blast_id ];
+	my @blast_ids;
+	$extracted_table->select_rows(\@fields, \@blast_ids);	
+	foreach my $hit_ref (@blast_ids) {
+		my $blast_id = $hit_ref->{blast_id};
+		$previously_extracted_ref->{$blast_id} = $hit_ref;	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  get_blast_hits_to_extract
+# Description: Get BLAST hits to extract
+#***************************************************************************
+sub get_blast_hits_to_extract {
+	
+	my ($self, $query_ref, $hits_ref) = @_;
+
+	# Get data structures and variables from self
+	my $db_ref = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+
+	# Get parameters for this query
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
+	my $target_name = $query_ref->{target_name}; # target file name
+
+	# Get all BLAST results from table (ordered by sequential targets)
+	my $where = " WHERE Target_name = '$target_name'
+                  AND probe_name = '$probe_name' 
+                  AND probe_gene = '$probe_gene'
+	              ORDER BY scaffold, subject_start";
+
+	my @fields = qw [ record_id 
+	               organism data_type version 
+                   probe_name probe_gene probe_type
+				   e_value_num e_value_exp bit_score align_len orientation 
+                   scaffold target_name
+                   subject_start subject_end 
+		           query_start query_end ];
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
+	#$devtools->print_array($hits_ref); exit;
+}
+
+############################################################################
+# SECTION: Assign 
+############################################################################
+
+#***************************************************************************
+# Subroutine:  assign
+# Description: assign sequences that matched probes in a BLAST search 
+#***************************************************************************
+sub assign {
+	
+	my ($self, $extracted_ref) = @_;
+	
+	# Get parameters from self
+	my $db_ref = $self->{db};
+	my $table  = $db_ref->{extracted_table}; 
+
+	# Iterate through the matches
+	foreach my $hit_ref (@$extracted_ref) {
+
+		# Set the linking to the BLAST result table
+		my $blast_id  = $hit_ref->{record_id};
+		$hit_ref->{blast_id} = $blast_id;
+		
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+		$self->do_reverse_blast($hit_ref);
+
+		# Insert the data
+		my $extract_id = $table->insert_row($hit_ref);
+	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  reverse BLAST
+# Description: Execute the 2nd BLAST in a round of bidirectional BLAST
+#***************************************************************************
+sub do_reverse_blast {
+
+	my ($self, $hit_ref) = @_;
+	
+	# Get paths and objects from self
+	my $result_path   = $self->{tmp_path};
+	my $blast_obj     = $self->{blast_obj};
+	unless ($result_path and $blast_obj) { die; }
+	
+	# Copy the coordinates AS EXTRACT coordinates	
+	my $extract_start = $hit_ref->{subject_start};
+	my $extract_end   = $hit_ref->{subject_end};
+	my $blast_id      = $hit_ref->{blast_id};
+	my $sequence      = $hit_ref->{sequence};
+	my $organism      = $hit_ref->{organism};
+	my $probe_type    = $hit_ref->{probe_type};
+	
+	# Sanity checking
+	unless ($sequence) {  die "\n\t # No sequence found in revsre BLAST"; } 
+	
+	# Make a file for BLAST
+	my $fasta      = ">$blast_id\n$sequence";
+	my $query_file = $result_path . $blast_id . '.fas';
+	$fileio->write_text_to_file($query_file, $fasta);
+	my $result_file = $result_path . $blast_id . '.blast_result';
+		
+	# Do the BLAST accoridnmg to the type of sequence (AA or NA)
+	print "\n\t # BLAST hit $blast_id in $organism ";
+	my $blast_alg;
+	my $lib_path;
+	unless ($probe_type) { die; }
+	if ($probe_type eq 'UTR') {
+		$lib_path  = $self->{blast_utr_lib_path};
+		$blast_alg = 'blastn';
+	}
+	elsif ($probe_type eq 'ORF') {
+		$lib_path  = $self->{blast_orf_lib_path};
+		$blast_alg = 'blastx';
+	}
+	else { die; }
+
+	# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+	unless ($lib_path) { die "\n\n\t NO BLAST LIBRARY defined\n\n\n"; }
+	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
+	my @results;
+	$blast_obj->parse_tab_format_results($result_file, \@results);
+
+	# Get the best match from this file
+	my $top_match = shift @results;
+	my $query_start   = $top_match->{query_start};
+	my $query_end     = $top_match->{query_stop};
+	my $subject_start = $top_match->{aln_start};
+	my $subject_end   = $top_match->{aln_stop};
+	my $assigned_name = $top_match->{scaffold};	
+	
+	unless ($assigned_name) {	
+		print "\n\t ### No match found in reference library\n";
+		next; 
+	}
+	
+	# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
+	my @assigned_name = split('_', $assigned_name);
+	my $assigned_gene = pop @assigned_name;
+	$assigned_name = join ('_', @assigned_name);
+	print " assigned to: $assigned_name: $assigned_gene!";
+	#$devtools->print_hash($hit_ref);
+	
+	# Adjust to get extract coordinates using the top match
+	#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
+	#my $real_end = ($extract_start + $top_match->{query_stop} - 1);
+	#$hit_ref->{realex_start}     = $real_st;
+	#$hit_ref->{realex_end}       = $real_end;
+	$hit_ref->{assigned_name}    = $assigned_name;
+	$hit_ref->{assigned_gene}    = $assigned_gene;
+	$hit_ref->{extract_start}    = $extract_start;
+	$hit_ref->{extract_end}      = $extract_end;
+	$hit_ref->{identity}         = $top_match->{identity};
+	$hit_ref->{mismatches}       = $top_match->{mismatches};
+	$hit_ref->{gap_openings}     = $top_match->{gap_openings};
+	$hit_ref->{query_end}        = $query_end;
+	$hit_ref->{query_start}      = $query_start;
+	$hit_ref->{subject_end}      = $subject_end;
+	$hit_ref->{subject_start}    = $subject_start;
+
+	# Clean up
+	my $command1 = "rm $query_file";
+	my $command2 = "rm $result_file";
+	system $command1;
+	system $command2;
+
+}
+	
 #***************************************************************************
 # Subroutine:  reassign
 # Description: reassign sequences in the extracted_table (for use after
@@ -664,93 +683,37 @@ sub reassign {
 	unless ($extracted_table) { die; }
 	
 	# Iterate through the matches
-	foreach my $row_ref (@assigned_seqs) {
-		
-		my $sequence        = $row_ref->{sequence};
-		my $probe_type      = $row_ref->{probe_type};
-		my $blast_id        = $row_ref->{record_id};
-		my $previous_assign = $row_ref->{assigned_name};
-		my $previous_gene   = $row_ref->{assigned_gene};
-		my $extract_start   = $row_ref->{extract_start};
-		my $extract_end     = $row_ref->{extract_end};
-		my $genome          = $row_ref->{organism};
-		unless ($sequence) { die "\n\t NO Sequence!"; }	# Sanity checking
+	foreach my $hit_ref (@assigned_seqs) {
+
+		# Set the linking to the BLAST result table
+		my $blast_id  = $hit_ref->{record_id};
+		$hit_ref->{blast_id} = $blast_id;
+		delete $hit_ref->{record_id};
+		my $extract_start   = $hit_ref->{extract_start};
+		my $extract_end     = $hit_ref->{extract_end};
+		$hit_ref->{subject_start} = $extract_start;
+		$hit_ref->{subject_end}   = $extract_end;
+		delete $hit_ref->{extract_start};
+		delete $hit_ref->{extract_end};
+	
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+		my $previous_assign = $hit_ref->{assigned_name};
+		my $previous_gene   = $hit_ref->{assigned_gene};
 		print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
 		print "\n\t coordinates: $extract_start-$extract_end";
-
-		# Make a file for BLAST
-		my $fasta      = ">$blast_id\n$sequence";
-		my $query_file = $result_path . $blast_id . '.fas';
-		$fileio->write_text_to_file($query_file, $fasta);
-		my $result_file = $result_path . $blast_id . '.blast_result';
-			
-		# Do the BLAST according to the type of sequence (AA or NA)
-		print "\n\t ##### BLAST BACK for $blast_id, $genome";
-		my $blast_alg;
-		my $lib_path;
-
-		unless ($probe_type) { die; }
-		if ($probe_type eq 'UTR') {
-			$lib_path  = $self->{blast_utr_lib_path};
-			$blast_alg = 'blastn';
-		}
-		elsif ($probe_type eq 'ORF') {
-			$lib_path  = $self->{blast_orf_lib_path};
-			$blast_alg = 'blastx';
-		}
-		else { die; }
-		unless ($lib_path) { die "\n\n\t NO BLAST LIBRARY defined\n\n\n"; }
-		$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
-		my @results;
-		$blast_obj->parse_tab_format_results($result_file, \@results);
-
-		# Get the best match from this file
-		my $top_match = shift @results;
-		my $query_start   = $top_match->{query_start};
-		my $query_end     = $top_match->{query_stop};
-		my $subject_start = $top_match->{aln_start};
-		my $subject_end   = $top_match->{aln_stop};
-		my $assigned_name = $top_match->{scaffold};	
-	
-		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_name = split('_', $assigned_name);
-		my $assigned_gene = pop @assigned_name;
-		$assigned_name = join ('_', @assigned_name);
+		$self->do_reverse_blast($hit_ref);
 		
+		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
 		if ($assigned_name ne $previous_assign 
 		or  $assigned_gene ne $previous_gene) {
 			
+			# Insert the data
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
-			# Adjust to get extract coordinates using the top match
-			#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
-			#my $real_end = ($extract_start + $top_match->{query_stop} - 1);
-			#$update_row{realex_start}  = $real_st;
-			#$update_row{realex_end}    = $real_end;
-			
-			my %update_row;
-			$update_row{assigned_name}  = $assigned_name;
-			$update_row{assigned_gene} = $assigned_gene;
-			$update_row{extract_start} = $extract_start;
-			$update_row{extract_end}   = $extract_end;
-			$update_row{identity}      = $top_match->{identity};
-			$update_row{mismatches}    = $top_match->{mismatches};
-			$update_row{gap_openings}  = $top_match->{gap_openings};
-			$update_row{query_end}     = $query_end;
-			$update_row{query_start}   = $query_start;
-			$update_row{subject_end}   = $subject_end;
-			$update_row{subject_start} = $subject_start;
-				
-			# Insert the data
 			my $where = " WHERE Record_id = $blast_id ";
-			$extracted_table->update(\%update_row, $where);
+			$extracted_table->update($hit_ref, $where);
 		}
-		
-		# CLEAN UP
-		my $system1 = "rm $query_file";
-		my $system2 = "rm $result_file";
-		system $system1;
-		system $system2;
 	}
 	
 	# Cleanup
