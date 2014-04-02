@@ -88,7 +88,7 @@ sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# summarizing genomes does not require a file path
+	# summarising genomes does not require a file path
 	if ($option eq 8) {  
 		my $genome_obj = GenomeControl->new($self);
 		$genome_obj->summarise_genomes();    

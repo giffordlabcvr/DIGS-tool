@@ -1,7 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:      pipeline.pl 
-# Description: control script for DIGS
+# Script:      add_rv_taxonomy_table.pl 
+# Description: worked example script for DIGS - adding an auxillary table
+#              and populating with data derived from a tab-delimited file
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
@@ -17,7 +18,6 @@ use lib ($ENV{DIGS}) . '/modules/';
 # Import statements/packages (externally developed packages)
 ############################################################################
 use strict;
-use CGI;
 use Getopt::Long;
 
 ############################################################################
@@ -29,30 +29,10 @@ use Base::Console;
 use Base::DevTools;
 use Base::FileIO;
 
-# Third party program interface modules
-use Interface::BLAST;   # Interface to BLAST 
-
-# Paleovirology program modules
-use DIGS::Pipeline;
-use DIGS::ScreenBuild;
-use DIGS::GenomeControl;
-use DIGS::DB;
-
 ############################################################################
 # Paths & Globals
 ############################################################################
 
-# Paths
-#my $blast_bin_path       = $ENV{DIGS} . '/bin/blast/';  # Example
-my $blast_bin_path        = '';              # Path to directory with BLAST+ programs
-                                             # leave blank if BLAST+ programs in path 
-my $genome_use_path       = $ENV{DIGS} . '/targets/';   # genome data directory
-my $output_path           = $ENV{DIGS} . '/proc/';      # default process directory
-	
-# Process ID and time - used to create a unique ID for each program run
-my $pid  = $$;
-my $time = time;
-my $process_id   = 'result_set_' . $pid . '_' . $time;
 
 ############################################################################
 # Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
@@ -64,35 +44,13 @@ my $fileio     = FileIO->new();
 my $devtools   = DevTools->new();
 my $console    = Console->new();
 
-# Interface to BLAST
-my %blast_params;
-$blast_params{blast_bin_path} = $blast_bin_path;
-my $blast_obj = BLAST->new(\%blast_params);
-
-# Instantiate main program classes using global settings
-my %params;
-$params{process_id}         = $process_id;
-$params{blast_bin_path}     = $blast_bin_path; 
-$params{genome_use_path}    = $genome_use_path;
-$params{output_path}        = $output_path; 
-$params{blast_obj}          = $blast_obj;
-my $pipeline_obj = Pipeline->new(\%params);
-
 ############################################################################
 # Set up USAGE statement
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE)  = "\n\t #### DIGS Tool:\n";
-    $USAGE  .= "\n\t usage: $0 -m=[option] -i=[control file]\n";
-  	$USAGE  .= "\n\t -m=1  create a screening DB"; 
-  	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
-  	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 
-  	$USAGE  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
-  	$USAGE  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
-  	$USAGE  .= "\n\t -m=6  flush a screening DB"; 
-  	$USAGE  .= "\n\t -m=7  drop a screening DB"; 
-  	$USAGE  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
+my ($USAGE)  = "\n\t #### add_rv_taxonomy_table.pl :\n";
+    $USAGE  .= "\n\t usage: $0 -i=[data file path]\n";
  	$USAGE  .= "\n\n";
 
 ############################################################################
@@ -112,33 +70,55 @@ exit;
 
 #***************************************************************************
 # Subroutine:  main
-# Description: top level handler fxn
+# Description: main fxn of this script
 #***************************************************************************
 sub main {
 	
 	# Show title
-	$pipeline_obj->show_title();
+	show_title();
 
-	# Read in options using GetOpt::Long
-	my $mode    = undef;
-	my $infile  = undef;
-	GetOptions ('mode|m=i'   => \$mode, 
-			    'infile|i=s' => \$infile,
-	) or die $USAGE;
+	# Read the input
+	my @rv_data;
+	read_input(\@rv_data);
 
-	# Sanity checking for input 
-	if ($mode) {
-		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
-		if ($mode ne 8) {
-			unless ($mode and $infile)    { die $USAGE; }
-		}
-	}
-	else {
-		die $USAGE;
-	}
+	# Create the table
+	create_rv_taxonomy_table();
+
+	# Enter the data
+	insert_rv_taxonomy_data(\@rv_data);
+
+}
+
+#***************************************************************************
+# Subroutine:  read_input
+# Description: 
+#***************************************************************************
+sub read_input {
 	
-	# Hand off to Pipeline.pm
-	$pipeline_obj->run_digs_function($mode, $infile); 
+	# Read the input
+
+
+}
+
+#***************************************************************************
+# Subroutine:  create_rv_taxonomy_table
+# Description: 
+#***************************************************************************
+sub create_rv_taxonomy_table {
+	
+	# Create RV taxonomy table
+
+
+}
+
+#***************************************************************************
+# Subroutine:  insert_rv_taxonomy_data
+# Description: 
+#***************************************************************************
+sub insert_rv_taxonomy_data {
+	
+	# Insert RV taxonomy data
+
 
 }
 
