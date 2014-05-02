@@ -174,6 +174,7 @@ sub refresh_genomes {
 	#$devtools->print_hash(\%server_data); die;
 
 	# Iterate through and check formatting in each genome
+	print "\n\n\t #~#~# Loading target genome data\n";
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
@@ -199,6 +200,7 @@ sub refresh_genomes {
 			}	
 		}
 	}
+	print "\n\n";
 }
 
 #***************************************************************************

@@ -46,16 +46,17 @@ use DIGS::DB;
 #my $blast_bin_path       = $ENV{DIGS} . '/bin/blast/';  # Example
 my $blast_bin_path        = '';              # Path to directory with BLAST+ programs
                                              # leave blank if BLAST+ programs in path 
-my $genome_use_path       = $ENV{DIGS} . '/targets/';   # genome data directory
+#my $genome_use_path       = $ENV{DIGS} . '/targets/';   # genome data directory
+my $genome_use_path       = $ENV{GENOMES} . '/';        # genome data directory
 my $output_path           = $ENV{DIGS} . '/proc/';      # default process directory
 	
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
 my $time = time;
-my $process_id   = 'result_set_' . $pid . '_' . $time;
+my $process_id   = $pid . '_' . $time;
 
 ############################################################################
-# Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
+# Instantiations
 ############################################################################
 
 # Base utilites

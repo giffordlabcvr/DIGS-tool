@@ -465,11 +465,16 @@ sub extract_text_blocks {
 
 	my ($self, $input_ref, $blocks_ref, $start_token, $stop_token) = @_;
 
+	# Make start and stop tokens upper case so tokens are not case sensitive
+	$start_token = uc $start_token;
+	$stop_token  = uc $stop_token;
+
 	my $extract = undef;
 	my $i;
 	my @block;
 	foreach my $line (@$input_ref) {
-		if ($line =~ $stop_token and $extract) { 
+		my $uc_line = uc $line;
+		if ($uc_line =~ $stop_token and $extract) { 
 			#$devtools->print_array(\@block);die;
 			$extract = undef;
 			my @copy = @block;
@@ -479,7 +484,7 @@ sub extract_text_blocks {
 		if  ($extract) { 
 			push (@block, $line); 
 		}
-		elsif ($line =~ $start_token) { 
+		elsif ($uc_line =~ $start_token) { 
 			$extract = 'true';         
 		}
 	}
@@ -494,17 +499,22 @@ sub extract_text_block {
 
 	my ($self, $input_ref, $block_ref, $start_token, $stop_token) = @_;
 
+	# Make start and stop tokens upper case so tokens are not case sensitive
+	$start_token = uc $start_token;
+	$stop_token  = uc $stop_token;
+
 	my $extract = undef;
 	foreach my $line (@$input_ref) {
+		my $uc_line = uc $line;
 		if ($stop_token) {
-			if ($line =~ $stop_token) { 
+			if ($uc_line =~ $stop_token) { 
 				$extract = undef;          
 			}
 		}	
 		if  ($extract) { 
 			push (@$block_ref, $line); 
 		}
-		elsif ($line =~ $start_token) { 
+		elsif ($uc_line =~ $start_token) { 
 			$extract = 'true';         
 		}
 	}

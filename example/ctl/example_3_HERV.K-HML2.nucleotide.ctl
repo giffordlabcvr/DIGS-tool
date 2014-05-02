@@ -1,19 +1,18 @@
 BEGIN SCREENDB;
-db_name=EBLN_example;
+db_name=HERVK_example;
 mysql_server=localhost;
-#mysql_username=[your username here];      
-#mysql_password=[your password here]; 
+#mysql_username=[your username here];
+#mysql_password=[your password here];
 mysql_username=root;
 mysql_password=MyCVR!2; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-query_aa_fasta=example/screensets/bornavirus/bornavirus_probes.fa;
-reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library.fa;
-#reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library_update.fa;
-bit_score_min_tblastn=100;
+query_na_fasta=example/screensets/retrovirus/HERV-K-HML2-NA-probe.fa;
+reference_na_fasta=example/screensets/retrovirus/HERV-K-HML2-NA-probe.fa;
+bit_score_min_blastn=100;
 seq_length_minimum=100;
-redundancy_mode=1;
+redundancy_mode=2;
 threadhit_probe_buffer=1000;
 threadhit_gap_buffer=1000;
 threadhit_max_gap=1000;
@@ -21,7 +20,7 @@ ENDBLOCK;
 
 BEGIN TARGETS;
 #Mammalia/Homo_sapiens/
-Mammalia/Homo_sapiens/complete/ensembl_hg19/chr17.fa
+Mammalia/Homo_sapiens/complete/ensembl_hg19/chr10.fa
 ENDBLOCK;
 
 BEGIN SCREENSQL;

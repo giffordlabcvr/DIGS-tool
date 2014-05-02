@@ -36,6 +36,7 @@ my $process_dir_warn   = 100; # folders in process directory to trigger warning
 my $fileio    = FileIO->new();
 my $devtools  = DevTools->new();
 my $console   = Console->new();
+my $verbose   = undef;
 1;
 
 ############################################################################
@@ -103,16 +104,15 @@ sub run_digs_function {
 		exit;
 	}	
 	
-	# Check creating a DB for the first time, create and return
+	# Create a screening DB 
 	if ($option eq 1) {
 		$self->create_screening_db($ctl_file);
 		return;
 	}
 
-	# If DB has been created previously, initialise the DIGS tool using control file
+	# For the following functions, nitialise the DIGS tool using the control file
 	$self->initialise($ctl_file);
 	my $db = $self->{db};
-	#$devtools->print_hash($self); die;
 	
 	# Hand off to functions 2-7, based on the options received
 	if ($option eq 2) {  
@@ -179,18 +179,21 @@ sub initialise {
 	print "\n\t ### Reading control file\n";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file);
-	$self->{select_list}     = lc $loader_obj->{select_list};
-	$self->{where_statement} = $loader_obj->{where_statement};
-	$self->{db_name}         = $loader_obj->{db_name};
-	$self->{server}          = $loader_obj->{mysql_server};
-	$self->{password}        = $loader_obj->{mysql_password};
-	$self->{username}        = $loader_obj->{mysql_username};
-	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
-	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
-	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
-	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
-	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
-	$self->{extract_mode}          = $loader_obj->{extract_mode};
+	$self->{select_list}            = lc $loader_obj->{select_list};
+	$self->{where_statement}        = $loader_obj->{where_statement};
+	$self->{db_name}                = $loader_obj->{db_name};
+	$self->{server}                 = $loader_obj->{mysql_server};
+	$self->{password}               = $loader_obj->{mysql_password};
+	$self->{username}               = $loader_obj->{mysql_username};
+	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};
+	$self->{bit_score_min_tblastn}  = $loader_obj->{bit_score_min_tblastn};
+	$self->{bit_score_min_blastn}   = $loader_obj->{bit_score_min_blastn};
+	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
+	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
+	$self->{redundancy_mode}        = $loader_obj->{redundancy_mode};
+	$self->{threadhit_probe_buffer} = $loader_obj->{threadhit_probe_buffer};
+	$self->{threadhit_gap_buffer}   = $loader_obj->{threadhit_gap_buffer};
+	$self->{threadhit_max_gap}      = $loader_obj->{threadhit_max_gap};
 	
 	# Load screening database (includes some MacroLineage Tables
 	$loader_obj->set_screening_db();
@@ -256,17 +259,18 @@ sub do_screening_process {
 			# Show status 
 			my $probe_id    = $query_ref->{probe_id};
 			my $target_name = $query_ref->{target_name}; # $target refers to the target file
-			print "\n\t # probing target $target_name with probe $probe_id ";   
+			print "\n\n\t # Screening target $target_name with probe $probe_id ";   
 			
-			# Do the BLAST search
+			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);	
+			print "\n\t # 1st BLAST step completed, BLAST results table up-to-date...";
 	
-			# Extract hits 
-			my @extracted;
-			$self->extract($query_ref, \@extracted);	
-			
-			# Classify extracted sequences by BLAST comparison to reference library
-			$self->assign(\@extracted);	
+			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+			$self->assign($query_ref);
+			print "\n\t # 2nd BLAST step completed, Extracted table up-to-date...";
+
+			# Summarise extracted table
+			$db_ref->summarise_extracted_table();	
 		}	
 	}
 	
@@ -288,11 +292,11 @@ sub search {
 	my $blast_obj    = $self->{blast_obj};
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
-	my $extract_mode = $self->{extract_mode};
+	my $redundancy_mode = $self->{redundancy_mode};
 	unless ($min_length) { $min_length = $default_min_seqlen; }
 	
 	# Sanity checking
-	unless ($db_ref and $blast_obj and $tmp_path and $extract_mode) { die; } 
+	unless ($db_ref and $blast_obj and $tmp_path and $redundancy_mode) { die; } 
 
 	# Get query details
 	my $probe_id     = $query_ref->{probe_id};
@@ -327,22 +331,16 @@ sub search {
 		$hit_ref->{query_end}     = $hit_ref->{query_stop};
 	}
 
-	# Index loci previously extracted from this target file
-	my %extracted;
-	$self->index_extracted_loci_by_scaffold($target_name, \%extracted);
-
 	# Store new new BLAST hits that meet conditions
 	my $blast_results_table = $db_ref->{blast_results_table};
 	my $i = 0;
+	my $num_hits = scalar @hits;
+	print "\n\t\t # $num_hits matches to: $probe_name, $probe_gene";
+	print "\n\t\t # in  $organism, $data_type, $version, '$target_name'";
 	foreach my $hit_ref (@hits) {
+	
 		$i++;
 		
-		if ($extract_mode > 1) {
-			# Check if redundant with Loci table
-			my $skip = $self->check_if_locus_extracted($hit_ref, \%extracted);
-			if ($skip) {  next; }
-		}
-
 		# Skip sequences that are too short
 		my $start  = $hit_ref->{subject_start};
 		my $end    = $hit_ref->{subject_end};
@@ -357,12 +355,18 @@ sub search {
 		$hit_ref->{probe_name}   = $probe_name;
 		$hit_ref->{probe_gene}   = $probe_gene;
 		$hit_ref->{probe_type}   = $query_ref->{probe_type};
-		print "\n\t # Match $i to: $probe_name, $probe_gene";
-		print "\n\t # - in genome: $organism, $data_type, $version";
-		print "\n\t # - target file: '$target_name'";
+		$hit_ref->{hit_length}   = $hit_ref->{align_len};
+		#print "\n\t # Match $i to: $probe_name, $probe_gene";
+		#print "\n\t # - in genome: $organism, $data_type, $version";
+		#print "\n\t # - target file: '$target_name'";
 		$blast_results_table->insert_row($hit_ref);
 	} 
 
+	# Consolidate the BLAST table based on results
+	if ($redundancy_mode > 1) {
+		$self->consolidate_hits($query_ref);
+	}
+	
 	# Update the status table
 	my $status_table = $db_ref->{status_table};
 	$status_table->insert_row($query_ref);
@@ -370,167 +374,317 @@ sub search {
 }
 
 #***************************************************************************
-# Subroutine:  index extracted loci by scaffold
-# Description: Index loci previously extracted from a target file by scaffold
+# Subroutine:  consolidate_hits
+# Description: Consolidate the BLAST table based on results
 #***************************************************************************
-sub index_extracted_loci_by_scaffold {
+sub consolidate_hits {
 	
-	my ($self, $target_name, $previously_extracted_ref) = @_;
+	my ($self, $query_ref) = @_;
 
-	# Get relevant variables and objects
-	my $db_ref          = $self->{db};
-	my $extracted_table = $db_ref->{extracted_table}; 
-	my @locus_data;
-	my @fields = qw [ record_id scaffold assigned_name
-	                  extract_start extract_end ];
-	my $where = " WHERE target_name = '$target_name' "; 
-	$extracted_table->select_rows(\@fields, \@locus_data, $where);	
-	foreach my $row_ref (@locus_data) {
-		my $scaffold = $row_ref->{scaffold};
-		if ($previously_extracted_ref->{$scaffold}) {
-			my $array_ref = $previously_extracted_ref->{$scaffold};
-			push (@$array_ref, $row_ref);
-		}
-		else {
-			my @array;
-			push (@array, $row_ref);
-			$previously_extracted_ref->{$scaffold} = \@array;
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  check if locus previously extracted
-# Description: self-explanatory
-#***************************************************************************
-sub check_if_locus_extracted {
-	
-	my ($self, $hit_ref, $extracted_ref) = @_;
-
-	my $skip = undef;
-	my $scaffold = $hit_ref->{scaffold};
-	unless ($scaffold) { die; } # Sanity checking
-	if ($extracted_ref->{$scaffold}) {
-		
-		# Get hit coordinates
-		my $hit_start = $hit_ref->{subject_start};
-		my $hit_end   = $hit_ref->{subject_end};
-		my $loci_ref = $extracted_ref->{$scaffold};
-		foreach my $locus_ref (@$loci_ref) {
-			my $locus_start = $locus_ref->{extract_start};
-			my $locus_end   = $locus_ref->{extract_end};
-			if ($hit_start >= $locus_start and $hit_end <= $locus_end) {
-				#$devtools->print_hash($locus_ref);
-				my $locus_id      = $locus_ref->{record_id};
-				my $locus_erv     = $locus_ref->{assigned_name};
-				my $scaffold      = $hit_ref->{scaffold};
-				my $subject_start = $hit_ref->{subject_start};
-				my $subject_end   = $hit_ref->{subject_end};
-				$skip = 'true';
-				print "\n\t # Will skip hit in $scaffold ($subject_start-$subject_end)";
-				print "\n\t # Because it is redundant with locus $locus_id ($locus_erv)";
-			}
-		}
-	}
-	return $skip;
-}
-
-############################################################################
-# SECTION: Extract 
-############################################################################
-
-#***************************************************************************
-# Subroutine:  extract
-# Description: extract sequences that matched probes in a BLAST search 
-#***************************************************************************
-sub extract {
-	
-	my ($self, $query_ref, $extracted_ref) = @_;
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-	my $target_path = $query_ref->{target_path};
-	my $db_ref      = $self->{db};
+	# Get relevant member variables and objects
+	my $db_ref  = $self->{db};
 	my $blast_results_table = $db_ref->{blast_results_table};
 
-	# Index extracted BLAST results 
-	my %extracted;
-	$self->index_extracted_loci_by_blastid(\%extracted);
+	# Set the fields to get values for
+	my @fields = qw [ record_id scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end ];
 
-	# Get query params we need
-	my @hits;
-	$self->get_blast_hits_to_extract($query_ref, \@hits);
-
-	# Store all outstanding matches as sequential, target-ordered sets 
-	foreach my $hit_ref (@hits) {
-		
-		# Skip previously extracted hits
-		my $record_id   = $hit_ref->{record_id};
-		if ($extracted{$record_id}) { next; }
-		
-		# Extract the sequence
-		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
-		if ($sequence) {	
-			my $seq_length = length $sequence; # Set sequence length
-			$hit_ref->{sequence_length} = $seq_length;
-			$hit_ref->{sequence} = $sequence;
-			push (@$extracted_ref, $hit_ref);
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  index extracted loci by BLAST id
-# Description: Index loci previously extracted from a target file by blastid
-#***************************************************************************
-sub index_extracted_loci_by_blastid {
-	
-	my ($self, $target_name, $previously_extracted_ref) = @_;
-
-	# Get relevant variables and objects
-	my $db_ref          = $self->{db};
-	my $extracted_table = $db_ref->{extracted_table}; 
-	my @fields = qw [ blast_id ];
-	my @blast_ids;
-	$extracted_table->select_rows(\@fields, \@blast_ids);	
-	foreach my $hit_ref (@blast_ids) {
-		my $blast_id = $hit_ref->{blast_id};
-		$previously_extracted_ref->{$blast_id} = $hit_ref;	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get_blast_hits_to_extract
-# Description: Get BLAST hits to extract
-#***************************************************************************
-sub get_blast_hits_to_extract {
-	
-	my ($self, $query_ref, $hits_ref) = @_;
-
-	# Get data structures and variables from self
-	my $db_ref = $self->{db};
-	my $blast_results_table = $db_ref->{blast_results_table};
-
-	# Get parameters for this query
+	# Get the information for this query
+	my $target_name = $query_ref->{target_name};
 	my $probe_name  = $query_ref->{probe_name};
 	my $probe_gene  = $query_ref->{probe_gene};
-	my $target_name = $query_ref->{target_name}; # target file name
 
-	# Get all BLAST results from table (ordered by sequential targets)
-	my $where = " WHERE Target_name = '$target_name'
-                  AND probe_name = '$probe_name' 
-                  AND probe_gene = '$probe_gene'
-	              ORDER BY scaffold, subject_start";
+	my $where  = " WHERE target_name = '$target_name'";
 
-	my @fields = qw [ record_id 
-	               organism data_type version 
-                   probe_name probe_gene probe_type
-				   e_value_num e_value_exp bit_score align_len orientation 
-                   scaffold target_name
-                   subject_start subject_end 
-		           query_start query_end ];
-	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
-	#$devtools->print_array($hits_ref); exit;
+	# Filter by gene name 
+	if ($self->{redundancy_mode} eq 2) {
+		$where .= " AND probe_gene = '$probe_gene' ";
+	}
+	elsif ($self->{redundancy_mode} eq 3) {
+		$where .= " AND probe_name = '$probe_name'
+                    AND probe_gene = '$probe_gene' ";
+	}
+
+	# Order by ascending start coordinates within each scaffold in the target file
+	$where .= "ORDER BY scaffold, subject_start ";
+	
+	# Get the relevant loci
+	my @hits;
+	$blast_results_table->select_rows(\@fields, \@hits, $where);
+
+	# Iterate through consolidating as we go
+	my $i;
+	my %last_hit;
+	my %consolidated;
+	my %retained;
+	my $consolidated_count = 0;
+	foreach my $hit_ref (@hits)  {
+
+		$i++;
+
+		# Get hit values
+		my $record_id     = $hit_ref->{record_id};
+		my $scaffold      = $hit_ref->{scaffold};
+		my $orientation   = $hit_ref->{orientation};
+		my $subject_start = $hit_ref->{subject_start};
+		
+		# Get last hit values
+		my $last_record_id     = $last_hit{record_id};
+		my $last_scaffold      = $last_hit{scaffold};
+		my $last_orientation   = $last_hit{orientation};
+		my $consolidated;
+
+		if ($verbose) {
+			print "\n\t $subject_start: RECORD ID $record_id";
+		}
+
+		# Keep if first in process
+		if ($i eq 1) {
+			$retained{$record_id} = 1;
+			if ($verbose) {
+				print "\t Keeping $record_id first hit";
+			}
+		}
+		# ...or if first hit on scaffold
+		elsif ($scaffold ne $last_scaffold) {
+			$retained{$record_id} = 1;
+			if ($verbose) {
+				print "\t Keeping $record_id ne scaffold";
+			}
+		}
+		# ...or if in opposite orientation to last hit
+		elsif ($orientation ne $last_orientation) {
+			$retained{$record_id} = 1;
+			if ($verbose) {
+				print "\t Keeping $record_id new orientation ($orientation)";
+			}
+		}
+		else {
+			# Check whether to consolidate this hit
+			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
+			if ($consolidated) {
+				$consolidated_count++;
+				if ($verbose) {
+					print "\t CONSOLIDATION $consolidated_count: Deleting $record_id";
+				}
+				my %hit = %last_hit; # Make a copy
+				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
+				$consolidated{$record_id} = \%hit;
+				$retained{$last_record_id} = 1;
+			}
+			else {
+				if ($verbose) {
+					print "\t Keeping $record_id not consolidated";
+				}
+				$retained{$record_id} = 1;
+			}
+		}
+		
+		# Update last hit data
+		unless ($consolidated) {
+			$last_hit{record_id}     = $record_id;
+			$last_hit{scaffold}      = $scaffold;
+			$last_hit{orientation}   = $orientation;
+			$last_hit{subject_start} = $hit_ref->{subject_start};
+			$last_hit{subject_end}   = $hit_ref->{subject_end};
+			$last_hit{query_start}   = $hit_ref->{query_start};
+			$last_hit{query_end}     = $hit_ref->{query_end};
+		}
+	}
+	#$devtools->print_hash(\%retained);  die;
+	#$devtools->print_hash(\%consolidated);  die;
+	my @consolidated = keys %consolidated;
+	my $num_consolidated = scalar @consolidated;
+	#print "\n\n\n\t Num consolidated = $num_consolidated";
+	#print "\n\t COUNT consolidated = $consolidated_count";
+	my @retained = keys %retained;
+	my $num_retained = scalar @retained;
+	#print "\n\t Num retained = $num_retained";
+	
+	# DEBUG
+	#$self->count_blast_rows();
+	#$self->count_extracted_rows();
+
+	# Update BLAST table
+	$self->update_db_loci(\@hits, \%retained, \%consolidated);
+
+	# DEBUG
+	#print "\n\t ### After DB update";
+	#$self->count_blast_rows();
+	#$self->count_extracted_rows();
+
+}
+
+#***************************************************************************
+# Subroutine:  inspect_adjacent_hits
+# Description: determine whether two adjacent hits should be joined
+#***************************************************************************
+sub inspect_adjacent_hits {
+	
+	my ($self, $last_hit_ref, $hit_ref) = @_;
+
+	# Get parameters for consolidating hits from self
+	my $probe_buffer = $self->{threadhit_probe_buffer};
+	my $gap_buffer   = $self->{threadhit_gap_buffer};
+	my $max_gap      = $self->{threadhit_max_gap};
+	unless ($probe_buffer and $gap_buffer and $max_gap) { die; } 
+	#my $probe_buffer = 1000;  # HACK
+	#my $max_gap      = 10000; # HACK
+	#my $gap_buffer   = 1000;  # HACK
+
+	# Current hit
+	my $record_id          = $hit_ref->{record_id};
+	my $scaffold           = $hit_ref->{scaffold};
+	my $orientation        = $hit_ref->{orientation};
+	my $subject_start      = $hit_ref->{subject_start};
+	my $subject_end        = $hit_ref->{subject_end};
+	my $query_start        = $hit_ref->{query_start};
+	my $query_end          = $hit_ref->{query_end};
+
+	# Last hit 
+	my $last_record_id     = $last_hit_ref->{record_id};
+	my $last_subject_start = $last_hit_ref->{subject_start};
+	my $last_subject_end   = $last_hit_ref->{subject_end};
+	my $last_query_start   = $last_hit_ref->{query_start};
+	my $last_query_end     = $last_hit_ref->{query_end};
+	
+	my $subject_gap = $subject_start - $last_subject_end;
+	my $query_gap;
+	my $buffer_start = $query_start + $probe_buffer;
+	if ($orientation eq '+ve') {
+		$query_gap = $query_start - $last_query_end;
+	}
+	elsif ($orientation eq '-ve') {
+		$query_gap = $last_query_start - $query_end;
+	}
+
+	#print "\n\n\t #### Checking whether to consolidate $last_record_id and $record_id on $scaffold";
+	#print "\n\t #### Q Last:  $last_query_start\t $last_query_end";
+	#print "\n\t #### S Last:  $last_subject_start\t $last_subject_end";
+	##print "\n\t #### Q This:  $query_start\t $query_end";
+	#print "\n\t #### S This:  $subject_start\t $subject_end";
+	#print "\t #### Gap:   $subject_gap\n";
+
+	# If hit is entirely within a previous hit it is redundant
+	if ($last_subject_start <= $subject_start and $last_subject_end >= $subject_end) {
+		if ($verbose) {
+			print "\t    $record_id  entirely within previous $last_record_id";
+		}
+		return 1; # Effectively discarding current hit  # TODO check this
+	}
+	elsif ($subject_gap < 1) {
+
+		# Describe the consolidation:
+		if ($verbose) {
+			print "\t    SUBJECT GAP: Merged hit $record_id into hit $last_record_id (subject_gap: $subject_gap)";
+		}
+		$last_hit_ref->{subject_end} = $hit_ref->{subject_end};
+		$last_hit_ref->{query_end}   = $hit_ref->{query_end};
+		return 1;  # Consolidated (joined) hits
+	}
+	elsif ($subject_gap > $max_gap) {
+		if ($verbose) {
+			print "\t    DISTINCT GAP TOO BIG \tsubject gap: $subject_gap";
+		}
+		return 0;
+	}
+
+	# QUERY COORDINATE RULES
+	# For positive orientation hits
+	# If the query_start of this hit < query_end of the last, then its a distinct hit
+	elsif ($orientation eq '+ve' and $buffer_start < $last_query_end) {
+		if ($verbose) {
+			print "\n\t    DISTINCT +ve: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
+		}
+		return 0;
+	}
+	# For negative orientation hits
+	# If the query_start of this hit < query_end of the last, then its a distinct hit
+	elsif ($orientation eq '-ve' and ($last_query_start - $query_end) > $probe_buffer ) {
+		print "\n\t    DISTINCT -ve: ($last_query_start - $query_end) > $probe_buffer \tsubject gap: $subject_gap";
+		return 0;
+	}
+	# If not, then check the intervening distance between the hits
+	else {
+
+		my $nt_query_gap = $query_gap * 3;
+		if (($subject_gap - $nt_query_gap) < $gap_buffer) {
+			# Describe the consolidation:
+			if ($verbose) {
+				print "\n\t    Merged hit $record_id into hit $last_record_id: subject gap ($subject_gap) nt query gap ($nt_query_gap) ";
+			}
+			$last_hit_ref->{subject_end} = $hit_ref->{subject_end};
+			$last_hit_ref->{query_end}   = $hit_ref->{query_end};
+			return 1;  # Consolidated (joined) hits
+		}
+		else {
+			if ($verbose) {
+				print "\n\t    DISTINCT LAST: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
+			}
+			return 0;  # Distinct hit
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  update_db_loci  
+# Description:
+#***************************************************************************
+sub update_db_loci {
+	
+	my ($self, $hits_ref, $retained_ref, $consolidated_ref) = @_;
+
+	# Get relevant member variables and objects
+	my $db_ref  = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+	my $extracted_table     = $db_ref->{extracted_table};
+
+	# Delete redundant rows from BLAST results
+	my $blast_deleted = 0;
+	my $extract_deleted = 0;
+	foreach my $hit_ref (@$hits_ref)  {
+		my $record_id = $hit_ref->{record_id};
+		unless ($retained_ref->{$record_id}) {
+			# Delete rows
+			#print "\n\t ## deleting hit record ID $record_id in BLAST results";
+			my $where = " WHERE record_id = $record_id ";
+			$blast_results_table->delete_rows($where);
+			$blast_deleted++;
+
+			#print "\n\t ## deleting hit BLAST ID $record_id in Extracted";
+			my $ex_where = " WHERE blast_id = $record_id ";
+			$extracted_table->delete_rows($ex_where);
+			$extract_deleted++;
+		}
+		else { 
+			#print "\n\t ## keeping hit $record_id";
+		}
+	}
+
+	# Update BLAST table with consolidated hits
+	my $blast_updated = 0;
+	my @ids = keys %$consolidated_ref;
+	foreach my $record_id (@ids)  {
+
+		my $where   = " WHERE record_id = $record_id ";
+		my $hit_ref = $consolidated_ref->{$record_id};		
+		delete $hit_ref->{record_id};
+		#print "\n\t ## updating hit record ID $record_id in BLAST results";
+		$blast_results_table->update($hit_ref, $where);
+		$blast_updated++;
+		
+		# Delete from Extracted (because we need to re-extract and assign)
+		#print "\n\t ## deleting hit BLAST ID $record_id in Extracted";
+		my $ex_where = " WHERE blast_id = $record_id ";
+		$extracted_table->delete_rows($ex_where);
+		$extract_deleted++;
+	}
+
+	#print "\n\t\ blast deleted   $blast_deleted";
+	#print "\n\t\ blast updated   $blast_updated";
+	#print "\n\t\ extract deleted $extract_deleted";
+
 }
 
 ############################################################################
@@ -543,26 +697,42 @@ sub get_blast_hits_to_extract {
 #***************************************************************************
 sub assign {
 	
-	my ($self, $extracted_ref) = @_;
+	my ($self, $query_ref) = @_;
 	
 	# Get parameters from self
 	my $db_ref = $self->{db};
 	my $table  = $db_ref->{extracted_table}; 
 
+	# Extract hits 
+	my @extracted;
+	$self->extract_unassigned_hits($query_ref, \@extracted);	
+	
 	# Iterate through the matches
-	foreach my $hit_ref (@$extracted_ref) {
+	my $assigned_count = 0;
+	foreach my $hit_ref (@extracted) {
 
 		# Set the linking to the BLAST result table
 		my $blast_id  = $hit_ref->{record_id};
 		$hit_ref->{blast_id} = $blast_id;
 		
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
-		$self->do_reverse_blast($hit_ref);
+		my %data = %$hit_ref; # Make a copy
+		$self->do_reverse_blast(\%data);
+		$assigned_count++;
+		#$devtools->print_hash(\%data); 
 
 		# Insert the data
-		my $extract_id = $table->insert_row($hit_ref);
-	
+		my $extract_id = $table->insert_row(\%data);
 	}
+
+	# Sanity checking
+	my $blast_count     = $self->count_blast_rows();
+	my $extracted_count = $self->count_extracted_rows();
+	print "\n\t # Assigned $assigned_count newly extracted sequences";
+	unless ($blast_count eq $extracted_count) { 
+		die "\n\n\t\t ###### UNEVEN TABLE COUNT ERROR\n\n\n";
+	}
+
 }
 
 #***************************************************************************
@@ -595,8 +765,8 @@ sub do_reverse_blast {
 	$fileio->write_text_to_file($query_file, $fasta);
 	my $result_file = $result_path . $blast_id . '.blast_result';
 		
-	# Do the BLAST accoridnmg to the type of sequence (AA or NA)
-	print "\n\t # BLAST hit $blast_id in $organism ";
+	# Do the BLAST accoridng to the type of sequence (AA or NA)
+	#print "\n\t # BLAST hit $blast_id in $organism ";
 	my $blast_alg;
 	my $lib_path;
 	unless ($probe_type) { die; }
@@ -623,35 +793,51 @@ sub do_reverse_blast {
 	my $subject_start = $top_match->{aln_start};
 	my $subject_end   = $top_match->{aln_stop};
 	my $assigned_name = $top_match->{scaffold};	
-	
-	unless ($assigned_name) {	
-		print "\n\t ### No match found in reference library\n";
-		next; 
-	}
-	
-	# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-	my @assigned_name = split('_', $assigned_name);
-	my $assigned_gene = pop @assigned_name;
-	$assigned_name = join ('_', @assigned_name);
-	print " assigned to: $assigned_name: $assigned_gene!";
+	#$devtools->print_hash($top_match);
 	#$devtools->print_hash($hit_ref);
 	
-	# Adjust to get extract coordinates using the top match
-	#my $real_st  = ($extract_start + $top_match->{query_start} - 1);	
-	#my $real_end = ($extract_start + $top_match->{query_stop} - 1);
-	#$hit_ref->{realex_start}     = $real_st;
-	#$hit_ref->{realex_end}       = $real_end;
-	$hit_ref->{assigned_name}    = $assigned_name;
-	$hit_ref->{assigned_gene}    = $assigned_gene;
-	$hit_ref->{extract_start}    = $extract_start;
-	$hit_ref->{extract_end}      = $extract_end;
-	$hit_ref->{identity}         = $top_match->{identity};
-	$hit_ref->{mismatches}       = $top_match->{mismatches};
-	$hit_ref->{gap_openings}     = $top_match->{gap_openings};
-	$hit_ref->{query_end}        = $query_end;
-	$hit_ref->{query_start}      = $query_start;
-	$hit_ref->{subject_end}      = $subject_end;
-	$hit_ref->{subject_start}    = $subject_start;
+	unless ($assigned_name) {	
+		
+		print "\n\t ### No match found in reference library\n";
+		$hit_ref->{assigned_name}    = 'Unassigned';
+		$hit_ref->{assigned_gene}    = 'Unassigned';
+		$hit_ref->{extract_start}    = 0;
+		$hit_ref->{extract_end}      = 0;
+		$hit_ref->{identity}         = 0;
+		$hit_ref->{bit_score}        = 0;
+		$hit_ref->{e_value_exp}      = 0;
+		$hit_ref->{e_value_num}      = 0;
+		$hit_ref->{mismatches}       = 0;
+		$hit_ref->{align_len}        = 0;
+		$hit_ref->{gap_openings}     = 0;
+		$hit_ref->{query_end}        = 0;
+		$hit_ref->{query_start}      = 0;
+		$hit_ref->{subject_end}      = 0;
+		$hit_ref->{subject_start}    = 0;
+	}
+	else {	
+
+		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
+		my @assigned_name = split('_', $assigned_name);
+		my $assigned_gene = pop @assigned_name;
+		$assigned_name = join ('_', @assigned_name);
+		#print " assigned to: $assigned_name: $assigned_gene!";
+		$hit_ref->{assigned_name}    = $assigned_name;
+		$hit_ref->{assigned_gene}    = $assigned_gene;
+		$hit_ref->{extract_start}    = $extract_start;
+		$hit_ref->{extract_end}      = $extract_end;
+		$hit_ref->{identity}         = $top_match->{identity};
+		$hit_ref->{bit_score}        = $top_match->{bit_score};
+		$hit_ref->{e_value_exp}      = $top_match->{e_value_exp};
+		$hit_ref->{e_value_num}      = $top_match->{e_value_num};
+		$hit_ref->{mismatches}       = $top_match->{mismatches};
+		$hit_ref->{align_len}        = $top_match->{align_len};
+		$hit_ref->{gap_openings}     = $top_match->{gap_openings};
+		$hit_ref->{query_end}        = $query_end;
+		$hit_ref->{query_start}      = $query_start;
+		$hit_ref->{subject_end}      = $subject_end;
+		$hit_ref->{subject_start}    = $subject_start;
+	}
 
 	# Clean up
 	my $command1 = "rm $query_file";
@@ -660,7 +846,129 @@ sub do_reverse_blast {
 	system $command2;
 
 }
+
+#***************************************************************************
+# Subroutine:  extract_unassigned_hits
+# Description: extract BLAST hit sequences that are not in Extracted table
+#***************************************************************************
+sub extract_unassigned_hits {
 	
+	my ($self, $query_ref, $extracted_ref) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+	my $target_path = $query_ref->{target_path};
+	my $target_name = $query_ref->{target_name};
+	my $db_ref      = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+
+	# Index extracted BLAST results 
+	my %extracted;
+	my $where = " WHERE target_name = '$target_name' ";
+	 $self->index_extracted_loci_by_blastid(\%extracted, $where);
+
+	# DEBUG
+	#$self->count_blast_rows();
+	#$self->count_extracted_rows();
+	
+	# Get hits we are going to extract
+	my @hits;
+	$self->get_blast_hits_to_extract($query_ref, \@hits);
+	my $num_hits = scalar @hits;
+	#print "\n\t ### There are $num_hits hits to extract";
+
+	# Store all outstanding matches as sequential, target-ordered sets 
+	foreach my $hit_ref (@hits) {
+		
+		# Skip previously extracted hits
+		my $record_id   = $hit_ref->{record_id};
+		if ($verbose) {
+			print "\n\t Checking $record_id in extracted table";
+		}
+		if ($extracted{$record_id}) { 
+			if ($verbose) {
+				print "\t ALREADY EXTRACTED";
+			}
+			next;
+		 }
+		
+		# Extract the sequence
+		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		if ($sequence) {	
+			if ($verbose) {
+				print "\t ........extracting";
+			}
+			my $seq_length = length $sequence; # Set sequence length
+			$hit_ref->{sequence_length} = $seq_length;
+			$hit_ref->{sequence} = $sequence;
+			push (@$extracted_ref, $hit_ref);
+		}
+		else {
+			if ($verbose) {
+				print "\n\t Sequence extraction failed";
+			}
+		}
+	}
+	
+	my $num_extracted = scalar @$extracted_ref;	
+	#print "\n\t Num extracted $num_extracted";	
+}
+
+#***************************************************************************
+# Subroutine:  index extracted loci by BLAST id
+# Description: Index loci previously extracted from a target file by blastid
+#***************************************************************************
+sub index_extracted_loci_by_blastid {
+	
+	my ($self, $previously_extracted_ref, $where) = @_;
+
+	# Get relevant variables and objects
+	my $db_ref          = $self->{db};
+	my $extracted_table = $db_ref->{extracted_table}; 
+	my @fields = qw [ blast_id ];
+	my @blast_ids;
+	$extracted_table->select_rows(\@fields, \@blast_ids, $where);	
+	foreach my $hit_ref (@blast_ids) {
+		my $blast_id = $hit_ref->{blast_id};
+		if ($previously_extracted_ref->{$blast_id}) { die; } # BLAST ID should be unique
+		$previously_extracted_ref->{$blast_id} = 1;	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  get_blast_hits_to_extract
+# Description: Get BLAST hits to extract
+#***************************************************************************
+sub get_blast_hits_to_extract {
+	
+	my ($self, $query_ref, $hits_ref) = @_;
+
+	# Get data structures and variables from self
+	my $db_ref = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+
+	# Get parameters for this query
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
+	my $target_name = $query_ref->{target_name}; # target file name
+
+	# Get all BLAST results from table (ordered by sequential targets)
+	my $where = " WHERE Target_name = '$target_name'
+                  AND probe_name = '$probe_name' 
+                  AND probe_gene = '$probe_gene'
+	              ORDER BY scaffold, subject_start";
+
+	my @fields = qw [ record_id 
+	               organism data_type version 
+                   probe_name probe_gene probe_type
+				   orientation scaffold target_name
+                   subject_start subject_end 
+		           query_start query_end ];
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
+	#$devtools->print_array($hits_ref); exit;
+}
+
+
 #***************************************************************************
 # Subroutine:  reassign
 # Description: reassign sequences in the extracted_table (for use after
@@ -827,7 +1135,7 @@ sub check_process_dir_status {
 	my $num_folders = scalar @process_dir;
 
 	if ($num_folders > $process_dir_warn) {
-		print "\n\t ### Process directory '$output_path' contains > $process_dir_warn folders";
+		print "\n\t ### Process directory '$output_path' contains > $process_dir_warn items";
 		print "\n\t #     consider cleaning up the contents.";
 		sleep 2;
 	}
@@ -846,6 +1154,78 @@ sub show_title {
 	my $author      = 'Robert J. Gifford';
 	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
 	$console->show_about_box($title, $version, $description, $author, $contact);
+}
+
+############################################################################
+# SECTION: Test and Validation Fxns
+############################################################################
+
+#***************************************************************************
+# Subroutine:  count_blast_rows
+# Description: 
+#***************************************************************************
+sub count_blast_rows {
+
+	my ($self) = @_;
+
+	my $db = $self->{db};
+	my $blast_table     = $db->{blast_results_table};
+	my $db_ref  = $self->{db};
+	my $blast_results_table = $db_ref->{blast_results_table};
+
+	my @fields = qw [ COUNT(*) ];
+	my @data;
+	$blast_results_table->select_rows(\@fields, \@data);
+	my $data_ref = shift @data;
+	my $count = $data_ref->{'COUNT(*)'};
+	#print "\n\t BLAST results table: $count rows";
+	return $count;	
+	
+}
+
+#***************************************************************************
+# Subroutine:  count_extracted_rows
+# Description: 
+#***************************************************************************
+sub count_extracted_rows {
+
+	my ($self) = @_;
+
+	my $db = $self->{db};
+	my $blast_table     = $db->{extracted_table};
+	my $db_ref  = $self->{db};
+	my $extracted_table = $db_ref->{extracted_table};
+
+	my @fields = qw [ COUNT(*) ];
+	my @data;
+	$extracted_table->select_rows(\@fields, \@data);
+	my $data_ref = shift @data;
+	my $count = $data_ref->{'COUNT(*)'};
+	#print "\n\t Extracted table: $count rows";
+	return $count;	
+}
+
+
+#***************************************************************************
+# Subroutine:  check_for_orphaned_rows
+# Description: 
+#***************************************************************************
+sub check_for_orphaned_rows {
+
+	my ($self) = @_;
+
+	my $db = $self->{db};
+	my $blast_table     = $db->{blast_results_table};
+	my $extracted_table = $db->{extracted_table};
+
+	my %extracted;
+	$self->index_extracted_loci_by_blastid(\%extracted);
+	
+	# Set the fields to get values for
+	my @fields = qw [ record_id scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end ];
+
 }
 
 ############################################################################

@@ -1,5 +1,5 @@
-BEGIN SCREENDB;
-db_name=EBLN_example;
+Begin SCREENDB;
+db_name=ERV_example;
 mysql_server=localhost;
 #mysql_username=[your username here];      
 #mysql_password=[your password here]; 
@@ -8,12 +8,11 @@ mysql_password=MyCVR!2;
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-query_aa_fasta=example/screensets/bornavirus/bornavirus_probes.fa;
-reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library.fa;
-#reference_aa_fasta=example/screensets/bornavirus/bornavirus_refseq_library_update.fa;
+query_aa_fasta=example/screensets/retrovirus/retrovirus_probes.fa;
+reference_aa_fasta=example/screensets/retrovirus/retrovirus_RT_references_AA.fas;
 bit_score_min_tblastn=100;
 seq_length_minimum=100;
-redundancy_mode=1;
+redundancy_mode=2;
 threadhit_probe_buffer=1000;
 threadhit_gap_buffer=1000;
 threadhit_max_gap=1000;

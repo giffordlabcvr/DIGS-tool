@@ -129,20 +129,14 @@ sub load_blast_results_table {
 		organism         => 'varchar',
 		data_type        => 'varchar',
 		version          => 'varchar',
-		target_name       => 'varchar',
+		target_name      => 'varchar',
 		scaffold         => 'varchar',
 		orientation      => 'varchar',
-		bit_score        => 'float',
-		identity         => 'varchar',
-		e_value_num      => 'float',
-		e_value_exp      => 'int',
 		subject_start    => 'int',
 		subject_end      => 'int',
 		query_start      => 'int',
 		query_end        => 'int',
-		align_len        => 'int',
-		mismatches       => 'int',
-		gap_openings     => 'int',
+		hit_length       => 'int',
 	);
 	my $blast_table = MySQLtable->new('BLAST_results', $dbh, \%blast_fields);
 	$self->{blast_results_table} = $blast_table;
@@ -270,17 +264,11 @@ sub create_blast_results_table {
 
 	  `Scaffold`      varchar(100) default 'NULL',
 	  `Orientation`   varchar(100) NOT NULL default '0',
-	  `Bit_score`     float NOT NULL default '0',
-	  `Identity`      varchar(100) NOT NULL default '',
-	  `e_value_num`   float  NOT NULL default '0',
-	  `e_value_exp`   int(11)  NOT NULL default '0',
 	  `Subject_start` int(11) NOT NULL default '0',
 	  `Subject_end`   int(11) NOT NULL default '0',
 	  `Query_start`   int(11) NOT NULL default '0',
 	  `Query_end`     int(11) NOT NULL default '0',
-	  `Align_len`     int(11) NOT NULL default '0',
-	  `Gap_openings`  varchar(100) NOT NULL default '',
-	  `Mismatches`    int(11) NOT NULL default '0',
+	  `Hit_length`    int(11) NOT NULL default '0',
 
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
@@ -419,19 +407,22 @@ sub summarise_db {
 	my ($self) = @_;
 	
 	my $db_name = $self->{db_name};
-	print "\n\n\t ### Summarizing '$db_name' screening database";
 	
 	# Summarise status table
 	my $executed = $self->summarise_status_table();	
 	$self->{status_table_count} = $executed;
 	if ($executed) {
 
+		print "\n\n\t ### Summarizing '$db_name' screening database";
+		
 		# Summarise BLAST_results  table
 		$self->summarise_BLAST_results_table();
 	
 		# Summarise Extracted  table
 		$self->summarise_extracted_table();
+		print "\n\n";
 	}
+	
 }
 
 #***************************************************************************
@@ -540,7 +531,7 @@ sub summarise_extracted_table {
 	my @data;
 	my @fields = qw [ organism assigned_name assigned_gene ];
 	push (@fields,  "count(*) AS 'number'");
-	my $where = "GROUP BY  Organism, Assigned_name 
+	my $where = "GROUP BY  Organism, Assigned_name, Assigned_gene 
                  ORDER BY  Organism, count(*) DESC";
 	$extracted_table->select_rows(\@fields, \@data, $where);
 	
@@ -558,9 +549,9 @@ sub summarise_extracted_table {
 		my $assigned_name    = $data_ref->{assigned_name};
 		my $assigned_gene    = $data_ref->{assigned_gene};
 		my $number           = $data_ref->{number};
-		print "\n\t #  $number matches to:  ";
-		print " $assigned_name, $assigned_gene";
-		print " in $organism \t";
+		print "\n\t #  $number matches to:\t";
+		print "$assigned_name, $assigned_gene";
+		print "\t in $organism";
 	}
 	sleep 1;
 
@@ -617,8 +608,7 @@ sub drop_screening_db {
 	my $question = "\n\n\t Are you sure you want to DROP the $db_name database?";
 	my $answer1 = $console->ask_yes_no_question($question);
 	if ($answer1 eq 'y') {
-		print "\n\t- - - PAUSING 5 seconds to allow for cancel - - -\n";
-		sleep 5;
+		#sleep 3;
 		
 		my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
 		unless ($dbh) {	die "\n\t # Couldn't connect to $db_name database\n\n"; }
@@ -644,8 +634,7 @@ sub flush_screening_db {
 	my $question = "\n\n\t Are you sure you want to flush data in the $db_name database?";
 	my $answer1 = $console->ask_yes_no_question($question);
 	if ($answer1 eq 'y') {
-		print "\n\t- - - PAUSING 3 seconds to allow for cancel - - -\n";
-		sleep 3;
+		#sleep 3;
 
 		# get tables
 		my $blast_results_table  = $self->{blast_results_table};

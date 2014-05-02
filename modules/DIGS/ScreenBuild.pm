@@ -100,8 +100,18 @@ sub set_up_screen  {
 	if ($self->{reference_aa_fasta}) {
 		$self->load_aa_fasta_reference_library();
 	}
-	if ($self->{reference_nt_fasta}) {
+	if ($self->{reference_na_fasta}) {
 		$self->load_nt_fasta_reference_library();
+	}
+
+	# Set up the probes
+	print "\n\n\t ### Setting up the sequence 'probes' for screening";
+	my @probes;
+	if ($self->{query_aa_fasta}) {
+		$self->load_aa_fasta_probes(\@probes);
+	}
+	if ($self->{query_na_fasta}) {
+		$self->load_nt_fasta_probes(\@probes);
 	}
 
 	# Set up the target sequences to screen
@@ -109,16 +119,6 @@ sub set_up_screen  {
 	my %targets;
 	$self->set_targets(\%targets);
 		
-	# Set up the probes
-	print "\n\n\t ### Setting up the sequence 'probes' for screening";
-	my @probes;
-	if ($self->{query_aa_fasta}) {
-		$self->load_aa_fasta_probes(\@probes);
-	}
-	if ($self->{query_nt_fasta}) {
-		$self->load_nt_fasta_probes(\@probes);
-	}
-
 	# Create the list of BLAST queries for screening
 	print "\n\n\t ### Creating the BLAST queries\n";
 	$self->set_queries(\@probes, \%targets, $queries_ref);
@@ -190,7 +190,7 @@ sub load_aa_fasta_reference_library {
 		unless ($num_fasta) {
 			die "\n\t Reference library protein FASTA not found'\n\n\n";
 		}
-		print "\n\n\t   '$num_fasta' FASTA formatted sequences in reference library";
+		print "\n\n\t   '$num_fasta' FASTA formatted protein sequences in reference library";
 		my $i = 0;
 		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
@@ -222,10 +222,10 @@ sub load_nt_fasta_reference_library {
 	my ($self) = @_;
 
 	# Get reference library params
-	my $ref_nt_fasta = $self->{reference_nt_fasta};
+	my $ref_nt_fasta = $self->{reference_na_fasta};
 	
 	# Format a reference NT library	
-	print "\n\t ### Loading FASTA reference sequences\n\n";
+	print "\n\t ### Loading FASTA reference sequences";
 	my $num_fasta;
 	my @ref_nt_fasta;
 	if ($ref_nt_fasta) {
@@ -236,7 +236,7 @@ sub load_nt_fasta_reference_library {
 		unless ($num_fasta) {
 			die "\n\t Reference library NT FASTA not found\n\n\n";
 		}
-		print "\n\n\t   '$num_fasta' FASTA formatted sequences to be used as probes";
+		print "\n\n\t   '$num_fasta' FASTA formatted nucleotide sequences in reference library";
 		my $i = 0;
 		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
@@ -283,7 +283,7 @@ sub create_blast_aa_lib {
 	else {
 		 $bin_path = $blast_program;
 	}
-	my $makedb_cmd = "$bin_path -in $aa_lib_path > /dev/null";
+	my $makedb_cmd = "$bin_path -in $aa_lib_path -dbtype prot > /dev/null";
 	#print "\n\t $makedb_cmd \n\n"; die;	
 	system $makedb_cmd;
 	$self->{blast_orf_lib_path} = $aa_lib_path; 
@@ -359,6 +359,9 @@ sub set_targets {
 		}
 		$self->read_genome_files(\@leaves, $targets_ref);		
 	}
+	my @keys = keys %$targets_ref;
+	my $unique_targets = scalar @keys;
+	print "\n\n\t   '$unique_targets' FASTA formatted target files identified in target directory";
 	#$devtools->print_hash($targets_ref); die; # DEBUG
 }
 
@@ -403,8 +406,6 @@ sub read_genome_files {
 			$targets_ref->{$target_id} = \%data;	
 		}
 	}
-
-
 }
 
 #***************************************************************************
@@ -454,7 +455,7 @@ sub load_aa_fasta_probes {
 		$seqio->read_fasta($query_aa_fasta, \@fasta);
 		#unless ($status) { die "\n\t Input error: couldn't open FASTA probe library\n\n"; }
 		my $num_fasta = scalar @fasta;
-		print "\n\n\t   '$num_fasta' FASTA formatted sequences will be used as probes";
+		print "\n\n\t   '$num_fasta' FASTA formatted protein sequences will be used as probes";
 		my $i = 0;
 		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
@@ -480,15 +481,15 @@ sub load_nt_fasta_probes {
 	my ($self, $probes_ref) = @_;
 
 	# Get parameters from self
-	my $query_nt_fasta = $self->{query_nt_fasta};
+	my $query_na_fasta = $self->{query_na_fasta};
 
 	# Read FASTA nt probe library
-	if ($query_nt_fasta) {
+	if ($query_na_fasta) {
 		my @fasta;
-		$seqio->read_fasta($query_nt_fasta, \@fasta);
+		$seqio->read_fasta($query_na_fasta, \@fasta);
 		#unless ($status) { die "\n\t Input error: couldn't open FASTA probe library\n\n"; }
 		my $num_fasta = scalar @fasta;
-		print "\n\t '$num_fasta' FASTA formatted reference sequences will be used as probes";
+		print "\n\n\t   '$num_fasta' FASTA formatted nucleotide sequences will be used as probes";
 		my $i = 0;
 		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
@@ -653,7 +654,7 @@ sub set_queries {
 			#print "\n\t ###### KEY '$key'"; #die;	
 
 			# Else store the query
-			print "\n\t ###### Setting query: probe '$probe_id' vs '$target_name'";
+			print "\n\t\t #~#~# Setting query: '$probe_id' vs '$target_name'";
 			$probe_ref->{genome_id}   = $genome_id;		
 			$probe_ref->{organism}    = $organism;		
 			$probe_ref->{version}     = $version;
@@ -694,7 +695,7 @@ sub create_output_directories {
 	
 	# Create a unique ID and report directory for this run
 	my $output_path = $self->{output_path};
-	my $report_dir  = $output_path . $process_id;
+	my $report_dir  = $output_path . 'result_set_' . $process_id;
 	$fileio->create_unique_directory($report_dir);
 	$self->{report_dir}  = $report_dir . '/';
 	
@@ -714,20 +715,36 @@ sub parse_control_file {
 
 	my ($self, $ctl_file) = @_;
 	
-	# Get parameters inherited from Pipeline.pm
-	my $process_id    = $self->{process_id};
-	my $genome_path   = $self->{genome_use_path};
-	my $output_path   = $self->{output_path};
-	unless ($genome_path and $process_id and $output_path) { die; }
-	
 	# Read input file
 	my @ctl_file;
 	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
 
 	# Parse the 'SCREENDB' block
+	$self->parse_screendb_block(\@ctl_file);
+
+	# Parse the 'SCREENSETS' block
+	$self->parse_screensets_block(\@ctl_file);
+
+	# READ the 'TARGETS' block
+	$self->parse_targets_block(\@ctl_file);
+	
+	# READ the 'SCREENSQL' block
+	$self->parse_screensql_block(\@ctl_file);
+
+}
+
+#***************************************************************************
+# Subroutine:  parse_screendb_block
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_screendb_block {
+
+	my ($self, $file_ref) = @_;
+	
+	# Parse the 'SCREENDB' block
 	my $start = 'BEGIN SCREENDB';
 	my $stop  = 'ENDBLOCK';
-	my $db_block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	my $db_block = $fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
 	unless ($db_block)  {
 		die "\n\t Control file error: no 'SCREENDB' block found\n\n\n";
 	}
@@ -750,11 +767,21 @@ sub parse_control_file {
 	unless ($password)  {
 		die "\n\t Control file error: 'mysql_password' undefined in 'SCREENDB' block\n\n\n";
 	}
+}
 
+
+#***************************************************************************
+# Subroutine:  parse_screensets_block
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_screensets_block {
+
+	my ($self, $file_ref) = @_;
+	
 	# Parse the 'SCREENSETS' block
-	$start = 'BEGIN SCREENSETS';
-	$stop  = 'ENDBLOCK';
-	my $block = $fileio->read_standard_field_value_block(\@ctl_file, $start, $stop, $self);
+	my $start = 'BEGIN SCREENSETS';
+	my $stop  = 'ENDBLOCK';
+	my $block = $fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
 	unless ($block)  {
 		die "\n\n\t Control file error: no 'SCREENSETS' block found\n\n\n";
 	}
@@ -763,10 +790,13 @@ sub parse_control_file {
 	my $tblastn_min        = $self->{bit_score_min_tblastn};
 	my $blastn_min         = $self->{bit_score_min_blastn};
 	my $query_aa_fasta     = $self->{query_aa_fasta};
-	my $query_nt_fasta     = $self->{query_nt_fasta};
+	my $query_na_fasta     = $self->{query_na_fasta};
 	my $reference_aa_fasta = $self->{reference_aa_fasta};
-	my $reference_nt_fasta = $self->{reference_nt_fasta};
-	my $extract_mode       = $self->{extract_mode};
+	my $reference_na_fasta = $self->{reference_na_fasta};
+	my $redundancy_mode    = $self->{redundancy_mode};
+	my $threadhit_probe_buffer = $self->{threadhit_probe_buffer};
+	my $threadhit_gap_buffer   = $self->{threadhit_gap_buffer};
+	my $threadhit_max_gap      = $self->{threadhit_max_gap};
 
 	# Check the probe files and correspondence to parameters for BLAST
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
@@ -779,32 +809,48 @@ sub parse_control_file {
 		}
 		# TODO Attempt to read the sequences
 		# Validate reference and probe FASTA
-
 	}
-	if ($query_nt_fasta) {
+	if ($query_na_fasta) {
 		unless ($tblastn_min) { # Set to default minimum
 			$self->{bit_score_min_tblastn} = $default_tblastn_min;
 		}
-		unless ($reference_nt_fasta) { # Set to default minimum
+		unless ($reference_na_fasta) { # Set to default minimum
 		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
 		}
 		# TODO Attempt to read the sequences
 		# Validate reference and probe FASTA
 	}
-	unless ($query_aa_fasta or $query_nt_fasta) {
+	unless ($query_aa_fasta or $query_na_fasta) {
 		die "\n\t Control file error: no probe library defined\n\n\n";
 	}
-	unless ($extract_mode) {
+	unless ($redundancy_mode) {
 		# Set extract mode to default (extract everything)
-		$self->{extract_mode} = 1;
+		$self->{redundancy_mode} = 1;
 	}
+	unless ($threadhit_probe_buffer) {
+		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_probe_buffer' is undefined. \n\n\n";
+	}
+	unless ($threadhit_gap_buffer) {
+		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_probe_buffer' is undefined. \n\n\n";
+	}
+	unless ($threadhit_max_gap) {
+		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_max_gap' is undefined. \n\n\n";
+	}
+}
 
+#***************************************************************************
+# Subroutine:  parse_targets_block
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_targets_block {
+
+	my ($self, $file_ref) = @_;
 
 	# READ the 'TARGETS' block
 	my @target_block;
-	$start = 'BEGIN TARGETS';
-	$stop  = 'ENDBLOCK';
-	$fileio->extract_text_block(\@ctl_file, \@target_block, $start, $stop);
+	my $start = 'BEGIN TARGETS';
+	my $stop  = 'ENDBLOCK';
+	$fileio->extract_text_block($file_ref, \@target_block, $start, $stop);
 	my $screenset_lines = scalar @target_block;
 	unless ($screenset_lines)  {
 		die "\n\n\t Control file error: nothing in 'TARGETS' block\n\n\n";
@@ -820,11 +866,20 @@ sub parse_control_file {
 		$targets++;
 	}
 	$self->{target_paths} = \@targets;
+}
+
+#***************************************************************************
+# Subroutine:  parse_screensql_block
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_screensql_block {
+
+	my ($self, $file_ref) = @_;
 
 	# READ the 'SCREENSQL' block
-	$start = 'BEGIN SCREENSQL';
-	$stop  = 'ENDBLOCK';
-	my $sql_block = $fileio->read_sql_block(\@ctl_file, $start, $stop, $self);
+	my $start = 'BEGIN SCREENSQL';
+	my $stop  = 'ENDBLOCK';
+	my $sql_block = $fileio->read_sql_block($file_ref, $start, $stop, $self);
 	unless ($sql_block)  {
 		die "\n\n\t Control file error: nothing in 'SCREENSQL' block\n\n\n";
 	}
