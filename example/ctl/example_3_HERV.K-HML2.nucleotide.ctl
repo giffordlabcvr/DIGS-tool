@@ -1,10 +1,8 @@
 BEGIN SCREENDB;
 db_name=HERVK_example;
 mysql_server=localhost;
-#mysql_username=[your username here];
-#mysql_password=[your password here];
-mysql_username=root;
-mysql_password=MyCVR!2; 
+#mysql_username=[your username here];      
+#mysql_password=[your password here]; 
 ENDBLOCK;
 
 BEGIN SCREENSETS;
