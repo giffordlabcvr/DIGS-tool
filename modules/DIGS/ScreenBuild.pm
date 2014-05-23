@@ -61,8 +61,8 @@ sub new {
 		output_path          => $parameter_ref->{output_path},
 		
 		# Paths
-		genome_use_path        => $parameter_ref->{genome_use_path},
-		blast_bin_path         => $parameter_ref->{blast_bin_path},
+		genome_use_path      => $parameter_ref->{genome_use_path},
+		blast_bin_path       => $parameter_ref->{blast_bin_path},
 		
 	};
 	
@@ -80,21 +80,10 @@ sub new {
 #***************************************************************************
 sub set_up_screen  {
 	
-	my ($self, $pipeline_obj, $queries_ref, $ctl_file) = @_;
+	my ($self, $pipeline_obj, $queries_ref) = @_;
 
 	# Create the output directories
-	$self->create_output_directories();
-	
-	# Set parameters for screening
-	$self->parse_control_file($ctl_file);
-
-	# Load screening database (includes some MacroLineage Tables
-	$self->set_screening_db();
-
-	# Show metrics for db
-	my $db_obj = $self->{db}; 
-	unless ($db_obj) { die; }
-	$db_obj->summarise_db();
+	$self->create_output_directories($pipeline_obj);
 	
 	# Set up the reference library
 	if ($self->{reference_aa_fasta}) {
@@ -113,54 +102,34 @@ sub set_up_screen  {
 	if ($self->{query_na_fasta}) {
 		$self->load_nt_fasta_probes(\@probes);
 	}
+	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
+	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
 
 	# Set up the target sequences to screen
 	print "\n\n\t ### Getting the target sequences to screen";
 	my %targets;
 	$self->set_targets(\%targets);
-		
+	
+	# Initialise target sequence library
+	my $genome_obj = GenomeControl->new($self); 
+	$genome_obj->refresh_genomes(\%targets);
+
 	# Create the list of BLAST queries for screening
 	print "\n\n\t ### Creating the BLAST queries\n";
-	$self->set_queries(\@probes, \%targets, $queries_ref);
-	my $num_queries = scalar keys %$queries_ref;
-	unless ( $num_queries ) {
-		print "\n\t ### No screening queries were loaded\n\n\n";
+	my $db = $pipeline_obj->{db};
+	unless ($db) { die; }
+	my $num = $self->set_queries($db, \@probes, \%targets, $queries_ref);
+	#$devtools->print_hash($queries_ref); die;	# DEBUG
+	unless ( $num ) {
+		print "\n\n\t ### No screening queries were loaded\n\n";
 		return 0;
 	}
-	#$devtools->print_hash($queries_ref); die;	# DEBUG
-
-	# transfer parameters from this object to the pipeline object
-	$pipeline_obj->{db}                 = $self->{db};
-	$pipeline_obj->{mysql_server}       = $self->{mysql_server};
-	$pipeline_obj->{mysql_username}     = $self->{mysql_username};
-	$pipeline_obj->{mysql_password}     = $self->{mysql_password};
-	$pipeline_obj->{tmp_path}           = $self->{tmp_path};
-	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
-	$pipeline_obj->{seq_length_minimum} = $self->{seq_length_minimum};
-	#$pipeline_obj->{select_list}        = $self->{select_list};
-	#$pipeline_obj->{where_statement}    = $self->{where_statement};
+	else {
+		print "\n\n\t ### $num screening queries were loaded\n\n";
+	}
 	return 1;
 }
 
-############################################################################
-# SET REFERENCE LIBRARY FOR RECIPROCAL BLAST
-############################################################################
-
-#***************************************************************************
-# Subroutine:  set_screening_db
-# Description: 
-#***************************************************************************
-sub set_screening_db {
-
-	my ($self) = @_;
-
-	my $db_name = $self->{db_name};
-	my $db_obj = DB->new($self);
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
-}
-	
 ############################################################################
 # SET REFERENCE LIBRARY FOR RECIPROCAL BLAST
 ############################################################################
@@ -192,25 +161,23 @@ sub load_aa_fasta_reference_library {
 		}
 		print "\n\n\t   '$num_fasta' FASTA formatted protein sequences in reference library";
 		my $i = 0;
-		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
 			my %header_data;
-			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
-			#$devtools->print_hash(\%header_data);
-			my $name      = $header_data{name};
-			my $gene_name = $header_data{gene_name};
-			my $aa_seq    = $seq_ref->{sequence};
-			my $fasta = ">$name" . "_$gene_name" . "\n$aa_seq\n\n";
-			push (@ref_aa_fasta, $fasta);
+			my $valid = $self->parse_fasta_header_data($header, \%header_data);
+			if ($valid) {
+				my $name      = $header_data{name};
+				my $gene_name = $header_data{gene_name};
+				my $aa_seq    = $seq_ref->{sequence};
+				my $fasta = ">$name" . "_$gene_name" . "\n$aa_seq\n\n";
+				push (@ref_aa_fasta, $fasta);
+			}
 		}
 	}
 
 	# Create the libraries
-	if ($num_fasta) {
-		$self->create_blast_aa_lib(\@ref_aa_fasta);
-	}
+	if ($num_fasta) { $self->create_blast_aa_lib(\@ref_aa_fasta); }
 }
 
 #***************************************************************************
@@ -238,27 +205,25 @@ sub load_nt_fasta_reference_library {
 		}
 		print "\n\n\t   '$num_fasta' FASTA formatted nucleotide sequences in reference library";
 		my $i = 0;
-		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
 			my %header_data;
 			my $mode = $self->{ref_fasta_header_mode};
-			$self->parse_fasta_header_data($header, \%header_data, $fail_count, $mode);
-			my $name     = $header_data{name};
-			my $gene_name = $header_data{gene_name};
-			my $nt_seq   = $seq_ref->{sequence};
-			my $fasta = ">$name" . "_$gene_name" . "\n$nt_seq\n\n";
-			push (@ref_nt_fasta, $fasta);
+			my $valid = $self->parse_fasta_header_data($header, \%header_data);
+			if ($valid) {
+				my $name     = $header_data{name};
+				my $gene_name = $header_data{gene_name};
+				my $nt_seq   = $seq_ref->{sequence};
+				my $fasta = ">$name" . "_$gene_name" . "\n$nt_seq\n\n";
+				push (@ref_nt_fasta, $fasta);
+			}
 		}
 	}
 	
 	# Create the libraries
-	if ($num_fasta) {
-		$self->create_blast_nt_lib(\@ref_nt_fasta);
-	}
+	if ($num_fasta) { $self->create_blast_nt_lib(\@ref_nt_fasta); }
 }
-
 
 #***************************************************************************
 # Subroutine:  create_blast_aa_lib
@@ -272,21 +237,28 @@ sub create_blast_aa_lib {
 	my $report_dir   = $self->{report_dir};
 	unless ($report_dir) { die; }	
 	
-	my $blast_program = 'makeblastdb';
+	# Copy file to the report directory
 	my $aa_lib_path = $report_dir . "/reference_lib_aa.fas";
 	$fileio->write_file($aa_lib_path, $aa_lib_ref); 
+	
+	# Set path to blast binary
+	my $blast_program = 'makeblastdb';
 	my $blast_bin_dir = $self->{blast_bin_path};
 	my $bin_path;
 	if ($blast_bin_dir) {
 		 $bin_path = $self->{blast_bin_path} . $blast_program;
 	}
-	else {
-		 $bin_path = $blast_program;
-	}
+	else { $bin_path = $blast_program; }
+
+	# Execute command
 	my $makedb_cmd = "$bin_path -in $aa_lib_path -dbtype prot > /dev/null";
-	#print "\n\t $makedb_cmd \n\n"; die;	
-	system $makedb_cmd;
+	my $result = system $makedb_cmd;
+	if ($result) {
+		#print "\n\t $makedb_cmd \n\n"; die;	
+		die "\n\t Failed to format reference library for BLAST! \n\n";
+	}
 	$self->{blast_orf_lib_path} = $aa_lib_path; 
+
 }
 
 #***************************************************************************
@@ -295,28 +267,33 @@ sub create_blast_aa_lib {
 #***************************************************************************
 sub create_blast_nt_lib {
 
-       my ($self, $nt_lib_ref) = @_;
+	my ($self, $nt_lib_ref) = @_;
 
-       # Get params from self
-       my $report_dir   = $self->{report_dir};
-       unless ($report_dir) { die; }
-       my $blast_program = 'makeblastdb';
-       my $nt_lib_path = $report_dir . "/reference_lib_nt.fas";
-       $fileio->write_file($nt_lib_path, $nt_lib_ref);
+	# Get params from self
+	my $report_dir   = $self->{report_dir};
+	unless ($report_dir) { die; }
 
-       my $blast_bin_dir = $self->{blast_bin_path};
-       my $bin_path;
-       if ($blast_bin_dir) {
-			$bin_path = $self->{blast_bin_path} . $blast_program;
-       }
-       else {
-			 $bin_path = $blast_program;
-       }
+	# Copy file to the report directory
+	my $nt_lib_path = $report_dir . "/reference_lib_nt.fas";
+	$fileio->write_file($nt_lib_path, $nt_lib_ref);
 
-       my $makedb_cmd = "$bin_path -in $nt_lib_path -dbtype nucl> /dev/null";
-       #print "\n\t $makedb_cmd \n\n";
-       system $makedb_cmd;
-       $self->{blast_utr_lib_path} = $nt_lib_path;
+	# Set path to blast binary
+	my $blast_program = 'makeblastdb';	
+	my $blast_bin_dir = $self->{blast_bin_path};
+	my $bin_path;
+	if ($blast_bin_dir) {
+		$bin_path = $self->{blast_bin_path} . $blast_program;
+	}
+	else { $bin_path = $blast_program; }
+
+	# Execute command
+	my $makedb_cmd = "$bin_path -in $nt_lib_path -dbtype nucl> /dev/null";
+	my $result = system $makedb_cmd;
+	if ($result) {
+		#print "\n\t $makedb_cmd \n\n"; die;	
+		die "\n\t Failed to format reference library for BLAST! \n\n";
+	}
+	$self->{blast_utr_lib_path} = $nt_lib_path;
 }
 
 ############################################################################
@@ -457,17 +434,18 @@ sub load_aa_fasta_probes {
 		my $num_fasta = scalar @fasta;
 		print "\n\n\t   '$num_fasta' FASTA formatted protein sequences will be used as probes";
 		my $i = 0;
-		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
 			my %header_data;
-			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
-			my $name     = $header_data{name};
-			my $gene_name = $header_data{gene_name};
-			my $aa_seq   = $seq_ref->{sequence};
-			#$devtools->print_hash(\%header_data);
-			$self->add_aa_probe($probes_ref, $name, $gene_name, $aa_seq);
+			my $valid = $self->parse_fasta_header_data($header, \%header_data);
+			if ($valid) {
+				my $name     = $header_data{name};
+				my $gene_name = $header_data{gene_name};
+				my $aa_seq   = $seq_ref->{sequence};
+				#$devtools->print_hash(\%header_data);
+				$self->add_aa_probe($probes_ref, $name, $gene_name, $aa_seq);
+			}
 		}
 	}
 }
@@ -491,17 +469,18 @@ sub load_nt_fasta_probes {
 		my $num_fasta = scalar @fasta;
 		print "\n\n\t   '$num_fasta' FASTA formatted nucleotide sequences will be used as probes";
 		my $i = 0;
-		my $fail_count = 0;
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
 			my %header_data;
-			$self->parse_fasta_header_data($header, \%header_data, $fail_count);
-			my $name     = $header_data{name};
-			my $gene_name = $header_data{gene_name};
-			my $utr_seq   = $seq_ref->{sequence};
-			#$devtools->print_hash(\%header_data);
-			$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
+			my $valid = $self->parse_fasta_header_data($header, \%header_data);
+			if ($valid) {
+				my $name     = $header_data{name};
+				my $gene_name = $header_data{gene_name};
+				my $utr_seq   = $seq_ref->{sequence};
+				#$devtools->print_hash(\%header_data);
+				$self->add_na_probe($probes_ref, $name, $gene_name, $utr_seq);
+			}
 		}
 	}
 }
@@ -512,20 +491,32 @@ sub load_nt_fasta_probes {
 #***************************************************************************
 sub parse_fasta_header_data {
 	
-	my ($self, $header, $data_ref, $fail_count) = @_;
+	my ($self, $header, $data_ref) = @_;
 
 	my $name;
 	my $gene_name;
+	my $valid = 1;
+
+	# Remove illegal characters from the header line: these include:
+	# / : * ? " < > |   because we need to write files using header elements
+	# '                 because quotes interfere with SQL statements
+	$header =~ s/\|//g;
+	$header =~ s/\///g;
+	$header =~ s/\*//g;
+	$header =~ s/\?//g;
+	$header =~ s/://g;
+	$header =~ s/"//g;
+	$header =~ s/<//g;
+	$header =~ s/>//g;
+	$header =~ s/'//g;
+
+	# Retrieve data from the header line
 	my @header = split (/_/, $header);
 	$gene_name  = pop   @header;
 	$name      = join('_', @header);
-
-	unless ($name) { 
-		$fail_count++;
-		$name = "unknown_$fail_count";
-	}
-	unless ($gene_name) { 
-		$gene_name = "unknown";
+	
+	unless ($name and $gene_name) { 
+		$valid = undef;
 	}
 	
 	$data_ref->{name}     = $name;
@@ -535,6 +526,8 @@ sub parse_fasta_header_data {
 	#print "\n\t # HEADER $header";	
 	#print "\n\t # NAME   $name";	
 	#print "\n\t # ORF    $gene_name";	
+
+	return $valid;
 }
 
 #***************************************************************************
@@ -588,17 +581,17 @@ sub add_na_probe {
 #***************************************************************************
 sub set_queries {
 	
-	my ($self, $probes_ref, $targets_ref, $queries_ref) = @_;
+	my ($self, $db_obj, $probes_ref, $targets_ref, $queries_ref) = @_;
 
 	# Get data from self
 	my $report_dir = $self->{report_dir};
+	my $tmp_path   = $self->{tmp_path};
+	unless ($report_dir and $tmp_path) { die; } 
 	#$devtools->print_hash($targets_ref); #die; # DEBUG
 
 	# Work out the current state with respect to searches performed
 	my %done;
-	my $db_obj = $self->{db};
 	$db_obj->index_previously_executed_queries(\%done);
-	#$devtools->print_hash(\%done); die; # DEBUG
 
 	# Get relevant member variables and objects
 	my $path;
@@ -606,6 +599,7 @@ sub set_queries {
 	unless ($num_probes) {
 		die "\n\t no probes found\n\n\n";
 	}
+	my $i;
 	foreach my $probe_ref (@$probes_ref) {
 		my $blast_alg       = $probe_ref->{blast_alg};
 		my $bitscore_cutoff = $probe_ref->{bitscore_cutoff};
@@ -620,7 +614,7 @@ sub set_queries {
 		$fileio->write_text_to_file($query_seq_file, $fasta);
 		$probe_ref->{probe_path}   = $query_seq_file;
 		$probe_ref->{probe_length} = $probe_len;
-		$probe_ref->{result_path}  = $self->{tmp_path};
+		$probe_ref->{result_path}  = $tmp_path;
 
 		# Iterate through targets
 		my @target_names = sort keys %$targets_ref;
@@ -655,6 +649,7 @@ sub set_queries {
 
 			# Else store the query
 			print "\n\t\t #~#~# Setting query: '$probe_id' vs '$target_name'";
+			$i++;
 			$probe_ref->{genome_id}   = $genome_id;		
 			$probe_ref->{organism}    = $organism;		
 			$probe_ref->{version}     = $version;
@@ -675,6 +670,8 @@ sub set_queries {
 			}
 		}
 	}
+	#$devtools->print_hash($queries_ref); die; # DEBUG
+	return $i;
 }
 
 ############################################################################
@@ -687,7 +684,7 @@ sub set_queries {
 #***************************************************************************
 sub create_output_directories {
 	
-	my ($self) = @_;
+	my ($self, $pipeline_obj) = @_;
 
 	# Get process ID to create unique output directory
 	my $process_id   = $self->{process_id};
@@ -703,6 +700,9 @@ sub create_output_directories {
 	my $tmp_path = $report_dir . '/tmp';
 	$fileio->create_unique_directory($tmp_path);
 	$self->{tmp_path}   = $tmp_path . '/';
+
+	$pipeline_obj->{tmp_path} = $tmp_path;
+	$pipeline_obj->{report_dir} = $report_dir;
 	#print "\n\t tmp path '$tmp_path'"; die;
 
 }
@@ -713,7 +713,7 @@ sub create_output_directories {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file) = @_;
+	my ($self, $ctl_file, $pipeline_obj) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -730,6 +730,41 @@ sub parse_control_file {
 	
 	# READ the 'SCREENSQL' block
 	$self->parse_screensql_block(\@ctl_file);
+
+	# Transfer parameters from this object to the pipeline object
+	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
+	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
+	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
+	$pipeline_obj->{db_name}                = $self->{db_name};
+	$pipeline_obj->{server}                 = $self->{mysql_server};
+	$pipeline_obj->{password}               = $self->{mysql_password};
+	$pipeline_obj->{username}               = $self->{mysql_username};
+	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
+	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
+	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
+	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
+	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
+	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
+	#$pipeline_obj->{tmp_path}               = $self->{tmp_path};
+	
+	# Screen SQL
+	my $select_list     = $self->{select_list};
+	my $where_statement = $self->{where_statement};
+	if ($select_list) {
+		#print "\n\t Loaded Select list '$select_list'";
+		$pipeline_obj->{select_list}  = lc $select_list;
+	}
+	if ($where_statement) {
+		#print "\n\t WHERE statement '$where_statement'";
+		$pipeline_obj->{where_statement} = lc $where_statement;
+	}
+
 
 }
 
@@ -807,8 +842,8 @@ sub parse_screensets_block {
 		unless ($reference_aa_fasta) { # Set to default minimum
 		  die "\n\t Control file error: no AA reference library defined for AA query set\n\n\n";
 		}
-		# TODO Attempt to read the sequences
-		# Validate reference and probe FASTA
+		# Validate query FASTA sequence data
+		$self->validate_reflib_fasta('aa', $reference_aa_fasta);
 	}
 	if ($query_na_fasta) {
 		unless ($tblastn_min) { # Set to default minimum
@@ -817,8 +852,8 @@ sub parse_screensets_block {
 		unless ($reference_na_fasta) { # Set to default minimum
 		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
 		}
-		# TODO Attempt to read the sequences
-		# Validate reference and probe FASTA
+		# Validate query FASTA sequence data
+		$self->validate_reflib_fasta('na', $reference_aa_fasta);
 	}
 	unless ($query_aa_fasta or $query_na_fasta) {
 		die "\n\t Control file error: no probe library defined\n\n\n";
@@ -880,12 +915,21 @@ sub parse_screensql_block {
 	my $start = 'BEGIN SCREENSQL';
 	my $stop  = 'ENDBLOCK';
 	my $sql_block = $fileio->read_sql_block($file_ref, $start, $stop, $self);
-	unless ($sql_block)  {
-		die "\n\n\t Control file error: nothing in 'SCREENSQL' block\n\n\n";
-	}
-	my $select_list     = $self->{select_list};
-	my $where_statement = $self->{where_statement};
 	#$devtools->print_hash($self); die;
+}
+
+
+#***************************************************************************
+# Subroutine:  validate_reflib_fasta
+# Description: 
+#***************************************************************************
+sub validate_reflib_fasta {
+
+	my ($self, $seq_type, $file_path) = @_;
+
+	# Try to read the sequences
+	
+
 }
 
 ############################################################################

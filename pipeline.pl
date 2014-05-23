@@ -17,7 +17,6 @@ use lib ($ENV{DIGS}) . '/modules/';
 # Import statements/packages (externally developed packages)
 ############################################################################
 use strict;
-use CGI;
 use Getopt::Long;
 
 ############################################################################

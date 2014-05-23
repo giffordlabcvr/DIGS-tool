@@ -107,7 +107,7 @@ sub main {
 	my $db = $loader_obj->{db};
 
 	# Do BLAST results chain
-	do_blast_results($db);
+	#do_blast_results($db);
 
 	# Do extracted chain
 	do_extracted($db);
@@ -135,14 +135,15 @@ sub do_extracted {
                       assigned_name assigned_gene ];
 
 	# Order by ascending start coordinates within each scaffold in the target file
-	my $where = "ORDER BY target_name, scaffold, extract_start ";
+	my $where = "ORDER BY organism, data_type, version, target_name, scaffold, extract_start ";
 	
 	# Get the relevant loci
 	my @hits;
 	$extracted_table->select_rows(\@fields, \@hits, $where);
 
 	# Iterate through consolidating as we go
-	my $i;
+	my $i = undef;
+	my $first_target = 1;
 	my %last_hit;
 	my @output;
 	my $extract_count = 0;
@@ -168,31 +169,41 @@ sub do_extracted {
 		my $last_orientation   = $last_hit{orientation};
 		my $last_extract_start = $last_hit{extract_start};
 		my $last_extract_end   = $last_hit{extract_end};
-		my $gap = $extract_start - $last_extract_end;
-		#my $last_assigned_name  = $last_hit{assigned_name};
-		#my $last_assigned_gene   = $last_hit{assigned_gene};
+
+		if ($first_target) {
+			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'\n";
+			push (@output, $line);
+			$first_target = undef;
+		}
 		
+		my $gap = 0;
+		if ($last_extract_start) {
+			$gap = $extract_start - $last_extract_end;
+		}
+		unless ($last_target_name) {
+			$last_target_name = $target_name;
+		}	
+		
+		# Is this a new target file?
 		if ($target_name ne $last_target_name) {
 			$i=1;
 			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-			print $line;
 			push (@output, $line);	
 		}
-
+		# Is this a new scaffold
 		elsif ($last_scaffold) {	
 			if ($scaffold ne $last_scaffold) {
 				$i=1;
-				my $line  = "\n ### Target $target_name; Scaffold: '$scaffold'";
-				print $line;
+				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'\n";
 				push (@output, $line);	
 			}
 			else { $i++; 
 				my $line  = "\t\t Gap of $gap nucleotides";
-				print $line;
 				push (@output, $line);	
 			}
 		}
-				
+
+		# Compose the line	
 		my $line  = "\nExtracted seq $extract_count at\t $target_name, $scaffold";
 		   $line .= ",$extract_start,$extract_end";
 		   $line .= "\t\t $assigned_name,$assigned_gene ($orientation)";
@@ -240,7 +251,7 @@ sub do_blast_results {
                       query_start query_end hit_length ];
 
 	# Order by ascending start coordinates within each scaffold in the target file
-	my $where = "ORDER BY target_name, scaffold, subject_start ";
+	my $where = "ORDER BY organism, target_name, scaffold, subject_start ";
 	
 	# Get the relevant loci
 	my @hits;
@@ -276,25 +287,24 @@ sub do_blast_results {
 		if ($target_name ne $last_target_name) {
 			$i=1;
 			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-			print $line;
+			#print $line;
 			push (@output, $line);	
 		}
 
 		elsif ($last_scaffold) {	
 			if ($scaffold ne $last_scaffold) {
 				$i=1;
-				my $line  = "\n ### Target $target_name; Scaffold: '$scaffold'";
-				print $line;
+				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+				#print $line;
 				push (@output, $line);	
 			}
 			else {
 				$i++; 
 				my $line  = "\t\t Gap of $gap nucleotides";
-				print $line;
+				#print $line;
 				push (@output, $line);	
 			}
 		}
-
 
 		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
 		   $line .= ",$subject_start,$subject_end ($orientation)";
@@ -305,7 +315,7 @@ sub do_blast_results {
 			}
 		}
 		push (@output, $line);	
-		print $line;
+		#print $line;
 
 		# Update last hit data
 		$last_hit{record_id}     = $record_id;

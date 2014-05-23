@@ -651,6 +651,47 @@ sub flush_screening_db {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  count_blast_rows
+# Description: 
+#***************************************************************************
+sub count_blast_rows {
+
+	my ($self) = @_;
+
+	my $blast_table = $self->{blast_results_table};
+	my $blast_results_table = $self->{blast_results_table};
+
+	my @fields = qw [ COUNT(*) ];
+	my @data;
+	$blast_results_table->select_rows(\@fields, \@data);
+	my $data_ref = shift @data;
+	my $count = $data_ref->{'COUNT(*)'};
+	#print "\n\t BLAST results table: $count rows";
+	return $count;	
+	
+}
+
+#***************************************************************************
+# Subroutine:  count_extracted_rows
+# Description: 
+#***************************************************************************
+sub count_extracted_rows {
+
+	my ($self) = @_;
+
+	my $blast_table = $self->{extracted_table};
+	my $extracted_table = $self->{extracted_table};
+
+	my @fields = qw [ COUNT(*) ];
+	my @data;
+	$extracted_table->select_rows(\@fields, \@data);
+	my $data_ref = shift @data;
+	my $count = $data_ref->{'COUNT(*)'};
+	#print "\n\t Extracted table: $count rows";
+	return $count;	
+}
+
 ############################################################################
 # EOF
 ############################################################################
