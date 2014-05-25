@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Module:      ScreenBuild.pm
-# Description: Set up a screening process 
+# Description: Set up a bidirectional BLAST scree in the DIGS framework
 # History:     December 2011: Created by Robert Gifford 
 ############################################################################
 package ScreenBuild;
@@ -406,9 +406,6 @@ sub get_path_elements {
 	$elements_ref->{data_type} = $type;
 	$elements_ref->{group}     = $group;
 	$elements_ref->{file}      = $file;
-	#$devtools->print_array(\@path); die;
-	#$devtools->print_hash($elements_ref); die;
-
 }
 
 ############################################################################
@@ -644,8 +641,6 @@ sub set_queries {
 				#print "\n\t ###### Skipping query: probe '$probe_id' vs '$target_name'";
 				next; # Skip queries that have been issued
 			} 
-			#$devtools->print_hash(\%done); 
-			#print "\n\t ###### KEY '$key'"; #die;	
 
 			# Else store the query
 			print "\n\t\t #~#~# Setting query: '$probe_id' vs '$target_name'";
@@ -701,9 +696,8 @@ sub create_output_directories {
 	$fileio->create_unique_directory($tmp_path);
 	$self->{tmp_path}   = $tmp_path . '/';
 
-	$pipeline_obj->{tmp_path} = $tmp_path;
+	$pipeline_obj->{tmp_path}   = $tmp_path;
 	$pipeline_obj->{report_dir} = $report_dir;
-	#print "\n\t tmp path '$tmp_path'"; die;
 
 }
 
@@ -764,8 +758,6 @@ sub parse_control_file {
 		#print "\n\t WHERE statement '$where_statement'";
 		$pipeline_obj->{where_statement} = lc $where_statement;
 	}
-
-
 }
 
 #***************************************************************************

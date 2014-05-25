@@ -7,7 +7,7 @@
 
 unless ($ENV{DIGS}) {
 	print  "\n\n\t Environment variable '\$DIGS' is undefined\n";
-	print  "(path to genome data directory)\n\n\n";
+	print  "(path to this directory)\n\n\n";
 	exit;
 }
 # Include a local library of PERL modules 
