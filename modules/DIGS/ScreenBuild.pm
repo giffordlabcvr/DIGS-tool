@@ -89,8 +89,14 @@ sub set_up_screen  {
 	if ($self->{reference_aa_fasta}) {
 		$self->load_aa_fasta_reference_library();
 	}
-	if ($self->{reference_na_fasta}) {
+	elsif ($self->{reference_na_fasta}) {
 		$self->load_nt_fasta_reference_library();
+	}
+	elsif ($self->{reference_glue}) {
+		$self->load_glue_reference_library();
+	}
+	else { 
+		die "\n\t No reference sequences found for screen\n\n\n";
 	}
 
 	# Set up the probes
@@ -99,8 +105,14 @@ sub set_up_screen  {
 	if ($self->{query_aa_fasta}) {
 		$self->load_aa_fasta_probes(\@probes);
 	}
-	if ($self->{query_na_fasta}) {
+	elsif ($self->{query_na_fasta}) {
 		$self->load_nt_fasta_probes(\@probes);
+	}
+	elsif ($self->{query_glue}) {
+		$self->load_glue_probes(\@probes);
+	}
+	else { 
+		die "\n\t No probes found for screen\n\n\n";
 	}
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
@@ -136,7 +148,7 @@ sub set_up_screen  {
 
 #***************************************************************************
 # Subroutine:  load_aa_fasta_reference_library
-# Description: 
+# Description: load a library of protein sequences in FASTA format as references 
 #***************************************************************************
 sub load_aa_fasta_reference_library {
 	
@@ -182,7 +194,7 @@ sub load_aa_fasta_reference_library {
 
 #***************************************************************************
 # Subroutine:  load_nt_fasta_reference_library
-# Description: 
+# Description: load a library of nucleotide sequences in FASTA format as references 
 #***************************************************************************
 sub load_nt_fasta_reference_library {
 	
@@ -226,6 +238,81 @@ sub load_nt_fasta_reference_library {
 }
 
 #***************************************************************************
+# Subroutine:  load_glue_reference_library
+# Description: 
+#***************************************************************************
+sub load_glue_reference_library {
+	
+	my ($self) = @_;
+
+	my $ref_vglue   = $self->{reference_vglue};
+	my $report_dir  = $self->{output_path};
+	my $tmp_path    = $self->{tmp_path};
+	
+	# Set up library
+	my $parser_obj  = RefSeqParser->new();
+	my @refseqs;
+	my $status = $parser_obj->split_vglue_ref_file($ref_vglue, \@refseqs);
+	unless ($status) { die "\n\t Input error: couldn't open query VGLUE file\n\n"; }
+	my $num_refseqs = scalar @refseqs;
+	print "\n\t Total of '$num_refseqs' GLUE formatted references sequences to use as references";
+	my $i = 0;
+	foreach my $refseq_ref (@refseqs) {
+		
+		$i++;
+		
+		# Step 1: parse the refseq file and capture data in %params
+		my %params;
+		$parser_obj->parse_refseq_datastructure($refseq_ref, \%params);
+
+		# Step 2: create the reference sequence object using %params
+		my $refseq = RefSeq->new(\%params);
+		my $virus_name = $refseq->{name};
+		print "\n\t Loading query refseq $i:  '$virus_name'";
+		
+		# Get the translated ORFs
+		my %orf_sequences;
+		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
+		
+		# Get the translated ORFs
+		my %utr_sequences;
+		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
+		#$devtools->print_hash(\%utr_sequences); die;
+
+		my @orf_names = keys %orf_sequences;
+		my @ref_fasta_aa;
+		foreach my $orf_name (@orf_names) {
+			my $orf_seq = $orf_sequences{$orf_name};
+			my $name = $virus_name . "_$orf_name";
+			my $fasta = ">$name\n$orf_seq\n\n";
+			push (@ref_fasta_aa, $fasta);
+			my $lib_path = $report_dir . "/reference_lib_nt.fas";
+			$fileio->write_output_file($lib_path, \@ref_fasta_aa); 
+			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
+			system $formatdb_command;
+			#print "\n\t$formatdb_command\n";
+			$self->{blast_orf_lib_path} = $lib_path; 
+		}
+		
+		# Iterate through UTRs and add those
+		my @utr_names = keys %utr_sequences;
+		my @ref_fasta_nt;
+		foreach my $utr_name (@utr_names) {
+			my $utr_seq = $utr_sequences{$utr_name};
+			my $name = $virus_name . "_$utr_name";
+			my $fasta = ">$name\n$utr_seq\n\n";
+			push (@ref_fasta_nt, $fasta);
+			my $lib_path = $report_dir . "/reference_lib_nt.fas";
+			$fileio->write_output_file($lib_path, \@ref_fasta_nt); 
+			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
+			system $formatdb_command;
+			#print "\n\t$formatdb_command\n";
+			$self->{blast_utr_lib_path} = $lib_path; 
+		}
+	}
+}
+
+#***************************************************************************
 # Subroutine:  create_blast_aa_lib
 # Description: create protein sequence library for reciprocal BLAST
 #***************************************************************************
@@ -258,7 +345,6 @@ sub create_blast_aa_lib {
 		die "\n\t Failed to format reference library for BLAST! \n\n";
 	}
 	$self->{blast_orf_lib_path} = $aa_lib_path; 
-
 }
 
 #***************************************************************************
@@ -484,7 +570,8 @@ sub load_nt_fasta_probes {
 
 #***************************************************************************
 # Subroutine:  parse_fasta_header_data
-# Description:
+# Description: parse elements out of a structured FASTA header
+#              (Header is split into two elements using underscore) 
 #***************************************************************************
 sub parse_fasta_header_data {
 	
@@ -525,6 +612,87 @@ sub parse_fasta_header_data {
 	#print "\n\t # ORF    $gene_name";	
 
 	return $valid;
+}
+
+#***************************************************************************
+# Subroutine:  load_glue_query
+# Description: 
+#***************************************************************************
+sub load_glue_query {
+	
+	my ($self, $queries_ref) = @_;
+
+	my $db_ref      = $self->{db};
+	my $report_dir  = $self->{output_path};
+	my $tmp_path    = $self->{tmp_path};
+	my $query_vglue = $self->{query_vglue};
+	unless ($query_vglue) { die "<BR>NO ARGUMENTS RECIEVED<BR>"; }
+	
+	# Set up library
+	my $parser_obj  = RefSeqParser->new();
+	my @refseqs;
+	my $status = $parser_obj->split_vglue_ref_file($query_vglue, \@refseqs);
+	unless ($status) { die "\n\t Input error: couldn't open query VGLUE file\n\n"; }
+	my $num_refseqs = scalar @refseqs;
+	print "\n\t Total of '$num_refseqs' GLUE formatted references sequences to use as probes";
+	#$devtools->print_array(\@refseqs); die;
+	#my $refseq_table = $db_ref->{reference_seqs_table};
+
+	my @query_fasta;
+	my @na_query_fasta;
+	
+	# Get cutoffs
+	my $bit_score_min_tblastn = $self->{bit_score_min_tblastn};
+	my $bit_score_min_blastn  = $self->{bit_score_min_blastn};
+	
+	my $i = 0;
+	foreach my $refseq_ref (@refseqs) {
+		
+		# Step 1: parse the refseq file and capture data in %params
+		$i++;
+		my $refseq_file = $report_dir . 'tmp.vglue';
+		$fileio->write_output_file($refseq_file, $refseq_ref);
+		my %params;
+		$parser_obj->parse_refseq_flatfile($refseq_file, \%params);
+
+		# Step 2: create the reference sequence object using %params
+		my $refseq = RefSeq->new(\%params);
+		#$refseq->describe();
+		my $virus_name = $refseq->{name};
+		print "\n\t Loading query refseq $i:  '$virus_name'";
+		
+		# Get the translated ORFs
+		my %orf_sequences;
+		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
+		
+		# Get the translated ORFs
+		my %utr_sequences;
+		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
+		#$devtools->print_hash(\%utr_sequences); die;
+
+		# ADD THE ORF SEARCHES
+		my @orf_names = keys %orf_sequences;
+		my $orf_search = $self->{orf_search};
+		if ($orf_search) {
+			unless ($bit_score_min_tblastn) {die; }
+			foreach my $orf_name (@orf_names) {
+				my $orf_seq = $orf_sequences{$orf_name};
+			}
+		}	
+		
+		# Iterate through UTRs and add those
+		my $utr_search = $self->{utr_search};
+		my @utr_names = keys %utr_sequences;
+		if ($utr_search) {
+
+			unless ($bit_score_min_blastn) {die; }
+			foreach my $utr_name (@utr_names) {
+				my $utr_seq = $utr_sequences{$utr_name};
+				#print "\n\t ############### $utr_name";
+				#print "\n\t ############### $utr_seq\n\n";
+			}
+		}
+	}
 }
 
 #***************************************************************************
@@ -918,9 +1086,6 @@ sub parse_screensql_block {
 sub validate_reflib_fasta {
 
 	my ($self, $seq_type, $file_path) = @_;
-
-	# Try to read the sequences
-	
 
 }
 
