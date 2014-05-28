@@ -35,7 +35,7 @@ use Interface::BLAST;   # Interface to BLAST
 use DIGS::Pipeline;
 use DIGS::ScreenBuild;
 use DIGS::GenomeControl;
-use DIGS::DB;
+use DIGS::ScreeningDB;
 
 ############################################################################
 # Paths & Globals

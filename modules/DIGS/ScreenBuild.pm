@@ -23,7 +23,7 @@ use Base::Console;
 use Base::Sequence;
 
 # Program components
-use DIGS::DB;
+use DIGS::ScreeningDB;
 
 ############################################################################
 # Globals
