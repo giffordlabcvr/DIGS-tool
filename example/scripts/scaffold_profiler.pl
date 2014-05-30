@@ -103,8 +103,10 @@ sub main {
 	$loader_obj->parse_screendb_block(\@ctl_file);
 	
 	# Load screening database (includes some MacroLineage Tables
-	$loader_obj->set_screening_db();
-	my $db = $loader_obj->{db};
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
+	my $db = DB->new($loader_obj);
+	$db->load_screening_db($db_name);
 
 	# Do BLAST results chain
 	#do_blast_results($db);
@@ -210,7 +212,7 @@ sub do_extracted {
 		
 		if ($i) {
 			if ($i > 1 and $gap < 1000) { 
-				$line .= "\t  ### ARRAY HIT"; 
+				$line .= "\t  ### ARRAY HIT\n"; 
 			}
 		}
 		#print $line;
@@ -311,7 +313,7 @@ sub do_blast_results {
 		   $line .= ": query: $query_start, $query_end";
 		if ($i) {
 			if ($i > 1 and $gap < 1000) { 
-				$line .= "\t  ### ARRAY HIT"; 
+				$line .= "\t  ### ARRAY HIT\n"; 
 			}
 		}
 		push (@output, $line);	

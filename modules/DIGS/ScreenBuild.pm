@@ -964,7 +964,6 @@ sub parse_screendb_block {
 	}
 }
 
-
 #***************************************************************************
 # Subroutine:  parse_screensets_block
 # Description: read an input file to get parameters for screening
@@ -1032,6 +1031,7 @@ sub parse_screensets_block {
 		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_max_gap' is undefined. \n\n\n";
 	}
 }
+
 
 #***************************************************************************
 # Subroutine:  parse_targets_block

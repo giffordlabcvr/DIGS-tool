@@ -98,7 +98,11 @@ sub read_fasta {
 			if ($header and $sequence) {
 				$i++;
 				my $alias_id = $alias_stem . "_$i";
+				$sequence =~ s/\s+//g; # Remove whitespace
 				$sequence = uc $sequence;
+				$header =~ s/\s+//g; # Remove whitespace
+				#$header =~ s/\s+$//; # Remove leading and trailing whitespace
+				#$header =~ s/^\s+//;; # Remove leading and trailing whitespace
 				my $seq_obj = Sequence->new($sequence, $header, $alias_id);
 				#$devtools->print_hash($seq_obj); die;
 				push(@$array_ref, $seq_obj);
@@ -122,6 +126,9 @@ sub read_fasta {
 		my $alias_id = $alias_stem . "_$i";
 		$sequence =~ s/\s+//g; # Remove whitespace
 		$sequence = uc $sequence;
+		$header =~ s/\s+//g; # Remove whitespace
+		#$header =~ s/\s+$//; # Remove leading and trailing whitespace
+		#$header =~ s/^\s+//;; # Remove leading and trailing whitespace
 		my $seq_obj = Sequence->new($sequence, $header, $alias_id);
 		push(@$array_ref, $seq_obj);
 	}
