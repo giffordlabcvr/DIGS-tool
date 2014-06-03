@@ -25,8 +25,11 @@ use Base::DevTools;
 use Base::FileIO;
 use Base::SeqIO;
 
+# BLAST interface
+use Interface::BLAST;
+
 # GLUE program modules
-use GLUE::Data_tool;
+use GLUE::DataTool;
 
 ############################################################################
 # Paths
@@ -44,6 +47,9 @@ my $time = time;
 my $process_id   = $pid . '_' . $time;
 my $user = $ENV{"USER"};
 
+# External program paths
+my $blast_bin_path = './bin/blast/'; # BLAST
+
 ############################################################################
 # Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
 ############################################################################
@@ -54,19 +60,43 @@ my $fileio     = FileIO->new();
 my $devtools   = DevTools->new();
 my $console    = Console->new();
 
+# Interface to BLAST
+my %blast_params;
+$blast_params{blast_bin_path} = $blast_bin_path;
+my $blast_obj = BLAST->new(\%blast_params);
+
+# Data tool
+my %tool_params;
+$tool_params{process_id}  = $process_id;
+$tool_params{output_type} = 'text';
+$tool_params{output_path} = './proc/';
+$tool_params{refseq_use_path} = './db/refseq/';
+my $datatool_obj = DataTool->new(\%tool_params);
+
 ############################################################################
 # Set up USAGE statement
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my($USAGE) = "\n #### Data tool - a collection of utilities for working with sequences + data\n";
-  $USAGE  .= "\n\t\t  -m=1        : FASTA to delimited";
-  $USAGE  .= "\n\t\t  -m=2        : FASTA to NEXUS";
-  $USAGE  .= "\n\t\t  -m=3        : FASTA to PHYLIP";
-  $USAGE  .= "\n\t\t  -m=4        : Delimited to FASTA";
-  $USAGE  .= "\n\t\t  -m=5        : Extract by identifier";
-  $USAGE  .= "\n\t\t  -m=6        : Filter by identifier";
-  $USAGE  .= "\n\n  usage: $0 [options] \n\n";
+my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequences + data\n";
+  $USAGE  .= "\n # Convert between formats";
+  $USAGE  .= "\n\t\t  -m=1        :     FASTA to Delimited";
+  $USAGE  .= "\n\t\t  -m=2        : Delimited to FASTA";
+  $USAGE  .= "\n\t\t  -m=3        :   Genbank to FASTA+DATA";
+  $USAGE  .= "\n\t\t  -m=4        :     FASTA to NEXUS";
+  $USAGE  .= "\n\t\t  -m=5        :     FASTA to PHYLIP";
+#  $USAGE  .= "\n\t\t  -m=6        :    PHYLIP to FASTA*";
+#  $USAGE  .= "\n\t\t  -m=7        :     NEXUS to FASTA*";
+  $USAGE  .= "\n # GLUE reference sequence utilities";
+  $USAGE  .= "\n\t\t  -g=1        :   Genbank to REFSEQ"; 
+  $USAGE  .= "\n\t\t  -g=2        :    REFSEQ to FASTA+DATA"; 
+  $USAGE  .= "\n\t\t  -g=3        :    REFSEQ to 'Pretty'"; 
+  $USAGE  .= "\n\t\t  -g=3        :    Get REFSEQ ORFs"; 
+#  $USAGE  .= "\n # Manage data + sequences";
+#  $USAGE  .= "\n\t\t  -d=1        :   Extract/filter/split sequences";
+#  $USAGE  .= "\n\t\t  -d=2        :   Sort sequences"; 
+#  $USAGE  .= "\n\t\t  -d=3        :   Data utilities";
+  $USAGE  .= "\n\n  usage: $0 m=[options] -i=[infile]\n\n";
 
 ############################################################################
 # Main program
@@ -88,23 +118,49 @@ exit;
 # Description: top level handler fxn
 #***************************************************************************
 sub main {
-	
-	# Read in options using GetOpt::Long
-	my $mode = undef;
-	GetOptions ('mode|m=i' => \$mode,
-	) or die $USAGE;
-	unless ($mode) { die $USAGE; }
 
-	# Hand off to the appropriate object
-	if ($mode eq 1) { 
+	# Read in options using GetOpt::Long
+	my $infile       = undef;
+	my $mode		 = undef;
+	my $glue		 = undef;
+	my $data		 = undef;
+	GetOptions ('infile|i=s'  => \$infile, 
+				'mode|m=i'    => \$mode,
+				'glue|g=i'    => \$glue,
+				'data|d=i'    => \$data,
+	) or die $USAGE;
+	unless ($infile and $mode) { die $USAGE; }
 	
+	$datatool_obj->show_title();
+
+	if ($mode) {    # Reformatting tools  
+
+		if ($mode > 7) { die $USAGE; }
+		$datatool_obj->run_reformat_tools_cmd_line($infile, $mode);
 	}
-	else { 
-		die $USAGE; 
+	elsif ($glue) { # GLUE refseq tools
+
+		if ($glue > 3) { die $USAGE; }
+		$datatool_obj->run_refseq_tools_cmd_line($infile, $glue);
+	}
+	elsif ($data) { # Data tools
+
+		if ($data eq 1)    {  # Sequence extraction fxns
+			$datatool_obj->run_extract_tools_cmd_line($infile, $data);
+		}
+		elsif ($data eq 2) {  # Sequence sorting tools
+			$datatool_obj->run_sort_tools_cmd_line($infile, $data);
+		}
+		elsif ($data eq 3) {  # Data + sequence tools
+			$datatool_obj->run_data_tools_cmd_line($infile, $data);
+		}
+		else {
+			die $USAGE;
+		}
 	}
 	print "\n\n\t # Finished!\n\n\n";
 }
 
 ############################################################################
-# EOF 
+# EOF
 ############################################################################
