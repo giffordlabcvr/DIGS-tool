@@ -123,7 +123,7 @@ sub set_up_screen  {
 	$self->set_targets(\%targets);
 	
 	# Initialise target sequence library
-	my $genome_obj = GenomeControl->new($self); 
+	my $genome_obj = TargetDB->new($self); 
 	$genome_obj->refresh_genomes(\%targets);
 
 	# Create the list of BLAST queries for screening

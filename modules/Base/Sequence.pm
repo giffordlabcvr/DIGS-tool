@@ -382,6 +382,24 @@ sub codon2aa {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  index_sequence 
+# Description: 
+#***************************************************************************
+sub index_sequence {
+
+	my ($self, $sequence, $indexed_sequence_ref, $start) = @_;
+	
+	my @sequence = split ('', $sequence);
+	my $index = 0;
+	if ($start) { $index = $start; }
+	foreach my $residue (@sequence) {
+		$index++;
+		#print "\n\t INDEX $index $residue";
+		$indexed_sequence_ref->{$index} = $residue;
+	}
+}
+
 ############################################################################
 # END OF FILE
 ############################################################################

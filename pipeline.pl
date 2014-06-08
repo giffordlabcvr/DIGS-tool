@@ -34,7 +34,7 @@ use Interface::BLAST;   # Interface to BLAST
 # Paleovirology program modules
 use DIGS::Pipeline;
 use DIGS::ScreenBuild;
-use DIGS::GenomeControl;
+use DIGS::TargetDB;
 use DIGS::ScreeningDB;
 
 ############################################################################

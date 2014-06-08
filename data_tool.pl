@@ -96,7 +96,7 @@ my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequ
 #  $USAGE  .= "\n\t\t  -d=1        :   Extract/filter/split sequences";
 #  $USAGE  .= "\n\t\t  -d=2        :   Sort sequences"; 
 #  $USAGE  .= "\n\t\t  -d=3        :   Data utilities";
-  $USAGE  .= "\n\n  usage: $0 m=[options] -i=[infile]\n\n";
+  $USAGE  .= "\n\n  usage: $0 -m=[options] -i=[infile]\n\n";
 
 ############################################################################
 # Main program

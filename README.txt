@@ -114,7 +114,7 @@ modules/Base/         # Some base functions (IO etc), used by everything
 modules/Interface/    # Interfaces to BLAST and MySQL
 modules/DIGS/         # Program-specific functionality
 
-### examples directory -  worked examples for DIGS
+### example directory -  worked examples for DIGS (see DIGS 1.0 user guide)
 
 
 ############################################################################

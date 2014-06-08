@@ -1,12 +1,12 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Module:      DB.pm
+# Module:      ScreeningDB.pm
 # Description: The DB module for Pipeline databases
 #              Contains routines for creating, and interacting with 
 #              DBs in the DIGS framework
 # History:     June 2011: Created by Robert Gifford 
 ############################################################################
-package DB;
+package ScreeningDB;
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -24,7 +24,7 @@ use Base::DevTools;
 use Base::Console;
 
 # Components
-use DIGS::GenomeControl;
+use DIGS::TargetDB;
 
 # Database component modules
 use Interface::MySQLtable;

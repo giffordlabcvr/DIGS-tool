@@ -91,7 +91,7 @@ sub run_digs_function {
 
 	# summarising genomes does not require a file path
 	if ($option eq 8) {  
-		my $genome_obj = GenomeControl->new($self);
+		my $genome_obj = TargetDB->new($self);
 		$genome_obj->summarise_genomes();    
 		return;
 	}
@@ -154,7 +154,7 @@ sub create_screening_db {
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name)  { die; } 
 		
-	my $db_obj = DB->new($loader_obj);
+	my $db_obj = ScreeningDB->new($loader_obj);
 	$db_obj->create_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
 }
@@ -181,7 +181,7 @@ sub initialise {
 	# Load screening database
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
-	my $db_obj = DB->new($self);
+	my $db_obj = ScreeningDB->new($self);
 	$db_obj->load_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
 	

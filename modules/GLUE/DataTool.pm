@@ -100,23 +100,7 @@ sub run_reformat_tools_cmd_line {
 		$fileio->write_file($outfile, \@data);
 		print "\n\t # File '$outfile' created";
 	}
-	elsif ($mode eq 2) {  # Genbank to FASTA + Data
-		print "\n\t # Converting file '$infile' from GenBank format to FASTA+DATA";
-		my @fasta;
-		my @data;
-		$self->genbank_to_fasta_and_data($infile, \@fasta, \@data);
-		#$devtools->print_array(\@fasta);
-		#$devtools->print_array(\@data);
-		my $outseqs = $infile . '.fas';
-		print "\n\t Writing sequences to file '$outseqs'";
-		$seqio->write_fasta($outseqs, \@fasta);
-		print "\n\t # File '$outseqs' created";
-		my $outdata = $infile . '.txt';
-		print "\n\t Writing data to file '$outdata'";
-		$seqio->write_delimited($outdata, \@data);
-		print "\n\t # File '$outdata' created";
-	}
-	elsif ($mode eq 3) { # Delimited to FASTA
+	elsif ($mode eq 2) { # Delimited to FASTA
 		my @data;
 		$fileio->read_file($infile, \@data);
 		my @fasta;
@@ -131,6 +115,22 @@ sub run_reformat_tools_cmd_line {
 		$fileio->write_file($outfile, \@fasta);
 		print "\n\t # File '$outfile' created";
 		#$devtools->print_array(\@data); die;
+	}
+	elsif ($mode eq 3) {  # Genbank to FASTA + Data
+		print "\n\t # Converting file '$infile' from GenBank format to FASTA+DATA";
+		my @fasta;
+		my @data;
+		$self->genbank_to_fasta_and_data($infile, \@fasta, \@data);
+		#$devtools->print_array(\@fasta);
+		#$devtools->print_array(\@data);
+		my $outseqs = $infile . '.fas';
+		print "\n\t Writing sequences to file '$outseqs'";
+		$seqio->write_fasta($outseqs, \@fasta);
+		print "\n\t # File '$outseqs' created";
+		my $outdata = $infile . '.txt';
+		print "\n\t Writing data to file '$outdata'";
+		$seqio->write_delimited($outdata, \@data);
+		print "\n\t # File '$outdata' created";
 	}
 	elsif ($mode eq 4) {  # FASTA to NEXUS
 		print "\n\t # Converting file '$infile' from FASTA to NEXUS format";
@@ -409,7 +409,6 @@ sub delimited_to_fasta {
 	}
 }
 
-
 #***************************************************************************
 # Subroutine:  genbank_to_fasta_and_data
 # Description: convert GenBank file into a FASTA file and linked data file 
@@ -433,6 +432,7 @@ sub genbank_to_fasta_and_data {
 	my $cds_flag       = undef;
 	my $cd_coordinates = undef;
 	my $matpep_flag    = undef;
+	my $prev_line      = undef;
 	my $matpep_coordinates = undef;
 	unless (open(GBFILE, "$infile")) {
 		print "\n\t Cannot open file \"$infile\"\n\n";
@@ -445,25 +445,30 @@ sub genbank_to_fasta_and_data {
 	    chomp($line);
 		$i++;
 		#print "\n\t LINE $i\t $line";
-
 	    # do line-by-line processing.
-		if ($line =~ /\/\//) {
+		if ($line =~ /^\/\//) {  # End of Genbank entry
 			
 			# Do some processing to get start and stop
-			#print "\n\t End of  Genbank entry for '$seq_id'";
+			#print "\n\t ## Processed Genbank entry for '$seq_id' ($iso_country, $iso_date)";
 			$seq_flag = undef;
 			my %data;
 			$data{sequence_id}         = $seq_id;
 			$data{isolation_country}   = $iso_country;
 			$data{isolation_date}      = $iso_date;
 			$data{sequence_date}       = $seq_date;
-			$data{sequence}            = uc $sequence;
-			if ($genotype) {
-				$data{genotype} = $genotype;
-				$data{genotype_method} = "genbank_annotation";
+			unless ($sequence and $seq_id) { 
+				print "\n\t No sequence for '$seq_id"; sleep 2; exit;
 			}
+			$data{sequence}            = uc $sequence;
+			my $genotype_method  = "genbank_annotation";
+			unless ($genotype) { 
+				$genotype = 'NULL';
+				$genotype_method = 'NA';
+			}
+			$data{genotype} = $genotype;
+			$data{genotype_method} = $genotype_method;
+
 			push($data_ref, \%data);
-			
 			$sequence = uc $sequence;
 			my $header = $accession;
 			my $seq_obj = Sequence->new($sequence, $header, $seq_id);
@@ -481,7 +486,7 @@ sub genbank_to_fasta_and_data {
 			$line =~ s/\s//g;
 			$line =~ s/\d//g;
 			$sequence .= $line; 
-			#print "\n\t Adding to sequence '$sequence'\n\n";
+			#print "\n\t Adding to sequence '$seq_id'";
 		}
 		if ($line =~ /^FEATURES/) {
 			#print "\n\tStart of features block";
@@ -516,12 +521,9 @@ sub genbank_to_fasta_and_data {
 				$genotype =~ s/genotype//g;
 				#print "\n\t # GOT genotype '$genotype' for $seq_id";
 			}
-			if ($line =~ /note="genotype/) {
-				
-			}
 		}
 		if ($line =~ /^ORIGIN/) {
-			#print "\n\tStart of sequence";
+			#print "\n\tStart of sequence for '$seq_id'";
 			$seq_flag = 1;
 			$feature_flag = undef;
 		}
@@ -530,12 +532,12 @@ sub genbank_to_fasta_and_data {
 			#$devtools->print_array(\@line);
 			$seq_id = $line[1];
 			$seq_date= pop @line;
-			#print "\n\t # GOT Seq ID ($seq_id) date '$seq_date'";
+			print "\n\t ####### Processing entry ($seq_id) date '$seq_date'";
 		}
-		elsif($line =~ /^ACCESSION/) {
-			my @line = split (/\s+/, $line);
-			$accession = pop @line;
-		}
+		#elsif($line =~ /^ACCESSION/) {
+		#	my @line = split (/\s+/, $line);
+		#	$accession = pop @line;
+		#}
 		#elsif($compress_line =~ /^ORGANISM/) {
 		#	$line =~ s/^\s*ORGANISM\s*//;
 		#	$data_ref->{organism} = $line;
@@ -548,7 +550,7 @@ sub genbank_to_fasta_and_data {
 		#	$line =~ s/^\s*VERSION\s*//;
 		#	$data_ref->{version} = $line;
 		#}
-		#if ($i > 100000) { die;}
+		my $prev_line = $line;
 	}
 }
 
@@ -564,6 +566,7 @@ sub genbank_to_refseq {
 
 	my ($self, $gb_ref, $refseq_ref) = @_;
 
+	# TODO
 	foreach my $line (@$gb_ref) {
 		
 	}
@@ -1318,6 +1321,54 @@ sub extract_seqs {
 	my $outfile = $id_file . '.extracted.fas';
 	$fileio->write_file($outfile, \@extracted);
 }
+
+#***************************************************************************
+# Subroutine:   split_vglue_ref_file
+# Description:  
+#***************************************************************************
+sub split_vglue_ref_file  {
+
+	my ($self, $file, $refseqs_ref) = @_;
+
+	my $initialised = undef;
+	
+	# Read in the file
+	my @file;
+	my $status = $fileio->read_file($file, \@file);
+	unless ($status) { 
+		die;
+		return $status; 
+	}
+
+	#=== Get the entire nucleic acid sequence	
+	# Use the genbank fxn (the same start and end tokens are used: 'ORIGIN' & '//')
+
+	# iterate through the file
+	my $i = 0;
+	my $joined = join('', @file);
+	#print "NT $joined\n\n\n\n";
+	my @split = split("End;\n", $joined);
+	foreach my $refseq (@split) {
+		$i++;
+		#print "\n\t ############### ERE $i \n\n$refseq\n\n"; #die;
+		my @refseq = split("\n", $refseq);
+		my @ffs;
+		foreach my $line (@refseq) {
+			push(@ffs, "$line\n");
+		}
+		push(@$refseqs_ref,  \@ffs); 
+	}
+	return 1;
+}
+
+
+
+
+
+
+
+
+
 
 ############################################################################
 # TAB-DELIMITED FILE MANIPULATION UTILITIES
