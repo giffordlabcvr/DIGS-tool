@@ -1,6 +1,8 @@
 Begin SCREENDB;
 db_name=HERVRT_example;
 mysql_server=localhost;
+mysql_username=root;
+mysql_password=blenat2;
 #mysql_username=[your username here];      
 #mysql_password=[your password here]; 
 ENDBLOCK;
