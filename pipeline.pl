@@ -11,7 +11,7 @@ unless ($ENV{DIGS}) {
 	exit;
 }
 # Include a local library of PERL modules 
-use lib ($ENV{DIGS}) . './modules/'; 
+use lib ($ENV{DIGS}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)

@@ -104,7 +104,7 @@ sub run_digs_function {
 		exit;
 	}	
 	# Create a screening DB 
-	if ($option eq 1) {
+	if ($option eq 1)    {
 		$self->create_screening_db($ctl_file);
 		return;
 	}
@@ -114,7 +114,7 @@ sub run_digs_function {
 	my $db = $self->{db};
 	
 	# Hand off to functions 2-7, based on the options received
-	if ($option eq 2) {  
+	if ($option eq 2)    {  
 		$self->screen();	
 	}
 	elsif ($option eq 3) { # DB summary
@@ -188,7 +188,6 @@ sub initialise {
 	# Store the loader object initialised with the control file params
 	$self->{loader_obj} = $loader_obj;
 	$self->{ctl_file}   = $ctl_file;
-
 }
 
 ############################################################################
@@ -220,6 +219,7 @@ sub screen {
 
 	# Iterate through and excute screens
 	print "\n\n\t ### Starting database-guided genome screening\n";
+	sleep 2;
 	my @probes = keys %queries;
 	foreach my $probe_name (@probes) {
 		
@@ -314,7 +314,7 @@ sub search {
 	my $blast_results_table = $db_ref->{blast_results_table};
 	my $i = 0;
 	my $num_hits = scalar @hits;
-	print "\n\t\t # $num_hits matches to: $probe_name, $probe_gene";
+	print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
 	print "\n\t\t # in  $organism, $data_type, $version, '$target_name'";
 	foreach my $hit_ref (@hits) {
 	
@@ -336,7 +336,7 @@ sub search {
 		$hit_ref->{probe_type}   = $query_ref->{probe_type};
 		$hit_ref->{hit_length}   = $hit_ref->{align_len};
 		if ($verbose) {
-			print "\n\t # Match $i to: $probe_name, $probe_gene";
+			print "\n\t # Match $i to probe: $probe_name, $probe_gene";
 			print "\n\t # - in genome: $organism, $data_type, $version";
 			print "\n\t # - target file: '$target_name'";
 		}
@@ -396,6 +396,7 @@ sub assign {
 	my $extracted_count = $db->count_extracted_rows();
 	print "\n\t # Assigned $assigned_count newly extracted sequences";
 	unless ($blast_count eq $extracted_count) { 
+		print "\n\t # Extracted $extracted_count, BLAST_results count $blast_count";
 		die "\n\n\t\t ###### UNEVEN TABLE COUNT ERROR\n\n\n";
 	}
 }
@@ -527,11 +528,11 @@ sub extract_unassigned_hits {
 	# Index extracted BLAST results 
 	my %extracted;
 	my $where = " WHERE target_name = '$target_name' ";
-	$self->index_extracted_loci_by_blastid(\%extracted, $where);
+	$db_ref->index_extracted_loci_by_blast_id(\%extracted, $where);
 
 	# Get hits we are going to extract
 	my @hits;
-	$self->get_blast_hits_to_extract($query_ref, \@hits);
+	$db_ref->get_blast_hits_to_extract($query_ref, \@hits);
 	my $num_hits = scalar @hits;
 	#print "\n\t ### There are $num_hits hits to extract";
 
@@ -569,59 +570,6 @@ sub extract_unassigned_hits {
 	}
 	#my $num_extracted = scalar @$extracted_ref;	
 	#print "\n\t Num extracted $num_extracted";	
-}
-
-#***************************************************************************
-# Subroutine:  index extracted loci by BLAST id
-# Description: Index loci previously extracted from a target file by blastid
-#***************************************************************************
-sub index_extracted_loci_by_blastid {
-	
-	my ($self, $previously_extracted_ref, $where) = @_;
-
-	# Get relevant variables and objects
-	my $db_ref          = $self->{db};
-	my $extracted_table = $db_ref->{extracted_table}; 
-	my @fields = qw [ blast_id ];
-	my @blast_ids;
-	$extracted_table->select_rows(\@fields, \@blast_ids, $where);	
-	foreach my $hit_ref (@blast_ids) {
-		my $blast_id = $hit_ref->{blast_id};
-		if ($previously_extracted_ref->{$blast_id}) { die; } # BLAST ID should be unique
-		$previously_extracted_ref->{$blast_id} = 1;	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get_blast_hits_to_extract
-# Description: Get BLAST hits to extract
-#***************************************************************************
-sub get_blast_hits_to_extract {
-	
-	my ($self, $query_ref, $hits_ref) = @_;
-
-	# Get data structures and variables from self
-	my $db_ref = $self->{db};
-	my $blast_results_table = $db_ref->{blast_results_table};
-
-	# Get parameters for this query
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-	my $target_name = $query_ref->{target_name}; # target file name
-
-	# Get all BLAST results from table (ordered by sequential targets)
-	my $where = " WHERE Target_name = '$target_name'
-                  AND probe_name = '$probe_name' 
-                  AND probe_gene = '$probe_gene'
-	              ORDER BY scaffold, subject_start";
-
-	my @fields = qw [ record_id 
-	               organism data_type version 
-                   probe_name probe_gene probe_type
-				   orientation scaffold target_name
-                   subject_start subject_end 
-		           query_start query_end ];
-	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
 }
 
 #***************************************************************************

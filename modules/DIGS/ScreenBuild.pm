@@ -133,11 +133,11 @@ sub set_up_screen  {
 	my $num = $self->set_queries($db, \@probes, \%targets, $queries_ref);
 	#$devtools->print_hash($queries_ref); die;	# DEBUG
 	unless ( $num ) {
-		print "\n\n\t ### No screening queries were loaded\n\n";
+		print "\n\n\t ### No screening queries were loaded\n";
 		return 0;
 	}
 	else {
-		print "\n\n\t ### $num screening queries were loaded\n\n";
+		print "\n\n\t ### $num screening queries were loaded\n";
 	}
 	return 1;
 }
@@ -811,7 +811,7 @@ sub set_queries {
 			} 
 
 			# Else store the query
-			print "\n\t\t #~#~# Setting query: '$probe_id' vs '$target_name'";
+			#print "\n\t\t #~#~# Setting query: '$probe_id' vs '$target_name'";
 			$i++;
 			$probe_ref->{genome_id}   = $genome_id;		
 			$probe_ref->{organism}    = $organism;		

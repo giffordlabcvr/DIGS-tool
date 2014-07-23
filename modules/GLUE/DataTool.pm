@@ -468,11 +468,11 @@ sub genbank_to_fasta_and_data {
 			$data{genotype} = $genotype;
 			$data{genotype_method} = $genotype_method;
 
-			push(@$data_ref, \%data);
+			push($data_ref, \%data);
 			$sequence = uc $sequence;
 			my $header = $accession;
 			my $seq_obj = Sequence->new($sequence, $header, $seq_id);
-			push(@$seq_ref, $seq_obj);
+			push($seq_ref, $seq_obj);
 
 			# RESET
 			$sequence    = '';

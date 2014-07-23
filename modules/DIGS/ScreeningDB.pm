@@ -107,6 +107,21 @@ sub load_screening_db {
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
 	$self->load_status_table($dbh);
+
+	# Check integrity of database
+	my $extracted_count = $self->count_extracted_rows();
+	my $blast_count     = $self->count_blast_rows();
+	unless ($extracted_count eq $blast_count) { # Tables are out of sync
+		print "\n\n\t Tables are out of sync";
+		print "\n\t Extracted table:     $extracted_count rows";
+		print "\n\t BLAST_results table: $blast_count rows";
+		print "\n\t Rolling back screen...";
+		$self->validate_db();
+		sleep 3;
+	}
+	
+	# If no results for most recent query, execute again just incase
+	#$self->rollback_last_search();
 }
 
 ############################################################################
@@ -356,7 +371,7 @@ sub create_status_table {
 
 #***************************************************************************
 # Subroutine:  index_previously_executed_queries 
-# Description: 
+# Description: index BLAST searches that have previously been executed
 #***************************************************************************
 sub index_previously_executed_queries {
 	
@@ -400,7 +415,7 @@ sub index_previously_executed_queries {
 
 #***************************************************************************
 # Subroutine:  summarise_db
-# Description: 
+# Description: summarise a screening database 
 #***************************************************************************
 sub summarise_db {
 
@@ -422,12 +437,11 @@ sub summarise_db {
 		$self->summarise_extracted_table();
 		print "\n\n";
 	}
-	
 }
 
 #***************************************************************************
 # Subroutine:  summarise_status_table
-# Description: 
+# Description: summarise data in the Status table
 #***************************************************************************
 sub summarise_status_table {
 
@@ -486,7 +500,7 @@ sub summarise_status_table {
 
 #***************************************************************************
 # Subroutine:  summarise BLAST_results table
-# Description: 
+# Description: summarise data in the BLAST_results table
 #***************************************************************************
 sub summarise_BLAST_results_table {
 
@@ -516,12 +530,11 @@ sub summarise_BLAST_results_table {
 		print "    $organism genome, target file $chunk_name\t";
 	}
 	sleep 1;
-
 }
 
 #***************************************************************************
 # Subroutine:  summarise Extracted table
-# Description: 
+# Description: summarise data in the Extracted table
 #***************************************************************************
 sub summarise_extracted_table {
 
@@ -543,7 +556,6 @@ sub summarise_extracted_table {
 	print "\n\n\t # The extracted table contains a total of '$extracted' rows";
 	print "\n\t #  ---";
 	foreach my $data_ref (@data) {
-		
 		# get the data	
 		my $organism         = $data_ref->{organism};
 		my $assigned_name    = $data_ref->{assigned_name};
@@ -554,7 +566,6 @@ sub summarise_extracted_table {
 		print "\t in $organism";
 	}
 	sleep 1;
-
 }
 
 #***************************************************************************
@@ -653,15 +664,13 @@ sub flush_screening_db {
 
 #***************************************************************************
 # Subroutine:  count_blast_rows
-# Description: 
+# Description: count rows in the BLAST_results table 
 #***************************************************************************
 sub count_blast_rows {
 
 	my ($self) = @_;
 
-	my $blast_table = $self->{blast_results_table};
 	my $blast_results_table = $self->{blast_results_table};
-
 	my @fields = qw [ COUNT(*) ];
 	my @data;
 	$blast_results_table->select_rows(\@fields, \@data);
@@ -669,20 +678,17 @@ sub count_blast_rows {
 	my $count = $data_ref->{'COUNT(*)'};
 	#print "\n\t BLAST results table: $count rows";
 	return $count;	
-	
 }
 
 #***************************************************************************
 # Subroutine:  count_extracted_rows
-# Description: 
+# Description: count rows in the extracted table 
 #***************************************************************************
 sub count_extracted_rows {
 
 	my ($self) = @_;
 
-	my $blast_table = $self->{extracted_table};
 	my $extracted_table = $self->{extracted_table};
-
 	my @fields = qw [ COUNT(*) ];
 	my @data;
 	$extracted_table->select_rows(\@fields, \@data);
@@ -691,6 +697,239 @@ sub count_extracted_rows {
 	#print "\n\t Extracted table: $count rows";
 	return $count;	
 }
+
+############################################################################
+# STANDARD SCREENING DB TABLE FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  index BLAST results by record id
+# Description: Index loci in BLAST_results table by the 'record_id' field
+#***************************************************************************
+sub index_BLAST_results_by_record_id {
+	
+	my ($self, $data_ref, $where) = @_;
+
+	# Get relevant variables and objects
+	my $blast_table = $self->{blast_results_table}; 
+	my @fields = qw [ record_id 
+	                  organism data_type version target_name 
+                      probe_name probe_gene ];
+	my @record_ids;
+	$blast_table->select_rows(\@fields, \@record_ids, $where);	
+	foreach my $hit_ref (@record_ids) {
+		my $record_id = $hit_ref->{record_id};
+		if ($data_ref->{$record_id}) { die; } # BLAST ID should be unique
+		$data_ref->{$record_id} = $hit_ref;	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  index extracted loci by BLAST id
+# Description: Index loci in Extracted table by the 'blast_id' field
+#***************************************************************************
+sub index_extracted_loci_by_blast_id {
+	
+	my ($self, $previously_extracted_ref, $where) = @_;
+
+	# Get relevant variables and objects
+	my $extracted_table = $self->{extracted_table}; 
+	my @fields = qw [ blast_id ];
+	my @blast_ids;
+	$extracted_table->select_rows(\@fields, \@blast_ids, $where);	
+	foreach my $hit_ref (@blast_ids) {
+		my $blast_id = $hit_ref->{blast_id};
+		if ($previously_extracted_ref->{$blast_id}) { die; } # BLAST ID should be unique
+		$previously_extracted_ref->{$blast_id} = 1;	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  get_blast_hits_to_extract
+# Description: Get BLAST hits to extract
+#***************************************************************************
+sub get_blast_hits_to_extract {
+	
+	my ($self, $query_ref, $hits_ref) = @_;
+
+	# Get data structures and variables from self
+	my $blast_results_table = $self->{blast_results_table};
+
+	# Get parameters for this query
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
+	my $target_name = $query_ref->{target_name}; # target file name
+
+	# Get all BLAST results from table (ordered by sequential targets)
+	my $where = " WHERE Target_name = '$target_name'
+                  AND probe_name = '$probe_name' 
+                  AND probe_gene = '$probe_gene'
+	              ORDER BY scaffold, subject_start";
+
+	my @fields = qw [ record_id 
+	               organism data_type version 
+                   probe_name probe_gene probe_type
+				   orientation scaffold target_name
+                   subject_start subject_end 
+		           query_start query_end ];
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
+}
+
+############################################################################
+# VALIDATION FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  validate_db
+# Description: validate screening database 
+#***************************************************************************
+sub validate_db {
+
+	my ($self) = @_;
+	
+	# Get tables	
+	my $extracted_table = $self->{extracted_table};
+	my $blast_table     = $self->{blast_results_table};
+	my $status_table    = $self->{status_table};
+
+	# Index data in the BLAST results and Extracted tables	
+	my %blast_results;
+	$self->index_BLAST_results_by_record_id(\%blast_results);
+	my %extracted;
+	$self->index_extracted_loci_by_blast_id(\%extracted);
+
+	# Check for BLAST rows that lack counterparts in teh Extracted table
+	my @missing;
+	my @ids = sort by_number keys %blast_results;
+	foreach my $record_id (@ids) {	
+		unless ($extracted{$record_id}) {
+			my $data_ref = $blast_results{$record_id};
+			unless ($data_ref) { die; }
+			push (@missing, $data_ref); 
+		}
+	}
+	#$devtools->print_array(\@missing); die;
+	
+	# Rollback any searches where no sequence was captured
+	my %rollback_searches;
+	foreach my $missing_ref (@missing) {
+		# Store the search information
+		my $record_id   = $missing_ref->{record_id};
+		my $organism    = $missing_ref->{organism};
+		my $data_type   = $missing_ref->{data_type};
+		my $version     = $missing_ref->{version};
+		my $target_name = $missing_ref->{target_name};
+		my $probe_name  = $missing_ref->{probe_name};
+		my $probe_gene  = $missing_ref->{probe_gene};
+		my @target = ( $organism , $data_type, $version, $target_name );
+		my $target_id = join ('|', @target);
+		my @key = ( $target_id, $probe_name, $probe_gene );
+		my $key = join ('|', @key);
+		$rollback_searches{$key} = $missing_ref;
+	}
+	#$devtools->print_hash(\%rollback_searches); die;
+
+	my @keys = keys %rollback_searches;
+	foreach my $key (@keys) {
+		print "\n\n\t Cleaning up incomplete search...";
+		print "\n\t\t KEY: '$key'\n";
+		my $missing_ref = $rollback_searches{$key};
+		$self->rollback($missing_ref);
+	}
+	
+	my $extracted_count = $self->count_extracted_rows();
+	my $blast_count     = $self->count_blast_rows();
+	unless ($extracted_count eq $blast_count) { die; }
+	print "\n\t Tables re-synced";
+	print "\n\t Extracted table:     $extracted_count rows";
+	print "\n\t BLAST_results table: $blast_count rows";
+	sleep 3;
+
+}
+
+#***************************************************************************
+# Subroutine:  safe_rollback
+# Description: 
+#***************************************************************************
+sub rollback_last_search {
+
+	my ($self) = @_;
+	
+	# Get tables	
+	my $status_table    = $self->{status_table};
+	my @data;
+	my @fields = qw [ record_id 
+	                  organism data_type version target_name
+                      probe_name probe_gene ];
+	my $where  = " ORDER BY Record_ID ";
+	$status_table->select_rows(\@fields, \@data, $where);
+	my $last_search = pop @data;
+	if ($last_search) {	
+		$self->rollback($last_search);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  rollback
+# Description: 
+#***************************************************************************
+sub rollback {
+
+	my ($self, $missing_ref) = @_;
+
+	# Get tables	
+	my $extracted_table = $self->{extracted_table};
+	my $blast_table     = $self->{blast_results_table};
+	my $status_table    = $self->{status_table};
+
+	my $record_id   = $missing_ref->{record_id};
+	my $organism    = $missing_ref->{organism};
+	my $data_type   = $missing_ref->{data_type};
+	my $version     = $missing_ref->{version};
+	my $target_name = $missing_ref->{target_name};
+	my $probe_name  = $missing_ref->{probe_name};
+	my $probe_gene  = $missing_ref->{probe_gene};
+	unless ($organism and $data_type and $version and $target_name) { die; }
+	unless ($record_id and $probe_name and $probe_gene) { die; }
+
+	my @genome = ( $organism , $data_type, $version );
+	my $genome_id = join ('|', @genome);
+	my @probe = ( $probe_name, $probe_gene );
+	my $probe_id = join ('_', @probe); 
+	  
+	# Delete rows from the Status table for this search
+	my $where1 = " WHERE probe_id    = '$probe_id'
+					 AND genome_id   = '$genome_id'
+					 AND target_name = '$target_name'";
+	$status_table->delete_rows($where1);
+	#print "\n\t '$where1' ";
+	
+	# Delete rows from the BLAST_results and Extracted tables for this search
+	my @data;
+	my @fields = qw [ record_id ];
+	my $where2 =   " WHERE organism  = '$organism'
+					 AND data_type   = '$data_type'
+					 AND version     = '$version'
+					 AND target_name = '$target_name'
+					 AND probe_name  = '$probe_name'
+					 AND probe_gene  = '$probe_gene'";
+	#print "\n\t '$where2' ";
+	$blast_table->select_rows(\@fields, \@data, $where2);
+	foreach my $data_ref (@data) {
+		my $record_id = $data_ref->{record_id};
+		#print "\n\t Record ID = '$record_id'";
+		my $id_where1 = " WHERE record_id = $record_id ";
+		$blast_table->delete_rows($id_where1);
+		my $id_where2 =   " WHERE blast_id  = $record_id ";
+		$extracted_table->delete_rows($id_where2);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  by_number
+# Description: by number - for use with perl 'sort'  (cryptic but works) 
+#***************************************************************************
+sub by_number { $a <=> $b }	
 
 ############################################################################
 # EOF
