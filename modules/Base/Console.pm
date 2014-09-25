@@ -122,6 +122,39 @@ sub ask_yes_no_question {
 	return $answer;
 }
 
+#***************************************************************************
+# Subroutine:  ask_simple_choice_question
+# Description: ask a question and accept only a range of possible answers 
+# Arguments:   $question: the question to ask 
+#              $choice_ref: reference to an array with the possible choices
+# Returns:     $answer: the integer value entered by the user
+#***************************************************************************
+sub ask_simple_choice_question {
+
+	my ($self, $question, $choice_ref) = @_;
+
+	# convert the choices array to a scalar
+	my $choice_string = join('/', @$choice_ref);
+	
+	my $answer;
+	my $answer_in_set = undef;
+	do {
+		print "$question " . "\($choice_string\): ";
+		$answer = <STDIN>;
+		chomp $answer; 
+		foreach my $choice (@$choice_ref) {
+			#print "\n\t '$choice' '$answer'";
+			if ($answer eq $choice) {
+				$answer_in_set = 'true';
+			}
+		}
+		
+	} until ($answer_in_set);
+
+	return $answer;
+}
+
+
 ############################################################################
 # Private Member Functions
 ############################################################################
