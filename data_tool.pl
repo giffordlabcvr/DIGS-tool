@@ -48,7 +48,7 @@ my $process_id   = $pid . '_' . $time;
 my $user = $ENV{"USER"};
 
 # External program paths
-my $blast_bin_path = './bin/blast/'; # BLAST
+my $blast_bin_path = ''; # BLAST
 
 ############################################################################
 # Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
@@ -78,8 +78,8 @@ my $datatool_obj = DataTool->new(\%tool_params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequences + data\n";
-  $USAGE  .= "\n # Convert between formats";
+my($USAGE) = "\t#### Data_tool.pl: A collection of utilities for working with sequences + data\n";
+  $USAGE  .= "\n\t # Convert between formats";
   $USAGE  .= "\n\t\t  -m=1        :     FASTA to Delimited";
   $USAGE  .= "\n\t\t  -m=2        : Delimited to FASTA";
   $USAGE  .= "\n\t\t  -m=3        :   Genbank to FASTA+DATA";
@@ -87,7 +87,7 @@ my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequ
   $USAGE  .= "\n\t\t  -m=5        :     FASTA to PHYLIP";
 #  $USAGE  .= "\n\t\t  -m=6        :    PHYLIP to FASTA*";
 #  $USAGE  .= "\n\t\t  -m=7        :     NEXUS to FASTA*";
-  $USAGE  .= "\n # GLUE reference sequence utilities";
+  $USAGE  .= "\n\t # GLUE reference sequence utilities";
   $USAGE  .= "\n\t\t  -g=1        :   Genbank to REFSEQ"; 
   $USAGE  .= "\n\t\t  -g=2        :    REFSEQ to FASTA+DATA"; 
   $USAGE  .= "\n\t\t  -g=3        :    REFSEQ to 'Pretty'"; 
@@ -96,7 +96,7 @@ my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequ
 #  $USAGE  .= "\n\t\t  -d=1        :   Extract/filter/split sequences";
 #  $USAGE  .= "\n\t\t  -d=2        :   Sort sequences"; 
 #  $USAGE  .= "\n\t\t  -d=3        :   Data utilities";
-  $USAGE  .= "\n\n  usage: $0 -m=[options] -i=[infile]\n\n";
+  $USAGE  .= "\n\n\t  usage: $0 -m=[options] -i=[infile]\n\n";
 
 ############################################################################
 # Main program
@@ -129,9 +129,9 @@ sub main {
 				'glue|g=i'    => \$glue,
 				'data|d=i'    => \$data,
 	) or die $USAGE;
-	unless ($infile and $mode) { die $USAGE; }
 	
 	$datatool_obj->show_title();
+	unless ($infile and $mode) { die $USAGE; }
 
 	if ($mode) {    # Reformatting tools  
 

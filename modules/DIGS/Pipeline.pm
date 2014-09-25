@@ -88,6 +88,7 @@ sub new {
 sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
+	die;
 
 	# summarising genomes does not require a file path
 	if ($option eq 8) {  
@@ -201,6 +202,7 @@ sub initialise {
 sub screen {
 
 	my ($self) = @_;
+	die;
 
 	# Get relevant member variables and objects
 	my $db_ref = $self->{db};
