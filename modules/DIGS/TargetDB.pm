@@ -28,6 +28,7 @@ use Base::Sequence;
 
 my $s_length    = 70;           # Standard line length
 my $line_limit  = 10000000;     # Maximum number lines in file 
+my $blast_program = 'makeblastdb';
 
 # Create base objects
 my $fileio    = FileIO->new();
@@ -370,7 +371,6 @@ sub format_genome {
 	my $version_path  = $genome_ref->{version_path};
 	my $path          = $genome_path . $version_path;
 
-	my $blast_program = 'makeblastdb';
 	my $bin_path;
 	if ($blast_bin_dir) {
 		$bin_path = $self->{blast_bin_path} . $blast_program;
@@ -410,7 +410,7 @@ sub format_genome {
 			}
 			else {
 				my $file_path = $path . "/$file";
-       			my $command = "$bin_path -in $file_path -dbtype nucl> /dev/null";
+       			my $command = "$bin_path -in $file_path -dbtype nucl -parse_seqids > /dev/null";
 				print "\n\t$command\n";
 				system $command;
 			}
@@ -418,7 +418,7 @@ sub format_genome {
 			#$devtools->print_array(\@split_chunks); die;
 			if ($done_split) {
 				foreach my $new_chunk_path (@split_chunks) {
-       				my $command = "$bin_path -in $new_chunk_path -dbtype nucl> /dev/null";
+       				my $command = "$bin_path -in $new_chunk_path -dbtype nucl -parse_seqids > /dev/null";
 					print "\n\t$command\n";
 					system $command;
 				}
@@ -429,7 +429,7 @@ sub format_genome {
 			}
 		}
 		else {
-       		my $command = "$bin_path -in $chunk_path -dbtype nucl> /dev/null";
+       		my $command = "$bin_path -in $chunk_path -dbtype nucl -parse_seqids > /dev/null";
 			print "\n\t$command\n";
 			system $command;
 			push (@$formatted_ref, $file);
