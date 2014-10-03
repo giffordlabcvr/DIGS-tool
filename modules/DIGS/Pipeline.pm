@@ -168,7 +168,7 @@ sub initialise {
 	my ($self, $ctl_file) = @_;
 	
 	# Initialise
-	print "\n\t ### Initialising database-guided genome screening\n";
+	print "\n\t ### Initialising database-integrated genome screening\n";
 	
 	# Check the size of the process directory
 	#$self->check_process_dir_status();
@@ -201,7 +201,6 @@ sub initialise {
 sub screen {
 
 	my ($self) = @_;
-	die;
 
 	# Get relevant member variables and objects
 	my $db_ref = $self->{db};
@@ -217,9 +216,10 @@ sub screen {
 		print "\n\n\t ### Could not create valid screen - check control file\n\n\n";
 		exit;
 	}
+	#$devtools->print_hash(\%queries); die; # DEBUG
 
 	# Iterate through and excute screens
-	print "\n\n\t ### Starting database-guided genome screening\n";
+	print "\n\n\t ### Starting database-integrated genome screening\n";
 	sleep 2;
 	my @probes = keys %queries;
 	foreach my $probe_name (@probes) {
@@ -236,7 +236,7 @@ sub screen {
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);	
 			print "\n\t # 1st BLAST step completed, BLAST results table up-to-date...";
-	
+
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->assign($query_ref);
 			print "\n\t # 2nd BLAST step completed, Extracted table up-to-date...";
@@ -842,7 +842,7 @@ sub inspect_adjacent_hits {
 	my $last_query_start   = $last_hit_ref->{query_start};
 	my $last_query_end     = $last_hit_ref->{query_end};
 	
-	# Get data for 2nd hit (most 'rightward' in the target sequence)
+	# Get data for 2nd hit (i.e. most 'rightward' in the target sequence)
 	my $record_id          = $hit_ref->{record_id};
 	my $scaffold           = $hit_ref->{scaffold};
 	my $orientation        = $hit_ref->{orientation};
@@ -851,15 +851,15 @@ sub inspect_adjacent_hits {
 	my $query_start        = $hit_ref->{query_start};
 	my $query_end          = $hit_ref->{query_end};
 
-	# Calculate the gap between these sequences on the target sequences
+	# Calculate the gap between these sequence hits
 	my $subject_gap = $subject_start - $last_subject_end;
+
 	#print "\n\n\t #### Checking whether to consolidate $last_record_id and $record_id on $scaffold";
 	#print "\n\t #### Q Last:  $last_query_start\t $last_query_end";
 	#print "\n\t #### S Last:  $last_subject_start\t $last_subject_end";
 	#print "\n\t #### Q This:  $query_start\t $query_end";
 	#print "\n\t #### S This:  $subject_start\t $subject_end";
 	#print "\t #### Gap:   $subject_gap\n";
-
 
 	# Calculate the gap between the query coordinates of the two matches
 	# Note this may be a negative number if the queries overlap 
@@ -871,12 +871,13 @@ sub inspect_adjacent_hits {
 		$query_gap = $last_query_start - $query_end;
 	}
 	
-	### Deal with contingencies that mean hits definitely should or should not be consolidate
-	#   Hit is entirely within a previous hit it is redundant
+	### Deal with contingencies that mean hits definitely should or should not be consolidated
+
+	#   1. Hit is entirely within a previous hit it is redundant
 	if ($last_subject_start <= $subject_start and $last_subject_end >= $subject_end) {
 		return 1; # Effectively discarding current hit
 	}
-	#   Hits are too far apart
+	#   2. Hits are too far apart
 	elsif ($max_gap) {
 		if ($subject_gap > $max_gap) {
 			return 0;  
@@ -885,14 +886,8 @@ sub inspect_adjacent_hits {
 
 	### Deal with situations where hits are partially (but not completely) overlapping
 	#   or where they are close enough to each other consider consolidating them
-
-
-
-
-
-
 	
-	# What is this??????	
+	# Set the position based on threadhit_probe_biffer
 	my $buffer_start = $query_start + $probe_buffer;
 
 	if ($subject_gap < 1) {
@@ -907,7 +902,7 @@ sub inspect_adjacent_hits {
 	
 
 	# For positive orientation hits
-	# If the query_start of this hit < query_end of the last, then its a distinct hit
+	# If the query_start of this hit is before the query_end of the last, then its a distinct hit
 	elsif ($orientation eq '+ve' and $buffer_start < $last_query_end) {
 		if ($verbose) {
 			print "\n\t    DISTINCT +ve: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
@@ -922,6 +917,7 @@ sub inspect_adjacent_hits {
 		}
 		return 0;
 	}
+
 	# If not, then check the intervening distance between the hits
 	else {
 
@@ -942,10 +938,6 @@ sub inspect_adjacent_hits {
 			return 0;  # Distinct hit
 		}
 	}
-
-
-
-
 }
 
 #***************************************************************************

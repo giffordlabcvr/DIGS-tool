@@ -81,7 +81,6 @@ sub new {
 sub set_up_screen  {
 	
 	my ($self, $pipeline_obj, $queries_ref) = @_;
-	die;
 
 	# Create the output directories
 	$self->create_output_directories($pipeline_obj);
@@ -122,7 +121,6 @@ sub set_up_screen  {
 	print "\n\n\t ### Getting the target sequences to screen";
 	my %targets;
 	$self->set_targets(\%targets);
-	$devtools->print_hash(\%targets); die;
 	
 	# Initialise target sequence library
 	my $genome_obj = TargetDB->new($self); 

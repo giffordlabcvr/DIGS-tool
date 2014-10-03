@@ -122,8 +122,10 @@ sub main {
 	# Read in options using GetOpt::Long
 	my $mode    = undef;
 	my $infile  = undef;
+	my $utility = undef;
 	GetOptions ('mode|m=i'   => \$mode, 
 			    'infile|i=s' => \$infile,
+			    'utility|u=i' => \$utility,
 	) or die $USAGE;
 
 	# Sanity checking for input 
@@ -131,6 +133,11 @@ sub main {
 		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
 		if ($mode ne 8) {
 			unless ($mode and $infile)    { die $USAGE; }
+		}
+	}
+	elsif ($utility) {
+		if ($utility eq 1) {
+			
 		}
 	}
 	else {

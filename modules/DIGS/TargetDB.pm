@@ -26,9 +26,11 @@ use Base::Sequence;
 # Globals
 ############################################################################
 
-my $s_length    = 70;           # Standard line length
-my $line_limit  = 10000000;     # Maximum number lines in file 
-my $blast_program = 'makeblastdb';
+my $s_length      = 70;           # Standard line length
+my $line_limit    = 10000000000;     # Maximum number lines in file 
+my $blast_program = 'formatdb';
+
+
 
 # Create base objects
 my $fileio    = FileIO->new();
@@ -410,7 +412,8 @@ sub format_genome {
 			}
 			else {
 				my $file_path = $path . "/$file";
-       			my $command = "$bin_path -in $file_path -dbtype nucl -parse_seqids > /dev/null";
+       			my $command = "makeblastdb -in $file_path -dbtype nucl -parse_seqids > /dev/null";
+				#my $command = "formatdb -i $file_path -p F -o T > /dev/null";
 				print "\n\t$command\n";
 				system $command;
 			}
@@ -418,18 +421,20 @@ sub format_genome {
 			#$devtools->print_array(\@split_chunks); die;
 			if ($done_split) {
 				foreach my $new_chunk_path (@split_chunks) {
-       				my $command = "$bin_path -in $new_chunk_path -dbtype nucl -parse_seqids > /dev/null";
+       				my $command = "makeblastdb -in $new_chunk_path -dbtype nucl -parse_seqids > /dev/null";
+					#my $command = "formatdb -i $new_chunk_path -p F -o T > /dev/null";
 					print "\n\t$command\n";
 					system $command;
 				}
 				my $file_path = $path . "/$file";
 				my $command = "mv $file_path ./";
-				print "\n\tMoving original file '$file_path' to ./\n";
-				system $command;
+				#print "\n\tMoving original file '$file_path' to ./\n";
+				#system $command;
 			}
 		}
 		else {
-       		my $command = "$bin_path -in $chunk_path -dbtype nucl -parse_seqids > /dev/null";
+       		my $command = "makeblastdb -in $chunk_path -dbtype nucl -parse_seqids > /dev/null";
+			#my $command = "formatdb -i $chunk_path -p F -o T > /dev/null";
 			print "\n\t$command\n";
 			system $command;
 			push (@$formatted_ref, $file);
@@ -547,7 +552,7 @@ sub split_genome_chunk {
 	
 	# Remove the original file
 	my $command = "rm $chunk_path";
-	print "\n\t $command";
+	print "\n\t REMOVED file:\n\t $command\n\n";
 	system $command;
 	
 }
