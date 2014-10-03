@@ -88,7 +88,6 @@ sub new {
 sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
-	die;
 
 	# summarising genomes does not require a file path
 	if ($option eq 8) {  
