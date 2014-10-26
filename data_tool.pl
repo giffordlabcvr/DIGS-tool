@@ -87,11 +87,11 @@ my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequ
   $USAGE  .= "\n\t\t  -m=5        :     FASTA to PHYLIP";
 #  $USAGE  .= "\n\t\t  -m=6        :    PHYLIP to FASTA*";
 #  $USAGE  .= "\n\t\t  -m=7        :     NEXUS to FASTA*";
-  $USAGE  .= "\n # GLUE reference sequence utilities";
-  $USAGE  .= "\n\t\t  -g=1        :   Genbank to REFSEQ"; 
-  $USAGE  .= "\n\t\t  -g=2        :    REFSEQ to FASTA+DATA"; 
-  $USAGE  .= "\n\t\t  -g=3        :    REFSEQ to 'Pretty'"; 
-  $USAGE  .= "\n\t\t  -g=3        :    Get REFSEQ ORFs"; 
+#  $USAGE  .= "\n # GLUE reference sequence utilities";
+#  $USAGE  .= "\n\t\t  -g=1        :   Genbank to REFSEQ"; 
+#  $USAGE  .= "\n\t\t  -g=2        :    REFSEQ to FASTA+DATA"; 
+#  $USAGE  .= "\n\t\t  -g=3        :    REFSEQ to 'Pretty'"; 
+#  $USAGE  .= "\n\t\t  -g=3        :    Get REFSEQ ORFs"; 
 #  $USAGE  .= "\n # Manage data + sequences";
 #  $USAGE  .= "\n\t\t  -d=1        :   Extract/filter/split sequences";
 #  $USAGE  .= "\n\t\t  -d=2        :   Sort sequences"; 

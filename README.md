@@ -11,8 +11,11 @@ BLAST in combination with a relational database (MySQL).
 
 **Download**
 
-A zip archive can be downloaded using the link toward the bottom right of this page
+A zip archive can be downloaded using the link on the right.
+
 
 **User Guide**
 
-Instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Contents)
+Instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
+
+
