@@ -1023,21 +1023,6 @@ sub check_process_dir_status {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  show_title
-# Description: show command line title blurb 
-#***************************************************************************
-sub show_title {
-
-	$console->refresh();
-	my $title       = 'Database-Integrated Genome Screening (DIGS)';
-	my $version     = '1.0';
-	my $description = 'Sequence database screening using BLAST and MySQL';
-	my $author      = 'Robert J. Gifford';
-	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
-	$console->show_about_box($title, $version, $description, $author, $contact);
-}
-
 ############################################################################
 # EOF
 ############################################################################

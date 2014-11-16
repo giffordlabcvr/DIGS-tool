@@ -10,6 +10,11 @@ unless ($ENV{DIGS}) {
 	print  "(path to this directory)\n\n\n";
 	exit;
 }
+unless ($ENV{GENOMES}) {
+	print  "\n\n\t Environment variable '\$GENOMES' is undefined\n";
+	print  "(path to directory containing target sequence files)\n\n\n";
+	exit;
+}
 # Include a local library of PERL modules 
 use lib ($ENV{DIGS}) . '/modules/'; 
 
@@ -52,7 +57,8 @@ my $output_path           = $ENV{DIGS} . '/proc/';      # default process direct
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
 my $time = time;
-my $process_id   = $pid . '_' . $time;
+my $process_id  = $pid . '_' . $time;
+my $version_num = '1.0';
 
 ############################################################################
 # Instantiations
@@ -83,7 +89,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE)  = "\n\t #### DIGS Tool:\n";
+my ($USAGE)  = "\n\t #### DIGS tool version '$version_num':\n";
     $USAGE  .= "\n\t usage: $0 -m=[option] -i=[control file]\n";
   	$USAGE  .= "\n\t -m=1  create a screening DB"; 
   	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
@@ -117,15 +123,19 @@ exit;
 sub main {
 	
 	# Show title
-	$pipeline_obj->show_title();
-
+	show_title();
+	
 	# Read in options using GetOpt::Long
 	my $mode    = undef;
 	my $infile  = undef;
 	my $utility = undef;
-	GetOptions ('mode|m=i'   => \$mode, 
-			    'infile|i=s' => \$infile,
+	my $help    = undef;
+	my $version = undef;
+	GetOptions ('mode|m=i'    => \$mode, 
+			    'infile|i=s'  => \$infile,
 			    'utility|u=i' => \$utility,
+			    'help'        => \$help,
+			    'version'     => \$version,
 	) or die $USAGE;
 
 	# Sanity checking for input 
@@ -134,19 +144,29 @@ sub main {
 		if ($mode ne 8) {
 			unless ($mode and $infile)    { die $USAGE; }
 		}
+		# Hand off to Pipeline.pm
+		$pipeline_obj->run_digs_function($mode, $infile); 
 	}
-	elsif ($utility) {
-		if ($utility eq 1) {
-			
-		}
+	elsif ($version or $help) {
+		die $USAGE;
 	}
 	else {
 		die $USAGE;
 	}
-	
-	# Hand off to Pipeline.pm
-	$pipeline_obj->run_digs_function($mode, $infile); 
+}
 
+#***************************************************************************
+# Subroutine:  show_title
+# Description: show command line title blurb 
+#***************************************************************************
+sub show_title {
+
+	$console->refresh();
+	my $title       = 'Database-Integrated Genome Screening (DIGS)';
+	my $description = 'Sequence database screening using BLAST and MySQL';
+	my $author      = 'Robert J. Gifford';
+	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
+	$console->show_about_box($title, $version_num, $description, $author, $contact);
 }
 
 ############################################################################
