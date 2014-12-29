@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:      pipeline.pl 
-# Description: control script for DIGS
+# Description: control script for database-integrated genome screening (DIGS)
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
@@ -58,7 +58,7 @@ my $output_path           = $ENV{DIGS} . '/proc/';      # default process direct
 my $pid  = $$;
 my $time = time;
 my $process_id  = $pid . '_' . $time;
-my $version_num = '1.0';
+my $program_version = '1.0';
 
 ############################################################################
 # Instantiations
@@ -77,6 +77,7 @@ my $blast_obj = BLAST->new(\%blast_params);
 
 # Instantiate main program classes using global settings
 my %params;
+$params{program_version}    = $program_version;
 $params{process_id}         = $process_id;
 $params{blast_bin_path}     = $blast_bin_path; 
 $params{genome_use_path}    = $genome_use_path;
@@ -89,17 +90,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE)  = "\n\t #### DIGS tool version '$version_num':\n";
-    $USAGE  .= "\n\t usage: $0 -m=[option] -i=[control file]\n";
-  	$USAGE  .= "\n\t -m=1  create a screening DB"; 
-  	$USAGE  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
-  	$USAGE  .= "\n\t -m=3  summarise a screening DB"; 
-  	$USAGE  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
-  	$USAGE  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
-  	$USAGE  .= "\n\t -m=6  flush a screening DB"; 
-  	$USAGE  .= "\n\t -m=7  drop a screening DB"; 
-  	$USAGE  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
- 	$USAGE  .= "\n\n";
+my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file]\n\n";
 
 ############################################################################
 # Main program
@@ -107,9 +98,6 @@ my ($USAGE)  = "\n\t #### DIGS tool version '$version_num':\n";
 
 # Run script
 main();
-
-# Exit program
-print "\n\n\t DONE\n\n\n";
 exit;
 
 ############################################################################
@@ -121,9 +109,6 @@ exit;
 # Description: top level handler fxn
 #***************************************************************************
 sub main {
-	
-	# Show title
-	show_title();
 	
 	# Read in options using GetOpt::Long
 	my $mode    = undef;
@@ -139,7 +124,13 @@ sub main {
 	) or die $USAGE;
 
 	# Sanity checking for input 
-	if ($mode) {
+	if ($help)    { # Show help page
+		$pipeline_obj->show_help_page();
+	}
+	elsif ($version) {
+		print "\n\t DIGS tool version '$program_version'\n\n"
+	}
+	elsif ($mode) {
 		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
 		if ($mode ne 8) {
 			unless ($mode and $infile)    { die $USAGE; }
@@ -147,26 +138,9 @@ sub main {
 		# Hand off to Pipeline.pm
 		$pipeline_obj->run_digs_function($mode, $infile); 
 	}
-	elsif ($version or $help) {
-		die $USAGE;
-	}
 	else {
 		die $USAGE;
 	}
-}
-
-#***************************************************************************
-# Subroutine:  show_title
-# Description: show command line title blurb 
-#***************************************************************************
-sub show_title {
-
-	$console->refresh();
-	my $title       = 'Database-Integrated Genome Screening (DIGS)';
-	my $description = 'Sequence database screening using BLAST and MySQL';
-	my $author      = 'Robert J. Gifford';
-	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
-	$console->show_about_box($title, $version_num, $description, $author, $contact);
 }
 
 ############################################################################

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Module:      ScreenBuild.pm
-# Description: Set up a bidirectional BLAST scree in the DIGS framework
+# Description: Set up a bidirectional BLAST screen in the DIGS framework
 # History:     December 2011: Created by Robert Gifford 
 ############################################################################
 package ScreenBuild;
@@ -403,6 +403,7 @@ sub set_targets {
 	foreach my $path (@$target_paths_ref) {
 		
 		my $full_path = $genome_use_path . "/$path";	
+		#print "\n\t Opening $full_path"; die;
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
 		if ($exists) {
@@ -437,7 +438,6 @@ sub read_genome_files {
 	
 	my ($self, $leaves_ref, $targets_ref) = @_;
 
-	#print "\n\t PATH '$path'";
 	foreach my $file_ref (@$leaves_ref) {
 
 		my $file = $file_ref->{file};

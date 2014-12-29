@@ -92,7 +92,10 @@ sub load_screening_db {
 	my $server   = $self->{server};
 	my $username = $self->{username};
 	my $password = $self->{password};
-	unless ($server and $username and $password and $db_name) { die; }
+	unless ($server) { die; }
+	unless ($username) { die; }
+	unless ($password) { die; }
+	unless ($db_name) { die; }
 
 	# Set name
 	$self->{db_name} = $db_name;
@@ -798,7 +801,7 @@ sub validate_db {
 	my %extracted;
 	$self->index_extracted_loci_by_blast_id(\%extracted);
 
-	# Check for BLAST rows that lack counterparts in teh Extracted table
+	# Check for BLAST_results table rows that lack counterparts in the Extracted table
 	my @missing;
 	my @ids = sort by_number keys %blast_results;
 	foreach my $record_id (@ids) {	
@@ -809,6 +812,15 @@ sub validate_db {
 		}
 	}
 	#$devtools->print_array(\@missing); die;
+
+	# Check for Extracted table rows that lack counterparts in the BLAST_results table
+	my @blast_ids = sort by_number keys %extracted;
+	foreach my $blast_id (@blast_ids) {	
+		unless ($blast_results{$blast_id}) {
+			my $where = " WHERE BLAST_ID = $blast_id ";
+			$extracted_table->delete_rows($where);
+		}
+	}
 	
 	# Rollback any searches where no sequence was captured
 	my %rollback_searches;

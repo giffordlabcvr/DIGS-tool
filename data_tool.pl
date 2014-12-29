@@ -24,12 +24,17 @@ use Base::Console;
 use Base::DevTools;
 use Base::FileIO;
 use Base::SeqIO;
+#use Base::HTML_Utilities;
 
 # BLAST interface
 use Interface::BLAST;
 
 # GLUE program modules
 use GLUE::DataTool;
+use GLUE::DataToolCmd;
+#use GLUE::DataToolWeb;
+use GLUE::RefSeq;
+use GLUE::RefSeqParser;
 
 ############################################################################
 # Paths
@@ -39,6 +44,9 @@ use GLUE::DataTool;
 # Globals
 ############################################################################
 
+# Version number
+my $program_version = '1.0 beta';
+
 # Process ID and time - used to create a unique ID for each program run
 my $pid  = $$;
 my $time = time;
@@ -47,8 +55,13 @@ my $time = time;
 my $process_id   = $pid . '_' . $time;
 my $user = $ENV{"USER"};
 
+# Paths
+my $output_path           = './site/reports/';     # Reports
+my $refseq_use_path       = './db/refseq_flat/';   # RefSeq flat directory
+
+############################################################################
 # External program paths
-my $blast_bin_path = './bin/blast/'; # BLAST
+my $blast_bin_path = ''; # BLAST
 
 ############################################################################
 # Instantiations for program 'classes' (PERL's Object-Oriented Emulation)
@@ -61,42 +74,26 @@ my $devtools   = DevTools->new();
 my $console    = Console->new();
 
 # Interface to BLAST
-my %blast_params;
-$blast_params{blast_bin_path} = $blast_bin_path;
-my $blast_obj = BLAST->new(\%blast_params);
+#my %blast_params;
+#$blast_params{blast_bin_path} = $blast_bin_path;
+#my $blast_obj = BLAST->new(\%blast_params);
 
 # Data tool
 my %tool_params;
 $tool_params{process_id}  = $process_id;
-$tool_params{output_type} = 'text';
-$tool_params{output_path} = './proc/';
+$tool_params{output_type} = 'text';  # Default is text
+$tool_params{output_path} = $output_path;
 $tool_params{refseq_use_path} = './db/refseq/';
-my $datatool_obj = DataTool->new(\%tool_params);
+my $datatool = DataTool->new(\%tool_params);
+$tool_params{datatool_obj} = $datatool;
+my $cmd_line_interface = DataToolCmd->new(\%tool_params);
 
 ############################################################################
 # Set up USAGE statement
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my($USAGE) = "#### Data_tool.pl: A collection of utilities for working with sequences + data\n";
-  $USAGE  .= "\n # Convert between formats";
-  $USAGE  .= "\n\t\t  -m=1        :     FASTA to Delimited";
-  $USAGE  .= "\n\t\t  -m=2        : Delimited to FASTA";
-  $USAGE  .= "\n\t\t  -m=3        :   Genbank to FASTA+DATA";
-  $USAGE  .= "\n\t\t  -m=4        :     FASTA to NEXUS";
-  $USAGE  .= "\n\t\t  -m=5        :     FASTA to PHYLIP";
-#  $USAGE  .= "\n\t\t  -m=6        :    PHYLIP to FASTA*";
-#  $USAGE  .= "\n\t\t  -m=7        :     NEXUS to FASTA*";
-#  $USAGE  .= "\n # GLUE reference sequence utilities";
-#  $USAGE  .= "\n\t\t  -g=1        :   Genbank to REFSEQ"; 
-#  $USAGE  .= "\n\t\t  -g=2        :    REFSEQ to FASTA+DATA"; 
-#  $USAGE  .= "\n\t\t  -g=3        :    REFSEQ to 'Pretty'"; 
-#  $USAGE  .= "\n\t\t  -g=3        :    Get REFSEQ ORFs"; 
-#  $USAGE  .= "\n # Manage data + sequences";
-#  $USAGE  .= "\n\t\t  -d=1        :   Extract/filter/split sequences";
-#  $USAGE  .= "\n\t\t  -d=2        :   Sort sequences"; 
-#  $USAGE  .= "\n\t\t  -d=3        :   Data utilities";
-  $USAGE  .= "\n\n  usage: $0 -m=[options] -i=[infile]\n\n";
+my ($USAGE) = "\n\t  usage: $0 -[options]\n\n";
 
 ############################################################################
 # Main program
@@ -119,46 +116,39 @@ exit;
 #***************************************************************************
 sub main {
 
-	# Read in options using GetOpt::Long
-	my $infile       = undef;
+	# Define options
+	my $help         = undef;
+	my $version      = undef;
 	my $mode		 = undef;
-	my $glue		 = undef;
-	my $data		 = undef;
-	GetOptions ('infile|i=s'  => \$infile, 
-				'mode|m=i'    => \$mode,
-				'glue|g=i'    => \$glue,
-				'data|d=i'    => \$data,
-	) or die $USAGE;
-	unless ($infile and $mode) { die $USAGE; }
-	
-	$datatool_obj->show_title();
+	my $sort		 = undef;
+	my @seqfiles     = undef;
+	my @datafiles    = undef;
 
-	if ($mode) {    # Reformatting tools  
+	# Read in options using GetOpt::Long
+	GetOptions ('help!'         => \$help,
+                'version!'      => \$version,
+				'mode|m=i'      => \$mode,
+				'sort|s=i'      => \$sort,
+				'seqfiles|f=s'  => \@seqfiles, 
+				'datafiles|d=s' => \@datafiles, 
+	);
 
-		if ($mode > 7) { die $USAGE; }
-		$datatool_obj->run_reformat_tools_cmd_line($infile, $mode);
+	if ($help)    { # Show help page
+		$cmd_line_interface->show_help_page();  
 	}
-	elsif ($glue) { # GLUE refseq tools
-
-		if ($glue > 3) { die $USAGE; }
-		$datatool_obj->run_refseq_tools_cmd_line($infile, $glue);
+	elsif ($version)  { 
+		print "\n\t # GLUE datatool.pl version $program_version\n\n";  
 	}
-	elsif ($data) { # Data tools
-
-		if ($data eq 1)    {  # Sequence extraction fxns
-			$datatool_obj->run_extract_tools_cmd_line($infile, $data);
-		}
-		elsif ($data eq 2) {  # Sequence sorting tools
-			$datatool_obj->run_sort_tools_cmd_line($infile, $data);
-		}
-		elsif ($data eq 3) {  # Data + sequence tools
-			$datatool_obj->run_data_tools_cmd_line($infile, $data);
-		}
-		else {
-			die $USAGE;
-		}
+	elsif ($mode) { # Data reformatting tools
+		my $result = $cmd_line_interface->run_reformat_tools_cmd_line(\@seqfiles, $mode);
 	}
-	print "\n\n\t # Finished!\n\n\n";
+	elsif ($sort) { # Data sorting tools
+		$cmd_line_interface->run_sort_tools_cmd_line(\@seqfiles, \@datafiles, $sort);
+	}
+	else {
+		die $USAGE;
+	}
+	print "\n\n\t # Exit\n\n\n";
 }
 
 ############################################################################

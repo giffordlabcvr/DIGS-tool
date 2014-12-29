@@ -298,7 +298,9 @@ sub check_genome_formatting {
 			$type eq 'nnd' or $type eq 'nni' or 
 			$type eq 'nsd' or $type eq 'nsi' or 
 			$type eq 'nsq' or $type eq 'ntm' or
-			$type eq 'nin' or $type eq 'nhr') {  
+			$type eq 'nin' or $type eq 'nhr' or
+			$type eq 'nog'
+		) {  
 			print "\n\n\t  FILE '$file' IS OF UNKNOWN TYPE\n\n";
 		}
 		

@@ -82,6 +82,26 @@ sub new {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  show_help_page
+# Description: show help page information
+#***************************************************************************
+sub show_help_page {
+	
+	# Initialise usage statement to print if usage is incorrect
+	my ($HELP)  = "\n\t -m=1  create a screening DB"; 
+		$HELP  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
+		$HELP  .= "\n\t -m=3  summarise a screening DB"; 
+		$HELP  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
+		$HELP  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
+		$HELP  .= "\n\t -m=6  flush a screening DB"; 
+		$HELP  .= "\n\t -m=7  drop a screening DB"; 
+		$HELP  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
+		$HELP  .= "\n\t -m=9  summarise GLUE reference library"; 
+		$HELP  .= "\n\n";
+	print $HELP;
+}
+
+#***************************************************************************
 # Subroutine:  run_digs_function
 # Description: handler for various utility processes 
 #***************************************************************************
@@ -89,6 +109,9 @@ sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
+	# Show title
+	show_title();
+	
 	# summarising genomes does not require a file path
 	if ($option eq 8) {  
 		my $genome_obj = TargetDB->new($self);
@@ -1021,6 +1044,23 @@ sub check_process_dir_status {
 		print "\n\t #     consider cleaning up the contents.";
 		sleep 2;
 	}
+}
+
+#***************************************************************************
+# Subroutine:  show_title
+# Description: show command line title blurb 
+#***************************************************************************
+sub show_title {
+
+	my ($self) = @_;
+
+	$console->refresh();
+	my $title       = 'DIGS';
+	my $version_num =  $self->{program_version};
+	my $description = 'Database-Integrated Genome Screening';
+	my $author      = 'Robert J. Gifford';
+	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
+	$console->show_about_box($title, $version_num, $description, $author, $contact);
 }
 
 ############################################################################
