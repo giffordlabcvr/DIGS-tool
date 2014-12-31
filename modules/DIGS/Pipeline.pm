@@ -57,6 +57,7 @@ sub new {
 		
 		# Flags
 		process_id             => $parameter_ref->{process_id},
+		program_version        => $parameter_ref->{program_version},
 		
 		# Paths and member variables
 		blast_bin_path         => $parameter_ref->{blast_bin_path},
@@ -82,26 +83,6 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  show_help_page
-# Description: show help page information
-#***************************************************************************
-sub show_help_page {
-	
-	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t -m=1  create a screening DB"; 
-		$HELP  .= "\n\t -m=2  execute a round of bidirectional BLAST screening"; 
-		$HELP  .= "\n\t -m=3  summarise a screening DB"; 
-		$HELP  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
-		$HELP  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
-		$HELP  .= "\n\t -m=6  flush a screening DB"; 
-		$HELP  .= "\n\t -m=7  drop a screening DB"; 
-		$HELP  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
-		$HELP  .= "\n\t -m=9  summarise GLUE reference library"; 
-		$HELP  .= "\n\n";
-	print $HELP;
-}
-
-#***************************************************************************
 # Subroutine:  run_digs_function
 # Description: handler for various utility processes 
 #***************************************************************************
@@ -109,57 +90,141 @@ sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# Show title
-	show_title();
-	
-	# summarising genomes does not require a file path
-	if ($option eq 8) {  
-		my $genome_obj = TargetDB->new($self);
-		$genome_obj->summarise_genomes();    
-		return;
-	}
+	# Do initial set up and sanity checking
+	$self->initialise($option, $ctl_file);
 
-	# Try opening control file first
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-	unless ($valid) {
-		print "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-		exit;
-	}	
-	# Create a screening DB 
-	if ($option eq 1)    {
+ 	# Show title
+	$self->show_title();  
+
+	# Hand off to functions	based on options
+	if ($option eq 1)    { # Create a screening DB 
 		$self->create_screening_db($ctl_file);
-		return;
 	}
-
-	# For the following functions, nitialise the DIGS tool using the control file
-	$self->initialise($ctl_file);
-	my $db = $self->{db};
-	
-	# Hand off to functions 2-7, based on the options received
-	if ($option eq 2)    {  
+	elsif ($option eq 2) { # Hand off to functions 2-7, based on the options received
 		$self->screen();	
 	}
 	elsif ($option eq 3) { # DB summary
+		my $db = $self->{db};
 		$db->summarise_db();
 	}
 	elsif ($option eq 4) { # Retrieve data
 		$self->retrieve();
 	}
-	elsif ($option eq 5) {  
+	elsif ($option eq 5) { # Reassign data in Exracted table
 		$self->reassign();	
 	}
-	elsif ($option eq 6) {  
+	elsif ($option eq 6) { # Flush screening DB
+		my $db = $self->{db};
 		$db->flush_screening_db();
 	}
-	elsif ($option eq 7) {  
+	elsif ($option eq 7) { # Drop screening DB 
+		my $db = $self->{db};
 		$db->drop_screening_db();    
+	}
+	elsif ($option eq 8) { # Summarise genomes 
+		my $genome_obj = TargetDB->new($self);
+		$genome_obj->summarise_genomes();    
+	}
+	elsif ($option eq 9) { # Summarisei GLUE reference sequence library 
+		my $refseqlib_obj = RefSeqLibrary->new($self);
+		$refseqlib_obj->summarise_reference_library();    
 	}
 }
 
 ############################################################################
 # SECTION: Initialise
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise 
+# Description: initialise module for interacting with screening database
+#              and perform basic validation of options and input file 
+#***************************************************************************
+sub initialise {
+
+	my ($self, $option, $ctl_file) = @_;
+	
+	# Validate configurations that require a control file
+	unless ($option eq 8) {  
+
+		# An infile must be defined
+		unless ($ctl_file) { 
+			die "\n\t Option '$option' requires an infile\n\n";
+		}
+		# Try opening control file
+		my @ctl_file;
+		my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+		unless ($valid) {  # Exit if we can't open the file
+			die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+		}
+		$self->{ctl_file}   = $ctl_file;
+		
+		# Parse the control file
+		$self->parse_digs_control_file($option, $ctl_file);	
+	}
+
+	# Check the size of the process directory
+	#$self->check_process_dir_status();
+}
+
+#***************************************************************************
+# Subroutine:  parse_digs_control_file 
+# Description: 
+#***************************************************************************
+sub parse_digs_control_file {
+
+	my ($self, $option, $ctl_file) = @_;
+
+	print "\n\t ### Reading control file\n";
+	my $loader_obj = ScreenBuild->new($self);
+	$loader_obj->parse_control_file($ctl_file, $self);
+	$self->{loader_obj} = $loader_obj;
+
+	# Transfer parameters from this object to the pipeline object
+	$self->{mysql_server}           = $loader_obj->{mysql_server};
+	$self->{mysql_username}         = $loader_obj->{mysql_username};
+	$self->{mysql_password}         = $loader_obj->{mysql_password};
+	$self->{db_name}                = $loader_obj->{db_name};
+	$self->{server}                 = $loader_obj->{mysql_server};
+	$self->{password}               = $loader_obj->{mysql_password};
+	$self->{username}               = $loader_obj->{mysql_username};
+	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
+	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
+	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};
+	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};
+	$self->{bit_score_min_tblastn}  = $loader_obj->{bit_score_min_tblastn};
+	$self->{bit_score_min_blastn}   = $loader_obj->{bit_score_min_blastn};
+	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
+	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
+	$self->{redundancy_mode}        = $loader_obj->{redundancy_mode};
+	$self->{threadhit_probe_buffer} = $loader_obj->{threadhit_probe_buffer};
+	$self->{threadhit_gap_buffer}   = $loader_obj->{threadhit_gap_buffer};
+	$self->{threadhit_max_gap}      = $loader_obj->{threadhit_max_gap};
+	$self->{reference_glue}         = $loader_obj->{reference_glue};
+	$self->{query_glue}             = $loader_obj->{query_glue};
+	#$self->{tmp_path}               = $loader_obj->{tmp_path};
+	
+	# Screen SQL
+	my $select_list     = $loader_obj->{select_list};
+	my $where_statement = $loader_obj->{where_statement};
+	if ($select_list) {
+		#print "\n\t Loaded Select list '$select_list'";
+		$self->{select_list}  = lc $select_list;
+	}
+	if ($where_statement) {
+		#print "\n\t WHERE statement '$where_statement'";
+		$self->{where_statement} = lc $where_statement;
+	}
+		
+	# For configurations that require a screening database
+	unless ($option eq 9) {  # Load screening database
+		my $db_name = $loader_obj->{db_name};
+		unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
+		my $db_obj = ScreeningDB->new($self);
+		$db_obj->load_screening_db($db_name);	
+		$self->{db} = $db_obj; # Store the database object reference 
+	}
+}
 
 #***************************************************************************
 # Subroutine:  create_screening_db
@@ -182,48 +247,17 @@ sub create_screening_db {
 	$self->{db} = $db_obj; # Store the database object reference 
 }
 
-#***************************************************************************
-# Subroutine:  initialise 
-# Description: do initial checks
-#***************************************************************************
-sub initialise {
-
-	my ($self, $ctl_file) = @_;
-	
-	# Initialise
-	print "\n\t ### Initialising database-integrated genome screening\n";
-	
-	# Check the size of the process directory
-	#$self->check_process_dir_status();
-	
-	# Get parameters
-	print "\n\t ### Reading control file\n";
-	my $loader_obj = ScreenBuild->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self);
-
-	# Load screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
-	my $db_obj = ScreeningDB->new($self);
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
-	
-	# Store the loader object initialised with the control file params
-	$self->{loader_obj} = $loader_obj;
-	$self->{ctl_file}   = $ctl_file;
-}
-
 ############################################################################
-# SECTION: Running a round of bidirectional BLAST screening
+# SECTION: Running a round of paired BLAST screening
 ############################################################################
 
 #***************************************************************************
 # Subroutine:  screen
-# Description: run reciprocal BLAST pipeline
+# Description: do the core database-integrated genome screening processes
 #***************************************************************************
 sub screen {
 
-	my ($self) = @_;
+	my ($self, $mode) = @_;
 
 	# Get relevant member variables and objects
 	my $db_ref = $self->{db};
@@ -405,7 +439,7 @@ sub assign {
 		my $blast_id  = $hit_ref->{record_id};
 		$hit_ref->{blast_id} = $blast_id;
 		
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my %data = %$hit_ref; # Make a copy
 		$self->do_reverse_blast(\%data);
 		$assigned_count++;
@@ -427,7 +461,7 @@ sub assign {
 
 #***************************************************************************
 # Subroutine:  reverse BLAST
-# Description: Execute the 2nd BLAST in a round of bidirectional BLAST
+# Description: Execute the 2nd BLAST in a round of paired BLAST
 #***************************************************************************
 sub do_reverse_blast {
 
@@ -469,7 +503,7 @@ sub do_reverse_blast {
 	}
 	else { die; }
 
-	# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 	unless ($lib_path) { die "\n\n\t NO BLAST LIBRARY defined\n\n\n"; }
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
 	my @results;
@@ -574,7 +608,6 @@ sub extract_unassigned_hits {
 			}
 			next;
 		 }
-		
 		# Extract the sequence
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
 		if ($sequence) {	
@@ -631,7 +664,7 @@ sub reassign {
 		delete $hit_ref->{extract_start};
 		delete $hit_ref->{extract_end};
 	
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of bidirectional BLAST)	
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $hit_ref->{assigned_name};
 		my $previous_gene   = $hit_ref->{assigned_gene};
 		print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
@@ -1046,6 +1079,10 @@ sub check_process_dir_status {
 	}
 }
 
+############################################################################
+# Command line console fxns
+############################################################################
+
 #***************************************************************************
 # Subroutine:  show_title
 # Description: show command line title blurb 
@@ -1054,13 +1091,37 @@ sub show_title {
 
 	my ($self) = @_;
 
+	my $version_num =  $self->{program_version};
+	unless ($version_num) {
+		$version_num = 'version undefined (use with caution)';
+	}
+
 	$console->refresh();
 	my $title       = 'DIGS';
-	my $version_num =  $self->{program_version};
 	my $description = 'Database-Integrated Genome Screening';
 	my $author      = 'Robert J. Gifford';
 	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
 	$console->show_about_box($title, $version_num, $description, $author, $contact);
+}
+
+#***************************************************************************
+# Subroutine:  show_help_page
+# Description: show help page information
+#***************************************************************************
+sub show_help_page {
+	
+	# Initialise usage statement to print if usage is incorrect
+	my ($HELP)  = "\n\t -m=1  create a screening DB"; 
+		$HELP  .= "\n\t -m=2  execute a round of paired BLAST screening"; 
+		$HELP  .= "\n\t -m=3  summarise a screening DB"; 
+		$HELP  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
+		$HELP  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
+		$HELP  .= "\n\t -m=6  flush a screening DB"; 
+		$HELP  .= "\n\t -m=7  drop a screening DB"; 
+		$HELP  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
+		$HELP  .= "\n\t -m=9  summarise GLUE reference library"; 
+		$HELP  .= "\n\n";
+	print $HELP;
 }
 
 ############################################################################

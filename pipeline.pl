@@ -36,11 +36,14 @@ use Base::FileIO;
 # Third party program interface modules
 use Interface::BLAST;   # Interface to BLAST 
 
-# Paleovirology program modules
+# DIGS framework modules
 use DIGS::Pipeline;
 use DIGS::ScreenBuild;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
+
+# GLUE framework modules
+use GLUE::RefSeqLibrary; # Functions to set up screen
 
 ############################################################################
 # Paths & Globals
@@ -130,12 +133,7 @@ sub main {
 	elsif ($version) {
 		print "\n\t DIGS tool version '$program_version'\n\n"
 	}
-	elsif ($mode) {
-		unless ($mode > 0 and $mode <= 8) { die $USAGE; }
-		if ($mode ne 8) {
-			unless ($mode and $infile)    { die $USAGE; }
-		}
-		# Hand off to Pipeline.pm
+	elsif ($mode) { # Hand off to Pipeline.pm
 		$pipeline_obj->run_digs_function($mode, $infile); 
 	}
 	else {

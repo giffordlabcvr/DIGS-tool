@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Module:      ScreenBuild.pm
-# Description: Set up a bidirectional BLAST screen in the DIGS framework
-# History:     December 2011: Created by Robert Gifford 
+# Description: Set up a paired BLAST screen in the DIGS framework
+# History:     December 2012: Created by Robert Gifford 
 ############################################################################
 package ScreenBuild;
 
@@ -235,81 +235,6 @@ sub load_nt_fasta_reference_library {
 	
 	# Create the libraries
 	if ($num_fasta) { $self->create_blast_nt_lib(\@ref_nt_fasta); }
-}
-
-#***************************************************************************
-# Subroutine:  load_glue_reference_library
-# Description: 
-#***************************************************************************
-sub load_glue_reference_library {
-	
-	my ($self) = @_;
-
-	my $ref_vglue   = $self->{reference_vglue};
-	my $report_dir  = $self->{output_path};
-	my $tmp_path    = $self->{tmp_path};
-	
-	# Set up library
-	my $parser_obj  = RefSeqParser->new();
-	my @refseqs;
-	my $status = $parser_obj->split_vglue_ref_file($ref_vglue, \@refseqs);
-	unless ($status) { die "\n\t Input error: couldn't open query VGLUE file\n\n"; }
-	my $num_refseqs = scalar @refseqs;
-	print "\n\t Total of '$num_refseqs' GLUE formatted references sequences to use as references";
-	my $i = 0;
-	foreach my $refseq_ref (@refseqs) {
-		
-		$i++;
-		
-		# Step 1: parse the refseq file and capture data in %params
-		my %params;
-		$parser_obj->parse_refseq_datastructure($refseq_ref, \%params);
-
-		# Step 2: create the reference sequence object using %params
-		my $refseq = RefSeq->new(\%params);
-		my $virus_name = $refseq->{name};
-		print "\n\t Loading query refseq $i:  '$virus_name'";
-		
-		# Get the translated ORFs
-		my %orf_sequences;
-		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
-		
-		# Get the translated ORFs
-		my %utr_sequences;
-		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
-		#$devtools->print_hash(\%utr_sequences); die;
-
-		my @orf_names = keys %orf_sequences;
-		my @ref_fasta_aa;
-		foreach my $orf_name (@orf_names) {
-			my $orf_seq = $orf_sequences{$orf_name};
-			my $name = $virus_name . "_$orf_name";
-			my $fasta = ">$name\n$orf_seq\n\n";
-			push (@ref_fasta_aa, $fasta);
-			my $lib_path = $report_dir . "/reference_lib_nt.fas";
-			$fileio->write_output_file($lib_path, \@ref_fasta_aa); 
-			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
-			system $formatdb_command;
-			#print "\n\t$formatdb_command\n";
-			$self->{blast_orf_lib_path} = $lib_path; 
-		}
-		
-		# Iterate through UTRs and add those
-		my @utr_names = keys %utr_sequences;
-		my @ref_fasta_nt;
-		foreach my $utr_name (@utr_names) {
-			my $utr_seq = $utr_sequences{$utr_name};
-			my $name = $virus_name . "_$utr_name";
-			my $fasta = ">$name\n$utr_seq\n\n";
-			push (@ref_fasta_nt, $fasta);
-			my $lib_path = $report_dir . "/reference_lib_nt.fas";
-			$fileio->write_output_file($lib_path, \@ref_fasta_nt); 
-			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
-			system $formatdb_command;
-			#print "\n\t$formatdb_command\n";
-			$self->{blast_utr_lib_path} = $lib_path; 
-		}
-	}
 }
 
 #***************************************************************************
@@ -893,39 +818,6 @@ sub parse_control_file {
 	# READ the 'SCREENSQL' block
 	$self->parse_screensql_block(\@ctl_file);
 
-	# Transfer parameters from this object to the pipeline object
-	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
-	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
-	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
-	$pipeline_obj->{db_name}                = $self->{db_name};
-	$pipeline_obj->{server}                 = $self->{mysql_server};
-	$pipeline_obj->{password}               = $self->{mysql_password};
-	$pipeline_obj->{username}               = $self->{mysql_username};
-	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
-	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
-	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
-	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
-	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
-	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
-	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
-	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
-	#$pipeline_obj->{tmp_path}               = $self->{tmp_path};
-	
-	# Screen SQL
-	my $select_list     = $self->{select_list};
-	my $where_statement = $self->{where_statement};
-	if ($select_list) {
-		#print "\n\t Loaded Select list '$select_list'";
-		$pipeline_obj->{select_list}  = lc $select_list;
-	}
-	if ($where_statement) {
-		#print "\n\t WHERE statement '$where_statement'";
-		$pipeline_obj->{where_statement} = lc $where_statement;
-	}
 }
 
 #***************************************************************************
