@@ -107,7 +107,9 @@ sub translate {
 	my @sequence = split ('', $sequence);
 	
 	# do frame adjustment
-	unless ($frame) { die; }
+	unless ($frame) { 
+		$frame = 1;
+	}
 	if    ($frame eq 1)  {  }
 	elsif ($frame eq 2)  { shift (@sequence); }
 	elsif ($frame eq 3)  { shift (@sequence);	

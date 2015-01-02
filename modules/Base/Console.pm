@@ -103,6 +103,22 @@ sub show_about_box {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  ask_question
+# Description: just ask a question and return the input
+# Arguments:   $question: the question to ask 
+# Returns:     $answer: the response of the user
+#***************************************************************************
+sub ask_question {
+
+	my ($self, $question) = @_;
+	
+	print "$question : ";
+	my $answer = <STDIN>;
+	chomp $answer; 
+	return $answer;
+}
+
+#***************************************************************************
 # Subroutine:  ask_yes_no_question
 # Description: ask a question and accept only 'y' or 'n' as an answer 
 # Arguments:   $question: the question to ask 
@@ -135,7 +151,6 @@ sub ask_simple_choice_question {
 
 	# convert the choices array to a scalar
 	my $choice_string = join('/', @$choice_ref);
-	
 	my $answer;
 	my $answer_in_set = undef;
 	do {
@@ -154,7 +169,77 @@ sub ask_simple_choice_question {
 	return $answer;
 }
 
+#***************************************************************************
+# Subroutine:  ask_int_question
+# Description: ask a question and accept only an integer as a response
+# Arguments:   $question: the question to ask 
+# Returns:     $answer: the integer value entered by the user
+#***************************************************************************
+sub ask_int_question {
 
+	my ($self, $question) = @_;
+	
+	my $answer;
+	do {
+		print "$question : ";
+		$answer = <STDIN>;
+		chomp $answer; 
+	} until ($answer =~ /\d/); # TODO: this isn't strict enough
+	return $answer;
+}
+
+#***************************************************************************
+# Subroutine:  ask_int_with_bounds_question
+# Description: ask a question and accept only an integer that falls within
+#              a defined range as a response
+# Arguments:   $question: the question to ask 
+#              $lower_bound, $upper_bound: the specified bounds
+# Returns:     $answer: the integer value entered by the user
+# TODO:        doesn't discriminate ints and floats
+#***************************************************************************
+sub ask_int_with_bounds_question {
+
+	my ($self, $question, $lower_bound, $upper_bound) = @_;
+	
+	my $answer;
+	do {
+		print "$question \($lower_bound-$upper_bound\): ";
+		$answer = <STDIN>;
+		chomp $answer; 
+	} until ($answer >= $lower_bound and $answer <= $upper_bound);
+	return $answer;
+}
+
+#***************************************************************************
+# Subroutine:  ask_list_question
+# Description: ask user to choose an option from a numbered list 
+# Arguments:   $question: the question to ask 
+#              $list_length: the number of options in the list
+# Returns:     $answer: the integer value entered by the user
+#***************************************************************************
+sub ask_list_question {
+
+	my ($self, $question, $list_length) = @_;
+
+	my $answer;
+	my $return = undef;
+	do {
+		print "$question \(1-$list_length\): ";
+		$answer = <STDIN>;
+		chomp $answer; 
+		if ($answer =~ /^-?\d/) {
+			if ($answer <= $list_length) {
+				$return = 1;
+			}
+		} 
+	} until ($return eq 1);
+	
+	return $answer;
+}
+
+############################################################################
+# Private Member Functions
+############################################################################
 ############################################################################
 # Private Member Functions
 ############################################################################

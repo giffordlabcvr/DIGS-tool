@@ -69,6 +69,7 @@ sub new {
 		status_table          => 0,
 		blast_results_table   => 0,
 		extracted_table       => 0,
+		loci_table            => 0,
 	
 	};
 	
@@ -107,9 +108,11 @@ sub load_screening_db {
 
 	# Main Screening DB tables
 	print "\n\n\t ### Loading '$db_name' screening database";
+	$self->load_status_table($dbh);	
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
-	$self->load_status_table($dbh);
+	#$self->load_loci_table($dbh);
+	#$self->load_loci_link_table($dbh);
 
 	# Check integrity of database
 	my $extracted_count = $self->count_extracted_rows();
@@ -130,6 +133,29 @@ sub load_screening_db {
 ############################################################################
 # LOAD SCREENING DATABASE TABLES
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  load_status_table
+# Description: load screening database table 'Status'
+#***************************************************************************
+sub load_status_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %status_fields = (
+		probe_id       => 'varchar',
+		probe_name     => 'varchar',
+		probe_gene     => 'varchar',
+		genome_id      => 'varchar',
+		organism       => 'varchar',
+		data_type      => 'varchar',
+		version        => 'varchar',
+		target_name    => 'varchar',
+	);
+	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
+	$self->{status_table} = $status_table;
+}
 
 #***************************************************************************
 # Subroutine:  load_blast_results_table
@@ -203,26 +229,44 @@ sub load_extracted_table {
 }
 
 #***************************************************************************
-# Subroutine:  load_status_table
-# Description: load screening database table 'Status'
+# Subroutine:  load_loci_table
+# Description: load screening database table 'Loci'
 #***************************************************************************
-sub load_status_table {
+sub load_loci_table {
 
 	my ($self, $dbh) = @_;
 
-	# Definition of the table
-	my %status_fields = (
-		probe_id       => 'varchar',
-		probe_name     => 'varchar',
-		probe_gene     => 'varchar',
-		genome_id      => 'varchar',
-		organism       => 'varchar',
-		data_type      => 'varchar',
-		version        => 'varchar',
-		target_name    => 'varchar',
+	# Definition of the loci table
+	my %loci_fields = (
+		assigned_to      => 'varchar',
+		assigned_notes   => 'varchar',
+		extract_start    => 'int',
+		extract_end      => 'int',
+		organism         => 'varchar',
+		orientation      => 'varchar',
+		chunk_name       => 'varchar',
+		scaffold         => 'varchar',
+		genome_structure => 'text',
 	);
-	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
-	$self->{status_table} = $status_table;
+	my $loci_table = MySQLtable->new('Loci', $dbh, \%loci_fields);
+	$self->{loci_table} = $loci_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_loci_link_table
+# Description: load screening database table 'Loci'
+#***************************************************************************
+sub load_loci_link_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the loci table
+	my %loci_fields = (
+		locus_id       => 'int',
+		extracted_id   => 'int',
+	);
+	my $loci_table = MySQLtable->new('Loci_link', $dbh, \%loci_fields);
+	$self->{loci_link_table} = $loci_table;
 }
 
 ############################################################################
@@ -243,7 +287,7 @@ sub create_screening_db {
 	my $password = $self->{password};
 
 	# CREATE THE DB 
-	print "\n\n\t ### Creating '$db_name' screening database";
+	print "\n\t ### Creating '$db_name' screening database\n";
     my $drh = DBI->install_driver("mysql");
     my $rc = $drh->func("createdb", $db_name, $server, $username, $password, 'admin');
     my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
@@ -251,14 +295,42 @@ sub create_screening_db {
 		die "\n\t # Couldn't create screening database '$db_name'\n\n";
 	}	
 
+	$self->create_status_table($dbh);
 	$self->create_blast_results_table($dbh);
 	$self->create_extracted_table($dbh);
-	$self->create_status_table($dbh);
+	$self->create_loci_table($dbh);
+	$self->create_loci_link_table($dbh);
 }
 
 ############################################################################
 # CREATE SCREENING DATABASE TABLES
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  create_status_table
+# Description: create MySQL 'Status' table
+#***************************************************************************
+sub create_status_table {
+
+	my ($self, $dbh) = @_;
+
+	# Status table (which BLAST queries have been executed)
+	my $status = "CREATE TABLE `Status` (
+	  `Record_ID`   int(11) NOT NULL auto_increment,
+	  `Probe_ID`    varchar(100) NOT NULL default '',
+	  `Probe_name`  varchar(100) NOT NULL default '',
+	  `Probe_gene`  varchar(100) NOT NULL default '',
+	  `Genome_ID`   varchar(100) NOT NULL default '',
+	  `Organism`    varchar(100) NOT NULL default '',
+	  `Data_type`  varchar(100) NOT NULL default '',
+	  `Version`     varchar(100) NOT NULL default '',
+	  `Target_name` varchar(100) NOT NULL default '',
+	  `Timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
+	my $sth = $dbh->prepare($status);
+	unless ($sth->execute()) { print "\n\t$status\n\n\n"; exit;}
+}
 
 #***************************************************************************
 # Subroutine:  create_blast_results_table
@@ -343,29 +415,50 @@ sub create_extracted_table {
 }
 
 #***************************************************************************
-# Subroutine:  create_status_table
-# Description: create MySQL 'Status' table
+# Subroutine:  create_loci_table
+# Description: create MySQL 'Loci' table
 #***************************************************************************
-sub create_status_table {
+sub create_loci_table {
 
 	my ($self, $dbh) = @_;
 
-	# Status table (which BLAST queries have been executed)
-	my $status = "CREATE TABLE `Status` (
-	  `Record_ID`   int(11) NOT NULL auto_increment,
-	  `Probe_ID`    varchar(100) NOT NULL default '',
-	  `Probe_name`  varchar(100) NOT NULL default '',
-	  `Probe_gene`  varchar(100) NOT NULL default '',
-	  `Genome_ID`   varchar(100) NOT NULL default '',
-	  `Organism`    varchar(100) NOT NULL default '',
-	  `Data_type`  varchar(100) NOT NULL default '',
-	  `Version`     varchar(100) NOT NULL default '',
-	  `Target_name` varchar(100) NOT NULL default '',
-	  `Timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	# Loci table 
+    my $loci = "CREATE TABLE `Loci` (
+	  `Record_ID`         int(11) NOT NULL auto_increment,
+	  `Assigned_to`       varchar(100) NOT NULL default '0',
+	  `Assigned_notes`    text NOT NULL,
+	  `Extract_start`     int(11) NOT NULL default '0',
+	  `Extract_end`       int(11) NOT NULL default '0',
+	  `Organism`          varchar(100) NOT NULL default '0',
+	  `Orientation`       varchar(100) NOT NULL default '0',
+	  `Chunk_name`        varchar(100) NOT NULL default '0',
+	  `Scaffold`          varchar(100) default 'NULL',
+	  `Genome_structure`  text NOT NULL,
+	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
-	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
-	my $sth = $dbh->prepare($status);
-	unless ($sth->execute()) { print "\n\t$status\n\n\n"; exit;}
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($loci);
+	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_loci_link_table
+# Description: create MySQL 'Loci' table
+#***************************************************************************
+sub create_loci_link_table {
+
+	my ($self, $dbh) = @_;
+
+	# Loci table 
+    my $loci = "CREATE TABLE `Loci_link` (
+      `Record_ID`       int(11) NOT NULL auto_increment,
+      `Locus_ID`        int(11) NOT NULL default '0',
+      `Extracted_ID`    int(11) NOT NULL default '0',
+      `Timestamp`       timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($loci);
+	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
 }
 
 ############################################################################
@@ -381,6 +474,7 @@ sub index_previously_executed_queries {
 	my ($self, $done_ref) = @_;
 	
 	my $status_table = $self->{status_table};
+	unless ($status_table) { die "\n\t Status table not loaded\n\n"; }
 	my @data;
 	my @fields = qw [ record_id organism data_type version target_name
                       probe_name probe_gene ];

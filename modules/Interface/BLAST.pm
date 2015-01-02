@@ -115,7 +115,8 @@ sub blast {
 
 #***************************************************************************
 # Subroutine:  BLAST extract_sequence
-# Description: extract_sequence
+# Description: just an interface to the BLAST+ sequence extraction functions 
+#              see: http://www.ncbi.nlm.nih.gov/books/NBK1763/
 #***************************************************************************
 sub extract_sequence {
 

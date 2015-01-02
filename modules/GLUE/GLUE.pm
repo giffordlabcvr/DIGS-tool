@@ -144,15 +144,14 @@ sub create_glue_alignment {
 	my $flat_dir      = $self->{refseq_use_path};
 	my $refseq        = $self->{refseq};
 	my $report_dir    = $self->{report_dir};
-	my $html_header   = $self->{html_header};
-	my $refseq_name   = $refseq->{name};
 	unless ($refseq)      { die "\n\t NO refseq found \n\n"; } # Sanity checking
 	unless ($refseq_name) { die "\n\t NO refseq name found\n\n"; } # Sanity checking
 	unless ($flat_dir)    { die; } # Sanity checking
-	#print "NAME $refseq_name";
 
 	my @html;
 	my $indent = ' ' x 10;
+	my $html_header   = $self->{html_header};
+	my $refseq_name   = $refseq->{name};
 	if ($output_type eq 'html') { 
 		# Define the page in the correct format and write it
 		unless ($html_header) { die "\n\t No HTML header found\n\n"; } # Sanity checking

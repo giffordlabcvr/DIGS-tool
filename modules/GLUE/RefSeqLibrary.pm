@@ -48,6 +48,10 @@ sub new {
 		
 	my $self = {
 		
+		# Flags
+		process_id            => $params_ref->{process_id},
+		reference_glue        => $params_ref->{reference_glue},
+		query_glue            => $params_ref->{query_glue},
 
 	};
 
@@ -65,12 +69,16 @@ sub new {
 #***************************************************************************
 sub summarise_reference_library {
 
-	my ($self, $path) = @_;
+	my ($self) = @_;
 
 	# Load the reference sequences
-	my %reference_sequences;
-	$self->load_glue_reference_library(\%reference_sequences);
-	die;
+	my %refseq_library;
+	my $path = $self->{reference_glue};
+	$self->load_glue_reference_library(\%refseq_library, $path);
+
+	# Write features as FASTA
+	#$devtools->print_hash(\%refseq_library); die;
+	$self->write_features_as_fasta(\%refseq_library);
 
 }
 
@@ -85,100 +93,208 @@ sub summarise_reference_library {
 #***************************************************************************
 sub load_glue_reference_library {
 	
-	my ($self, $refseqs_ref) = @_;
+	my ($self, $refseqs_ref, $path) = @_;
 
+	unless ($path) { die; }
 
-	my $ref_vglue   = $self->{reference_vglue};
+	my $exists = $fileio->check_directory_exists($path);
+	my @leaves;
+	if ($exists) {
+		#print "\n\t Reading leaves for PATH $path";
+		$fileio->read_directory_tree_leaves_simple($path, \@leaves);
+		#$devtools->print_array(\@leaves); die;
+	}
+	else {
+		die "\n\t # Couldn't open directory '$path'\n\n\n";
+	}
+	#$devtools->print_hash($self); die;
+
 	my $parser_obj  = RefSeqParser->new();
-
-	my @refseqs;
-
-
-
-
-
-}
-
-#***************************************************************************
-# Subroutine:  load_glue_reference_library_old
-# Description: 
-#***************************************************************************
-sub load_glue_reference_library_old {
-	
-	my ($self) = @_;
-
-	my $ref_vglue   = $self->{reference_vglue};
-	my $report_dir  = $self->{output_path};
-	my $tmp_path    = $self->{tmp_path};
-	
-	# Set up library
-	my $parser_obj  = RefSeqParser->new();
-	my @refseqs;
-	my $status = $parser_obj->split_vglue_ref_file($ref_vglue, \@refseqs);
-	unless ($status) { die "\n\t Input error: couldn't open query VGLUE file\n\n"; }
-	my $num_refseqs = scalar @refseqs;
-	print "\n\t Total of '$num_refseqs' GLUE formatted references sequences to use as references";
 	my $i = 0;
-	foreach my $refseq_ref (@refseqs) {
-		
+	foreach my $file_ref (@leaves) {
+	
+		#my $status = $parser_obj->split_glue_ref_file($query_glue, \@refseqs);
+		#unless ($status) { die "\n\t Input error: couldn't open query GLUE file\n\n"; }
+		#my $num_refseqs = scalar @refseqs;
+		#$devtools->print_array(\@refseqs); die;
+	
+		# Parse the refseq file and capture data in %params
 		$i++;
-		
-		# Step 1: parse the refseq file and capture data in %params
+		my $refseq_path = $file_ref->{path};
+		my $refseq_file = $file_ref->{file};
 		my %params;
-		$parser_obj->parse_refseq_datastructure($refseq_ref, \%params);
+		$parser_obj->parse_refseq_flatfile($refseq_path, \%params);
 
-		# Step 2: create the reference sequence object using %params
+		# Create the reference sequence object using %params
 		my $refseq = RefSeq->new(\%params);
 		my $virus_name = $refseq->{name};
 		print "\n\t Loading query refseq $i:  '$virus_name'";
-		
-		# Get the translated ORFs
-		my %orf_sequences;
-		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
-		
-		# Get the translated ORFs
-		my %utr_sequences;
-		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
-		#$devtools->print_hash(\%utr_sequences); die;
-
-		my @orf_names = keys %orf_sequences;
-		my @ref_fasta_aa;
-		foreach my $orf_name (@orf_names) {
-			my $orf_seq = $orf_sequences{$orf_name};
-			my $name = $virus_name . "_$orf_name";
-			my $fasta = ">$name\n$orf_seq\n\n";
-			push (@ref_fasta_aa, $fasta);
-			my $lib_path = $report_dir . "/reference_lib_nt.fas";
-			$fileio->write_output_file($lib_path, \@ref_fasta_aa); 
-			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
-			system $formatdb_command;
-			#print "\n\t$formatdb_command\n";
-			$self->{blast_orf_lib_path} = $lib_path; 
-		}
-		
-		# Iterate through UTRs and add those
-		my @utr_names = keys %utr_sequences;
-		my @ref_fasta_nt;
-		foreach my $utr_name (@utr_names) {
-			my $utr_seq = $utr_sequences{$utr_name};
-			my $name = $virus_name . "_$utr_name";
-			my $fasta = ">$name\n$utr_seq\n\n";
-			push (@ref_fasta_nt, $fasta);
-			my $lib_path = $report_dir . "/reference_lib_nt.fas";
-			$fileio->write_output_file($lib_path, \@ref_fasta_nt); 
-			my $formatdb_command = "./bin/blast/makeblastdb -in $lib_path";
-			system $formatdb_command;
-			#print "\n\t$formatdb_command\n";
-			$self->{blast_utr_lib_path} = $lib_path; 
-		}
-	}
+		my $refseq_name = $refseq->{name};
+		$refseqs_ref->{$refseq_name} = $refseq;
+	}	
 }
 
+	
 #***************************************************************************
-# Subroutine:  by number
-# Description: by number - for use with perl 'sort'  (cryptic but works) 
+# Subroutine:  write_features_as_fasta
+# Description: summarise a library of GLUE reference sequences
 #***************************************************************************
-sub by_number { $a <=> $b }	
+sub write_features_as_fasta {
+
+	my ($self, $refseq_library) = @_;
+
+	my @refseq_names = keys %$refseq_library;
+	my %features;
+	my %feature_names;
+	foreach my $refseq_name (@refseq_names) {
+		
+		#$refseq_ref->describe();
+		#$devtools->print_hash($refseq_ref); die;
+		print "\n\t Getting features for '$refseq_name'";
+		my $refseq = $refseq_library->{$refseq_name};
+		my %utrs;
+		my %na_orfs;
+		my %aa_orfs;
+		$refseq->get_utrs(\%utrs);
+		$refseq->get_orfs(\%na_orfs);		
+		$refseq->get_translated_orfs(\%aa_orfs);		
+		my @utrs    = keys %utrs;
+		my @na_orfs = keys %na_orfs;
+		my @aa_orfs = keys %aa_orfs;
+		my @features = (@utrs, @na_orfs, @aa_orfs);
+		foreach my $feature (@features) {
+			my $lc_feature = lc $feature;
+			$feature_names{$feature} = $lc_feature;
+		}
+		#$devtools->print_hash(\%feature_names); die;	
+		
+		my %refseq_features;
+		$refseq_features{utrs}    = \%utrs;
+		$refseq_features{na_orfs} = \%na_orfs;
+		$refseq_features{aa_orfs} = \%aa_orfs;
+		my $refseq_name = $refseq->{name};
+		$features{$refseq_name} = \%refseq_features;
+	}
+
+	my @features = keys %feature_names;
+	my %utr_fasta;
+	my %na_orf_fasta;
+	my %aa_orf_fasta;
+	foreach my $feature (@features) {
+		
+		#print "\n\t Storing feature $feature";
+		foreach my $refseq_name (@refseq_names) {
+
+			my $features = $features{$refseq_name};
+			my $utrs_ref = $features->{utrs};
+			my $na_orfs  = $features->{na_orfs};
+			my $aa_orfs  = $features->{aa_orfs};
+			#$devtools->print_hash($utrs_ref); die;	
+
+			my $utr    = $utrs_ref->{$feature};
+			my $na_orf = $na_orfs->{$feature};
+			my $aa_orf = $aa_orfs->{$feature};
+	
+			my $lc_feature = lc $feature;	
+			if ($utr) {
+				my %seq_ref;
+				$seq_ref{header} = $refseq_name . '_' . $lc_feature;
+				$seq_ref{sequence} = $utr;
+
+				if ($utr_fasta{$feature}) {
+					my $fasta_array = $utr_fasta{$feature};
+					push (@$fasta_array, \%seq_ref);
+				}
+				else {
+					my @fasta_array;
+					push (@fasta_array, \%seq_ref);
+					$utr_fasta{$feature} = \@fasta_array; # No lower case for UTRS
+				}
+			}
+
+			if ($na_orf) {
+				my %seq_ref;
+				$seq_ref{header} = $refseq_name . '_' . $lc_feature;
+				$seq_ref{sequence} = $na_orf;
+
+				if ($na_orf_fasta{$lc_feature}) {
+					my $fasta_array = $na_orf_fasta{$lc_feature};
+					push (@$fasta_array, \%seq_ref);
+				}
+				else {
+					my @fasta_array;
+					push (@fasta_array, \%seq_ref);
+					$na_orf_fasta{$lc_feature} = \@fasta_array;
+				}
+			}
+			if ($aa_orf) {
+				my %seq_ref;
+				$seq_ref{header} = $refseq_name . '_' . $lc_feature;
+				$seq_ref{sequence} = $aa_orf;
+
+				if ($aa_orf_fasta{$lc_feature}) {
+					my $fasta_array = $aa_orf_fasta{$lc_feature};
+					push (@$fasta_array, \%seq_ref);
+				}
+				else {
+					my @fasta_array;
+					push (@fasta_array, \%seq_ref);
+					$aa_orf_fasta{$lc_feature} = \@fasta_array;
+				}
+			}
+		}
+	}
+
+	# Create a structured directory for the output
+	my $process_id = $self->{process_id};
+	my $directory  = 'fasta_dump_' . $process_id;
+	my $output_cmd = "mkdir $directory";
+	system $output_cmd;
+
+	my $na_subdir = "$directory/na_orfs";
+	my $subdir_cmd = "mkdir $na_subdir";
+	system $subdir_cmd;
+
+	my $aa_subdir = "$directory/aa_orfs";
+	$subdir_cmd = "mkdir $aa_subdir";
+	system $subdir_cmd;
+
+	my $utr_subdir = "$directory/utrs";
+	$subdir_cmd = "mkdir $utr_subdir";
+	system $subdir_cmd;
+
+	# Write the files
+	foreach my $feature (@features) {
+
+		#print "\n\t Write loop: $feature";	
+		if ($utr_fasta{$feature}) {
+			#print "\n\t Writing FASTA for UTR feature '$feature'";
+			my $utrs_ref = $utr_fasta{$feature};
+			my $outpath = $utr_subdir . '/' . $feature . '_utr.fa';
+			$seqio->write_fasta($outpath, $utrs_ref);
+		}
+
+		if ($aa_orf_fasta{$feature}) {
+			#print "\n\t Writing amino acid FASTA for ORF '$feature'";
+			my $aa_orfs_ref = $aa_orf_fasta{$feature};
+			my $outpath = $aa_subdir . '/' . $feature . '_aa.fa';
+			$seqio->write_fasta($outpath, $aa_orfs_ref);
+		}
+
+		if ($na_orf_fasta{$feature}) {
+			#print "\n\t Writing nucleic acid FASTA for ORF '$feature'";
+			my $na_orfs_ref = $na_orf_fasta{$feature};
+			my $outpath = $na_subdir . '/' . $feature . '_na.fa';
+			$seqio->write_fasta($outpath, $na_orfs_ref);
+		}
+	}
+	print "\n\t # Done!\n\n";
+
+}
+
+############################################################################
+# Deprecated
+############################################################################
 
 ############################################################################
 # EOF

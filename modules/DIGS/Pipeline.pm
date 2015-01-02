@@ -23,6 +23,7 @@ use Base::Sequence;    # For performing basic sequence manipulations
 
 # Program components
 use DIGS::ScreenBuild; # Functions to set up screen
+use DIGS::Retrieve; 
 
 ############################################################################
 # Globals
@@ -90,11 +91,11 @@ sub run_digs_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# Do initial set up and sanity checking
-	$self->initialise($option, $ctl_file);
-
  	# Show title
 	$self->show_title();  
+
+	# Do initial set up and sanity checking
+	$self->initialise($option, $ctl_file);
 
 	# Hand off to functions	based on options
 	if ($option eq 1)    { # Create a screening DB 
@@ -103,31 +104,35 @@ sub run_digs_function {
 	elsif ($option eq 2) { # Hand off to functions 2-7, based on the options received
 		$self->screen();	
 	}
-	elsif ($option eq 3) { # DB summary
-		my $db = $self->{db};
-		$db->summarise_db();
+	elsif ($option eq 3) { # Defragment
+		$self->defragment();	
 	}
-	elsif ($option eq 4) { # Retrieve data
-		$self->retrieve();
-	}
-	elsif ($option eq 5) { # Reassign data in Exracted table
+	elsif ($option eq 4) { # Reassign data in Exracted table
 		$self->reassign();	
 	}
-	elsif ($option eq 6) { # Flush screening DB
+	elsif ($option eq 5) { # Flush screening DB
 		my $db = $self->{db};
 		$db->flush_screening_db();
 	}
-	elsif ($option eq 7) { # Drop screening DB 
+	elsif ($option eq 6) { # Drop screening DB 
 		my $db = $self->{db};
 		$db->drop_screening_db();    
+	}
+	elsif ($option eq 7) { # DB summary
+		my $db = $self->{db};
+		$db->summarise_db();
 	}
 	elsif ($option eq 8) { # Summarise genomes 
 		my $genome_obj = TargetDB->new($self);
 		$genome_obj->summarise_genomes();    
 	}
-	elsif ($option eq 9) { # Summarisei GLUE reference sequence library 
+	elsif ($option eq 9) { # Summarise GLUE reference sequence library 
 		my $refseqlib_obj = RefSeqLibrary->new($self);
 		$refseqlib_obj->summarise_reference_library();    
+	}
+	elsif ($option eq 10) { # Retrieve data
+		my $retrieve_obj =Retrieve->new($self);
+		$retrieve_obj->run_data_retrieval_functions();
 	}
 }
 
@@ -217,7 +222,8 @@ sub parse_digs_control_file {
 	}
 		
 	# For configurations that require a screening database
-	unless ($option eq 9) {  # Load screening database
+	unless ($option eq 8 or  $option eq 1 or  $option eq 9) { 
+		 # Load screening database
 		my $db_name = $loader_obj->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -235,10 +241,8 @@ sub create_screening_db {
 	my ($self, $ctl_file) = @_;
 
 	# Get parameters
-	unless ($ctl_file) { die; }  # Sanity checking
-	print "\n\t ### Reading control file\n";
-	my $loader_obj = ScreenBuild->new($self);
-	$loader_obj->parse_control_file($ctl_file);
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name)  { die; } 
 		
@@ -731,39 +735,6 @@ sub initialise_reassign {
 }
 
 ############################################################################
-# SECTION: Retrieve data from screening database
-############################################################################
-
-#***************************************************************************
-# Subroutine:  retrieve 
-# Description: retrieve data from screening database
-#***************************************************************************
-sub retrieve {
-
-	my ($self, $ctl_file) = @_;
-
-	# Get params from self	
-	my $select = $self->{select_list};
-	my $where  = $self->{where_statement};
-	unless ($select) { die; }
-
-	my $db = $self->{db};
-	my @select;
-	my @tmp  = split(/,/, $select);
-	foreach my $field (@tmp) {
-		$field =~ s/\s+//;
-		push (@select, $field);
-	}
-	#$devtools->print_array(\@select); die;
-
-	# Get params from self	
-	my @sequences;
-	$db->retrieve_sequences(\@sequences, \@select, $where);
-	my $seqfile = 'sequences.fa';
-	$fileio->write_file($seqfile, \@sequences);
-}
-
-############################################################################
 # SECTION: Consolidate Fxns
 ############################################################################
 
@@ -1111,15 +1082,17 @@ sub show_title {
 sub show_help_page {
 	
 	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t -m=1  create a screening DB"; 
+	my ($HELP)  = "\n\t  usage: $0 m=[option] -i=[control file]\n";
+        $HELP  .= "\n\t -m=1  create a screening DB"; 
 		$HELP  .= "\n\t -m=2  execute a round of paired BLAST screening"; 
-		$HELP  .= "\n\t -m=3  summarise a screening DB"; 
-		$HELP  .= "\n\t -m=4  retrieve FASTA sequences from a screening DB"; 
-		$HELP  .= "\n\t -m=5  reassign sequences after reference sequence library update"; 
-		$HELP  .= "\n\t -m=6  flush a screening DB"; 
-		$HELP  .= "\n\t -m=7  drop a screening DB"; 
-		$HELP  .= "\n\t -m=8  summarise genome data in the target genome directory"; 
+		$HELP  .= "\n\t -m=3  defragment hits (create loci table)"; 
+		$HELP  .= "\n\t -m=4  reassign sequences (e.g. after reference library update)"; 
+		$HELP  .= "\n\t -m=5  flush a screening DB"; 
+		$HELP  .= "\n\t -m=6  drop a screening DB"; 
+		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
+		$HELP  .= "\n\t -m=8  summarise target genome directory"; 
 		$HELP  .= "\n\t -m=9  summarise GLUE reference library"; 
+		$HELP  .= "\n\t -m=10 retrieve data from a screening DB"; 
 		$HELP  .= "\n\n";
 	print $HELP;
 }

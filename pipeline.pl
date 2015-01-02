@@ -44,6 +44,8 @@ use DIGS::ScreeningDB;
 
 # GLUE framework modules
 use GLUE::RefSeqLibrary; # Functions to set up screen
+use GLUE::RefSeqParser;  # GLUE RefSeq parsing
+use GLUE::RefSeq;        # GLUE RefSeq
 
 ############################################################################
 # Paths & Globals
@@ -135,6 +137,7 @@ sub main {
 	}
 	elsif ($mode) { # Hand off to Pipeline.pm
 		$pipeline_obj->run_digs_function($mode, $infile); 
+		print "\n\t # Exit\n\n";
 	}
 	else {
 		die $USAGE;

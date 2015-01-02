@@ -702,7 +702,7 @@ sub get_translated_orfs {
 
 #***************************************************************************
 # Subroutine:  get_utrs
-# Description: 
+# Description: get the untranslated regions for this refseq
 #***************************************************************************
 sub get_utrs {
 

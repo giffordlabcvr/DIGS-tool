@@ -86,6 +86,33 @@ sub set_up_screen  {
 	$self->create_output_directories($pipeline_obj);
 	
 	# Set up the reference library
+	$self->setup_reference_library($pipeline_obj);
+
+	# Set up the probes
+	my @probes;
+	$self->setup_blast_probes(\@probes);
+
+	# Set up the target sequences to screen
+	my %targets;
+	$self->set_targets(\%targets);
+	
+	# Create the list of BLAST queries for screening
+	my $num = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	return $num; # Return the number of paired BLAST queries created
+}
+
+############################################################################
+# SET REFERENCE LIBRARY FOR RECIPROCAL BLAST
+############################################################################
+
+#***************************************************************************
+# Subroutine:  setup_reference_library
+# Description: handler for reference library set up
+#***************************************************************************
+sub setup_reference_library {
+	
+	my ($self, $pipeline_obj) = @_;
+
 	if ($self->{reference_aa_fasta}) {
 		$self->load_aa_fasta_reference_library();
 	}
@@ -98,53 +125,10 @@ sub set_up_screen  {
 	else { 
 		die "\n\t No reference sequences found for screen\n\n\n";
 	}
-
-	# Set up the probes
-	print "\n\n\t ### Setting up the sequence 'probes' for screening";
-	my @probes;
-	if ($self->{query_aa_fasta}) {
-		$self->load_aa_fasta_probes(\@probes);
-	}
-	elsif ($self->{query_na_fasta}) {
-		$self->load_nt_fasta_probes(\@probes);
-	}
-	elsif ($self->{query_glue}) {
-		$self->load_glue_probes(\@probes);
-	}
-	else { 
-		die "\n\t No probes found for screen\n\n\n";
-	}
+	# Set the paths to the BLAST-formatted libraries
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
-
-	# Set up the target sequences to screen
-	print "\n\n\t ### Getting the target sequences to screen";
-	my %targets;
-	$self->set_targets(\%targets);
-	
-	# Initialise target sequence library
-	my $genome_obj = TargetDB->new($self); 
-	$genome_obj->refresh_genomes(\%targets);
-
-	# Create the list of BLAST queries for screening
-	print "\n\n\t ### Creating the BLAST queries\n";
-	my $db = $pipeline_obj->{db};
-	unless ($db) { die; }
-	my $num = $self->set_queries($db, \@probes, \%targets, $queries_ref);
-	#$devtools->print_hash($queries_ref); die;	# DEBUG
-	unless ( $num ) {
-		print "\n\n\t ### No screening queries were loaded\n";
-		return 0;
-	}
-	else {
-		print "\n\n\t ### $num screening queries were loaded\n";
-	}
-	return 1;
 }
-
-############################################################################
-# SET REFERENCE LIBRARY FOR RECIPROCAL BLAST
-############################################################################
 
 #***************************************************************************
 # Subroutine:  load_aa_fasta_reference_library
@@ -238,6 +222,67 @@ sub load_nt_fasta_reference_library {
 }
 
 #***************************************************************************
+# Subroutine:  load_glue_reference_library 
+# Description: 
+#***************************************************************************
+sub load_glue_reference_library {
+	
+	my ($self, $queries_ref) = @_;
+
+	my $report_dir  = $self->{output_path};
+	my $refseq_lib = RefSeqLibrary->new($self);
+	my %refseq_library;
+	my $path = $self->{reference_glue};
+	$refseq_lib->load_glue_reference_library(\%refseq_library, $path);
+
+	# Set up library
+	my $parser_obj  = RefSeqParser->new();
+	my $i = 0;
+	my @refseq_names = keys %refseq_library;
+	my $num_refseqs = scalar @refseq_names;
+	print "\n\n\t GLUE reference library: '$num_refseqs' sequences";
+	my @ref_fasta_nt;
+	my @ref_fasta_aa;
+	foreach my $refseq_name (@refseq_names) {
+		
+		$i++;
+		my $refseq = $refseq_library{$refseq_name};	
+	
+		# Get the translated ORFs
+		my %orf_sequences;
+		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
+		
+		# Get the untranslated ORFs
+		my %utr_sequences;
+		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
+		#$devtools->print_hash(\%utr_sequences); die;
+
+		my @orf_names = keys %orf_sequences;
+		foreach my $orf_name (@orf_names) {
+			my $orf_seq = $orf_sequences{$orf_name};
+			my $name = $refseq_name . "_$orf_name";
+			my $fasta = ">$name\n$orf_seq\n\n";
+			push (@ref_fasta_aa, $fasta);
+		}
+		
+		# Iterate through UTRs and add those
+		my @utr_names = keys %utr_sequences;
+		foreach my $utr_name (@utr_names) {
+			my $utr_seq = $utr_sequences{$utr_name};
+			my $name = $refseq_name . "_$utr_name";
+			my $fasta = ">$name\n$utr_seq\n\n";
+			push (@ref_fasta_nt, $fasta);
+		}
+	}
+
+	# Create the libraries
+	my $num_ref_fasta_nt = scalar @ref_fasta_nt;
+	my $num_ref_fasta_aa = scalar @ref_fasta_aa;
+	if ($num_ref_fasta_nt) { $self->create_blast_nt_lib(\@ref_fasta_nt); }
+	if ($num_ref_fasta_aa) { $self->create_blast_aa_lib(\@ref_fasta_aa); }
+}
+
+#***************************************************************************
 # Subroutine:  create_blast_aa_lib
 # Description: create protein sequence library for reciprocal BLAST
 #***************************************************************************
@@ -308,120 +353,85 @@ sub create_blast_nt_lib {
 }
 
 ############################################################################
-# SET TARGET SEQUENCE FILES (i.e. files of contigs)
-############################################################################
-
-#***************************************************************************
-# Subroutine:  set_targets
-# Description: get information about the target sequence data files
-#***************************************************************************
-sub set_targets {
-	
-	my ($self, $targets_ref) = @_;
-
-	# Iterate through targets set target file paths
-	my %paths;
-	my %target_data;
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_paths_ref = $self->{target_paths};
-	unless ($target_paths_ref) { die; } 
-	foreach my $path (@$target_paths_ref) {
-		
-		my $full_path = $genome_use_path . "/$path";	
-		#print "\n\t Opening $full_path"; die;
-		my $exists = $fileio->check_directory_exists($full_path);
-		my @leaves;
-		if ($exists) {
-		    #print "\n\t Reading leaves for PATH $full_path";
-			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
-			#$devtools->print_array(\@leaves); die;
-		}
-		else {
-			#die "\n\t # Couldn't open directory '$path'\n\n\n";
-			$path =~ s/\/\//\//g;
-			my @path = split(/\//, $path);
-			my $file = pop @path;
-			my %file;
-			$file{file} = $file;
-			$file{path} = $full_path;
-			push (@leaves, \%file);
-		}
-		$self->read_genome_files(\@leaves, $targets_ref);		
-	}
-	my @keys = keys %$targets_ref;
-	my $unique_targets = scalar @keys;
-	print "\n\n\t   '$unique_targets' FASTA formatted target files identified in target directory";
-	#$devtools->print_hash($targets_ref); die; # DEBUG
-}
-
-
-#***************************************************************************
-# Subroutine:  read genome files
-# Description: processes the top level (leaves) of the genome directory
-#***************************************************************************
-sub read_genome_files {
-	
-	my ($self, $leaves_ref, $targets_ref) = @_;
-
-	foreach my $file_ref (@$leaves_ref) {
-
-		my $file = $file_ref->{file};
-		my $path = $file_ref->{path};
-	
-		my $file_type = $fileio->get_infile_type($file);
-		#if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
-		if ($file_type eq 'fa') {
-			
-			my %path_elements;
-			$self->get_path_elements(\%path_elements, $path); 
-			
-			my $organism     = $path_elements{organism};
-			my $data_type    = $path_elements{data_type};
-			my $version      = $path_elements{version};
-			unless ($organism and $data_type and $version) { die; }
-			my @target = ( $organism , $data_type, $version, $file );
-			my $target_id = join ('|', @target);
-			#print "\n\t KEY $target_id"; die;
-
-			# Store using key
-			my %data;
-			$data{file}      = $file;
-			$data{path}      = $path;
-			$data{organism}  = $organism;
-			$data{version}   = $version;
-			$data{data_type} = $data_type;
-			$data{group}     = $path_elements{group};
-			$targets_ref->{$target_id} = \%data;	
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get_path_elements
-# Description: get the directory names within a genome path string 
-#***************************************************************************
-sub get_path_elements {
-	
-	my ($self, $elements_ref, $path) = @_;
-
-	#print "\n\t PATH '$path'";
-	$path =~ s/\/\//\//g;
-	my @path = split(/\//, $path);
-	my $file     = pop @path;
-	my $version  = pop @path;
-	my $type     = pop @path;
-	my $organism = pop @path;
-	my $group    = pop @path;
-	$elements_ref->{organism}  = $organism;
-	$elements_ref->{version}   = $version;
-	$elements_ref->{data_type} = $type;
-	$elements_ref->{group}     = $group;
-	$elements_ref->{file}      = $file;
-}
-
-############################################################################
 # SET UP PROBES
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  setup_blast_probes
+# Description: handler for setting up probes for a screen
+#***************************************************************************
+sub setup_blast_probes {
+	
+	my ($self, $probes_ref) = @_;
+
+	print "\n\n\t ### Setting up the sequence 'probes' for screening";
+	if ($self->{query_aa_fasta}) {
+		$self->load_aa_fasta_probes($probes_ref);
+	}
+	elsif ($self->{query_na_fasta}) {
+		$self->load_nt_fasta_probes($probes_ref);
+	}
+	elsif ($self->{query_glue}) {
+		$self->load_glue_query($probes_ref);
+	}
+	else { 
+		die "\n\t No probes found for screen\n\n\n";
+	}
+	#$devtools->print_array(\@probes); die;	# DEBUG
+}
+
+#***************************************************************************
+# Subroutine:  load_glue_query
+# Description: 
+#***************************************************************************
+sub load_glue_query {
+	
+	my ($self, $probes_ref) = @_;
+
+	my $refseq_lib = RefSeqLibrary->new($self);
+	my %refseq_library;
+	my $path = $self->{query_glue};
+	$refseq_lib->load_glue_reference_library(\%refseq_library, $path);
+
+	# Get cutoffs
+	my $bit_score_min_tblastn = $self->{bit_score_min_tblastn};
+	my $bit_score_min_blastn  = $self->{bit_score_min_blastn};
+	
+	my $i = 0;
+	my @query_fasta;
+	my @na_query_fasta;
+	my @refseqs = keys %refseq_library;
+	foreach my $refseq_name (@refseqs) {
+		
+		my $refseq = $refseq_library{$refseq_name};
+
+		# Get the translated ORFs
+		my %orf_sequences;
+		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
+		
+		# Get the untranslated regions
+		my %utr_sequences;
+		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
+		#$devtools->print_hash(\%utr_sequences); die;
+
+		# ADD THE ORF SEARCHES
+		my @orf_names = keys %orf_sequences;
+		unless ($bit_score_min_tblastn) { die; }
+		foreach my $orf_name (@orf_names) {
+			my $aa_seq   = $orf_sequences{$orf_name};
+			$self->add_aa_probe($probes_ref, $refseq_name, $orf_name, $aa_seq);
+		}
+	
+		# Iterate through UTRs and add those
+		my @utr_names = keys %utr_sequences;
+		unless ($bit_score_min_blastn) { die; }
+		foreach my $utr_name (@utr_names) {
+			my $utr_seq = $utr_sequences{$utr_name};
+			$self->add_na_probe($probes_ref, $refseq_name, $utr_name, $utr_seq);
+		}
+	}
+	#$devtools->print_array($probes_ref); die;	# DEBUG
+}
 
 #***************************************************************************
 # Subroutine:  load_aa_fasta_probes
@@ -540,87 +550,6 @@ sub parse_fasta_header_data {
 }
 
 #***************************************************************************
-# Subroutine:  load_glue_query
-# Description: 
-#***************************************************************************
-sub load_glue_query {
-	
-	my ($self, $queries_ref) = @_;
-
-	my $db_ref      = $self->{db};
-	my $report_dir  = $self->{output_path};
-	my $tmp_path    = $self->{tmp_path};
-	my $query_vglue = $self->{query_vglue};
-	unless ($query_vglue) { die "<BR>NO ARGUMENTS RECIEVED<BR>"; }
-	
-	# Set up library
-	my $parser_obj  = RefSeqParser->new();
-	my @refseqs;
-	my $status = $parser_obj->split_vglue_ref_file($query_vglue, \@refseqs);
-	unless ($status) { die "\n\t Input error: couldn't open query VGLUE file\n\n"; }
-	my $num_refseqs = scalar @refseqs;
-	print "\n\t Total of '$num_refseqs' GLUE formatted references sequences to use as probes";
-	#$devtools->print_array(\@refseqs); die;
-	#my $refseq_table = $db_ref->{reference_seqs_table};
-
-	my @query_fasta;
-	my @na_query_fasta;
-	
-	# Get cutoffs
-	my $bit_score_min_tblastn = $self->{bit_score_min_tblastn};
-	my $bit_score_min_blastn  = $self->{bit_score_min_blastn};
-	
-	my $i = 0;
-	foreach my $refseq_ref (@refseqs) {
-		
-		# Step 1: parse the refseq file and capture data in %params
-		$i++;
-		my $refseq_file = $report_dir . 'tmp.vglue';
-		$fileio->write_output_file($refseq_file, $refseq_ref);
-		my %params;
-		$parser_obj->parse_refseq_flatfile($refseq_file, \%params);
-
-		# Step 2: create the reference sequence object using %params
-		my $refseq = RefSeq->new(\%params);
-		#$refseq->describe();
-		my $virus_name = $refseq->{name};
-		print "\n\t Loading query refseq $i:  '$virus_name'";
-		
-		# Get the translated ORFs
-		my %orf_sequences;
-		$refseq->get_translated_orfs(\%orf_sequences); # Get orfs nucleic acid seqs 
-		
-		# Get the translated ORFs
-		my %utr_sequences;
-		$refseq->get_utrs(\%utr_sequences); # Get orfs nucleic acid seqs 
-		#$devtools->print_hash(\%utr_sequences); die;
-
-		# ADD THE ORF SEARCHES
-		my @orf_names = keys %orf_sequences;
-		my $orf_search = $self->{orf_search};
-		if ($orf_search) {
-			unless ($bit_score_min_tblastn) {die; }
-			foreach my $orf_name (@orf_names) {
-				my $orf_seq = $orf_sequences{$orf_name};
-			}
-		}	
-		
-		# Iterate through UTRs and add those
-		my $utr_search = $self->{utr_search};
-		my @utr_names = keys %utr_sequences;
-		if ($utr_search) {
-
-			unless ($bit_score_min_blastn) {die; }
-			foreach my $utr_name (@utr_names) {
-				my $utr_seq = $utr_sequences{$utr_name};
-				#print "\n\t ############### $utr_name";
-				#print "\n\t ############### $utr_seq\n\n";
-			}
-		}
-	}
-}
-
-#***************************************************************************
 # Subroutine:  add_aa_probe
 # Description: add an amino acid probe sequence to a BLAST query definition 
 #***************************************************************************
@@ -662,7 +591,7 @@ sub add_na_probe {
 }
 
 ############################################################################
-# SET UP QUERIES FOR SCREENING
+# CREATE THE LIST OF PAIRED BLAST QUERIES FOR SCREENING
 ############################################################################
 
 #***************************************************************************
@@ -671,8 +600,12 @@ sub add_na_probe {
 #***************************************************************************
 sub set_queries {
 	
-	my ($self, $db_obj, $probes_ref, $targets_ref, $queries_ref) = @_;
+	my ($self, $pipeline_obj, $probes_ref, $targets_ref, $queries_ref) = @_;
 
+	print "\n\n\t ### Creating the BLAST queries\n";
+	my $db = $pipeline_obj->{db};
+	unless ($db) { die; }
+	
 	# Get data from self
 	my $report_dir = $self->{report_dir};
 	my $tmp_path   = $self->{tmp_path};
@@ -681,14 +614,13 @@ sub set_queries {
 
 	# Work out the current state with respect to searches performed
 	my %done;
-	$db_obj->index_previously_executed_queries(\%done);
+	$db->index_previously_executed_queries(\%done);
 
 	# Get relevant member variables and objects
 	my $path;
 	my $num_probes = scalar @$probes_ref;
-	unless ($num_probes) {
-		die "\n\t no probes found\n\n\n";
-	}
+	unless ($num_probes) { die "\n\t no probes found\n\n\n"; }
+
 	my $i;
 	foreach my $probe_ref (@$probes_ref) {
 		my $blast_alg       = $probe_ref->{blast_alg};
@@ -758,8 +690,111 @@ sub set_queries {
 			}
 		}
 	}
+
+	unless ($i) {
+		print "\n\n\t ### No screening queries were loaded\n";
+	}
+	else {
+		print "\n\t\t $i paired BLAST queries were loaded\n";
+	}
+
 	#$devtools->print_hash($queries_ref); die; # DEBUG
 	return $i;
+}
+
+############################################################################
+# SET TARGET SEQUENCE FILES (i.e. files of contigs)
+############################################################################
+
+#***************************************************************************
+# Subroutine:  set_targets
+# Description: get information about the target sequence data files
+#***************************************************************************
+sub set_targets {
+	
+	my ($self, $targets_ref) = @_;
+
+	# Initialise target sequence library
+	my $genome_obj = TargetDB->new($self); 
+	$genome_obj->refresh_genomes($targets_ref);
+	
+	# Iterate through targets set target file paths
+	my %paths;
+	my %target_data;
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_paths_ref = $self->{target_paths};
+	unless ($target_paths_ref) { die; } 
+	print "\n\n\t ### Getting the target sequences to screen";
+	foreach my $path (@$target_paths_ref) {
+		
+		my $full_path = $genome_use_path . "/$path";	
+		#print "\n\t Opening $full_path"; die;
+		my $exists = $fileio->check_directory_exists($full_path);
+		my @leaves;
+		if ($exists) {
+		    #print "\n\t Reading leaves for PATH $full_path";
+			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
+			#$devtools->print_array(\@leaves); die;
+		}
+		else {
+			#die "\n\t # Couldn't open directory '$path'\n\n\n";
+			$path =~ s/\/\//\//g;
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my %file;
+			$file{file} = $file;
+			$file{path} = $full_path;
+			push (@leaves, \%file);
+		}
+		$self->read_genome_files(\@leaves, $targets_ref);		
+	}
+	my @keys = keys %$targets_ref;
+	my $unique_targets = scalar @keys;
+	print "\n\n\t   '$unique_targets' FASTA formatted target files identified in target directory";
+	#$devtools->print_hash($targets_ref); die; # DEBUG
+}
+
+#***************************************************************************
+# Subroutine:  read genome files
+# Description: processes the top level (leaves) of the genome directory
+#***************************************************************************
+sub read_genome_files {
+	
+	my ($self, $leaves_ref, $targets_ref) = @_;
+
+	foreach my $file_ref (@$leaves_ref) {
+
+		my $file = $file_ref->{file};
+		my $path = $file_ref->{path};
+	
+		my $file_type = $fileio->get_infile_type($file);
+		#if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
+		if ($file_type eq 'fa') {
+			
+			#print "\n\h'";
+			$path =~ s/\/\//\//g;
+			my @path = split(/\//, $path);
+			my $file     = pop @path;
+			my $version  = pop @path;
+			my $type     = pop @path;
+			my $organism = pop @path;
+			my $group    = pop @path;
+			unless ($organism and $type and $version) { die; }
+			my @target = ( $organism , $type, $version, $file );
+			my $target_id = join ('|', @target);
+			#print "\n\t KEY $target_id"; die;
+
+			# Store using key
+			my %data;
+			$data{file}      = $file;
+			$data{path}      = $path;
+			$data{organism}  = $organism;
+			$data{version}   = $version;
+			$data{data_type} = $type;
+			$data{group}     = $group;
+			$targets_ref->{$target_id} = \%data;	
+		}
+	}
 }
 
 ############################################################################
@@ -776,7 +811,7 @@ sub create_output_directories {
 
 	# Get process ID to create unique output directory
 	my $process_id   = $self->{process_id};
-	print "\n\n\t ### Screening process ID is '$process_id'";
+	print "\n\n\t ### Screening process ID is '$process_id'\n";
 	
 	# Create a unique ID and report directory for this run
 	my $output_path = $self->{output_path};
@@ -876,15 +911,17 @@ sub parse_screensets_block {
 	my $tblastn_min        = $self->{bit_score_min_tblastn};
 	my $blastn_min         = $self->{bit_score_min_blastn};
 	my $query_aa_fasta     = $self->{query_aa_fasta};
-	my $query_na_fasta     = $self->{query_na_fasta};
 	my $reference_aa_fasta = $self->{reference_aa_fasta};
+	my $query_na_fasta     = $self->{query_na_fasta};
 	my $reference_na_fasta = $self->{reference_na_fasta};
+	my $query_glue         = $self->{query_glue};
+	my $reference_glue     = $self->{reference_glue};
 	my $redundancy_mode    = $self->{redundancy_mode};
 	my $threadhit_probe_buffer = $self->{threadhit_probe_buffer};
 	my $threadhit_gap_buffer   = $self->{threadhit_gap_buffer};
 	my $threadhit_max_gap      = $self->{threadhit_max_gap};
 
-	# Check the probe files and correspondence to parameters for BLAST
+	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
 		# Check if BLAST bitscore or evalue minimum set
 		unless ($blastn_min) { # Set to default minimum
@@ -896,6 +933,7 @@ sub parse_screensets_block {
 		# Validate query FASTA sequence data
 		$self->validate_reflib_fasta('aa', $reference_aa_fasta);
 	}
+	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_na_fasta) {
 		unless ($tblastn_min) { # Set to default minimum
 			$self->{bit_score_min_tblastn} = $default_tblastn_min;
@@ -906,7 +944,11 @@ sub parse_screensets_block {
 		# Validate query FASTA sequence data
 		$self->validate_reflib_fasta('na', $reference_aa_fasta);
 	}
-	unless ($query_aa_fasta or $query_na_fasta) {
+	# Validation for a GLUE-based screen
+	if ($query_glue) {
+		# TODO
+	}
+	unless ($query_aa_fasta or $query_na_fasta or $query_glue) {
 		die "\n\t Control file error: no probe library defined\n\n\n";
 	}
 	unless ($redundancy_mode) {
@@ -973,11 +1015,13 @@ sub parse_screensql_block {
 
 #***************************************************************************
 # Subroutine:  validate_reflib_fasta
-# Description: 
+# Description: TODO 
 #***************************************************************************
 sub validate_reflib_fasta {
 
 	my ($self, $seq_type, $file_path) = @_;
+
+
 
 }
 
