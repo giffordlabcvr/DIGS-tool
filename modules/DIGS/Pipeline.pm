@@ -512,6 +512,7 @@ sub do_reverse_blast {
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
 	my @results;
 	$blast_obj->parse_tab_format_results($result_file, \@results);
+	#$devtools->print_array(\@results); die; # DEBUG 	
 
 	# Get the best match from this file
 	my $top_match = shift @results;

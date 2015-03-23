@@ -213,7 +213,7 @@ sub do_align_data_dialogue {
 
 	# Instantiate main program classes using global settings
 	my $glue_obj = GLUE->new($self);
-	$glue_obj->{refseq_path};
+	#$glue_obj->{refseq_path};
 
 	$glue_obj->{query_fasta} = $fasta_sequences;
 	$glue_obj->{data_path} = $sequence_data;
