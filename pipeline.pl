@@ -5,18 +5,17 @@
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
-unless ($ENV{DIGS}) {
-	print  "\n\n\t Environment variable '\$DIGS' is undefined\n";
-	print  "(path to this directory)\n\n\n";
+unless ($ENV{DIGS_HOME}) {
+	print  "\n\n\t Environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
-unless ($ENV{GENOMES}) {
-	print  "\n\n\t Environment variable '\$GENOMES' is undefined\n";
-	print  "(path to directory containing target sequence files)\n\n\n";
+unless ($ENV{DIGS_GENOMES}) {
+	print  "\n\n\t Environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-# Include a local library of PERL modules 
-use lib ($ENV{DIGS}) . '/modules/'; 
+
+# Include the PERL module library for DIGS 
+use lib ($ENV{DIGS_HOME}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -52,18 +51,17 @@ use GLUE::RefSeq;        # GLUE RefSeq
 ############################################################################
 
 # Paths
-#my $blast_bin_path       = $ENV{DIGS} . '/bin/blast/';  # Example
-my $blast_bin_path        = '';              # Path to directory with BLAST+ programs
-                                             # leave blank if BLAST+ programs in path 
-#my $genome_use_path       = $ENV{DIGS} . '/targets/';   # genome data directory
-my $genome_use_path       = $ENV{GENOMES} . '/';        # genome data directory
-my $output_path           = $ENV{DIGS} . '/proc/';      # default process directory
-	
-# Process ID and time - used to create a unique ID for each program run
+my $output_path     = $ENV{DIGS_HOME} . 'output/';  
+my $genome_use_path = $ENV{DIGS_GENOMES};    
+my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
+
+# Version number	
+my $program_version = '1.0';
+
+# Create a unique process ID for this DIGS screening process
 my $pid  = $$;
 my $time = time;
 my $process_id  = $pid . '_' . $time;
-my $program_version = '1.0';
 
 ############################################################################
 # Instantiations
