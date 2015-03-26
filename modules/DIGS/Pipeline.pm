@@ -193,6 +193,7 @@ sub parse_digs_control_file {
 	$self->{server}                 = $loader_obj->{mysql_server};
 	$self->{password}               = $loader_obj->{mysql_password};
 	$self->{username}               = $loader_obj->{mysql_username};
+	$self->{output_path}            = $loader_obj->{output_path};
 	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
 	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
 	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};

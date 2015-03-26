@@ -51,8 +51,7 @@ use GLUE::RefSeq;        # GLUE RefSeq
 ############################################################################
 
 # Paths
-my $output_path     = $ENV{DIGS_HOME} . 'output/';  
-my $genome_use_path = $ENV{DIGS_GENOMES};    
+my $genome_use_path = $ENV{DIGS_GENOMES} . '/';    
 my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
 
 # Version number	
@@ -84,7 +83,6 @@ $params{program_version}    = $program_version;
 $params{process_id}         = $process_id;
 $params{blast_bin_path}     = $blast_bin_path; 
 $params{genome_use_path}    = $genome_use_path;
-$params{output_path}        = $output_path; 
 $params{blast_obj}          = $blast_obj;
 my $pipeline_obj = Pipeline->new(\%params);
 

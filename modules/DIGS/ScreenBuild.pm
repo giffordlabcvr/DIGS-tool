@@ -58,7 +58,6 @@ sub new {
 		
 		# Member variables
 		process_id           => $parameter_ref->{process_id},
-		output_path          => $parameter_ref->{output_path},
 		
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
@@ -920,7 +919,11 @@ sub parse_screensets_block {
 	my $threadhit_probe_buffer = $self->{threadhit_probe_buffer};
 	my $threadhit_gap_buffer   = $self->{threadhit_gap_buffer};
 	my $threadhit_max_gap      = $self->{threadhit_max_gap};
+	my $output_path      = $self->{output_path};
 
+	unless ($output_path) {
+		print "\n\t Warning no output path defined, results folder will be created in current directory\n\n\n";
+	}
 	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
 		# Check if BLAST bitscore or evalue minimum set
