@@ -159,6 +159,7 @@ sub load_aa_fasta_reference_library {
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
+			$header  =~ s/\s+/_/g;
 			my %header_data;
 			my $valid = $self->parse_fasta_header_data($header, \%header_data);
 			if ($valid) {
@@ -270,13 +271,20 @@ sub load_glue_reference_library {
 			my $utr_seq = $utr_sequences{$utr_name};
 			my $name = $refseq_name . "_$utr_name";
 			my $fasta = ">$name\n$utr_seq\n\n";
+			my $utr_len = length $utr_seq;
+			unless ($utr_len) { next; }
 			push (@ref_fasta_nt, $fasta);
 		}
 	}
 
 	# Create the libraries
-	my $num_ref_fasta_nt = scalar @ref_fasta_nt;
-	my $num_ref_fasta_aa = scalar @ref_fasta_aa;
+	my $num_ref_fasta_nt = 0;
+	my $num_ref_fasta_aa = 0;
+	$num_ref_fasta_nt = scalar @ref_fasta_nt;
+	$num_ref_fasta_aa = scalar @ref_fasta_aa;
+	print "\n\n\t '$num_ref_fasta_nt' NA references loaded";
+	print "\n\t '$num_ref_fasta_aa' AA references loaded\n\n";
+
 	if ($num_ref_fasta_nt) { $self->create_blast_nt_lib(\@ref_fasta_nt); }
 	if ($num_ref_fasta_aa) { $self->create_blast_aa_lib(\@ref_fasta_aa); }
 }
@@ -343,6 +351,7 @@ sub create_blast_nt_lib {
 
 	# Execute command
 	my $makedb_cmd = "$bin_path -in $nt_lib_path -dbtype nucl> /dev/null";
+	#print $makedb_cmd;
 	my $result = system $makedb_cmd;
 	if ($result) {
 		#print "\n\t $makedb_cmd \n\n"; die;	
@@ -527,6 +536,7 @@ sub parse_fasta_header_data {
 	$header =~ s/<//g;
 	$header =~ s/>//g;
 	$header =~ s/'//g;
+	$header =~ s/\s+//g;
 
 	# Retrieve data from the header line
 	my @header = split (/_/, $header);
@@ -611,6 +621,11 @@ sub set_queries {
 	unless ($report_dir and $tmp_path) { die; } 
 	#$devtools->print_hash($targets_ref); #die; # DEBUG
 
+	# Get the target database information
+	my @target_names = sort keys %$targets_ref;
+	my $num_targets = scalar @target_names;
+	unless ($num_targets) { die "\n\t No target databases found\n\n\n";	}
+
 	# Work out the current state with respect to searches performed
 	my %done;
 	$db->index_previously_executed_queries(\%done);
@@ -638,11 +653,6 @@ sub set_queries {
 		$probe_ref->{result_path}  = $tmp_path;
 
 		# Iterate through targets
-		my @target_names = sort keys %$targets_ref;
-		my $num_targets = scalar @target_names;
-		unless ($num_targets) {
-			die "\n\t no targets found\n\n\n";
-		}
 		foreach my $target_name (@target_names) {
 			
 			# Get target data
@@ -723,11 +733,11 @@ sub set_targets {
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
 	unless ($target_paths_ref) { die; } 
-	print "\n\n\t ### Getting the target sequences to screen";
+	print "\n\n\t ### Getting the target sequences to screen\n";
 	foreach my $path (@$target_paths_ref) {
 		
 		my $full_path = $genome_use_path . "/$path";	
-		#print "\n\t Opening $full_path"; die;
+		#print "\n\t Opening $full_path";
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
 		if ($exists) {
@@ -749,7 +759,9 @@ sub set_targets {
 	}
 	my @keys = keys %$targets_ref;
 	my $unique_targets = scalar @keys;
-	print "\n\n\t   '$unique_targets' FASTA formatted target files identified in target directory";
+	unless ($unique_targets) { die "\n\t No target databases found\n\n\n";	}
+	
+	print "\n\n\t '$unique_targets' FASTA formatted target files identified in target directory";
 	#$devtools->print_hash($targets_ref); die; # DEBUG
 }
 
@@ -770,7 +782,6 @@ sub read_genome_files {
 		#if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
 		if ($file_type eq 'fa') {
 			
-			#print "\n\h'";
 			$path =~ s/\/\//\//g;
 			my @path = split(/\//, $path);
 			my $file     = pop @path;
@@ -781,7 +792,7 @@ sub read_genome_files {
 			unless ($organism and $type and $version) { die; }
 			my @target = ( $organism , $type, $version, $file );
 			my $target_id = join ('|', @target);
-			#print "\n\t KEY $target_id"; die;
+			print "\n\t Target: $target_id";
 
 			# Store using key
 			my %data;
@@ -851,6 +862,43 @@ sub parse_control_file {
 	
 	# READ the 'SCREENSQL' block
 	$self->parse_screensql_block(\@ctl_file);
+
+	# Transfer parameters from this object to the pipeline object
+	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
+	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
+	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
+	$pipeline_obj->{db_name}                = $self->{db_name};
+	$pipeline_obj->{server}                 = $self->{mysql_server};
+	$pipeline_obj->{password}               = $self->{mysql_password};
+	$pipeline_obj->{username}               = $self->{mysql_username};
+	$pipeline_obj->{output_path}            = $self->{output_path};
+	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
+	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
+	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
+	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
+	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
+	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
+	$pipeline_obj->{reference_glue}         = $self->{reference_glue};
+	$pipeline_obj->{query_glue}             = $self->{query_glue};
+	#$self->{tmp_path}               = $self->{tmp_path};
+	
+	# Screen SQL
+	my $select_list     = $self->{select_list};
+	my $where_statement = $self->{where_statement};
+	if ($select_list) {
+		#print "\n\t Loaded Select list '$select_list'";
+		$self->{select_list}  = lc $select_list;
+	}
+	if ($where_statement) {
+		#print "\n\t WHERE statement '$where_statement'";
+		$self->{where_statement} = lc $where_statement;
+	}
 
 }
 

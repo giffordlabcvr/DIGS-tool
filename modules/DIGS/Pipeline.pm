@@ -94,14 +94,16 @@ sub run_digs_function {
  	# Show title
 	$self->show_title();  
 
-	# Do initial set up and sanity checking
-	$self->initialise($option, $ctl_file);
+	# Do initial set up and sanity checking for options that require it
+	unless ($option eq 8) {  
+		$self->initialise($option, $ctl_file);
+	}
 
 	# Hand off to functions	based on options
 	if ($option eq 1)    { # Create a screening DB 
 		$self->create_screening_db($ctl_file);
 	}
-	elsif ($option eq 2) { # Hand off to functions 2-7, based on the options received
+	elsif ($option eq 2) { # Screen
 		$self->screen();	
 	}
 	elsif ($option eq 3) { # Defragment
@@ -123,16 +125,16 @@ sub run_digs_function {
 		$db->summarise_db();
 	}
 	elsif ($option eq 8) { # Summarise genomes 
+		my $retrieve_obj = Retrieve->new($self);
+		$retrieve_obj->run_data_retrieval_functions();
+	}
+	elsif ($option eq 9) { # Summarise GLUE reference sequence library 
 		my $genome_obj = TargetDB->new($self);
 		$genome_obj->summarise_genomes();    
 	}
-	elsif ($option eq 9) { # Summarise GLUE reference sequence library 
+	elsif ($option eq 10) { # Retrieve data
 		my $refseqlib_obj = RefSeqLibrary->new($self);
 		$refseqlib_obj->summarise_reference_library();    
-	}
-	elsif ($option eq 10) { # Retrieve data
-		my $retrieve_obj =Retrieve->new($self);
-		$retrieve_obj->run_data_retrieval_functions();
 	}
 }
 
@@ -150,87 +152,35 @@ sub initialise {
 	my ($self, $option, $ctl_file) = @_;
 	
 	# Validate configurations that require a control file
-	unless ($option eq 8) {  
 
-		# An infile must be defined
-		unless ($ctl_file) { 
-			die "\n\t Option '$option' requires an infile\n\n";
-		}
-		# Try opening control file
-		my @ctl_file;
-		my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-		unless ($valid) {  # Exit if we can't open the file
-			die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-		}
-		$self->{ctl_file}   = $ctl_file;
-		
-		# Parse the control file
-		$self->parse_digs_control_file($option, $ctl_file);	
+	# An infile must be defined
+	unless ($ctl_file) { 
+		die "\n\t Option '$option' requires an infile\n\n";
 	}
 
-	# Check the size of the process directory
-	#$self->check_process_dir_status();
-}
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+	}
 
-#***************************************************************************
-# Subroutine:  parse_digs_control_file 
-# Description: 
-#***************************************************************************
-sub parse_digs_control_file {
-
-	my ($self, $option, $ctl_file) = @_;
-
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file}   = $ctl_file;
 	print "\n\t ### Reading control file\n";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file, $self);
 	$self->{loader_obj} = $loader_obj;
 
-	# Transfer parameters from this object to the pipeline object
-	$self->{mysql_server}           = $loader_obj->{mysql_server};
-	$self->{mysql_username}         = $loader_obj->{mysql_username};
-	$self->{mysql_password}         = $loader_obj->{mysql_password};
-	$self->{db_name}                = $loader_obj->{db_name};
-	$self->{server}                 = $loader_obj->{mysql_server};
-	$self->{password}               = $loader_obj->{mysql_password};
-	$self->{username}               = $loader_obj->{mysql_username};
-	$self->{output_path}            = $loader_obj->{output_path};
-	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
-	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
-	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};
-	$self->{seq_length_minimum}     = $loader_obj->{seq_length_minimum};
-	$self->{bit_score_min_tblastn}  = $loader_obj->{bit_score_min_tblastn};
-	$self->{bit_score_min_blastn}   = $loader_obj->{bit_score_min_blastn};
-	$self->{blast_orf_lib_path}     = $loader_obj->{blast_orf_lib_path};
-	$self->{blast_utr_lib_path}     = $loader_obj->{blast_utr_lib_path};
-	$self->{redundancy_mode}        = $loader_obj->{redundancy_mode};
-	$self->{threadhit_probe_buffer} = $loader_obj->{threadhit_probe_buffer};
-	$self->{threadhit_gap_buffer}   = $loader_obj->{threadhit_gap_buffer};
-	$self->{threadhit_max_gap}      = $loader_obj->{threadhit_max_gap};
-	$self->{reference_glue}         = $loader_obj->{reference_glue};
-	$self->{query_glue}             = $loader_obj->{query_glue};
-	#$self->{tmp_path}               = $loader_obj->{tmp_path};
-	
-	# Screen SQL
-	my $select_list     = $loader_obj->{select_list};
-	my $where_statement = $loader_obj->{where_statement};
-	if ($select_list) {
-		#print "\n\t Loaded Select list '$select_list'";
-		$self->{select_list}  = lc $select_list;
-	}
-	if ($where_statement) {
-		#print "\n\t WHERE statement '$where_statement'";
-		$self->{where_statement} = lc $where_statement;
-	}
-		
-	# For configurations that require a screening database
-	unless ($option eq 8 or  $option eq 1 or  $option eq 9) { 
-		 # Load screening database
+	# For configurations that require one, load a screening database
+	if   ( $option > 1 and $option < 9) {
 		my $db_name = $loader_obj->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
 		$db_obj->load_screening_db($db_name);	
 		$self->{db} = $db_obj; # Store the database object reference 
 	}
+
 }
 
 #***************************************************************************
@@ -250,6 +200,7 @@ sub create_screening_db {
 	my $db_obj = ScreeningDB->new($loader_obj);
 	$db_obj->create_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
+
 }
 
 ############################################################################
@@ -282,7 +233,6 @@ sub screen {
 
 	# Iterate through and excute screens
 	print "\n\n\t ### Starting database-integrated genome screening\n";
-	sleep 2;
 	my @probes = keys %queries;
 	foreach my $probe_name (@probes) {
 		
@@ -304,7 +254,7 @@ sub screen {
 			print "\n\t # 2nd BLAST step completed, Extracted table up-to-date...";
 
 			# Summarise extracted table
-			$db_ref->summarise_extracted_table();	
+			#$db_ref->summarise_extracted_table();	
 		}	
 	}
 	
@@ -361,7 +311,9 @@ sub search {
 	# Parse out the alignment
 	my @hits;
 	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
-	
+
+	# TODO: catch error from BLAST and don't update Status table	
+
 	# Clean up - remove the result file
 	my $rm_command = "rm $result_file";
 	system $rm_command;
@@ -460,7 +412,7 @@ sub assign {
 	print "\n\t # Assigned $assigned_count newly extracted sequences";
 	unless ($blast_count eq $extracted_count) { 
 		print "\n\t # Extracted $extracted_count, BLAST_results count $blast_count";
-		die "\n\n\t\t ###### UNEVEN TABLE COUNT ERROR\n\n\n";
+		die "\n\n\t\t ###### UNEVEN TABLE COUNT ERROR AFTER ASSIGN\n\n\n";
 	}
 }
 
@@ -1025,31 +977,19 @@ sub update_db_loci {
 }
 
 ############################################################################
-# SECTION: Utility Fxns
+# SECTION: Defragment/Consolidation
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  check_process_dir_status
-# Description: check the size of the process directory and warn if it is
-#              getting very large 
+# Subroutine:  defragment
+# Description: 
 #***************************************************************************
-sub check_process_dir_status {
+sub defragment {
 
 	my ($self) = @_;
+	die;
+	# TODO: link Daniels functions in here
 
-	# Read in the process directory
-	my $output_path = $self->{output_path};
-	unless ($output_path) { die; }
-
-	my @process_dir;
-	$fileio->read_directory_to_array($output_path, @process_dir);
-	my $num_folders = scalar @process_dir;
-
-	if ($num_folders > $process_dir_warn) {
-		print "\n\t ### Process directory '$output_path' contains > $process_dir_warn items";
-		print "\n\t #     consider cleaning up the contents.";
-		sleep 2;
-	}
 }
 
 ############################################################################
@@ -1092,9 +1032,9 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=5  flush a screening DB"; 
 		$HELP  .= "\n\t -m=6  drop a screening DB"; 
 		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
-		$HELP  .= "\n\t -m=8  summarise target genome directory"; 
-		$HELP  .= "\n\t -m=9  summarise GLUE reference library"; 
-		$HELP  .= "\n\t -m=10 retrieve data from a screening DB"; 
+		$HELP  .= "\n\t -m=8  retrieve data from a screening DB"; 
+		$HELP  .= "\n\t -m=9  summarise target genome directory"; 
+		$HELP  .= "\n\t -m=10 summarise a GLUE-formatted reference sequence library"; 
 		$HELP  .= "\n\n";
 	print $HELP;
 }

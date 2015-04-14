@@ -34,6 +34,7 @@ use Base::FileIO;
 
 # Third party program interface modules
 use Interface::BLAST;   # Interface to BLAST 
+use Interface::MySQLtable;   # Interface to BLAST 
 
 # DIGS framework modules
 use DIGS::Pipeline;

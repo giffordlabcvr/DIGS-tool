@@ -63,7 +63,6 @@ sub blast {
 		
 	# Get paths from self
 	my $blast_path  = $self->{blast_bin_path};
-
 	my $word_size   = $options_ref->{word_size}; 
 	my $evalue		= $options_ref->{evalue};
 	my $penalty     = $options_ref->{penalty};
@@ -109,7 +108,7 @@ sub blast {
 	$command .= "-outfmt $outfmt";
 
 	# Execute the command 
-	#print "\n\n $command"; die; # DEBUG
+	#print "\n\n $command"; # die; # DEBUG
 	system $command;		
 }
 
