@@ -92,7 +92,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file]\n\n";
+my ($USAGE) = "\n\t  usage: $0 -m=[option] -i=[control file]\n\n";
 
 ############################################################################
 # Main program
