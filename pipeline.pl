@@ -34,7 +34,6 @@ use Base::FileIO;
 
 # Third party program interface modules
 use Interface::BLAST;   # Interface to BLAST 
-use Interface::MySQLtable;   # Interface to BLAST 
 
 # DIGS framework modules
 use DIGS::Pipeline;
@@ -92,7 +91,7 @@ my $pipeline_obj = Pipeline->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE) = "\n\t  usage: $0 -m=[option] -i=[control file]\n\n";
+my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file]\n\n";
 
 ############################################################################
 # Main program
