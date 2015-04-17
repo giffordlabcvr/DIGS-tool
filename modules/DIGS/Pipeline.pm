@@ -80,14 +80,14 @@ sub new {
 }
 
 ############################################################################
-# SECTION: Handler functions 
+# SECTION: DIGS top level handler subroutines
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  run_digs_function
-# Description: handler for various utility processes 
+# Subroutine:  run_digs_process
+# Description: handler for main DIGS functions 
 #***************************************************************************
-sub run_digs_function {
+sub run_digs_process {
 
 	my ($self, $option, $ctl_file) = @_;
 
@@ -95,11 +95,24 @@ sub run_digs_function {
 	$self->show_title();  
 
 	# Do initial set up and sanity checking for options that require it
-	unless ($option eq 8) {  
-		$self->initialise($option, $ctl_file);
+	unless ($option eq 8) { # Validate configurations that require a control file
+		# An infile must be defined
+		unless ($ctl_file) { 
+			die "\n\t Option '$option' requires an infile\n\n";
+		}
+		$self->initialise($ctl_file);
 	}
 
-	# Hand off to functions	based on options
+	# For configurations that require one, load a screening database
+	if   ( $option > 1 and $option < 9) {
+		my $db_name = $self->{db_name};
+		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+		my $db_obj = ScreeningDB->new($self);
+		$db_obj->load_screening_db($db_name);	
+		$self->{db} = $db_obj; # Store the database object reference 
+	}
+
+	# Hand off to subroutines 
 	if ($option eq 1)    { # Create a screening DB 
 		$self->create_screening_db($ctl_file);
 	}
@@ -149,14 +162,7 @@ sub run_digs_function {
 #***************************************************************************
 sub initialise {
 
-	my ($self, $option, $ctl_file) = @_;
-	
-	# Validate configurations that require a control file
-
-	# An infile must be defined
-	unless ($ctl_file) { 
-		die "\n\t Option '$option' requires an infile\n\n";
-	}
+	my ($self, $ctl_file) = @_;
 
 	# Try opening control file
 	my @ctl_file;
@@ -170,16 +176,9 @@ sub initialise {
 	print "\n\t ### Reading control file\n";
 	my $loader_obj = ScreenBuild->new($self);
 	$loader_obj->parse_control_file($ctl_file, $self);
-	$self->{loader_obj} = $loader_obj;
 
-	# For configurations that require one, load a screening database
-	if   ( $option > 1 and $option < 9) {
-		my $db_name = $loader_obj->{db_name};
-		unless ($db_name) { die "\n\t Error: no DB name set \n\n\n"; }
-		my $db_obj = ScreeningDB->new($self);
-		$db_obj->load_screening_db($db_name);	
-		$self->{db} = $db_obj; # Store the database object reference 
-	}
+	# Store the ScreenBuild.pm object (used later for some configurations)
+	$self->{loader_obj} = $loader_obj; 
 
 }
 
@@ -923,7 +922,7 @@ sub inspect_adjacent_hits {
 
 #***************************************************************************
 # Subroutine:  update_db_loci  
-# Description:
+# Description: update the BLAST results in line with consolidation
 #***************************************************************************
 sub update_db_loci {
 	
@@ -982,15 +981,175 @@ sub update_db_loci {
 
 #***************************************************************************
 # Subroutine:  defragment
-# Description: 
+# Description:  
 #***************************************************************************
 sub defragment {
 
 	my ($self) = @_;
-	die;
-	# TODO: link Daniels functions in here
+	print "\n\t ### Consolidating hits into Loci\n";
+    # Set up for consolidation
+    my @scaffolds;
+    my @assigned_names;
+   	my %chunks;
+    $self->set_up_consolidation(\@scaffolds, \@assigned_names, \%chunks);
+    ####my $key = $version . '/' . $chunk_name . '|' . $scaffold;
+    ####my $content = $organism . '/' . $data_type;
+    ####$chunks_ref->{$key} = $content;
+    ####push (@$scaffs_ref, $key2);
+	#$devtools->print_hash(\%chunks); die;   
+ 
+    $self->get_tax_group();
+    
+	#$devtools->print_hash($self); die;   
+    my $cons_obj = Consolidation->new($self);
 
+    # DO THE CONSOLIDATION FOR EACH Assigned and Scaffold
+        foreach my $assigned (@assigned_names){
+
+        my @CONSmain;  # This is where the results get stored
+            foreach my $scaf (@scaffolds){
+
+                    # Run the consolidate on plus strand
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '+ve', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf +ve orientation\n";
+
+                    # Run the consolidate on minus strand
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '-ve', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf -ve orientation\n";
+            }    
+    
+            # Insert the data
+            my $db_name   = $self->{db_name};
+            $cons_obj->insert_loci_data($db_name, \@CONSmain);
+            print "\n##################################################################";
+            #die;
+    }
+	print "\n\t ### Done Consolidating hits into Loci\n";
 }
+
+#***************************************************************************
+# Subroutine:  set up consolidation
+# Description: 
+#***************************************************************************
+sub set_up_consolidation {
+
+        my ($self, $scaffs_ref, $assigned_ref, $chunks_ref) = @_;
+
+        my $db_obj = $self->{db};
+        unless ($db_obj) { die; }
+
+        # GET A LIST OF UNIQUE SCAFFOLDS, associated with chunk info
+        my $extracted_table = $db_obj->{extracted_table};
+        my @fields = qw [ organism data_type version target_name scaffold ];
+        my @data;
+        $extracted_table->select_distinct(\@fields, \@data);
+        foreach my $row (@data) {
+
+                my $organism    = $row->{organism};
+                my $data_type   = $row->{data_type};
+                my $version     = $row->{version};
+                my $chunk_name  = $row->{target_name};
+                my $scaffold    = $row->{scaffold};
+                ####### DBM CHANGE HERE!!!!!!!!!!
+                chomp($organism);
+                chomp($data_type);
+                chomp($version);
+                chomp($chunk_name);
+                chomp($scaffold);
+
+                my $key = $version . '/' . $chunk_name . '^' . $scaffold;
+                my $content = $organism . '/' . $data_type . '/';
+                my $key2 = $content . $key;
+                $chunks_ref->{$key} = $content;
+
+                push (@$scaffs_ref, $key2);
+        }
+
+    # GET A LIST OF ALL ASSIGNED_NAME FROM EXTRACTED
+    @fields = ();
+    @fields = qw [ assigned_name ];
+    @data = ();
+    $extracted_table->select_distinct(\@fields, \@data);
+    foreach my $row (@data) {
+
+        my $assigned_name = $row->{assigned_name};
+        chomp ($assigned_name);
+        push(@$assigned_ref, $assigned_name);
+    }
+   
+}
+
+
+#***************************************************************************
+# Subroutine:  get_tax_group
+# Description: get the taxonomic group of the screening targets
+#***************************************************************************
+sub get_tax_group{
+
+    my ($self) = @_;
+
+    #GET PATH TO CHUNK
+    my $first_group;
+    my $group;
+    my $paths = $self->{target_paths};
+	unless ($paths) {
+		print "\npaths\t$paths\n";
+		die;
+	}
+	my $first_path = shift(@$paths);
+    my @path_bits = split(/\//,$first_path);
+    if ($first_path =~ /^\//){
+        $first_group = $path_bits[1];
+    }else{
+        $first_group = $path_bits[0];
+    }
+    foreach my $path (@$paths){
+        @path_bits =();
+        @path_bits = split(/\//,$path);
+        if ($path =~ /^\//){
+            $group = $path_bits[1];
+        }else{
+            $group = $path_bits[0];
+        }
+        if ($group ne $first_group){
+            die "\n\tCannot consolidate from Screening using multiple taxonomic groups\n";
+        }
+    }
+    if($group){
+        $self->{group} = $group;
+    }else{
+        $self->{group} = $first_group;
+    }
+    #and then from extracted get Organism Data type and VErsion (including the target_name)
+}
+
+############################################################################
+# SECTION: Utility subroutines
+############################################################################
+
+#***************************************************************************
+# Subroutine:  run_utility_function
+# Description: handler for utility functions
+#***************************************************************************
+sub run_utility_function {
+
+	my ($self, $option, $ctl_file) = @_;
+
+ 	# Show title
+	$self->show_title();  
+
+	# Hand off to utility
+	if ($option eq 1) {  # Run database integrity checks
+		
+		# Do initial set up and sanity checking for options that require it
+		$self->initialise($option, $ctl_file);
+
+	}
+	elsif ($option eq 2) { # Undefined 
+	
+	}
+}
+
 
 ############################################################################
 # Command line console fxns

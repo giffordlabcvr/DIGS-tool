@@ -70,6 +70,7 @@ sub new {
 		blast_results_table   => 0,
 		extracted_table       => 0,
 		loci_table            => 0,
+		loci_link_table       => 0,
 	
 	};
 	
@@ -78,7 +79,7 @@ sub new {
 }
 
 ############################################################################
-# LOAD DATABASES
+# LOAD DATABASE & DATABASE TABLES
 ############################################################################
 
 #***************************************************************************
@@ -93,10 +94,10 @@ sub load_screening_db {
 	my $server   = $self->{server};
 	my $username = $self->{username};
 	my $password = $self->{password};
-	unless ($server) { die; }
+	unless ($server)   { die; }
 	unless ($username) { die; }
 	unless ($password) { die; }
-	unless ($db_name) { die; }
+	unless ($db_name)  { die; }
 
 	# Set name
 	$self->{db_name} = $db_name;
@@ -111,8 +112,8 @@ sub load_screening_db {
 	$self->load_status_table($dbh);	
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
-	#$self->load_loci_table($dbh);
-	#$self->load_loci_link_table($dbh);
+	$self->load_loci_table($dbh);
+	$self->load_loci_link_table($dbh);
 
 	# Check integrity of database
 	my $extracted_count = $self->count_extracted_rows();
@@ -238,15 +239,17 @@ sub load_loci_table {
 
 	# Definition of the loci table
 	my %loci_fields = (
-		assigned_to      => 'varchar',
-		assigned_notes   => 'varchar',
-		extract_start    => 'int',
-		extract_end      => 'int',
-		organism         => 'varchar',
-		orientation      => 'varchar',
-		chunk_name       => 'varchar',
-		scaffold         => 'varchar',
-		genome_structure => 'text',
+    	organism         => 'varchar',
+        version          => 'varchar',
+       	data_type        => 'varchar',
+        target_name      => 'varchar',
+        scaffold         => 'varchar',
+        orientation      => 'varchar',
+        assigned_name    => 'varchar',
+        extract_start    => 'int',
+        extract_end      => 'int',
+        genome_structure => 'text',
+
 	);
 	my $loci_table = MySQLtable->new('Loci', $dbh, \%loci_fields);
 	$self->{loci_table} = $loci_table;
@@ -270,7 +273,62 @@ sub load_loci_link_table {
 }
 
 ############################################################################
-# CREATE SCREENING DATABASE
+# CREATE DATABASE TABLES
+############################################################################
+
+#***************************************************************************
+# Subroutine:  create_loci_table
+# Description: create MySQL 'Loci' table
+#***************************************************************************
+sub create_loci_table {
+
+	my ($self, $dbh) = @_;
+
+	# Loci table 
+    my $loci = "CREATE TABLE `Loci` (
+        `Record_ID`         int(11) NOT NULL auto_increment,
+        `Organism`      varchar(100) NOT NULL default '0',
+        `Data_type`     varchar(100) NOT NULL default '0',
+        `Version`       varchar(100) NOT NULL default '0',
+        `Target_name`   varchar(100) NOT NULL default '0',
+
+        `Scaffold`      varchar(100) default 'NULL',
+        `Orientation`   varchar(100) NOT NULL default '0',
+
+        `Assigned_name`    varchar(100) NOT NULL default '0',
+        `Extract_start`     int(11) NOT NULL default '0',
+        `Extract_end`       int(11) NOT NULL default '0',
+        `Genome_structure`  text NOT NULL,
+	  
+		`Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($loci);
+	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_loci_link_table
+# Description: create MySQL 'Loci' table
+#***************************************************************************
+sub create_loci_link_table {
+
+	my ($self, $dbh) = @_;
+
+	# Loci table 
+    my $loci = "CREATE TABLE `Loci_link` (
+      `Record_ID`       int(11) NOT NULL auto_increment,
+      `Locus_ID`        int(11) NOT NULL default '0',
+      `Extracted_ID`    int(11) NOT NULL default '0',
+      `Timestamp`       timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($loci);
+	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+############################################################################
+# CREATE SCREENING DATABASE TABLES
 ############################################################################
 
 #***************************************************************************
@@ -301,10 +359,6 @@ sub create_screening_db {
 	$self->create_loci_table($dbh);
 	$self->create_loci_link_table($dbh);
 }
-
-############################################################################
-# CREATE SCREENING DATABASE TABLES
-############################################################################
 
 #***************************************************************************
 # Subroutine:  create_status_table

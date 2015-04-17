@@ -128,7 +128,7 @@ sub load_glue_reference_library {
 		# Create the reference sequence object using %params
 		my $refseq = RefSeq->new(\%params);
 		my $virus_name = $refseq->{name};
-		print "\n\t Loading query refseq $i:  '$virus_name'";
+		print "\n\t Loading GLUE reference sequence $i:  '$virus_name'";
 		my $refseq_name = $refseq->{name};
 		$refseqs_ref->{$refseq_name} = $refseq;
 	}	

@@ -863,6 +863,9 @@ sub parse_control_file {
 	# READ the 'SCREENSQL' block
 	$self->parse_screensql_block(\@ctl_file);
 
+	# READ the 'CONSOLIDATION' block
+	$self->parse_consolidation_block(\@ctl_file);
+
 	# Transfer parameters from this object to the pipeline object
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
 	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
@@ -886,7 +889,9 @@ sub parse_control_file {
 	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
 	$pipeline_obj->{reference_glue}         = $self->{reference_glue};
 	$pipeline_obj->{query_glue}             = $self->{query_glue};
-	#$self->{tmp_path}               = $self->{tmp_path};
+	$pipeline_obj->{target_paths}           = $self->{target_paths};
+	$pipeline_obj->{length_threshold}       = $self->{length_threshold_between_ORFs};
+	$pipeline_obj->{genome_structure}       = $self->{genome_structure};
 	
 	# Screen SQL
 	my $select_list     = $self->{select_list};
@@ -1020,7 +1025,7 @@ sub parse_screensets_block {
 
 #***************************************************************************
 # Subroutine:  parse_targets_block
-# Description: read an input file to get parameters for screening
+# Description: get paths to the target sequence databases for DIGS
 #***************************************************************************
 sub parse_targets_block {
 
@@ -1046,6 +1051,35 @@ sub parse_targets_block {
 		$targets++;
 	}
 	$self->{target_paths} = \@targets;
+}
+
+#***************************************************************************
+# Subroutine:  parse_consolidation_block
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_consolidation_block {
+
+	my ($self, $file_ref) = @_;
+
+	# Parse the 'CONSOLIDATION' block
+	my $start = 'BEGIN CONSOLIDATION';
+	my $stop  = 'ENDBLOCK';
+	my $db_block = $fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
+	unless ($db_block)  {
+		print "\n\t Warning no 'CONSOLIDATION' block found\n\n\n";
+		return;
+	}
+
+	# Get the 'CONSOLIDATION' block values and validate
+	my $length_threshold    = $self->{length_threshold_between_ORFs};
+	my $genome_structure    = $self->{genome_structure};
+
+	unless ($length_threshold)  {
+		die "\n\t Control file error: 'length_threshold_between_ORFs' undefined in 'CONSOLIDATION' block\n\n\n";
+	}
+	unless ($genome_structure)  {
+		die "\n\t Control file error: 'genome_structure' undefined in 'CONSOLIDATION' block\n\n\n";
+	}
 }
 
 #***************************************************************************
