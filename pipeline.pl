@@ -34,12 +34,14 @@ use Base::FileIO;
 
 # Third party program interface modules
 use Interface::BLAST;   # Interface to BLAST 
+use Interface::MySQLtable;   # Interface to BLAST 
 
 # DIGS framework modules
 use DIGS::Pipeline;
 use DIGS::ScreenBuild;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
+use DIGS::Consolidation;
 
 # GLUE framework modules
 use GLUE::RefSeqLibrary; # Functions to set up screen
@@ -132,8 +134,11 @@ sub main {
 		print "\n\t DIGS tool version '$program_version'\n\n"
 	}
 	elsif ($mode) { # Hand off to Pipeline.pm
-		$pipeline_obj->run_digs_function($mode, $infile); 
+		$pipeline_obj->run_digs_process($mode, $infile); 
 		print "\n\t # Exit\n\n";
+	}
+	elsif ($utility) { # Hand off to Pipeline.pm utility function
+		$pipeline_obj->run_utility_function($mode, $infile); 
 	}
 	else {
 		die $USAGE;
