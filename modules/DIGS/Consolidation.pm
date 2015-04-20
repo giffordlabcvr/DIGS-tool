@@ -690,7 +690,7 @@ sub insert_loci_data {
 		# Iterate through the consolidated hits
 		foreach $reftohash (@{$reftoarray}){
 			# each entry in the array is a hash with every loci
-			$devtools->print_hash($reftohash); die;
+			#$devtools->print_hash($reftohash); die;
 			my $locus_id = $loci_table->insert_row($reftohash);
 			my $id_string = $reftohash->{'extracted_id'};
 			my @extract_ids = split('-', $id_string);
@@ -700,7 +700,7 @@ sub insert_loci_data {
 				print "\n\t locus ID $locus_id extract $extract_id";
 				$link_data{locus_id}      = $locus_id;
 				$link_data{extracted_id}  = $extract_id;
-				$devtools->print_hash(\%link_data); die;
+				#$devtools->print_hash(\%link_data); die;
 				$loci_link_table->insert_row(\%link_data);
 			}
 		}

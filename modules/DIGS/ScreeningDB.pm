@@ -468,53 +468,6 @@ sub create_extracted_table {
 	unless ($sth->execute()) { print "\n\t$extracted\n\n\n"; exit;}
 }
 
-#***************************************************************************
-# Subroutine:  create_loci_table
-# Description: create MySQL 'Loci' table
-#***************************************************************************
-sub create_loci_table {
-
-	my ($self, $dbh) = @_;
-
-	# Loci table 
-    my $loci = "CREATE TABLE `Loci` (
-	  `Record_ID`         int(11) NOT NULL auto_increment,
-	  `Assigned_to`       varchar(100) NOT NULL default '0',
-	  `Assigned_notes`    text NOT NULL,
-	  `Extract_start`     int(11) NOT NULL default '0',
-	  `Extract_end`       int(11) NOT NULL default '0',
-	  `Organism`          varchar(100) NOT NULL default '0',
-	  `Orientation`       varchar(100) NOT NULL default '0',
-	  `Chunk_name`        varchar(100) NOT NULL default '0',
-	  `Scaffold`          varchar(100) default 'NULL',
-	  `Genome_structure`  text NOT NULL,
-	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`Record_ID`)
-	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
-	my $sth = $dbh->prepare($loci);
-	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
-}
-
-#***************************************************************************
-# Subroutine:  create_loci_link_table
-# Description: create MySQL 'Loci' table
-#***************************************************************************
-sub create_loci_link_table {
-
-	my ($self, $dbh) = @_;
-
-	# Loci table 
-    my $loci = "CREATE TABLE `Loci_link` (
-      `Record_ID`       int(11) NOT NULL auto_increment,
-      `Locus_ID`        int(11) NOT NULL default '0',
-      `Extracted_ID`    int(11) NOT NULL default '0',
-      `Timestamp`       timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-      PRIMARY KEY  (`Record_ID`)
-	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
-	my $sth = $dbh->prepare($loci);
-	unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
-}
-
 ############################################################################
 # UPDATING DATABASES AND TABLES
 ############################################################################
