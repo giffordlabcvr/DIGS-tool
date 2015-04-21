@@ -678,6 +678,9 @@ sub initialise_reassign {
 	if ($loader_obj->{reference_nt_fasta}) {
 		$loader_obj->load_nt_fasta_reference_library();
 	}
+	if ($loader_obj->{reference_glue}) {
+		$loader_obj->load_glue_reference_library();
+	}
 
 	# Transfer parameters from loader to this obj
 	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
