@@ -10,7 +10,6 @@ package Pipeline;
 # Import statements/packages (externally developed packages)
 ############################################################################
 use strict;
-
 ############################################################################
 # Import statements/packages (internally developed packages)
 ############################################################################
@@ -104,7 +103,7 @@ sub run_digs_process {
 	}
 
 	# For configurations that require one, load a screening database
-	if   ( $option > 1 and $option < 9) {
+	if   ( $option > 1 and $option < 10) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -141,11 +140,19 @@ sub run_digs_process {
 		my $retrieve_obj = Retrieve->new($self);
 		$retrieve_obj->run_data_retrieval_functions();
 	}
-	elsif ($option eq 9) { # Summarise GLUE reference sequence library 
+	elsif ($option eq 9) { # Create BED format file for UCSC genome browser 
+		if($self->{ucsc_extracted}){
+			$self->UCSCtracks(1);
+		}
+		if($self->{ucsc_loci}){
+			$self->UCSCtracks(2);
+		}
+    }    
+	elsif ($option eq 10) { # Summarise GLUE reference sequence library 
 		my $genome_obj = TargetDB->new($self);
 		$genome_obj->summarise_genomes();    
 	}
-	elsif ($option eq 10) { # Retrieve data
+	elsif ($option eq 11) { # Retrieve data
 		my $refseqlib_obj = RefSeqLibrary->new($self);
 		$refseqlib_obj->summarise_reference_library();    
 	}
@@ -1127,6 +1134,79 @@ sub get_tax_group{
 }
 
 ############################################################################
+# SECTION: UCSC tracks subroutines
+############################################################################
+
+#***************************************************************************
+# Subroutine:  UCSCtracks
+# Description: handler for UCSC tracks
+#***************************************************************************
+
+sub UCSCtracks{
+    my ($self,$mode) = @_;
+    print "\n\t ### Formating results into BED file\n";
+	my %colors = (  LTR => '0,0,0',
+        LEA => '96,96,96', 
+        gag => '255,0,0',
+        pro => '0,0,255',
+        pol => '255,0,255',
+        env => '0,255,0'
+	);
+	my @fields;
+	my $track_name;
+	my @data;
+	my $db_obj = $self->{db};
+    unless ($db_obj) { die; }
+
+	if($mode == 1){
+        my $extracted_table = $db_obj->{extracted_table};
+		@fields = qw (Scaffold Assigned_name Assigned_gene Orientation Extract_start Extract_end);
+		$extracted_table->select_distinct(\@fields, \@data);
+		$track_name = $self->{ucsc_extracted};
+	}else{
+		my $loci_table = $db_obj->{loci_table};
+		@fields = qw (Scaffold Assigned_name Genome_structure Orientation Extract_start Extract_end);
+		$loci_table->select_distinct(\@fields, \@data);
+		$track_name = $self->{ucsc_loci};
+	}
+	my $outfile = $self->{output_path} . '/' . $track_name . '.txt';
+
+    my $out = "track name=\"$track_name\" description=\"$track_name\" visibility=3 itemRgb=On useScore=0";
+    $out .= "\n";
+
+	foreach my $row (@data) {
+        my $chr = $row->{Scaffold};
+        my $start = $row->{Extract_start};
+        my $end = $row->{Extract_end};
+		if($start == 0 or $end == 0){
+			next;
+		}
+		my $gene;
+		if($mode == 1){
+			$gene=$row->{Assigned_gene};
+		}else{
+			$gene=$row->{Genome_structure};
+		}
+		my $feature = $row->{Assigned_name} . '_' . $gene;
+        my $score = 100;
+        my $strand;
+        if($row->{Orientation} eq '+ve'){
+           $strand = '+';
+        }else{
+           $strand = '-';
+        }
+        my $col = $colors{$gene};
+        unless($col){
+            $col = '255,128,0';
+        }   
+        my $len = $end - $start;
+        $out .= "$chr\t$start\t$end\t$feature\t$score\t$strand\t$start\t$end\t$col\t1\t$len\t0\n";
+    }   
+    open(OUT, ">$outfile") || die "Cannot open out\n";
+    print OUT "$out";
+    close(OUT);
+}
+############################################################################
 # SECTION: Utility subroutines
 ############################################################################
 
@@ -1184,7 +1264,7 @@ sub show_title {
 # Description: show help page information
 #***************************************************************************
 sub show_help_page {
-	
+	my ($self) = @_;		
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t  usage: $0 m=[option] -i=[control file]\n";
         $HELP  .= "\n\t -m=1  create a screening DB"; 
@@ -1195,8 +1275,9 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=6  drop a screening DB"; 
 		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
 		$HELP  .= "\n\t -m=8  retrieve data from a screening DB"; 
-		$HELP  .= "\n\t -m=9  summarise target genome directory"; 
-		$HELP  .= "\n\t -m=10 summarise a GLUE-formatted reference sequence library"; 
+		$HELP  .= "\n\t -m=9  create BED file for UCSC genome browser";
+		$HELP  .= "\n\t -m=10  summarise target genome directory"; 
+		$HELP  .= "\n\t -m=11 summarise a GLUE-formatted reference sequence library"; 
 		$HELP  .= "\n\n";
 	print $HELP;
 }

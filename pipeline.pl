@@ -42,7 +42,6 @@ use DIGS::ScreenBuild;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
 use DIGS::Consolidation;
-
 # GLUE framework modules
 use GLUE::RefSeqLibrary; # Functions to set up screen
 use GLUE::RefSeqParser;  # GLUE RefSeq parsing
