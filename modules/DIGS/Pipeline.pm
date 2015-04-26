@@ -94,7 +94,7 @@ sub run_digs_process {
 	$self->show_title();  
 
 	# Do initial set up and sanity checking for options that require it
-	unless ($option eq 8) { # Validate configurations that require a control file
+	unless ($option > 10) { # Validate configurations that require a control file
 		# An infile must be defined
 		unless ($ctl_file) { 
 			die "\n\t Option '$option' requires an infile\n\n";
@@ -103,7 +103,7 @@ sub run_digs_process {
 	}
 
 	# For configurations that require one, load a screening database
-	if   ( $option > 1 and $option < 10) {
+	if   ( $option > 1 and $option < 11) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -147,12 +147,15 @@ sub run_digs_process {
 		if($self->{ucsc_loci}){
 			$self->UCSCtracks(2);
 		}
-    }    
-	elsif ($option eq 10) { # Summarise GLUE reference sequence library 
+    } 
+	elsif ($option eq 10) { # Add a table of data to the screening database
+		$self->extend_screening_db();
+	}
+	elsif ($option eq 11) { # Summarise GLUE reference sequence library 
 		my $genome_obj = TargetDB->new($self);
 		$genome_obj->summarise_genomes();    
 	}
-	elsif ($option eq 11) { # Retrieve data
+	elsif ($option eq 12) { # Retrieve data
 		my $refseqlib_obj = RefSeqLibrary->new($self);
 		$refseqlib_obj->summarise_reference_library();    
 	}
@@ -1141,10 +1144,12 @@ sub get_tax_group{
 # Subroutine:  UCSCtracks
 # Description: handler for UCSC tracks
 #***************************************************************************
-
 sub UCSCtracks{
+
     my ($self,$mode) = @_;
-    print "\n\t ### Formating results into BED file\n";
+
+    print "\n\t ### Formating results into BED file for UCSC genome browser\n";
+
 	my %colors = (  LTR => '0,0,0',
         LEA => '96,96,96', 
         gag => '255,0,0',
@@ -1163,7 +1168,8 @@ sub UCSCtracks{
 		@fields = qw (Scaffold Assigned_name Assigned_gene Orientation Extract_start Extract_end);
 		$extracted_table->select_distinct(\@fields, \@data);
 		$track_name = $self->{ucsc_extracted};
-	}else{
+	}
+	else {
 		my $loci_table = $db_obj->{loci_table};
 		@fields = qw (Scaffold Assigned_name Genome_structure Orientation Extract_start Extract_end);
 		$loci_table->select_distinct(\@fields, \@data);
@@ -1206,6 +1212,127 @@ sub UCSCtracks{
     print OUT "$out";
     close(OUT);
 }
+
+############################################################################
+# SECTION: Extend the screening database
+############################################################################
+
+#***************************************************************************
+# Subroutine:  run_utility_function
+# Description: handler for utility functions
+#***************************************************************************
+sub extend_screening_db {
+
+	my ($self, $ctl_file) = @_;
+
+	# Try to read the tab-delimited infile
+	my $infile = $self->{reference_data};
+	unless ($infile) { die; }
+	#print "\n\t infile '$infile'";
+	#$devtools->print_array(\@infile);
+	my @infile;
+	$fileio->read_file($infile, \@infile);
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	#sleep 2;
+	my @data;
+	my $line_number = 0;
+	foreach my $line (@infile) {
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { die; }
+		push (@data, $line);
+	}
+	my $header_row = shift @data;
+	my @header_row = split ("\t", $header_row);
+	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+	my $i;
+	my %fields;
+	my @fields;
+	foreach my $element (@header_row) {
+		chomp $element;
+		$i++;
+		$element =~ s/\s+/_/g;
+		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+		print "\n\t\t Column $i: '$element'";
+		push (@fields, $element);
+		$fields{$element} = "varchar";
+	}
+	my $question3 = "\n\n\t Is this correct?";
+	my $answer3 = $console->ask_yes_no_question($question3);
+	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+		print "\n\t\t Aborted!\n\n\n"; exit;
+	}
+
+	# Create new table or add to existing one
+	my $db = $self->{db};
+	unless ($db) { die; }
+	my %extra_tables;
+	my @extra_tables;
+	my $table_to_use;
+
+	my @choices = qw [ 1 2 3 4 ];
+	print "\n\t\t 1. Create new ancillary table";
+	print "\n\t\t 2. Append data to existing ancillary table";
+	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
+	print "\n\t\t 4. Drop an ancillary table\n";
+	my $question4 = "\n\t Choose an option";
+	my $answer4   = $console->ask_simple_choice_question($question4, \@choices);
+	if ($answer4 == '1') {	# Create new table
+		my $table_name_question = "\n\t What is the name of the new table?";
+		my $table_name = $console->ask_question($table_name_question);
+		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+	}
+	else {
+		my @choices;
+		$db->get_ancillary_table_names(\@extra_tables);
+		my $table_num = 0;
+		foreach my $table_name (@extra_tables) {
+			$table_num++;
+			$extra_tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+			push (@choices, $table_num);
+		}
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@choices);
+		$table_to_use = $extra_tables{$answer5};
+	}
+	unless ($table_to_use) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
+    $db->{$table_to_use} = $anc_table;
+
+	if ($answer4 == '4') {	# Drop an ancillary table
+		$db->drop_ancillary_table($table_to_use);
+		return;
+	}
+	if ($answer4 eq 3)   {  # Flush the table if requested
+		$anc_table->flush();
+		$anc_table->reset_primary_keys();
+	}
+	my $row_count = 0;
+	foreach my $line (@data) { # Add data to the table
+		my $row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@fields) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields{$column_num};
+			if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			}
+			unless ($value) { die; }
+			$insert{$field} = $value;
+		}
+		#$devtools->print_hash(\%insert);
+		$anc_table->insert_row(\%insert);
+	}
+}
+
 ############################################################################
 # SECTION: Utility subroutines
 ############################################################################
@@ -1218,6 +1345,10 @@ sub run_utility_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
+	# TODO
+	die;
+
+
  	# Show title
 	$self->show_title();  
 
@@ -1225,7 +1356,7 @@ sub run_utility_function {
 	if ($option eq 1) {  # Run database integrity checks
 		
 		# Do initial set up and sanity checking for options that require it
-		$self->initialise($option, $ctl_file);
+		#$self->initialise($option, $ctl_file);
 
 	}
 	elsif ($option eq 2) { # Undefined 
@@ -1276,8 +1407,9 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
 		$HELP  .= "\n\t -m=8  retrieve data from a screening DB"; 
 		$HELP  .= "\n\t -m=9  create BED file for UCSC genome browser";
-		$HELP  .= "\n\t -m=10  summarise target genome directory"; 
-		$HELP  .= "\n\t -m=11 summarise a GLUE-formatted reference sequence library"; 
+		$HELP  .= "\n\t -m=10 extend the screening database (create or add to extra table)"; 
+		$HELP  .= "\n\t -m=11 summarise target genome directory"; 
+		$HELP  .= "\n\t -m=12 summarise a GLUE-formatted reference sequence library"; 
 		$HELP  .= "\n\n";
 	print $HELP;
 }

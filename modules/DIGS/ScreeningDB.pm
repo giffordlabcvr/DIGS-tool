@@ -880,6 +880,105 @@ sub get_blast_hits_to_extract {
 }
 
 ############################################################################
+# EXTEND SCREENING DB FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  create_ancillary_table
+# Description: create an ancillary table for the screening DB
+#***************************************************************************
+sub create_ancillary_table {
+
+	my ($self, $table_name, $fields_array_ref, $fields_hash_ref) = @_;
+	
+	my $dbh = $self->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $db_name = $self->{db_name};
+	print "\n\t Creating ancillary table '$table_name' in $db_name screening database";
+
+	# Remove illegal characters from table name
+	unless ($table_name) { die "\n\t No table name defined \n\n"; }
+	$table_name =~ s/\s+//g;
+
+	# Make the create statement
+    my $create_lead = "CREATE TABLE IF NOT EXISTS `$table_name` (
+      `Record_ID` int(11) NOT NULL auto_increment, ";
+
+	my $create_middle = '';
+	my $i= 0;
+	foreach my $field (@$fields_array_ref) {
+		$i++;
+		my $type = $fields_hash_ref->{$i};
+		unless ($type) {
+			$type = "varchar(100) NOT NULL default '0'";
+        }
+		elsif ($type eq 'varchar') {
+			$type = "varchar(100) NOT NULL default '0'";
+		}
+		$create_middle .= " `$field` $type, ";
+	}
+
+	my $create_tail = "`Timestamp` timestamp NOT NULL default
+      CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+
+	my $statement = $create_lead . $create_middle . $create_tail;
+	my $sth = $dbh->prepare($statement);
+	unless ($sth->execute()) { print "\n\t$statement\n\n\n"; exit; }
+
+	return $table_name;
+}
+
+#***************************************************************************
+# Subroutine:  get_ancillary_table_names
+# Description: get the names of all ancillary tables in a screening DB
+#***************************************************************************
+sub get_ancillary_table_names {
+
+	my ($self, $anc_tables_ref) = @_;
+	
+	my $dbh = $self->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $show = "SHOW TABLES ";
+	my $sth = $dbh->prepare($show);
+   	unless ($sth->execute()) { print $show; exit;}	
+	
+	my $i = 0;
+	while (my $row = $sth->fetchrow_arrayref) {
+		foreach my $item (@$row) {
+			chomp $item;
+			$i++;
+			if ($item eq 'Status')           { next; }
+			elsif ($item eq 'BLAST_results') { next; }
+			elsif ($item eq 'Extracted')     { next; }
+			elsif ($item eq 'Loci')          { next; }
+			elsif ($item eq 'Loci_link')     { next; }
+			else {
+				push (@$anc_tables_ref, $item)
+			}
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  drop_ancillary_table
+# Description: drop an ancillary table from the screening database 
+#***************************************************************************
+sub drop_ancillary_table {
+
+	my ($self, $table_name) = @_;
+
+	# Execute the query
+	my $dbh = $self->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $drop = "DROP TABLE IF EXISTS $table_name ";
+	my $sth = $dbh->prepare($drop);
+   	unless ($sth->execute()) { print $drop; exit;}	
+
+}
+	
+############################################################################
 # VALIDATION FUNCTIONS
 ############################################################################
 

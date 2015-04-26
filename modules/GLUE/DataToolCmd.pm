@@ -80,6 +80,7 @@ sub new {
 sub show_help_page {
 
 	my($HELP) = "\n\t usage: $0 -m[options] -s[options] -f[files] -d[files]
+
       \n\t # Convert between formats";
 	  $HELP  .= "\n\t  -m=1        :   FASTA to Delimited";
 	  $HELP  .= "\n\t  -m=2        :   Delimited to FASTA";
@@ -92,12 +93,17 @@ sub show_help_page {
 	  $HELP  .= "\n\t  -m=x        :   FASTA to PHYLIP";
 	  $HELP  .= "\n\t  -m=x        :   Expand GLUE MSA";
 	  $HELP  .= "\n\t  -m=x        :   Compress GLUE MSA";
+
 	  $HELP  .= "\n\n\t # Sorting, filtering, linking";
 	  $HELP  .= "\n\t  -s=1        :   Shorten FASTA headers"; 
 	  $HELP  .= "\n\t  -s=2        :   Sort sequences by length"; 
 	  $HELP  .= "\n\t  -s=3        :   Filter sequences by keyword"; 
 	  $HELP  .= "\n\t  -s=4        :   Link two data files using a shared ID";
 	  $HELP  .= "\n\t  -s=2        :   Sort sequences by data column"; 
+
+	  $HELP  .= "\n\n\t # FASTA header reformatting";
+	  $HELP  .= "\n\t  -u=1        :   NCBI refseq to DIGS FASTA"; 
+
 	print $HELP;
 
 }
@@ -202,6 +208,28 @@ sub run_sort_tools_cmd_line {
 	
 	}
 	else { die; }
+}
+
+#***************************************************************************
+# Subroutine:  run_utility_tools_cmd_line
+# Description: hand off to miscellaneous utilities
+#***************************************************************************
+sub run_utility_tools_cmd_line {
+
+	my ($self, $seqfiles, $datafiles, $utility) = @_;
+	
+	my $process_id  = $self->{process_id};
+	my $output_path = $self->{output_path};
+
+	unless ($output_path) { $output_path .= './'; }		
+	
+	$self->show_title();
+	shift @$seqfiles; # Not sure why there's an empty array element
+	
+	if ($utility eq 1) {  # Shorten FASTA headers (capture data)
+		die;
+	}
+
 }
 
 #***************************************************************************

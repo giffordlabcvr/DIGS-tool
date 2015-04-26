@@ -897,6 +897,8 @@ sub parse_control_file {
 	$pipeline_obj->{genome_structure}       = $self->{genome_structure};
 	$pipeline_obj->{ucsc_extracted}			= $self->{UCSC_extracted};
 	$pipeline_obj->{ucsc_loci}				= $self->{UCSC_loci};
+	$pipeline_obj->{reference_data}			= $self->{reference_data};
+
 	# Screen SQL
 	my $select_list     = $self->{select_list};
 	my $where_statement = $self->{where_statement};
@@ -1059,7 +1061,7 @@ sub parse_targets_block {
 
 #***************************************************************************
 # Subroutine:  parse_consolidation_block
-# Description: read an input file to get parameters for screening
+# Description: get parameters for defragmenting/consolidating hits
 #***************************************************************************
 sub parse_consolidation_block {
 
@@ -1088,27 +1090,26 @@ sub parse_consolidation_block {
 
 #***************************************************************************
 # Subroutine:  parse_UCSC_block
-# Description: read an input file to get parameters for screening
+# Description: get parameters for generating UCSC tracks from relevant block
 #***************************************************************************
 sub parse_UCSC_block {
 
     my ($self, $file_ref) = @_;
-    # Parse the 'CONSOLIDATION' block
+
+    # Parse the 'UCSC' block
     my $start = 'BEGIN UCSC';
     my $stop  = 'ENDBLOCK';
     my $db_block = $fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
     unless ($db_block)  {
-        print "\n\t Warning no 'UCSC' block found\n\n\n";
         return;
     }    
-    # Get the 'CONSOLIDATION' block values and validate
+    # Get the 'UCSC' block values and validate
     my $ucsc_extracted    	= $self->{UCSC_extracted};
     my $ucsc_loci		    = $self->{UCSC_loci};
     unless ($ucsc_extracted or $ucsc_loci)  {
         die "\n\t Control file error: 'UCSC table' undefined in 'UCSC' block\n\n\n";
     }    
 }
-
 
 #***************************************************************************
 # Subroutine:  parse_screensql_block
