@@ -1407,7 +1407,7 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
 		$HELP  .= "\n\t -m=8  retrieve data from a screening DB"; 
 		$HELP  .= "\n\t -m=9  create BED file for UCSC genome browser";
-		$HELP  .= "\n\t -m=10 extend the screening database (create or add to extra table)"; 
+		$HELP  .= "\n\t -m=10 create/drop/upload data to ancillary table"; 
 		$HELP  .= "\n\t -m=11 summarise target genome directory"; 
 		$HELP  .= "\n\t -m=12 summarise a GLUE-formatted reference sequence library"; 
 		$HELP  .= "\n\n";

@@ -33,7 +33,11 @@ my $seqio      = SeqIO->new();
 my $bioio      = BioIO->new();
 my $devtools   = DevTools->new();
 my $console    = Console->new();
+
+my $verbose    = undef;
+
 1;
+
 
 ############################################################################
 # LIFECYCLE
@@ -226,11 +230,65 @@ sub run_utility_tools_cmd_line {
 	$self->show_title();
 	shift @$seqfiles; # Not sure why there's an empty array element
 	
-	if ($utility eq 1) {  # Shorten FASTA headers (capture data)
-		die;
+	if ($utility eq 1) {  # Convert NCBI refseq FASTA headers to DIGS FASTA headers
+		$self->NCBI_refseq_to_DIGS_FASTA($seqfiles);		
 	}
 
 }
+
+#***************************************************************************
+# Subroutine:  NCBI_refseq_to_DIGS_FASTA
+# Description: 
+#***************************************************************************
+sub NCBI_refseq_to_DIGS_FASTA {
+
+	my ($self, $infiles) = @_;
+
+	foreach my $infile (@$infiles) {
+	
+
+		my @original_fasta;
+		$seqio->read_fasta($infile, \@original_fasta);
+		#$devtools->print_array(\@original_fasta); die;
+
+		my @new_fasta;
+		foreach my $seq_ref (@original_fasta) {
+			my $header = $seq_ref->{header};
+			my @header1 = split (/\[/, $header);
+			my $organism = pop @header1;
+			$organism =~ s/^\s+|\s+$//g; # remove whitespace from both ends
+			$organism =~ s/\s/_/g;
+			$organism =~ s/]//g;
+
+			my @header2 = split (/\|/, $header);
+			my $gene_end = $header2[4];
+			my @gene = split (/\[/, $gene_end);
+			my $gene = shift @gene;
+			$gene =~ s/^\s+|\s+$//g; # remove whitespace from both ends
+			$gene =~ s/\s/-/g;
+			
+			if ($verbose) {
+				print "\n\t HEADER: $header";
+				print "\n\t Organism: '$organism'";
+				print "\n\t Gene: '$gene'";
+			}
+
+			my $new_header = ">$organism" . '_' . $gene;	
+			my $sequence = $seq_ref->{sequence};
+			my $fasta = "$new_header\n$sequence\n";
+			push(@new_fasta, $fasta);
+
+		}
+		my $outfile = $infile . '.DIGS.fas';
+		print "\n\n\t ### Writing reformatted data to '$outfile'\n"; 
+		$fileio->write_file($outfile, \@new_fasta);
+	}
+
+}
+
+############################################################################
+# SECTION: Format conversion functions
+############################################################################
 
 #***************************************************************************
 # Subroutine:  convert_fasta_to_delimited
