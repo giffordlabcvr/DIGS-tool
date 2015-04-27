@@ -121,6 +121,7 @@ sub main {
 	my $version      = undef;
 	my $mode		 = undef;
 	my $sort		 = undef;
+	my $utility		 = undef;
 	my @seqfiles     = undef;
 	my @datafiles    = undef;
 
@@ -129,6 +130,7 @@ sub main {
                 'version!'      => \$version,
 				'mode|m=i'      => \$mode,
 				'sort|s=i'      => \$sort,
+				'utility|u=i'   => \$utility,
 				'seqfiles|f=s'  => \@seqfiles, 
 				'datafiles|d=s' => \@datafiles, 
 	);
@@ -144,6 +146,9 @@ sub main {
 	}
 	elsif ($sort) { # Data sorting tools
 		$cmd_line_interface->run_sort_tools_cmd_line(\@seqfiles, \@datafiles, $sort);
+	}
+	elsif ($utility) { # Data sorting tools
+		$cmd_line_interface->run_utility_tools_cmd_line(\@seqfiles, \@datafiles, $utility);
 	}
 	else {
 		die $USAGE;
