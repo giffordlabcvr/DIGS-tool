@@ -35,7 +35,7 @@ my $seqio     = SeqIO->new();
 my $devtools  = DevTools->new();
 my $console   = Console->new();
 
-# BLASTn min
+# BLAST defaults
 my $default_tblastn_min = 50;
 my $default_blastn_min  = 50;
 1;
@@ -383,9 +383,9 @@ sub setup_blast_probes {
 		$self->load_glue_query($probes_ref);
 	}
 	else { 
-		die "\n\t No probes found for screen\n\n\n";
+		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
 	}
-	#$devtools->print_array(\@probes); die;	# DEBUG
+	#$devtools->print_array($probes_ref); die;	# DEBUG
 }
 
 #***************************************************************************
@@ -472,7 +472,16 @@ sub load_aa_fasta_probes {
 				#$devtools->print_hash(\%header_data);
 				$self->add_aa_probe($probes_ref, $name, $gene_name, $aa_seq);
 			}
+			else {
+				print "\n\t Couldn't extract data from header '$header'"; 
+			}
 		}
+		unless ($i) {
+			die "\n\t No Probes wqere loaded - check 'query_aa_fasta' path is correct\n\n\n"; 
+		}
+	}
+	else {
+		die;
 	}
 }
 

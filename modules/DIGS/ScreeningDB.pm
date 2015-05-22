@@ -114,21 +114,6 @@ sub load_screening_db {
 	$self->load_extracted_table($dbh);	
 	$self->load_loci_table($dbh);
 	$self->load_loci_link_table($dbh);
-
-	# Check integrity of database
-	my $extracted_count = $self->count_extracted_rows();
-	my $blast_count     = $self->count_blast_rows();
-	unless ($extracted_count eq $blast_count) { # Tables are out of sync
-		print "\n\n\t Tables are out of sync";
-		print "\n\t Extracted table:     $extracted_count rows";
-		print "\n\t BLAST_results table: $blast_count rows";
-		print "\n\t Rolling back screen...";
-		$self->validate_db();
-		sleep 3;
-	}
-	
-	# If no results for most recent query, execute again just incase
-	#$self->rollback_last_search();
 }
 
 ############################################################################
@@ -507,7 +492,7 @@ sub index_previously_executed_queries {
 		my @key = ( $genome_id, $target_name, $probe_id );
 		my $key = join ('|', @key);
 		#print "\n\t $key\n\n "; die;
-		$done_ref->{$key} = 1;		
+		$done_ref->{$key} = $data_ref;		
 	}
 	# DEBUG
 	#$devtools->print_hash($done_ref); die;
@@ -843,7 +828,9 @@ sub index_extracted_loci_by_blast_id {
 	$extracted_table->select_rows(\@fields, \@blast_ids, $where);	
 	foreach my $hit_ref (@blast_ids) {
 		my $blast_id = $hit_ref->{blast_id};
-		if ($previously_extracted_ref->{$blast_id}) { die; } # BLAST ID should be unique
+		#if ($previously_extracted_ref->{$blast_id}) { 
+		#	die;
+		#} # BLAST ID should be unique
 		$previously_extracted_ref->{$blast_id} = 1;	
 	}
 }
@@ -983,10 +970,134 @@ sub drop_ancillary_table {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  validate_db
-# Description: validate screening database 
+# Subroutine:   find_unfinished_searches
+# Description:  Check for BLAST_results table rows that lack counterparts in the Extracted table
 #***************************************************************************
-sub validate_db {
+sub find_unfinished_searches {
+
+	my ($self, $blast_index, $extracted_index, $unfinished_searches) = @_;
+	
+	print "\n\n\t Checking for BLAST_results table rows that lack counterparts in the Extracted table";
+	my @ids = sort by_number keys %$blast_index;
+	foreach my $record_id (@ids) {	
+		unless ($extracted_index->{$record_id}) {
+			my $data_ref = $blast_index->{$record_id};
+			unless ($data_ref) { die; }
+			push (@$unfinished_searches, $data_ref); 
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:   find_extracted_orphans
+# Description:  Check for Extracted table rows that lack counterparts in the BLAST_results table
+#***************************************************************************
+sub find_extracted_orphans {
+
+	my ($self, $blast_index, $extracted_index, $extracted_orphans) = @_;
+	
+	my @blast_ids = sort by_number keys %$extracted_index;
+	print "\n\n\t Checking for Extracted table rows that lack counterparts in the BLAST_results table";
+	foreach my $blast_id (@blast_ids) {	
+		unless ($blast_index->{$blast_id}) {
+			my $data_ref = $extracted_index->{$blast_id};
+			unless ($data_ref) { die; }
+			push (@$extracted_orphans, $data_ref); 
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  find_blast_orphans
+# Description:  
+#***************************************************************************
+sub find_blast_orphans {
+
+	my ($self, $blast_index, $status_index, $blast_status_orphans) = @_;
+	
+	# Find BLAST rows that don't have a search row (should never happen)
+	my @blast_ids = sort by_number keys %$blast_index;
+	print "\n\n\t Checking for BLAST table rows that lack search details Status table";
+	foreach my $blast_id (@blast_ids) {	
+		unless ($blast_index->{$blast_id}) { die; }
+		my $data_ref = $blast_index->{$blast_id};
+		#$devtools->print_hash($data_ref); die;
+		my $organism    = $data_ref->{organism};
+		my $data_type   = $data_ref->{data_type};
+		my $version     = $data_ref->{version};
+		my $target_name = $data_ref->{target_name};
+		my $probe_name  = $data_ref->{probe_name};
+		my $probe_gene  = $data_ref->{probe_gene};
+		unless ( $organism and $data_type and $version and $target_name 
+             and $probe_name and $probe_gene) { 
+			die; 
+		};
+		my @genome = ( $organism , $data_type, $version );
+		my $genome_id = join ('|', @genome);
+		my $probe_id  = $probe_name . '_' .  $probe_gene;
+		my @key = ( $genome_id, $target_name, $probe_id );
+		my $key = join ('|', @key);
+		
+		my $status_row_data = $status_index->{$key};
+		#$devtools->print_hash($status_row_data); die;
+		unless ($status_row_data) {
+			push (@$blast_status_orphans, $data_ref); 
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  find_empty_searches
+# Description: get a list of searches that returned no BLAST hits 
+#***************************************************************************
+sub find_empty_searches {
+
+	my ($self, $blast_index, $status_index, $empty_searches) = @_;
+
+	# Find Status rows that don't have BLAST results (expected to happen sometimes)
+	my @status_keys = sort keys %$status_index;
+	print "\n\n\t Checking for Status table rows that lack search details";
+	my $blast_table = $self->{blast_results_table};
+	unless ($blast_table) { die; }
+	foreach my $key (@status_keys) {	
+
+		#print "\n\t DOING '$key'";
+		unless ($status_index->{$key}) { die; }
+		my $data_ref    = $status_index->{$key};
+		my $organism    = $data_ref->{organism};
+		my $data_type   = $data_ref->{data_type};
+		my $version     = $data_ref->{version};
+		my $target_name = $data_ref->{target_name};
+		my $probe_name  = $data_ref->{probe_name};
+		my $probe_gene  = $data_ref->{probe_gene};
+		my @fields = qw [ record_id organism data_type version target_name probe_name probe_gene ];
+		my $where  = " WHERE organism     = '$organism'
+                       AND   data_type    = '$data_type'
+                       AND   version      = '$version'
+                       AND   target_name  = '$target_name'
+                       AND   probe_name   = '$probe_name'
+                       AND   probe_gene   = '$probe_gene'";
+		my @rows;
+		$blast_table->select_rows(\@fields, \@rows, $where);
+		$blast_table->select_rows(\@fields, \@rows);
+		#$devtools->print_array(\@rows); die;
+		my $count = scalar @rows;
+		unless ($count > 0) {
+			print "\n\t FOUND empty search '$count'";
+			foreach my $data_ref (@$empty_searches) {
+				push(@$empty_searches, $data_ref);
+			}
+		}	
+		#$devtools->print_hash($data_ref); die;
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  clean_up
+# Description: clean up searches 
+#***************************************************************************
+sub clean_up {
+
 
 	my ($self) = @_;
 	
@@ -995,95 +1106,40 @@ sub validate_db {
 	my $blast_table     = $self->{blast_results_table};
 	my $status_table    = $self->{status_table};
 
-	# Index data in the BLAST results and Extracted tables	
-	my %blast_results;
-	$self->index_BLAST_results_by_record_id(\%blast_results);
-	my %extracted;
-	$self->index_extracted_loci_by_blast_id(\%extracted);
+	# Offer options for cleanup
+	my @clean_up_options;
+	#push (@clean_up_options, "
+	#my $question = "\n\t Choose how to clean up";
 
-	# Check for BLAST_results table rows that lack counterparts in the Extracted table
-	my @missing;
-	my @ids = sort by_number keys %blast_results;
-	foreach my $record_id (@ids) {	
-		unless ($extracted{$record_id}) {
-			my $data_ref = $blast_results{$record_id};
-			unless ($data_ref) { die; }
-			push (@missing, $data_ref); 
-		}
-	}
-	#$devtools->print_array(\@missing); die;
-
-	# Check for Extracted table rows that lack counterparts in the BLAST_results table
-	my @blast_ids = sort by_number keys %extracted;
-	foreach my $blast_id (@blast_ids) {	
-		unless ($blast_results{$blast_id}) {
-			my $where = " WHERE BLAST_ID = $blast_id ";
-			$extracted_table->delete_rows($where);
-		}
-	}
-	
-	# Rollback any searches where no sequence was captured
-	my %rollback_searches;
-	foreach my $missing_ref (@missing) {
-		# Store the search information
-		my $record_id   = $missing_ref->{record_id};
-		my $organism    = $missing_ref->{organism};
-		my $data_type   = $missing_ref->{data_type};
-		my $version     = $missing_ref->{version};
-		my $target_name = $missing_ref->{target_name};
-		my $probe_name  = $missing_ref->{probe_name};
-		my $probe_gene  = $missing_ref->{probe_gene};
-		my @target = ( $organism , $data_type, $version, $target_name );
-		my $target_id = join ('|', @target);
-		my @key = ( $target_id, $probe_name, $probe_gene );
-		my $key = join ('|', @key);
-		$rollback_searches{$key} = $missing_ref;
-	}
-	#$devtools->print_hash(\%rollback_searches); die;
-
-	my @keys = keys %rollback_searches;
-	foreach my $key (@keys) {
-		print "\n\n\t Cleaning up incomplete search...";
-		print "\n\t\t KEY: '$key'\n";
-		my $missing_ref = $rollback_searches{$key};
-		$self->rollback($missing_ref);
-	}
-	
-	my $extracted_count = $self->count_extracted_rows();
-	my $blast_count     = $self->count_blast_rows();
-	unless ($extracted_count eq $blast_count) { die; }
-	print "\n\t Tables re-synced";
-	print "\n\t Extracted table:     $extracted_count rows";
-	print "\n\t BLAST_results table: $blast_count rows";
-	sleep 3;
-
-}
-
-#***************************************************************************
-# Subroutine:  safe_rollback
-# Description: 
-#***************************************************************************
-sub rollback_last_search {
-
-	my ($self) = @_;
-	
-	# Get tables	
-	my $status_table    = $self->{status_table};
 	my @data;
-	my @fields = qw [ record_id 
-	                  organism data_type version target_name
+	my @fields = qw [ record_id organism data_type version target_name
                       probe_name probe_gene ];
 	my $where  = " ORDER BY Record_ID ";
 	$status_table->select_rows(\@fields, \@data, $where);
-	my $last_search = pop @data;
-	if ($last_search) {	
-		$self->rollback($last_search);
+	my $list_length;
+	my %choices;
+	foreach my $data_ref (@data) {
+		my $organism    = $data_ref->{organism};
+		my $data_type   = $data_ref->{data_type};
+		my $version     = $data_ref->{version};
+		my $target_name = $data_ref->{target_name};
+		my $probe_name  = $data_ref->{probe_name};
+		my $probe_gene  = $data_ref->{probe_gene};
+		$list_length++;
+		print "\n\t $list_length:\t Probe ($probe_name, $probe_gene)";
+		print "\t Target ($organism, $data_type, $version, $target_name)";
+		$choices{$list_length} = $data_ref;
 	}
+	my $question = "\n\n\t Which search to roll back? ";
+	my $answer   = $console->ask_list_question($question, $list_length);
+	my $choice_ref = $choices{$answer};
+	#$devtools->print_hash($choice_ref); die;	
+	$self->rollback($choice_ref);
 }
 
 #***************************************************************************
 # Subroutine:  rollback
-# Description: 
+# Description: rollback a round of paired BLAST screening
 #***************************************************************************
 sub rollback {
 
@@ -1093,7 +1149,6 @@ sub rollback {
 	my $extracted_table = $self->{extracted_table};
 	my $blast_table     = $self->{blast_results_table};
 	my $status_table    = $self->{status_table};
-
 	my $record_id   = $missing_ref->{record_id};
 	my $organism    = $missing_ref->{organism};
 	my $data_type   = $missing_ref->{data_type};
@@ -1134,6 +1189,28 @@ sub rollback {
 		$blast_table->delete_rows($id_where1);
 		my $id_where2 =   " WHERE blast_id  = $record_id ";
 		$extracted_table->delete_rows($id_where2);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  rollback_last_search 
+# Description: 
+#***************************************************************************
+sub rollback_last_search {
+
+	my ($self) = @_;
+	
+	# Get tables	
+	my $status_table    = $self->{status_table};
+	my @data;
+	my @fields = qw [ record_id 
+	                  organism data_type version target_name
+                      probe_name probe_gene ];
+	my $where  = " ORDER BY Record_ID ";
+	$status_table->select_rows(\@fields, \@data, $where);
+	my $last_search = pop @data;
+	if ($last_search) {	
+		$self->rollback($last_search);
 	}
 }
 

@@ -102,8 +102,8 @@ sub run_digs_process {
 		$self->initialise($ctl_file);
 	}
 
-	# For configurations that require one, load a screening database
-	if   ( $option > 1 and $option < 11) {
+	# If it exists, load the screening database specified in the control file
+	if ( $option > 1) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -132,15 +132,11 @@ sub run_digs_process {
 		my $db = $self->{db};
 		$db->drop_screening_db();    
 	}
-	elsif ($option eq 7) { # DB summary
-		my $db = $self->{db};
-		$db->summarise_db();
-	}
-	elsif ($option eq 8) { # Summarise genomes 
+	elsif ($option eq 7) { # Summarise genomes 
 		my $retrieve_obj = Retrieve->new($self);
 		$retrieve_obj->run_data_retrieval_functions();
 	}
-	elsif ($option eq 9) { # Create BED format file for UCSC genome browser 
+	elsif ($option eq 8) { # Create BED format file for UCSC genome browser 
 		if($self->{ucsc_extracted}){
 			$self->UCSCtracks(1);
 		}
@@ -148,16 +144,8 @@ sub run_digs_process {
 			$self->UCSCtracks(2);
 		}
     } 
-	elsif ($option eq 10) { # Add a table of data to the screening database
+	elsif ($option eq 9) { # Add a table of data to the screening database
 		$self->extend_screening_db();
-	}
-	elsif ($option eq 11) { # Summarise GLUE reference sequence library 
-		my $genome_obj = TargetDB->new($self);
-		$genome_obj->summarise_genomes();    
-	}
-	elsif ($option eq 12) { # Retrieve data
-		my $refseqlib_obj = RefSeqLibrary->new($self);
-		$refseqlib_obj->summarise_reference_library();    
 	}
 }
 
@@ -189,7 +177,6 @@ sub initialise {
 
 	# Store the ScreenBuild.pm object (used later for some configurations)
 	$self->{loader_obj} = $loader_obj; 
-
 }
 
 #***************************************************************************
@@ -235,7 +222,7 @@ sub screen {
 	unless ($loader_obj) { die; }  # Sanity checking
 	my $valid = $loader_obj->set_up_screen($self, \%queries);
 	unless ($valid) {
-		print "\n\n\t ### Could not create valid screen - check control file\n\n\n";
+		print "\n\n\t ### Exiting without screening\n\n\n";
 		exit;
 	}
 	#$devtools->print_hash(\%queries); die; # DEBUG
@@ -251,8 +238,9 @@ sub screen {
 			
 			# Show status 
 			my $probe_id    = $query_ref->{probe_id};
-			my $target_name = $query_ref->{target_name}; # $target refers to the target file
-			print "\n\n\t # Screening target $target_name with probe $probe_id ";   
+			my $organism = $query_ref->{organism}; 
+			my $target_name = $query_ref->{target_name}; # name of target sequence file
+			print "\n\n\t # Screening '$organism' file '$target_name' with probe $probe_id ";   
 			
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);	
@@ -414,15 +402,8 @@ sub assign {
 		my $extract_id = $table->insert_row(\%data);
 	}
 
-	# Number of table rows in BLAST and Extracted tables should be equal
-	my $db = $self->{db};
-	my $blast_count     = $db->count_blast_rows();
-	my $extracted_count = $db->count_extracted_rows();
-	print "\n\t # Assigned $assigned_count newly extracted sequences";
-	unless ($blast_count eq $extracted_count) { 
-		print "\n\t # Extracted $extracted_count, BLAST_results count $blast_count";
-		die "\n\n\t\t ###### UNEVEN TABLE COUNT ERROR AFTER ASSIGN\n\n\n";
-	}
+	# TODO: validate?
+
 }
 
 #***************************************************************************
@@ -438,18 +419,26 @@ sub do_reverse_blast {
 	my $blast_obj     = $self->{blast_obj};
 	unless ($result_path and $blast_obj) { die; }
 	
-	# Copy the coordinates AS EXTRACT coordinates	
-	my $extract_start = $hit_ref->{subject_start};
-	my $extract_end   = $hit_ref->{subject_end};
+	if ($hit_ref->{subject_start} and $hit_ref->{subject_end}) { 
+		# If we are coming direct from the 1st BLAST, do this translation
+		$hit_ref->{extract_start} = $hit_ref->{subject_start};
+		$hit_ref->{extract_end}   = $hit_ref->{subject_end};
+	}
+
+	# Get required data about the hit, prior to performing reverse BLAST
 	my $blast_id      = $hit_ref->{blast_id};
 	my $sequence      = $hit_ref->{sequence};
 	my $organism      = $hit_ref->{organism};
 	my $probe_type    = $hit_ref->{probe_type};
 	
 	# Sanity checking
-	unless ($sequence) {  die "\n\t # No sequence found in revsre BLAST"; } 
+	unless ($probe_type and  $blast_id and $organism) { die; }
+	unless ($sequence) {  die "\n\t # ERROR: No sequence found for reverse BLAST"; } 
 	
-	# Make a file for BLAST
+	# Make a FASTA query file for the reverse BLAST procedure
+	$sequence =~ s/-//g;   # Remove any gaps that might happen to be there
+	$sequence =~ s/~//g;   # Remove any gaps that might happen to be there
+	$sequence =~ s/\s+//g; # Remove any gaps that might happen to be there
 	my $fasta      = ">$blast_id\n$sequence";
 	my $query_file = $result_path . $blast_id . '.fas';
 	$fileio->write_text_to_file($query_file, $fasta);
@@ -458,7 +447,6 @@ sub do_reverse_blast {
 	# Do the BLAST according to the type of sequence (AA or NA)
 	my $blast_alg;
 	my $lib_path;
-	unless ($probe_type) { die; }
 	if ($probe_type eq 'UTR') {
 		$lib_path  = $self->{blast_utr_lib_path};
 		$blast_alg = 'blastn';
@@ -490,8 +478,6 @@ sub do_reverse_blast {
 		print "\n\t ### No match found in reference library\n";
 		$hit_ref->{assigned_name}    = 'Unassigned';
 		$hit_ref->{assigned_gene}    = 'Unassigned';
-		$hit_ref->{extract_start}    = 0;
-		$hit_ref->{extract_end}      = 0;
 		$hit_ref->{identity}         = 0;
 		$hit_ref->{bit_score}        = 0;
 		$hit_ref->{e_value_exp}      = 0;
@@ -513,8 +499,6 @@ sub do_reverse_blast {
 		#print " assigned to: $assigned_name: $assigned_gene!";
 		$hit_ref->{assigned_name}    = $assigned_name;
 		$hit_ref->{assigned_gene}    = $assigned_gene;
-		$hit_ref->{extract_start}    = $extract_start;
-		$hit_ref->{extract_end}      = $extract_end;
 		$hit_ref->{identity}         = $top_match->{identity};
 		$hit_ref->{bit_score}        = $top_match->{bit_score};
 		$hit_ref->{e_value_exp}      = $top_match->{e_value_exp};
@@ -603,12 +587,13 @@ sub extract_unassigned_hits {
 #***************************************************************************
 sub reassign {
 	
-	my ($self) = @_;
+	my ($self, $reextract, $reassign_set_ids) = @_;
 
 	# Set up to perform the reassign process
-	print "\n\t # Reassigning Extracted table";
-	my @assigned_seqs;
-	$self->initialise_reassign(\@assigned_seqs);
+	print "\n\t # Regenerating Extracted table";
+	my @reassign_set;
+	$self->initialise_reassign($reextract, \@reassign_set, $reassign_set_ids);
+	$devtools->print_array(\@reassign_set); die;
 
 	# Get data structures and variables from self
 	my $blast_obj       = $self->{blast_obj};
@@ -618,24 +603,17 @@ sub reassign {
 	unless ($extracted_table) { die; }
 	
 	# Iterate through the matches
-	foreach my $hit_ref (@assigned_seqs) {
+	foreach my $hit_ref (@reassign_set) {
 
 		# Set the linking to the BLAST result table
-		my $blast_id  = $hit_ref->{record_id};
-		$hit_ref->{blast_id} = $blast_id;
-		delete $hit_ref->{record_id};
-		my $extract_start   = $hit_ref->{extract_start};
-		my $extract_end     = $hit_ref->{extract_end};
-		$hit_ref->{subject_start} = $extract_start;
-		$hit_ref->{subject_end}   = $extract_end;
-		delete $hit_ref->{extract_start};
-		delete $hit_ref->{extract_end};
-	
+		my $blast_id        = $hit_ref->{blast_id};
+		my $record_id       = $hit_ref->{record_id};
+
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $hit_ref->{assigned_name};
 		my $previous_gene   = $hit_ref->{assigned_gene};
-		print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
-		print "\n\t coordinates: $extract_start-$extract_end";
+		print "\n\t Redoing assign for BLAST record '$blast_id'";
+		print ", previously assigned to $previous_assign ($previous_gene)";
 		$self->do_reverse_blast($hit_ref);
 		
 		my $assigned_name = $hit_ref->{assigned_name};
@@ -643,6 +621,10 @@ sub reassign {
 		if ($assigned_name ne $previous_assign 
 		or  $assigned_gene ne $previous_gene) {
 			
+			# Remove the fields we don't need to update 
+			delete $hit_ref->{record_id};
+			delete $hit_ref->{sequence};
+		
 			# Insert the data
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
@@ -662,24 +644,64 @@ sub reassign {
 #***************************************************************************
 sub initialise_reassign {
 
-	my ($self, $assigned_seqs_ref) = @_;
+	my ($self, $reextract, $assign_set, $assign_ids) = @_;
 
 	# Create a unique ID and report directory for this run
 	my $output_path = $self->{output_path};
 	my $process_id  = $self->{process_id};
 	my $db          = $self->{db};
+	my $blast_obj   = $self->{blast_obj};
 	my $db_name     = $db->{db_name};
-	unless ($db and $db_name and $process_id and $output_path) { die; }
+	unless ($db and $db_name and $process_id and $output_path and $blast_obj) { die; }
 	
 	# Create report directory
 	my $loader_obj = $self->{loader_obj};
 	$loader_obj->create_output_directories($self);
 
-	# Get the assigned data
-	my $extracted_table = $db->{extracted_table};
-	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
-	                       extract_start extract_end sequence organism ];
-	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
+
+	# Get the set of rows to reassign
+	my @reassign_rows;
+	if ($assign_ids) { 
+		foreach my $data_ref (@$assign_ids) {
+			my $record_id = $data_ref->{record_id};
+			unless ($record_id) { $devtools->print_hash($data_ref); die; }
+			my @rows;
+			my $blast_table = $db->{blast_results_table};
+			my @fields  = qw [ record_id probe_name probe_gene probe_type organism 
+                               data_type version target_name scaffold 
+                               subject_start subject_end orientation
+                               query_start query_end hit_length  ];
+			my $where = "WHERE Record_ID = $record_id";
+			$blast_table->select_rows(\@fields, \@rows, $where);
+			my $data_ref2 = shift @rows;
+			my $genome_path = $self->{genome_use_path};
+			my $organism    = $data_ref2->{organism};
+			my $data_type   = $data_ref2->{data_type};
+			my $version     = $data_ref2->{version};
+			my $target_name = $data_ref2->{target_name};
+			my $target_path = $genome_path . "Mammalia/$organism" . "/$data_type" . "/$version" . "/$target_name";
+
+			# Extract the sequence
+			my $sequence = $blast_obj->extract_sequence($target_path, $data_ref2);
+			if ($sequence) {	
+				my $seq_length = length $sequence; # Set sequence length
+				$data_ref2->{sequence_length} = $seq_length;
+				$data_ref2->{sequence} = $sequence;
+				push (@$assign_set, $data_ref2);
+			}
+			else { die; }
+
+			#$devtools->print_hash($data_ref2); die; # DEBUG
+			push (@$assign_set, $data_ref2);
+		}
+	}
+	else {   # If no set of rows to reassign are in the array, reassign the entire Extracted table
+		# Get the minumum set of fields required for a reverse blast update of an Extracted table row
+		my $extracted_table = $db->{extracted_table};
+		my @fields  = qw [ record_id  blast_id probe_type
+                           assigned_name assigned_gene sequence ];
+		$extracted_table->select_rows(\@fields, $assign_set);
+	}
 
 	# Set up the reference library
 	if ($loader_obj->{reference_aa_fasta}) {
@@ -703,6 +725,18 @@ sub initialise_reassign {
 ############################################################################
 # SECTION: Consolidate Fxns
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  get_set
+# Description: 
+#***************************************************************************
+sub get_set {
+	
+	my ($self, $set_ids, $set_ref) = @_;
+
+
+
+}
 
 #***************************************************************************
 # Subroutine:  consolidate_hits
@@ -935,7 +969,7 @@ sub inspect_adjacent_hits {
 
 #***************************************************************************
 # Subroutine:  update_db_loci  
-# Description: update the BLAST results in line with consolidation
+# Description: update the BLAST results table with overlapping hit info
 #***************************************************************************
 sub update_db_loci {
 	
@@ -1218,8 +1252,8 @@ sub UCSCtracks{
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  run_utility_function
-# Description: handler for utility functions
+# Subroutine:  extend_screening_db
+# Description: console managemant of ancillary tables in the screening database
 #***************************************************************************
 sub extend_screening_db {
 
@@ -1345,24 +1379,156 @@ sub run_utility_function {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# TODO
-	die;
-
-
  	# Show title
 	$self->show_title();  
 
-	# Hand off to utility
-	if ($option eq 1) {  # Run database integrity checks
-		
-		# Do initial set up and sanity checking for options that require it
-		#$self->initialise($option, $ctl_file);
-
-	}
-	elsif ($option eq 2) { # Undefined 
+	# Do initial set up and sanity checking for options that require it
+	my $db_obj;
+	if  ( $option < 4) {
+		unless ($ctl_file) { die; }
+		$self->initialise($ctl_file);
+		my $db_name = $self->{db_name};
+		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+		$db_obj = ScreeningDB->new($self);
+		$db_obj->load_screening_db($db_name);	
+		$self->{db} = $db_obj; # Store the database object reference 
+	}	
 	
+	# Hand off to functions based on the 
+	if ($option eq 1) {  # Run database integrity checks
+		$db_obj->summarise_db();     # Do summary
+		$self->validate_screening_db(); # Find orphaned rows
 	}
+	elsif ($option eq 2) { # Remove a specific search
+		$db_obj->clean_up(); # Data removal function
+	}
+	elsif ($option eq 3) { # Remove a specific search
+		$self->repair(); # Run a repair screen
+	}
+	elsif ($option eq 4) { # Summarise GLUE reference sequence library 
+		my $genome_obj = TargetDB->new($self);
+		$genome_obj->summarise_genomes();    
+	}
+	elsif ($option eq 5) { # Retrieve data
+		my $refseqlib_obj = RefSeqLibrary->new($self);
+		$refseqlib_obj->summarise_reference_library();    
+	}
+
 }
+
+#***************************************************************************
+# Subroutine:  validate_screening_db
+# Description: validate screening database 
+#***************************************************************************
+sub validate_screening_db {
+
+	my ($self) = @_;
+
+	# Index data in the BLAST results and Extracted tables	
+	my $db_obj = $self->{db};
+	my %blast_results;
+	my %extracted;
+	my %status;
+	$db_obj->index_BLAST_results_by_record_id(\%blast_results);
+	$db_obj->index_extracted_loci_by_blast_id(\%extracted);
+	$db_obj->index_previously_executed_queries(\%status);
+
+
+	# Find Extracted table rows without BLAST table rows (should never happen)
+	my @extracted_orphans;
+	$db_obj->find_extracted_orphans(\%blast_results, \%extracted, \@extracted_orphans);
+	my $num_extracted_orphans = scalar @extracted_orphans;
+	if ($num_extracted_orphans) {
+		print "\n\t Identified $num_extracted_orphans orphaned Extracted rows ";
+	}
+	else {
+		print "\n\t There were no orphaned rows in the Extracted table ";
+	}
+
+	
+	# Find BLAST table rows without Status table rows (should never happen)
+	my @blast_orphans;
+	$db_obj->find_blast_orphans(\%blast_results, \%status, \@blast_orphans);
+	my $num_blast_orphans = scalar @blast_orphans;
+	if ($num_blast_orphans) {
+		print "\n\t Identified $num_blast_orphans BLAST rows with no search entry in the Status table ";
+	}
+	else {
+		print "\n\t There were no orphaned rows in the BLAST_results table ";
+	}
+
+
+	# Find BLAST table rows without Extracted rows (i.e. unfinished round of paired BLAST)
+	my @unfinished_searches;
+	$db_obj->find_unfinished_searches(\%blast_results, \%extracted, \@unfinished_searches);
+	my $num_unfinished_searches = scalar @unfinished_searches;
+	if ($num_unfinished_searches) {
+		print "\n\t Identified $num_unfinished_searches BLAST rows with no entry in the Extracted table ";
+	}
+	else {
+		print "\n\t There were no half-finished screens ";
+	}
+	#$devtools->print_array(\@blast_orphans);
+	#$devtools->print_array(\@extracted_orphans); die;
+	# TODO  Go to console dialogue offering option to repair 
+
+	# Find Status table rows without BLAST hits (expected to happen sometimes)
+	my @empty_searches;
+	$db_obj->find_empty_searches(\%blast_results, \%status, \@empty_searches);
+	my $num_empty_searches = scalar @empty_searches;
+	if ($num_empty_searches) {
+		print "\n\t A total of $num_empty_searches BLAST searches returned no hits ";
+	}
+	else {
+		print "\n\t All searches produced at least one hit ";
+	}
+
+}
+
+#***************************************************************************
+# Subroutine:  repair 
+# Description: run screens selectively to 'repair' a database
+#***************************************************************************
+sub repair {
+
+	my ($self) = @_;
+
+	# Index data in the BLAST results and Extracted tables	
+	my $db_obj = $self->{db};
+	my %blast_results;
+	my %status;
+	$db_obj->index_BLAST_results_by_record_id(\%blast_results);
+	$db_obj->index_previously_executed_queries(\%status);
+
+	# Find Status table rows without BLAST hits (expected to happen sometimes)
+	my @empty_searches;
+	my @blast_orphans;
+	$db_obj->check_search_status(\%blast_results, \%status, \@blast_orphans, \@empty_searches);
+	my $num_blast_orphans = scalar @blast_orphans;
+	if ($num_blast_orphans) {
+		print "\n\t Identified $num_blast_orphans BLAST rows with no search entry in the Status table ";
+	}
+	else {
+		print "\n\t There were no BLAST table rows orphaned from the Status table ";
+	}
+	my $num_empty_searches = scalar @empty_searches;
+	if ($num_empty_searches) {
+		print "\n\t A total of $num_empty_searches BLAST searches retrurned no hits ";
+	}
+	else {
+		print "\n\t All searches produced at least one hit ";
+	}
+	#$devtools->print_array(\@empty_searches); die;
+	#my $reextract_flag = 'true';
+	#$self->reassign($reextract_flag, \@blast_orphans);
+	#die;
+}
+
+
+
+
+
+
 
 
 ############################################################################
@@ -1381,7 +1547,6 @@ sub show_title {
 	unless ($version_num) {
 		$version_num = 'version undefined (use with caution)';
 	}
-
 	$console->refresh();
 	my $title       = 'DIGS';
 	my $description = 'Database-Integrated Genome Screening';
@@ -1395,21 +1560,43 @@ sub show_title {
 # Description: show help page information
 #***************************************************************************
 sub show_help_page {
-	my ($self) = @_;		
+
+	my ($self) = @_;
+	
 	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t  usage: $0 m=[option] -i=[control file]\n";
+	my ($HELP)  = "\n\t  usage: $0 [option] -i=[control file]\n";
         $HELP  .= "\n\t -m=1  create a screening DB"; 
 		$HELP  .= "\n\t -m=2  execute a round of paired BLAST screening"; 
 		$HELP  .= "\n\t -m=3  defragment hits (create loci table)"; 
 		$HELP  .= "\n\t -m=4  reassign sequences (e.g. after reference library update)"; 
 		$HELP  .= "\n\t -m=5  flush a screening DB"; 
 		$HELP  .= "\n\t -m=6  drop a screening DB"; 
-		$HELP  .= "\n\t -m=7  summarise a screening DB"; 
-		$HELP  .= "\n\t -m=8  retrieve data from a screening DB"; 
-		$HELP  .= "\n\t -m=9  create BED file for UCSC genome browser";
-		$HELP  .= "\n\t -m=10 create/drop/upload data to ancillary table"; 
-		$HELP  .= "\n\t -m=11 summarise target genome directory"; 
-		$HELP  .= "\n\t -m=12 summarise a GLUE-formatted reference sequence library"; 
+		$HELP  .= "\n\t -m=7  retrieve data from a screening DB"; 
+		$HELP  .= "\n\t -m=8  create BED file for UCSC genome browser";
+		$HELP  .= "\n\t -m=9  manage ancillary tables in screening database\n"; 
+		$HELP  .= "\n\t -u=1  validate screening DB"; 
+		$HELP  .= "\n\t -u=2  clean up screening DB"; 
+		$HELP  .= "\n\t -u=3  repair screening DB"; 
+		$HELP  .= "\n\t -u=4  summarise target genome directory"; 
+		$HELP  .= "\n\t -u=5  summarise a GLUE-formatted reference sequence library"; 
+	print $HELP;
+}
+
+#***************************************************************************
+# Subroutine:  show_utility_help_page
+# Description: show help page information
+#***************************************************************************
+sub show_utility_help_page {
+
+	my ($self) = @_;
+	
+	# Initialise usage statement to print if usage is incorrect
+	my ($HELP)  = "\n\t  usage: $0 -u=[option] -i=[control file]\n";
+		$HELP  .= "\n\t -u=1  validate screening DB"; 
+		$HELP  .= "\n\t -u=2  clean up screening DB"; 
+		$HELP  .= "\n\t -u=3  repair screening DB"; 
+		$HELP  .= "\n\t -u=4  summarise target genome directory"; 
+		$HELP  .= "\n\t -u=5  summarise a GLUE-formatted reference sequence library"; 
 		$HELP  .= "\n\n";
 	print $HELP;
 }
