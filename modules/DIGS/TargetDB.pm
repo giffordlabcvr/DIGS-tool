@@ -173,6 +173,8 @@ sub refresh_genomes {
 	
 	# Index genomes by key ( organism | type | version )
 	my %server_data;
+	
+	print "\n\n\t Refreshing genome data under path '$genome_path'\n\n";
 	$self->read_genome_directory(\%server_data);
 	#$devtools->print_hash(\%server_data); die;
 
@@ -196,7 +198,10 @@ sub refresh_genomes {
 		
 		if ($num_unformatted) {  # Do formatting
 			print "\n\n\t #~#~# Format genome: $organism, $type, $version";
-			my $question = "\n\t Do you want to format unformatted chunks in this genome?";
+			foreach my $file (@$unformatted_ref) {
+				print "\n\t file '$file'";
+			}
+			my $question = "\n\n\t Do you want to format the above files?";
 			my $answer   = $console->ask_yes_no_question($question);
 			if ($answer eq 'y') {
 				$self->format_genome($genome_ref);
@@ -280,36 +285,28 @@ sub check_genome_formatting {
 		my @file_bits = split (/\./, $file);
 		my $type = pop @file_bits;
 		my $stem = join ('.', @file_bits);
-		
-		# SORTING THINGS OUT
-		if ($type eq 'fasta' or $type eq 'fa') { 
-			$stem .= ".$type";
-		}
-		if ($type eq 'fasta') { 
-			$type = 'fa'; # standardise type for FASTA files
-		} 
-		
 		#print "\n\t NAME $file:\t\t $stem";
 		unless ($stem and $type) { 
 			die "\n\n\t  filename structure error for '$file'\n\n";
 		}
-		unless  (
-			$type eq 'fa'  or $type eq 'ol' or
-			$type eq 'nnd' or $type eq 'nni' or 
-			$type eq 'nsd' or $type eq 'nsi' or 
-			$type eq 'nsq' or $type eq 'ntm' or
-			$type eq 'nin' or $type eq 'nhr' or
-			$type eq 'nog'
-		) {  
-			print "\n\n\t  FILE '$file' IS OF UNKNOWN TYPE\n\n";
+		
+		# Parsing the file extension of the target sequence file
+		if ($type eq 'fasta' or $type eq 'fas' or $type eq 'fa') { 
+			$type = 'fa'; # standardise type for FASTA files
+			$stem .= ".$type";
+		}
+	
+		# Check if the file looks like a BLAST sequence database file	
+		my $result = $self->check_for_blast_filetype($type);
+		unless ($result) {
+			print "\n\t   File '$file' is not a recognized BLAST sequence database associated filetype";
 		}
 		
+		# Add this filestem to the list of filestems we have seen the stem
 		if ($stems{$stem}) { 
 			my $files_ref = $stems{$stem};
 			if ($files_ref->{$type}) { 
 				print "\n\t NAME $file: $stem";
-				#$devtools->print_hash($file_ref);
-				#$devtools->print_hash($files_ref);
 				die;
 			}
 			$files_ref->{$type} = 1;
@@ -317,16 +314,18 @@ sub check_genome_formatting {
 				$files_ref->{stem_target} = $file;
 			}
 		}
-		
 		else {
 			my %stem_files;
 			$stem_files{$type} = 1;
+			$stem_files{stemfile_name} = $file;
 			if ($type eq 'fa') {
 				$stem_files{stem_target} = $file;
 			}
 			$stems{$stem} = \%stem_files;
 		}
+
 	}
+
 	#$devtools->print_hash(\%stems);
 
 	my @stems = keys %stems;
@@ -342,19 +341,47 @@ sub check_genome_formatting {
 		my $target = $types_ref->{stem_target};
 		unless ($nhr and $nin and $nsq) {
 			
+			my $stemfile_data = $stems{$stem};
+			my $stemfile_name = $stemfile_data->{stemfile_name};
 			if ($target) {
+				print "\n\t  adding unformatted target  $target for '$stemfile_name' (ignoring)";
 				push (@unformatted, $target); 
 			}
 			else {
-				print "\n\t No target for $stem";
+				print "\n\t   No target found for:";
+				print "\n\t   filestem '$stem'";
+				print "\n\t   from file '$stemfile_name' (ignoring)";
 			}
 		}
 		else {
 			push (@formatted, $target); 
 		}
 	}
+
+	#$devtools->print_array(\@unformatted);
+
 	$genome_ref->{formatted}   = \@formatted;
 	$genome_ref->{unformatted} = \@unformatted;
+}
+
+#***************************************************************************
+# Subroutine:  check_for_blast_filetype
+# Description: Check if string $type is a known file extension of BLAST database
+#***************************************************************************
+sub check_for_blast_filetype {
+
+	my ($self, $type) = @_;
+	my $result = undef;
+	if( $type eq 'fa'  or $type eq 'ol' or $type eq 'gz' or
+		$type eq 'nnd' or $type eq 'nni' or 
+		$type eq 'nsd' or $type eq 'nsi' or 
+		$type eq 'nsq' or $type eq 'ntm' or
+		$type eq 'nin' or $type eq 'nhr' or
+		$type eq 'nin' or $type eq 'nhr' or
+		$type eq 'nog' or $type eq 'nal') {
+		$result = 1;
+	}
+	return $result;
 }
 
 #***************************************************************************

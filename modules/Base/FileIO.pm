@@ -141,7 +141,7 @@ sub read_directory_tree_leaves {
 	
 	unless ($path and $leaves) { die; }
 	
-	# Set the current state
+	# Set thE current state
 	my $level = 1;
 	my $value;
 	if ($level_codes) {
@@ -213,7 +213,7 @@ sub recursive_read {
 		}
 		else { 
 			print "\n\t File '$file' is located in internal node";
-			print "\n\t Directory depth incorrect - '$level' ne '$levels'";
+			#print "\n\t Directory depth incorrect - '$level' ne '$levels'";
 		}
 	}
 }

@@ -1396,7 +1396,9 @@ sub run_utility_function {
 	
 	# Hand off to functions based on the 
 	if ($option eq 1) {  # Run database integrity checks
+		print "\t #### SCREENING DATABASE SUMMARY\n";
 		$db_obj->summarise_db();     # Do summary
+		print "\t #### SCREENING DATABASE VALIDATION REPORT\n";
 		$self->validate_screening_db(); # Find orphaned rows
 	}
 	elsif ($option eq 2) { # Remove a specific search
@@ -1433,7 +1435,6 @@ sub validate_screening_db {
 	$db_obj->index_extracted_loci_by_blast_id(\%extracted);
 	$db_obj->index_previously_executed_queries(\%status);
 
-
 	# Find Extracted table rows without BLAST table rows (should never happen)
 	my @extracted_orphans;
 	$db_obj->find_extracted_orphans(\%blast_results, \%extracted, \@extracted_orphans);
@@ -1444,7 +1445,6 @@ sub validate_screening_db {
 	else {
 		print "\n\t There were no orphaned rows in the Extracted table ";
 	}
-
 	
 	# Find BLAST table rows without Status table rows (should never happen)
 	my @blast_orphans;
@@ -1457,7 +1457,6 @@ sub validate_screening_db {
 		print "\n\t There were no orphaned rows in the BLAST_results table ";
 	}
 
-
 	# Find BLAST table rows without Extracted rows (i.e. unfinished round of paired BLAST)
 	my @unfinished_searches;
 	$db_obj->find_unfinished_searches(\%blast_results, \%extracted, \@unfinished_searches);
@@ -1468,21 +1467,24 @@ sub validate_screening_db {
 	else {
 		print "\n\t There were no half-finished screens ";
 	}
-	#$devtools->print_array(\@blast_orphans);
-	#$devtools->print_array(\@extracted_orphans); die;
-	# TODO  Go to console dialogue offering option to repair 
 
 	# Find Status table rows without BLAST hits (expected to happen sometimes)
 	my @empty_searches;
-	$db_obj->find_empty_searches(\%blast_results, \%status, \@empty_searches);
+	my $total_searches =  $db_obj->find_empty_searches(\%blast_results, \%status, \@empty_searches);
 	my $num_empty_searches = scalar @empty_searches;
 	if ($num_empty_searches) {
-		print "\n\t A total of $num_empty_searches BLAST searches returned no hits ";
+		my $percentage = ( $num_empty_searches / $total_searches ) * 100; 
+		my $f_percentage = sprintf("%.2f", $percentage);
+		print "\n\t $num_empty_searches of $total_searches (%$f_percentage) of BLAST searches returned no hits ";
+		#$devtools->print_array(\@empty_searches);
 	}
 	else {
 		print "\n\t All searches produced at least one hit ";
 	}
 
+	#$devtools->print_array(\@blast_orphans);
+	#$devtools->print_array(\@extracted_orphans); die;
+	# TODO  Go to console dialogue offering option to repair and/or repeat 
 }
 
 #***************************************************************************
@@ -1500,7 +1502,7 @@ sub repair {
 	$db_obj->index_BLAST_results_by_record_id(\%blast_results);
 	$db_obj->index_previously_executed_queries(\%status);
 
-	# Find Status table rows without BLAST hits (expected to happen sometimes)
+	# Find Status table rows without BLAST hits 
 	my @empty_searches;
 	my @blast_orphans;
 	$db_obj->check_search_status(\%blast_results, \%status, \@blast_orphans, \@empty_searches);

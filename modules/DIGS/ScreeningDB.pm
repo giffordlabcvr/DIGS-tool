@@ -1059,9 +1059,17 @@ sub find_empty_searches {
 	print "\n\n\t Checking for Status table rows that lack search details";
 	my $blast_table = $self->{blast_results_table};
 	unless ($blast_table) { die; }
+	my $i = 0;
 	foreach my $key (@status_keys) {	
 
-		#print "\n\t DOING '$key'";
+		my $divider = 10000;
+		my $remainder = $i % $divider;
+		if ($remainder eq 0) {
+			my $next_start = $i + 1;
+			my $next_stop  = $i + $divider;
+			print "\n\t\t Done searches $next_start - $next_stop";
+		}
+		$i++;
 		unless ($status_index->{$key}) { die; }
 		my $data_ref    = $status_index->{$key};
 		my $organism    = $data_ref->{organism};
@@ -1079,17 +1087,18 @@ sub find_empty_searches {
                        AND   probe_gene   = '$probe_gene'";
 		my @rows;
 		$blast_table->select_rows(\@fields, \@rows, $where);
-		$blast_table->select_rows(\@fields, \@rows);
+		#$blast_table->select_rows(\@fields, \@rows);
 		#$devtools->print_array(\@rows); die;
 		my $count = scalar @rows;
-		unless ($count > 0) {
-			print "\n\t FOUND empty search '$count'";
-			foreach my $data_ref (@$empty_searches) {
-				push(@$empty_searches, $data_ref);
-			}
+		#print "\n\t there are $count rows for search $key";
+		if ($count eq 0) {
+			#print "\n\t FOUND empty search key '$key'";
+			push(@$empty_searches, $data_ref);
 		}	
 		#$devtools->print_hash($data_ref); die;
 	}	
+
+	return $i;
 }
 
 #***************************************************************************

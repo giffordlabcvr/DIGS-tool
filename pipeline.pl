@@ -5,17 +5,16 @@
 # History:     Version 1.0 Creation: Rob J Gifford 2014
 ############################################################################
 
-unless ($ENV{DIGS_HOME2}) {
-	print  "\n\n\t Environment variable '\$DIGS_HOME2' is undefined\n";
+unless ($ENV{DIGS_GENOMES}) {
+	print  "\n\n\t Environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_GENOMES2}) {
-	print  "\n\n\t Environment variable '\$DIGS_GENOMES2' is undefined\n";
+unless ($ENV{DIGS_HOME}) {
+	print  "\n\n\t Environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
-
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
+use lib ($ENV{DIGS_HOME}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -52,7 +51,7 @@ use GLUE::RefSeq;        # GLUE RefSeq
 ############################################################################
 
 # Paths
-my $genome_use_path = $ENV{DIGS_GENOMES2} . '/';    
+my $genome_use_path = $ENV{DIGS_GENOMES} . '/';    
 my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
 
 # Version number	
