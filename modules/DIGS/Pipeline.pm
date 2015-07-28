@@ -58,6 +58,8 @@ sub new {
 		# Flags
 		process_id             => $parameter_ref->{process_id},
 		program_version        => $parameter_ref->{program_version},
+		refresh_genomes        => $parameter_ref->{refresh_genomes},
+		verbose                => $parameter_ref->{verbose},
 		
 		# Paths and member variables
 		blast_bin_path         => $parameter_ref->{blast_bin_path},
@@ -587,13 +589,118 @@ sub extract_unassigned_hits {
 #***************************************************************************
 sub reassign {
 	
+	my ($self) = @_;
+
+	# Set up to perform the reassign process
+	print "\n\t # Reassigning Extracted table";
+	my @assigned_seqs;
+	$self->initialise_reassign(\@assigned_seqs);
+
+	# Get data structures and variables from self
+	my $blast_obj       = $self->{blast_obj};
+	my $result_path     = $self->{report_dir};
+	my $db              = $self->{db};
+	my $extracted_table = $db->{extracted_table};
+	unless ($extracted_table) { die; }
+	
+	# Iterate through the matches
+	foreach my $hit_ref (@assigned_seqs) {
+
+		# Set the linking to the BLAST result table
+		my $blast_id  = $hit_ref->{record_id};
+		$hit_ref->{blast_id} = $blast_id;
+		delete $hit_ref->{record_id};
+		my $extract_start   = $hit_ref->{extract_start};
+		my $extract_end     = $hit_ref->{extract_end};
+		$hit_ref->{subject_start} = $extract_start;
+		$hit_ref->{subject_end}   = $extract_end;
+		delete $hit_ref->{extract_start};
+		delete $hit_ref->{extract_end};
+	
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
+		my $previous_assign = $hit_ref->{assigned_name};
+		my $previous_gene   = $hit_ref->{assigned_gene};
+		print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
+		print "\n\t coordinates: $extract_start-$extract_end";
+		$self->do_reverse_blast($hit_ref);
+		
+		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
+		if ($assigned_name ne $previous_assign 
+		or  $assigned_gene ne $previous_gene) {
+			
+			# Insert the data
+			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
+			print " to $assigned_name ($assigned_gene)";
+			# Insert the data
+			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
+			print " to $assigned_name ($assigned_gene)";
+			my $where = " WHERE Record_id = $blast_id ";
+			$extracted_table->update($hit_ref, $where);
+		}
+	}
+	# Cleanup
+	my $output_dir = $self->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
+}
+
+
+#***************************************************************************
+# Subroutine:  initialise_reassign 
+# Description: set up for reassigning the sequences in the Extracted table
+#***************************************************************************
+sub initialise_reassign {
+
+	my ($self, $assigned_seqs_ref) = @_;
+
+	# Create a unique ID and report directory for this run
+	my $output_path = $self->{output_path};
+	my $process_id  = $self->{process_id};
+	my $db          = $self->{db};
+	my $db_name     = $db->{db_name};
+	unless ($db and $db_name and $process_id and $output_path) { die; }
+	
+	# Create report directory
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->create_output_directories($self);
+
+	# Get the assigned data
+	my $extracted_table = $db->{extracted_table};
+	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
+	                       extract_start extract_end sequence organism ];
+	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
+
+	# Set up the reference library
+	if ($loader_obj->{reference_aa_fasta}) {
+		$loader_obj->load_aa_fasta_reference_library();
+	}
+	if ($loader_obj->{reference_nt_fasta}) {
+		$loader_obj->load_nt_fasta_reference_library();
+	}
+
+	# Transfer parameters from loader to this obj
+	$self->{seq_length_minimum}    = $loader_obj->{seq_length_minimum};
+	$self->{bit_score_min_tblastn} = $loader_obj->{bit_score_min_tblastn};
+	$self->{bit_score_min_blastn}  = $loader_obj->{bit_score_min_blastn};
+	$self->{blast_orf_lib_path}    = $loader_obj->{blast_orf_lib_path};
+	$self->{blast_utr_lib_path}    = $loader_obj->{blast_utr_lib_path};
+}
+
+#***************************************************************************
+# Subroutine:  reassign
+# Description: reassign sequences in the extracted_table (for use after
+#              the reference library has been updated)
+#***************************************************************************
+sub reassign2 {
+	
 	my ($self, $reextract, $reassign_set_ids) = @_;
 
 	# Set up to perform the reassign process
 	print "\n\t # Regenerating Extracted table";
 	my @reassign_set;
-	$self->initialise_reassign($reextract, \@reassign_set, $reassign_set_ids);
-	$devtools->print_array(\@reassign_set); die;
+	$self->initialise_reassign2($reextract, \@reassign_set, $reassign_set_ids);
+	#$devtools->print_array(\@reassign_set); die;
 
 	# Get data structures and variables from self
 	my $blast_obj       = $self->{blast_obj};
@@ -638,11 +745,12 @@ sub reassign {
 	system $command1;
 }
 
+
 #***************************************************************************
-# Subroutine:  initialise_reassign 
+# Subroutine:  initialise_reassign2 
 # Description: set up for reassigning the sequences in the Extracted table
 #***************************************************************************
-sub initialise_reassign {
+sub initialise_reassign2 {
 
 	my ($self, $reextract, $assign_set, $assign_ids) = @_;
 
@@ -725,18 +833,6 @@ sub initialise_reassign {
 ############################################################################
 # SECTION: Consolidate Fxns
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  get_set
-# Description: 
-#***************************************************************************
-sub get_set {
-	
-	my ($self, $set_ids, $set_ref) = @_;
-
-
-
-}
 
 #***************************************************************************
 # Subroutine:  consolidate_hits
@@ -1385,7 +1481,7 @@ sub run_utility_function {
 	# Do initial set up and sanity checking for options that require it
 	my $db_obj;
 	if  ( $option < 4) {
-		unless ($ctl_file) { die; }
+		unless ($ctl_file) { die "\n\t Utility option '$option' requires a control file\n\n"; }
 		$self->initialise($ctl_file);
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
@@ -1404,15 +1500,20 @@ sub run_utility_function {
 	elsif ($option eq 2) { # Remove a specific search
 		$db_obj->clean_up(); # Data removal function
 	}
-	elsif ($option eq 3) { # Remove a specific search
+	elsif ($option eq 3) { 
 		$self->repair(); # Run a repair screen
 	}
-	elsif ($option eq 4) { # Summarise GLUE reference sequence library 
+	elsif ($option eq 4) { # Summarise target genome databases, file by file
 		my $genome_obj = TargetDB->new($self);
-		$genome_obj->summarise_genomes();    
+		$genome_obj->summarise_genomes_long();    
 	}
-	elsif ($option eq 5) { # Retrieve data
+	elsif ($option eq 5) { # Summarise target genome databases, one line per unique database
+		my $genome_obj = TargetDB->new($self);
+		$genome_obj->summarise_genomes_short();    
+	}
+	elsif ($option eq 6) { # Retrieve data
 		my $refseqlib_obj = RefSeqLibrary->new($self);
+		$refseqlib_obj->{reference_glue} = $ctl_file;
 		$refseqlib_obj->summarise_reference_library();    
 	}
 
@@ -1526,13 +1627,6 @@ sub repair {
 	#die;
 }
 
-
-
-
-
-
-
-
 ############################################################################
 # Command line console fxns
 ############################################################################
@@ -1564,7 +1658,7 @@ sub show_title {
 sub show_help_page {
 
 	my ($self) = @_;
-	
+
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t  usage: $0 [option] -i=[control file]\n";
         $HELP  .= "\n\t -m=1  create a screening DB"; 
@@ -1576,11 +1670,15 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=7  retrieve data from a screening DB"; 
 		$HELP  .= "\n\t -m=8  create BED file for UCSC genome browser";
 		$HELP  .= "\n\t -m=9  manage ancillary tables in screening database\n"; 
+	
 		$HELP  .= "\n\t -u=1  validate screening DB"; 
 		$HELP  .= "\n\t -u=2  clean up screening DB"; 
 		$HELP  .= "\n\t -u=3  repair screening DB"; 
-		$HELP  .= "\n\t -u=4  summarise target genome directory"; 
-		$HELP  .= "\n\t -u=5  summarise a GLUE-formatted reference sequence library"; 
+		$HELP  .= "\n\t -u=4  summarise target genome directory (file by file - slow)"; 
+		$HELP  .= "\n\t -u=5  summarise target genome directory (by unique database - fast)"; 
+		$HELP  .= "\n\t -u=6  summarise a GLUE-formatted reference sequence library\n"; 
+
+		$HELP  .= "\n\t -r    format genome folder before executing"; 
 	print $HELP;
 }
 

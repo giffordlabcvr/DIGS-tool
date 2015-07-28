@@ -9,12 +9,12 @@ unless ($ENV{DIGS_GENOMES}) {
 	print  "\n\n\t Environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_HOME}) {
-	print  "\n\n\t Environment variable '\$DIGS_HOME' is undefined\n";
+unless ($ENV{DIGS_HOME2}) {
+	print  "\n\n\t Environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME}) . '/modules/'; 
+use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -112,19 +112,37 @@ exit;
 sub main {
 	
 	# Read in options using GetOpt::Long
-	my $mode    = undef;
-	my $infile  = undef;
-	my $utility = undef;
-	my $help    = undef;
-	my $version = undef;
+	
+	# Define options that require a file path
+	my $infile   = undef;
+	
+	# Define options that require a numerical value
+	my $mode     = undef;
+	my $utility  = undef;
+
+	# Define options that don't require a value
+	my $help     = undef;
+	my $refresh_genomes = undef;
+	my $verbose  = undef;
+	my $version  = undef;
 	GetOptions ('mode|m=i'    => \$mode, 
 			    'infile|i=s'  => \$infile,
 			    'utility|u=i' => \$utility,
 			    'help'        => \$help,
+			    'refresh_genomes'    => \$refresh_genomes,
+			    'verbose'     => \$verbose,
 			    'version'     => \$version,
 	) or die $USAGE;
 
-	# Sanity checking for input 
+	
+	if ($refresh_genomes)    { # Override genome directory processing step
+		$pipeline_obj->{refresh_genomes} = 'true';
+	}
+	if ($verbose)    { # Set verbose output flag
+		$pipeline_obj->{verbose} = 'true';
+	}
+
+	# Hand off to functions
 	if ($help)    { # Show help page
 		$pipeline_obj->show_help_page();
 	}

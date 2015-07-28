@@ -89,7 +89,9 @@ sub run_data_retrieval_functions {
 
 	# Get information from screening db
 	$self->initialise_screening_db_ranges();
-	#$devtools->print_hash($self); die; 
+	$devtools->print_hash($self); die; 
+	
+	die;
 
 	# Do dialogue for selecting sequences
 	$self->do_retrieve_data_dialogue();
@@ -97,32 +99,22 @@ sub run_data_retrieval_functions {
 	# Do dialogue for selecting sequences
 	$self->do_align_data_dialogue();
 
+
 	# Analyse GLUE alignment
 	#$glue_obj->{glue_msa_path};
 	#$glue_obj->analyse_glue_msa();
-
-	# Database connection globals
-	my $server   = 'localhost';
-	my $db       = 'ERVdb';
-	#my $db       = 'ERVdb_Classic';
-	my $username = 'bels';
-	my $password = 'ferguson';
-	my $dbh = DBI->connect("dbi:mysql:$db:$server", $username, $password);
-
-	# Genome paths, static data
-	my $genome_path = 'data/genomes.txt';
-
+	
 	# Initialise usage statement to print if usage is incorrect
-	my($USAGE) = "\n\tUsage:\n";
-	  $USAGE  .= "\n\tSingle extract: ";
-	  $USAGE  .= "\n\t\t$0 [start] [stop] [scaffold] [path-to-file]";
-	  $USAGE  .= "\n\tExtract multiple from file:";
-	  $USAGE  .= "\n\t\t$0 [data file] -f1";
-	  $USAGE  .= "\n\tExtract multiple from file and extend:";
-	  $USAGE  .= "\n\t\t$0 [data file] [upstream] [downstream] -f2";
-	  $USAGE  .= "\n\tExtract using SQL query, and extend:";
-	  $USAGE  .= "\n\t\t$0 [data file] [upstream] [downstream] -f3";
-	  $USAGE  .= "\n\n";
+	#my($USAGE) = "\n\tUsage:\n";
+	#  $USAGE  .= "\n\tSingle extract: ";
+	#  $USAGE  .= "\n\t\t$0 [start] [stop] [scaffold] [path-to-file]";
+	#  $USAGE  .= "\n\tExtract multiple from file:";
+	#  $USAGE  .= "\n\t\t$0 [data file] -f1";
+	#  $USAGE  .= "\n\tExtract multiple from file and extend:";
+	#  $USAGE  .= "\n\t\t$0 [data file] [upstream] [downstream] -f2";
+	#  $USAGE  .= "\n\tExtract using SQL query, and extend:";
+	#  $USAGE  .= "\n\t\t$0 [data file] [upstream] [downstream] -f3";
+	#  $USAGE  .= "\n\n";
 
 	# Viable program options for command line executions 
 	my %allowed_options;
@@ -144,7 +136,7 @@ sub run_data_retrieval_functions {
 	my %options;
 	foreach my $option (@options) {
 		if ($option eq '-') { next; }
-		unless ($allowed_options{$option}) { die $USAGE; };
+		#unless ($allowed_options{$option}) { die $USAGE; };
 		$options{$option} = 1;
 	}
 
@@ -155,7 +147,7 @@ sub run_data_retrieval_functions {
 	if ($options{f}) {
 		
 		my $file_path = $ARGV[0];
-		unless ($file_path) { die $USAGE; }
+		#unless ($file_path) { die $USAGE; }
 
 		if ($options{1}) {
 			extract_multiple_sequences($file_path);
@@ -166,7 +158,7 @@ sub run_data_retrieval_functions {
 			my $upstream   = $ARGV[1];
 			my $downstream = $ARGV[2];
 			unless ($file_path and $upstream and $downstream) {
-				die $USAGE; 
+		#		die $USAGE; 
 			}
 			extend_and_extract_multiple_sequences($file_path, $upstream, $downstream);
 		}
@@ -175,7 +167,7 @@ sub run_data_retrieval_functions {
 			my $upstream   = $ARGV[1];
 			my $downstream = $ARGV[2];
 			unless ($file_path and $upstream and $downstream) {
-				die $USAGE; 
+		#		die $USAGE; 
 			}
 			extract_using_sql_query($file_path, $upstream, $downstream);
 		}
@@ -187,7 +179,7 @@ sub run_data_retrieval_functions {
 		my $scaffold = $ARGV[2];
 		my $chunk    = $ARGV[3];
 		unless ($start and $stop and $scaffold and $chunk) {
-			die $USAGE; 
+		#	die $USAGE; 
 		}
 		extract($start, $stop, $scaffold, $chunk);
 	}

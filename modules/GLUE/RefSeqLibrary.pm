@@ -76,8 +76,23 @@ sub summarise_reference_library {
 	my $path = $self->{reference_glue};
 	$self->load_glue_reference_library(\%refseq_library, $path);
 
+	# Write as simple list
+	my $exists = $fileio->check_directory_exists($path);
+	my @leaves;
+	if ($exists) {
+		$fileio->read_directory_tree_leaves_simple($path, \@leaves);
+	}
+	else { die "\n\t # Couldn't open directory '$path'\n\n\n"; }
+	#$devtools->print_array(\@leaves); die;
+	my @list;
+	foreach my $hash (@leaves) {
+		my $path = $hash->{path};
+		$path =~ s/\//\t/g;
+		push(@list, "$path\n");
+	}
+	$fileio->write_file("tab.txt", \@list);
+
 	# Write features as FASTA
-	#$devtools->print_hash(\%refseq_library); die;
 	$self->write_features_as_fasta(\%refseq_library);
 
 }
@@ -102,7 +117,6 @@ sub load_glue_reference_library {
 	if ($exists) {
 		#print "\n\t Reading leaves for PATH $path";
 		$fileio->read_directory_tree_leaves_simple($path, \@leaves);
-		#$devtools->print_array(\@leaves); die;
 	}
 	else {
 		die "\n\t # Couldn't open directory '$path'\n\n\n";
@@ -147,7 +161,7 @@ sub write_features_as_fasta {
 	my %features;
 	my %feature_names;
 	foreach my $refseq_name (@refseq_names) {
-		
+	
 		#$refseq_ref->describe();
 		#$devtools->print_hash($refseq_ref); die;
 		print "\n\t Getting features for '$refseq_name'";

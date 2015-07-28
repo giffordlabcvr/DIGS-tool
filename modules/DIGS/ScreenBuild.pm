@@ -59,6 +59,9 @@ sub new {
 		# Member variables
 		process_id           => $parameter_ref->{process_id},
 		
+		# Flags
+		refresh_genomes             => $parameter_ref->{refresh_genomes},
+		
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
 		blast_bin_path       => $parameter_ref->{blast_bin_path},
@@ -733,8 +736,10 @@ sub set_targets {
 	my ($self, $targets_ref) = @_;
 
 	# Initialise target sequence library
-	my $genome_obj = TargetDB->new($self); 
-	$genome_obj->refresh_genomes($targets_ref);
+	my $genome_obj = TargetDB->new($self);
+	if ($self->{refresh_genomes}) {
+		$genome_obj->refresh_genomes($targets_ref);
+	} 
 	
 	# Iterate through targets set target file paths
 	my %paths;

@@ -77,10 +77,10 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  summarise_genomes
+# Subroutine:  summarise_genomes_long
 # Description: summarise data in the 'target genomes' directory
 #***************************************************************************
-sub summarise_genomes {
+sub summarise_genomes_long {
 
 	my ($self) = @_;
 	
@@ -157,6 +157,52 @@ sub summarise_genomes {
 	my $summary = "target_genomes_summary.txt";
 	print "\n\n\t ### Writing summary to '$summary'\n";
 	$fileio->write_file($summary, \@summary);
+}
+
+#***************************************************************************
+# Subroutine:  summarise_genomes_short
+# Description: summarise data in the 'target genomes' directory
+#***************************************************************************
+sub summarise_genomes_short {
+
+	my ($self) = @_;
+	
+	#  Get member data structure that describes expected directory structure
+	my $genome_path = $self->{genome_use_path};
+	unless ($genome_path) { die  "\n\t Path not set\n\n\n"; }
+	my $levels_ref  = $self->{directory_levels};
+	unless ($levels_ref)  { die  "\n\t Levels not set\n\n\n"; }
+	my @levels = sort by_number keys %$levels_ref;
+
+	# Index current, locally-held genome data 
+	my @genome_files;
+	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
+
+	# Iterate through the files
+	my %genome_keys;
+	foreach my $file_ref (@genome_files) {
+		
+		#$devtools->print_hash($file_ref);
+		my $grouping = $file_ref->{grouping};
+		my $organism = $file_ref->{organism};
+		my $type     = $file_ref->{source_type};
+		my $version  = $file_ref->{version};
+		my $key = $grouping . '|' .$organism . '|' . $type . '|' . $version;
+		$genome_keys{$key} = 1;
+	}
+	
+	# add header row
+	my @summary;
+	my @header = ('Grouping', 'Organism', 'Data type', 'Version');
+	my $header = join("\t", @header);
+	push (@summary, "$header\n");
+	my @keys = sort keys %genome_keys;
+	foreach my $key (@keys) {
+		$key =~ s/\|/\t/g;
+		push (@summary, "$key\n");
+	}
+	$fileio->write_file('target_genome_keys.txt', \@summary);
+
 }
 
 #***************************************************************************
@@ -378,6 +424,7 @@ sub check_for_blast_filetype {
 		$type eq 'nsq' or $type eq 'ntm' or
 		$type eq 'nin' or $type eq 'nhr' or
 		$type eq 'nin' or $type eq 'nhr' or
+		$type eq 'nhd' or $type eq 'nhi' or
 		$type eq 'nog' or $type eq 'nal') {
 		$result = 1;
 	}
@@ -423,7 +470,7 @@ sub format_genome {
 		my $total_bases    = $data{total_bases};
 		my $line_count     = $data{total_lines};
 		my $num_scaffolds  = $data{number_scaffolds};
-		print "\n\t line count $line_count";
+		print "\n\t Target file line count: $line_count";
 		#$devtools->print_hash(\%data); die;
 
 		if ($num_scaffolds > 50 and $line_count > $line_limit) {
