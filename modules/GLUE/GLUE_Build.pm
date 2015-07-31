@@ -316,6 +316,8 @@ sub get_glue_form_params {
 	my $refseq_use_path = $self->{refseq_use_path};
 	unless ($refseq_use_path) { die; }
 
+	#$devtools->print_hash($query); die;
+
 	$glue_obj->{output_type}  = 'html';
 	my $dataset_name = $query->param('DatasetName');
 	$glue_obj->{dataset_name} = $dataset_name;
@@ -366,6 +368,12 @@ sub get_glue_form_params {
 	if ($query->{phylogeny}) {
 		$glue_obj->{phylogeny} = 'true';
 	}
+	if ($query->{glue_refset}) {
+		my $path = $self->get_default_refset_path($refseq_name);
+		unless ($path) { die "\n\t No reference set found for '$refseq_name'"; }
+		$glue_obj->{glue_refset} = $path;
+		#$glue_obj->{glue_refset} = 'true';
+	}
 	if ($query->{mut_profile}) {
 		$glue_obj->{mut_profile} = 'true';
 	}
@@ -386,6 +394,33 @@ sub get_glue_form_params {
 	}
 
 }
+
+#***************************************************************************
+# Subroutine:  get_default_refset_path
+# Description: 
+#***************************************************************************
+sub get_default_refset_path { 
+
+	my ($self, $refseq_name) = @_;
+
+	# Load path to default reference set setting
+	my %translations;
+	#$translations{"HIV-1-NL43"} = "./projects/HIV-1/HIV-genomes.glu"; 
+	$translations{"HIV-1"} = "./projects/HIV-1/HIV-1-HXB2-genomes.glu"; 
+	$translations{"HCV"}   = "./projects/HCV/HCV-genomes.glu";
+	$translations{"ZEBOV"} = "./projects/ZEBOV/ZEBOV-genomes.glu";
+	$translations{"BTV"}   = "./projects/BTV/BTV-genomes.glu";
+	$translations{"FMDV"}  = "./projects/FMDV/FMDV-genomes.glu";
+	$translations{"CHIKV"} = "./projects/CHIKV/CHIKV-genomes-simpleheader.glu";
+	$translations{"HRV"}   = "./projects/HRV/HRV-genomes.glu";
+	$translations{"ASFV"}  = "./projects/ASFV/ASFV-genomes.glu";
+	$translations{"HepE"}  = "./projects/HepE/HepE-genomes.glu";
+	
+	my $refseq_path =  $translations{$refseq_name};
+
+	return $refseq_path;
+	die;
+}	
 
 #***************************************************************************
 # Subroutine:  by number

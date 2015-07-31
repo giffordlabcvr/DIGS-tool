@@ -33,11 +33,7 @@ my $seqio      = SeqIO->new();
 my $bioio      = BioIO->new();
 my $devtools   = DevTools->new();
 my $console    = Console->new();
-
-my $verbose    = undef;
-
 1;
-
 
 ############################################################################
 # LIFECYCLE
@@ -84,34 +80,30 @@ sub new {
 sub show_help_page {
 
 	my($HELP) = "\n\t usage: $0 -m[options] -s[options] -f[files] -d[files]
-
       \n\t # Convert between formats";
 	  $HELP  .= "\n\t  -m=1        :   FASTA to Delimited";
 	  $HELP  .= "\n\t  -m=2        :   Delimited to FASTA";
 	  $HELP  .= "\n\t  -m=3        :   Genbank to FASTA+DATA";
 	  $HELP  .= "\n\t  -m=4        :   Genbank to REFSEQ"; 
-	  $HELP  .= "\n\t  -m=5        :   REFSEQ to linear formatted"; 
-	  $HELP  .= "\n\t  -m=6        :   REFSEQ to FASTA";
-	  $HELP  .= "\n\t  -m=7        :   Concatenate FASTA files";
+	  $HELP  .= "\n\t  -m=5        :   Extract Genbank CDs as FASTA"; 
+	  $HELP  .= "\n\t  -m=6        :   REFSEQ to linear formatted"; 
+	  $HELP  .= "\n\t  -m=7        :   REFSEQ to FASTA";
+	  $HELP  .= "\n\t  -m=8        :   Concatenate FASTA files";
 	  $HELP  .= "\n\t  -m=x        :   FASTA to NEXUS";
 	  $HELP  .= "\n\t  -m=x        :   FASTA to PHYLIP";
 	  $HELP  .= "\n\t  -m=x        :   Expand GLUE MSA";
 	  $HELP  .= "\n\t  -m=x        :   Compress GLUE MSA";
-
 	  $HELP  .= "\n\n\t # Sorting, filtering, linking";
 	  $HELP  .= "\n\t  -s=1        :   Shorten FASTA headers"; 
 	  $HELP  .= "\n\t  -s=2        :   Sort sequences by length"; 
 	  $HELP  .= "\n\t  -s=3        :   Filter sequences by keyword"; 
 	  $HELP  .= "\n\t  -s=4        :   Link two data files using a shared ID";
-	  $HELP  .= "\n\t  -s=2        :   Sort sequences by data column"; 
-
-	  $HELP  .= "\n\n\t # FASTA header reformatting";
-	  $HELP  .= "\n\t  -u=1        :   NCBI refseq to DIGS FASTA"; 
-
+	  $HELP  .= "\n\t  -s=5        :   Sort sequences by data column"; 
+	  $HELP  .= "\n\t  -s=6        :   Concatenate using shared ID"; 
+	  $HELP  .= "\n\t  -s=7        :   Order aligned seqs by start position (staggered)"; 
 	print $HELP;
 
 }
-
 #***************************************************************************
 # Subroutine:  run_reformat_tools_cmd_line
 # Description: hand off to FASTA utilities
@@ -138,23 +130,27 @@ sub run_reformat_tools_cmd_line {
 	elsif ($mode eq 4) {  # GenBank to REFSEQ
 		$self->convert_genbank_file_to_GLUE_refseq($infiles);
 	}
-	elsif ($mode eq 5) {
+	elsif ($mode eq 5) {  # Write display-formatted REFSEQ
+		$self->extract_genbank_cds_as_fasta($infiles);
+	}
+	elsif ($mode eq 6) {  # Write the REFSEQ sequence and its features to FASTA
 		$self->write_GLUE_refseq_in_linear_format($infiles);
 	}
-	elsif ($mode eq 6) {
-		$self->write_GLUE_refseq_as_fasta($infiles);
-	}
-	elsif ($mode eq 7) {  # FASTA to NEXUS
-		$self->concatenate_fasta($infiles);
+	elsif ($mode eq 7) {  # Write the REFSEQ sequence and its features to FASTA
+		#$self->write_GLUE_refseq_as_fasta($infiles);
+		$self->write_GLUE_refseq_as_seal($infiles);
 	}
 	elsif ($mode eq 8) {  # FASTA to NEXUS
+		$self->concatenate_fasta($infiles);
+	}
+	elsif ($mode eq 9) {  # FASTA to NEXUS
 		$self->convert_fasta_file_to_nexus($infiles);
 	}
-	elsif ($mode eq 9) {  # FASTA TO PHYLIP
+	elsif ($mode eq 10) {  # FASTA TO PHYLIP
 		$self->convert_fasta_file_to_phylip($infiles);
 	}
-	elsif ($mode eq 10) {  # SPLIT multi-sequence GLUE file 
-	
+	elsif ($mode eq 11) {  # SPLIT multi-sequence GLUE file 
+		die;	
 	}
 	elsif ($mode eq 11) {  # 
 		$self->create_mutation_list_from_glue_msa($infiles);	
@@ -191,104 +187,80 @@ sub run_sort_tools_cmd_line {
 
 	}
 	elsif ($sort eq 2) {  # Data + sequence tools
-		$self->do_length_based_fasta_sort($seqfiles);
+		$self->do_length_based_fasta_sort($seqfiles, $datafiles);
 	}
 	elsif ($sort eq 3) {
-		$self->do_header_based_fasta_filter($seqfiles)
+		$self->do_header_based_fasta_filter($seqfiles, $datafiles);
 	}
 	elsif ($sort eq 4) {
-		my $builder = GLUE_Build->new();
-		my $report_dir = $output_path . $process_id . '/';
-		$fileio->create_unique_directory($report_dir, 'text');
-		$self->{report_dir} = $report_dir;		
+		$self->combine_data_from_two_files($seqfiles, $datafiles, $datafiles);
 	}
 	elsif ($sort eq 5) {  
 		$self->link_sequences_and_data();
 	}
 	elsif ($sort eq 6) {
-
+		$self->concatenate_aln_seqs_using_id($seqfiles, $datafiles);
 	}
 	elsif ($sort eq 7) {
-	
+		$self->sort_aligned_seqs_by_start($seqfiles);
 	}
 	else { die; }
 }
 
 #***************************************************************************
-# Subroutine:  run_utility_tools_cmd_line
-# Description: hand off to miscellaneous utilities
-#***************************************************************************
-sub run_utility_tools_cmd_line {
-
-	my ($self, $seqfiles, $datafiles, $utility) = @_;
-	
-	my $process_id  = $self->{process_id};
-	my $output_path = $self->{output_path};
-
-	unless ($output_path) { $output_path .= './'; }		
-	
-	$self->show_title();
-	shift @$seqfiles; # Not sure why there's an empty array element
-	
-	if ($utility eq 1) {  # Convert NCBI refseq FASTA headers to DIGS FASTA headers
-		$self->NCBI_refseq_to_DIGS_FASTA($seqfiles);		
-	}
-
-}
-
-#***************************************************************************
-# Subroutine:  NCBI_refseq_to_DIGS_FASTA
+# Subroutine:  sort_aligned_seqs_by_start
 # Description: 
 #***************************************************************************
-sub NCBI_refseq_to_DIGS_FASTA {
+sub sort_aligned_seqs_by_start {
 
 	my ($self, $infiles) = @_;
 
+	my $datatool= $self->{datatool_obj};
+
+	my $result = undef;
+	my %hash;
+	my %sequences;
 	foreach my $infile (@$infiles) {
-	
 
-		my @original_fasta;
-		$seqio->read_fasta($infile, \@original_fasta);
-		#$devtools->print_array(\@original_fasta); die;
-
-		my @new_fasta;
-		foreach my $seq_ref (@original_fasta) {
-			my $header = $seq_ref->{header};
-			my @header1 = split (/\[/, $header);
-			my $organism = pop @header1;
-			$organism =~ s/^\s+|\s+$//g; # remove whitespace from both ends
-			$organism =~ s/\s/_/g;
-			$organism =~ s/]//g;
-
-			my @header2 = split (/\|/, $header);
-			my $gene_end = $header2[4];
-			my @gene = split (/\[/, $gene_end);
-			my $gene = shift @gene;
-			$gene =~ s/^\s+|\s+$//g; # remove whitespace from both ends
-			$gene =~ s/\s/-/g;
-			
-			if ($verbose) {
-				print "\n\t HEADER: $header";
-				print "\n\t Organism: '$organism'";
-				print "\n\t Gene: '$gene'";
-			}
-
-			my $new_header = ">$organism" . '_' . $gene;	
-			my $sequence = $seq_ref->{sequence};
-			my $fasta = "$new_header\n$sequence\n";
-			push(@new_fasta, $fasta);
-
+		print "\n\t # Converting file '$infile' from FASTA to data";
+		my @fasta;
+		$seqio->read_fasta($infile, \@fasta);
+		my $num_seqs = scalar @fasta;
+		unless ($num_seqs) { 
+			print "\n\t # No sequences read from file '$infile'";
+			next;
 		}
-		my $outfile = $infile . '.DIGS.fas';
-		print "\n\n\t ### Writing reformatted data to '$outfile'\n"; 
-		$fileio->write_file($outfile, \@new_fasta);
+		foreach my $seq_ref (@fasta) {
+			my $seq_id   = $seq_ref->{sequence_id};
+			my $sequence = $seq_ref->{sequence};
+			my @sequence = split ('', $sequence);
+			my $i = 0;
+			foreach my $char (@sequence) {
+				$i++;
+				unless ($char eq '-') {
+					last;
+				}
+			}
+			$hash{$seq_id} = $i;
+			$sequences{$seq_id} = $seq_ref;
+		}
+
+		my @sorted;
+		print "\nSeqs IN ASCENDING NUMERIC ORDER:\n";
+		foreach my $seq_id (sort { $hash{$a} <=> $hash{$b} } keys %hash) {
+			print "\n\t # $seq_id, $hash{$seq_id}";
+			my $seq_ref  = $sequences{$seq_id};
+			my $header   = $seq_ref->{header};
+			my $sequence = $seq_ref->{sequence};
+			my $fasta = ">$header\n$sequence\n";
+			push (@sorted, $fasta);
+		}
+		my $sorted_file = $infile . '.sorted.txt';
+		print "\n\t Writing data to file '$sorted_file'";
+		$fileio->write_file($sorted_file, \@sorted);
+
 	}
-
 }
-
-############################################################################
-# SECTION: Format conversion functions
-############################################################################
 
 #***************************************************************************
 # Subroutine:  convert_fasta_to_delimited
@@ -368,21 +340,152 @@ sub convert_genbank_to_fasta_and_tabdelim {
 	my $datatool= $self->{datatool_obj};
 
 	foreach my $infile (@$infiles) {
+	
 		print "\n\t # Converting file '$infile' from GenBank format to FASTA+DATA";
 		my @fasta;
-		my @data;
-		$datatool->genbank_to_fasta_and_data($infile, \@fasta, \@data);
-		#$devtools->print_array(\@fasta);
-		#$devtools->print_array(\@data);
+		my %data;
+		$datatool->genbank_to_fasta_and_data2($infile, \@fasta, \%data);
+		#$devtools->print_array(\@fasta); #$devtools->print_hash(\%data); # DEBUG
 
-		my $outseqs = $infile . '.fas';
+		# Declare data structures for filtering
+		my @fasta_in;
+		my @fasta_out;
+		my %options;
+
+		# Ask which direction (above or below threshold)
+		my @choices = qw [ above below ];
+		my $question = "\n\t Exclude sequence above or below threshold";
+		my $direction = $console->ask_simple_choice_question($question, \@choices);
+
+		# Get threshold
+		my $question1 = "\n\t Specify sequence length threshold";
+		my $threshold = $console->ask_int_question($question1);
+
+		# Record options	
+		$options{threshold}  = $threshold;
+		$options{direction}  = $direction;
+		$options{count_gaps} = 1;
+		$datatool->filter_seqs_by_length(\@fasta, \@fasta_in, \@fasta_out, \%options);
+
+		# Write the fasta for the included sequences
+		my $inseqs = $infile . '.included.fas';
+		print "\n\t Writing sequences to file '$inseqs'";
+		$seqio->write_fasta($inseqs, \@fasta_in);
+		print "\n\t # File '$inseqs' created";
+
+		# Write the data for the included sequences
+		my @in_data;
+		foreach my $seq_ref (@fasta_in) {
+			my $seq_id   = $seq_ref->{sequence_id};
+			my $data_ref = $data{$seq_id};
+			push (@in_data, $data_ref);
+		}
+		my $indata = $infile . '.included.txt';
+		print "\n\t Writing data to file '$indata'";
+		$seqio->write_delimited($indata, \@in_data, 'exclude_seq');
+
+		# Write the fasta for the excluded sequences
+		my $outseqs = $infile . '.excluded.fas';
 		print "\n\t Writing sequences to file '$outseqs'";
-		$seqio->write_fasta($outseqs, \@fasta);
-		print "\n\t # File '$outseqs' created";
-		my $outdata = $infile . '.txt';
+		$seqio->write_fasta($outseqs, \@fasta_out);
+		my @out_data;
+		foreach my $seq_ref (@fasta_out) {
+			my $seq_id   = $seq_ref->{sequence_id};
+			my $data_ref = $data{$seq_id};
+			push (@out_data, $data_ref);
+		}
+		my $outdata = $infile . '.excluded.txt';
 		print "\n\t Writing data to file '$outdata'";
-		$seqio->write_delimited($outdata, \@data);
-		print "\n\t # File '$outdata' created";
+		$seqio->write_delimited($outdata, \@out_data);
+
+	}
+}
+
+#***************************************************************************
+# Subroutine:  extract_genbank_cds_as_fasta
+# Description: convert genbank file to a GLUE refseq with features table
+#***************************************************************************
+sub extract_genbank_cds_as_fasta {
+
+	my ($self, $infiles) = @_;
+
+	foreach my $file (@$infiles) {
+
+		print "\n\t File $file";
+		my @file;
+		$fileio->read_file($file, \@file);
+		foreach my $line (@file) {
+
+
+		}
+	}
+
+	my $directory = './bugr/';
+	die;
+	foreach my $file (@$infiles) {
+
+		print "\n\t File $file";
+		my @file;
+		$fileio->read_file($file, \@file);
+		#$devtools->print_array(\@file);
+		my $join = join("", @file);
+		my @split = split("\/\/", $join);
+		my $i;
+		foreach my $gb_entry (@split) {
+			$i++;
+			$gb_entry .= "\n//";
+			#print $gb_entry; die;
+			my $single_file = $directory . "/$i" . '.tmp';
+			$fileio->write_text_to_file($single_file, $gb_entry);
+			my @refseq;
+			my $seq = $bioio->parse_gb_to_refseq($single_file, \@refseq);
+			unless ($seq) {
+				my @single_file = split("\n", $single_file);
+				my $des = shift @single_file;
+				print "\n\t No seq for $des";
+				next;
+			}
+
+			my $refseq_path = $single_file . '.glu';
+			$fileio->write_file($refseq_path, \@refseq);
+			#print "\n\t # File $refseq_path created\n\n";
+		
+			my $seq_obj = Sequence->new();    # Create a sequence object
+			my $parser = RefSeqParser->new();
+			my %params;
+			$parser->parse_refseq_flatfile($refseq_path, \%params);
+			my $refseq = RefSeq->new(\%params);
+			my $refseq_name = $refseq->{'name'};
+			print "\n\t # Writing ORFs for $refseq_name\n\n";
+			my %orfs;
+			$refseq->get_orfs(\%orfs);
+			my @orfs = sort keys %orfs;
+			my @outfile1;
+			my @outfile2;
+			my $got_orfs = undef;
+			foreach my $orf (@orfs) {
+				my $sequence = $orfs{$orf};
+				my $fasta = ">$refseq_name $orf\n$sequence\n";
+				push (@outfile1, $fasta);
+				my $aa_seq = $seq_obj->translate($sequence);
+				my $aa_fasta = ">$refseq_name $orf\n$aa_seq\n";
+				push (@outfile2, $aa_fasta);
+				$got_orfs = 'true';
+			}
+			unless ($got_orfs) { next; }
+			my $outfile1 = $directory . $refseq_name . '.orfs.nt.fas';
+			$fileio->write_file($outfile1, \@outfile1);
+			my $outfile2 = $directory . $refseq_name . '.orfs.aa.fas';
+			$fileio->write_file($outfile2, \@outfile2);
+			#print "\n\t file '$outfile' created\n\n";
+
+			my $newname = "$directory/$refseq_name.glu";
+			my $clean1  = "mv $refseq_path $newname";
+			my $clean2  = "rm $single_file";
+			#system $clean1;
+			#system $clean2;
+
+		}
 	}
 }
 
@@ -472,6 +575,29 @@ sub write_GLUE_refseq_as_fasta {
 		#print "\n\t file '$outfile' created\n\n";
 	}
 }
+
+#***************************************************************************
+# Subroutine:  write_GLUE_refseq_as_seal
+# Description: write GLUE reference sequence as FASTA, with separate files
+#              for ORFs (NT), translated ORFs (AA) and UTRs
+#***************************************************************************
+sub write_GLUE_refseq_as_seal {
+
+	my ($self, $infiles) = @_;
+
+	my $datatool= $self->{datatool_obj};
+
+	foreach my $infile (@$infiles) {
+	
+		my $seq_obj = Sequence->new();    # Create a sequence object
+		my $parser = RefSeqParser->new();
+		my %params;
+		$parser->parse_refseq_flatfile($infile, \%params);
+		my $refseq = RefSeq->new(\%params);
+		$refseq->write_self_to_seal();
+	}
+}
+
 
 #***************************************************************************
 # Subroutine:  convert_fasta_file_to_nexus
@@ -677,42 +803,44 @@ sub convert_fasta_headers {
 #***************************************************************************
 sub do_length_based_fasta_sort {
 
-	my ($self, $seqfiles) = @_;
+	my ($self, $seqfiles, $datafiles) = @_;
 
 	my $datatool = $self->{datatool_obj};
-
+ 
 	foreach my $seqfile (@$seqfiles) {
 
 		my @fasta;
 		$seqio->read_fasta($seqfile, \@fasta);
+		
+		my $question2 = "\n\t Count gaps?";
+		my $count_gaps = $console->ask_yes_no_question($question2);
+		if ($count_gaps eq 'n') { $count_gaps = undef; }
+
 		my $high;
 		my $count = 0;
 		foreach my $seq_ref (@fasta) {
 			$count++;
 			my $sequence   = $seq_ref->{sequence};
+			if ($count_gaps) {
+				$sequence =~ s/-//g;
+				$sequence =~ s/~//g;
+				$sequence =~ s/\.//g;
+			}
 			my $seq_length = length $sequence;
 			unless ($high) { $high = $seq_length; }
 			if ($seq_length > $high) { $high = $seq_length; } 
 		}
 		unless ($high) { die; }
-		my $question1 = "\n\t Specify sequence length minimum to use as a cutoff";
-		my $minimum = $console->ask_int_with_bounds_question($question1, 1, $high);
-		my $question2 = "\n\t Count gaps?";
-		my $count_gaps = $console->ask_yes_no_question($question2);
-		if ($count_gaps eq 'n') { $count_gaps = undef; }
+		
 		my @sorted;
 		my $excluded = 0;
-		$excluded = $datatool->sort_seqs_by_length(\@fasta, \@sorted, $minimum, $count_gaps);
+		$excluded = $datatool->sort_seqs_by_length(\@fasta, \@sorted, $count_gaps);
+
 		my $outfile = $seqfile .= '.sorted.fas';
 		$fileio->write_file($outfile, \@sorted);
+
 		print "\n\t ### File '$outfile' created";
 		print "\n\t ### There were a total of $count sequences";
-		my $included = $count;
-		if ($excluded) {
-			$included =  $count-$excluded;
-			print "\n\t ### $excluded sequences shorter than $minimum nt were excluded";
-		}
-		print "\n\t ### New file containes $included sequences";
 	}
 }
 
@@ -769,7 +897,6 @@ sub do_fasta_sort_using_delimited_file_column {
 	$sub_index--;
 	die "\n\t UNFINISHdED SORRY\n\n"; #TODO
 	$self->sort_sequences_on_data_column(\@fasta, \@data, $id_index, $sub_index, $delimiter);
-
 }
 
 #***************************************************************************
@@ -778,14 +905,21 @@ sub do_fasta_sort_using_delimited_file_column {
 #***************************************************************************
 sub combine_data_from_two_files {
 
-	my ($self, $seqfile, $datafile) = @_;
+	my ($self, $seqfiles, $datafiles) = @_;
+
+	my $datatool = $self->{datatool_obj};
+
+	shift @$datafiles;
+	my $seqfile  = shift @$seqfiles;
+	my $datafile = shift @$datafiles;
+	print "\n\t # file1 '$seqfile' file2 '$datafile'";
 
 	my @data1;
 	$fileio->read_file($seqfile, \@data1);
 	my @data2;
 	$fileio->read_file($datafile, \@data2);
 
-	my $delimiter;
+ 	my $delimiter;
 	my $question = "\n\t What is the delimiter (comma\/tab)";
 	my @choices  = qw [ c t ];
 	my $choice = $console->ask_simple_choice_question($question, \@choices);
@@ -799,7 +933,202 @@ sub combine_data_from_two_files {
 	$question = "\n\t Which column contains the sequence IDs in file 2?";
 	my $b_index = $console->ask_int_question($question);
 	$b_index--;
-	$self->combine_data(\@data1, \@data2, $a_index, $b_index);
+	$datatool->combine_data(\@data1, \@data2, $a_index, $b_index);
+}
+
+#***************************************************************************
+# Subroutine:  concatenate_aln_seqs_using_id 
+# Description: 
+#***************************************************************************
+sub concatenate_aln_seqs_using_id {
+
+	my ($self, $seqfiles, $datafiles) = @_;
+
+	shift @$datafiles;
+	my $seqfile  = shift @$seqfiles;
+	my $datafile = shift @$datafiles;
+	print "\n\t # file1 '$seqfile' file2 '$datafile'";
+
+	my @seqs;
+	$seqio->read_fasta($seqfile, \@seqs);
+	my @data;
+	$fileio->read_file($datafile, \@data);
+
+ 	my $delimiter;
+	my $question = "\n\t What is the delimiter (comma\/tab)";
+	my @choices  = qw [ c t ];
+	my $choice = $console->ask_simple_choice_question($question, \@choices);
+	if ($choice eq 'c') { $delimiter = ',';  }
+	if ($choice eq 't') { $delimiter = "\t"; }
+	
+	# get the indices
+	$question = "\n\t Which column contains the ID for concatenation?";
+	my $index = $console->ask_int_question($question);
+	$index--;
+
+	# get the ID FOR SEQUENCES
+	$question = "\n\t Which column contains the unique sequence ID?";
+	my $id_index = $console->ask_int_question($question);
+	$id_index--;
+
+	# Get the data indexed by unique id
+	#my $fields = shift @data;
+	my %data_by_unique_id;
+	foreach my $line (@data) {
+		chomp $line;
+		my @line = split($delimiter, $line);
+		my $unique_id = $line[$id_index];
+ 		$data_by_unique_id{$unique_id} = $line;
+	}
+	#$devtools->print_hash(\%seqs_by_unique_id); exit;
+
+
+	# Get the sequences indexed by unique id
+	my %seqs_by_unique_id;
+	foreach my $seq (@seqs) {
+		#$devtools->print_hash($seq);
+		my $unique_id = $seq->{header};
+		my $sequence  = $seq->{sequence};
+		$seqs_by_unique_id{$unique_id} = $seq;
+	}
+	#$devtools->print_hash(\%seqs_by_unique_id); exit;
+
+	# Iterate through data
+	my %join;
+	foreach my $line (@data) {
+
+		chomp $line;
+		my @line = split ($delimiter, $line);	
+		my $value     = $line[$index];
+		my $unique_id = $line[$id_index];
+		my $seq = $seqs_by_unique_id{$unique_id};
+		unless ($seq) { 
+			print "\n\t No sequence found for ID '$unique_id'";
+			next; 
+		}
+
+		print "\n\t ## Strain ID: $unique_id: '$value'";
+		if ($join{$value}) {
+			my $array_ref = $join{$value};
+			push (@$array_ref, $seq);
+		}
+		else {
+			my @array;
+			push (@array, $seq);
+			$join{$value} = \@array;
+		}
+	}
+
+	# Merge sequences
+	my @merged;
+	my @merged_data;
+	my @keys = keys %join;
+	foreach my $key (@keys) {
+
+		my $seq_array = $join{$key};
+		my $data = $self->merge_sequences($seq_array, \%data_by_unique_id,  \@merged, $delimiter);
+		push (@merged_data, "$data\n");
+
+	}
+
+	my $file_out = $seqfile . '.merge.txt';
+	print "\n\t Writing file '$file_out'";
+	$fileio->write_file($file_out, \@merged);
+
+	my $file_out2 = $seqfile . '.merge_data.txt';
+	print "\n\t Writing file '$file_out2'";
+	$fileio->write_file($file_out2, \@merged_data);
+}
+
+#***************************************************************************
+# Subroutine:  merge_sequences
+# Description: does what it says 
+#***************************************************************************
+sub merge_sequences {
+
+	my ($self, $input_array, $data_hash, $output_array, $delimiter) = @_;
+
+	my %merged;
+	my @data;
+	my @ids;
+	foreach my $seq_ref (@$input_array) {
+
+		my $sequence_id = $seq_ref->{header};
+		my $sequence    = $seq_ref->{sequence};
+		push (@ids, $sequence_id);
+
+		my $data = $data_hash->{$sequence_id};
+		unless ($data)  { die "\n\t No data for sequence '$sequence_id'\n\n"; }
+		push (@data, $data);
+
+		my $i = 0;
+		my @sequence = split('', $sequence);
+		foreach my $char (@sequence) {
+			$i++;
+			if ($merged{$i}) {
+				my $other_char = $merged{$i};
+				if ($other_char eq '-') {
+					$merged{$i} = $char;
+				}
+				else {
+					unless ($char eq '-') {
+						unless ($char eq $other_char) {
+							print "\n\t Warning - nucleotide clash: for $sequence_id: '$char' differs from '$other_char'";
+						}	
+					}
+				}
+			}
+			else {
+				$merged{$i} = $char;
+			}
+		}
+	}
+
+	# Merge the data
+	my %merged_data;
+	foreach my $line (@data) {
+		chomp $line;
+		my @line = split($delimiter, $line);
+		my $i = 0;
+		foreach my $value (@line) {
+			$i++;
+			if ($merged_data{$i}) {
+				my $hash_ref = $merged_data{$i};
+				$hash_ref->{$value} = 1;
+			}
+			else {
+				my %hash;
+				$hash{$value} = 1;
+				$merged_data{$i} = \%hash;
+			}
+		}
+	}
+	#$devtools->print_array(\@data);
+	#$devtools->print_hash(\%merged_data);
+	
+	my @merged_data;
+	my @keys = sort by_number keys %merged_data;
+	foreach my $key (@keys) {
+		my $hash_ref = $merged_data{$key};
+		my @values = keys %$hash_ref;
+		my $value = join('|', @values);
+		push (@merged_data, $value);
+	}
+	#print "\n\t ### here";
+	#$devtools->print_array(\@merged_data);
+	my $merge_id = join($delimiter, @merged_data);
+	print "\n\t ID: $merge_id";
+
+	my @nucs = sort by_number keys %merged;
+	my $merged;
+	foreach my $position (@nucs) {
+		my $char = $merged{$position}; 
+		$merged .= $char;
+	}
+	my $fasta = ">$merge_id\n$merged\n";
+	
+	push (@$output_array, $fasta);
+	return $merge_id;
 }
 
 ############################################################################
@@ -820,6 +1149,12 @@ sub show_title {
 	my $contact		= '<robert.gifford@glasgow.ac.uk>';
 	$console->show_about_box($title, $version, $description, $author, $contact);
 }
+
+#***************************************************************************
+# Subroutine:  by number
+# Description: by number - for use with perl 'sort'  (cryptic but works) 
+#***************************************************************************
+sub by_number { $a <=> $b }	
 
 ############################################################################
 # EOF

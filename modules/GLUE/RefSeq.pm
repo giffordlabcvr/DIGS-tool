@@ -28,6 +28,11 @@ use GLUE::RefSeqParser;
 ############################################################################
 # Globals
 ############################################################################
+
+# Minimum proportion of gene required for it to be considered present
+my $minimum    = 0.1;  # TODO: shouldn't be hard coded
+
+# Base class instantiations
 my $bioio    = BioIO->new();
 my $fileio   = FileIO->new();
 my $devtools = DevTools->new();
@@ -105,12 +110,14 @@ sub compare_to_aligned_sequence {
 	my %syn_mutations;  
 	my %nonsyn_mutations;  
 	my %genes;
+	my %valid_positions;
 
 	# Set up the data structures with the aligned sequence
 	$aln_seq_ref->{syn_mutations}         = \@syn_mutations;
 	$aln_seq_ref->{nonsyn_mutations}      = \@nonsyn_mutations;
 	$aln_seq_ref->{hash_syn_mutations}    = \%syn_mutations;
 	$aln_seq_ref->{hash_nonsyn_mutations} = \%nonsyn_mutations;
+	$aln_seq_ref->{valid_positions}       = \%valid_positions;
 	$aln_seq_ref->{gene_data}             = \%genes;
 	$aln_seq_ref->{num_changes}           = 0;
 	$aln_seq_ref->{num_syn}               = 0;
@@ -174,36 +181,21 @@ sub get_mutations {
 	
 	my @sequence = split ('',$sequence);
 
-	#if ($header=~ /JX106336/) {
-	#	print "<BR><BR> SEQUENCE  $sequence";
-	#	print "<BR><BR> ALN START $aln_start";
-	#	print "<BR><BR> ALN START $aln_stop <BR><BR>";
-	#	my $length = scalar @sequence;
-	#	print "<BR> SEQ LENGTH ($length)";
-	#}
 	foreach my $nt (@sequence) {
 		
 		$position++;
-		#if ($header=~ /JX106336/) {
-		#	print "<BR> in nt processing loop at postion ($position)";
-		#}
 		unless ($position >= 3) { next; } 
 		
 		# Get alignment data at this nucleotide position
 		my $gene_codon  = $self->check_for_inframe_codon($position);
 		unless ($gene_codon)   { next; }
-		#if ($header=~ /JX106336/) {
-		#	print "<BR> got inframe codon ($position)";
-		#}
+		
 		# Get the codon for this amino acid position
 		my $nt1 = $indexed_seq->{$position - 2};
 		my $nt2 = $indexed_seq->{$position - 1};
 		my $nt3 = $indexed_seq->{$position};
 		my $codon;
 
-		#if ($header=~ /JX106336/) {
-		#	print "<BR> nucs $nt1 + $nt2 + $nt3";
-		#}
 		if ($nt1 and $nt2 and $nt3) {
 			$codon = $nt1 . $nt2 . $nt3;
 		}
@@ -212,18 +204,14 @@ sub get_mutations {
 
 		my $valid_codon = $seq_obj->validate_codon($codon);
 		unless ($valid_codon) { next; }
-		
+	
 		# Record a mutation
-		#if ($header=~ /JX106336/) {
-		#	print "<BR> codon valid: entering record mutation loop at postion ($position)";
-		#}
 		$self->record_mutation($aln_seq_ref, $codon, $position);
 		
 		# Record gene codon
 		$self->record_gene_codon($aln_seq_ref, $codon, $gene_codon);
 	}
-	#$devtools->print_hash($aln_seq_ref);
-	#die;
+	#$devtools->print_hash($aln_seq_ref); #die;
 }
 	
 #***************************************************************************
@@ -292,6 +280,7 @@ sub record_mutation {
 	my $hash_mutations     = $align_seq_ref->{hash_nonsyn_mutations};
 	my $syn_mutations_ref  = $align_seq_ref->{syn_mutations};
 	my $hash_syn_mutations = $align_seq_ref->{hash_syn_mutations};
+	my $valid_positions    = $align_seq_ref->{valid_positions};
 	
 	# DEBUG
 	#$devtools->print_hash($indexed_na_seq);
@@ -319,13 +308,12 @@ sub record_mutation {
 	$mutation{translations}    = $num_translations;
 	$self->set_position_coordinates($position, \%mutation);
 	$seq_obj->compare_codons($ref_codon, $codon, \%mutation); # Compare codons
-
-		
-	#print "<BR> MUTATION OUTPUT";
-	#$devtools->print_hash(\%mutation);
-	#my $pos      = $mutation{position};
-	#my $gene     = $mutation{gene};
-	#print "<BR> GENE $gene; AA POSITION $pos";
+	
+	#print "\n\t MUTATION:  GENE $gene; AA POSITION $pos";
+	my $gene = $mutation{gene};
+	my $pos  = $mutation{position};
+	my $position_key = $gene . ':' . $pos;
+	$valid_positions->{$position_key} = \%mutation;
 
 	if ($translations eq $ref_aa) { 
 		
@@ -522,7 +510,6 @@ sub get_genes {
 		
 		my $gene_prop   = $num_codons / $ref_gene_length;
 		my $f_gene_prop = sprintf("%.1f", $gene_prop);
-		my $minimum    = 0.1;
 		if ($f_gene_prop >= $minimum) {
 			$gene_data_ref->{minimum_present} = 1;
 		}
@@ -702,7 +689,7 @@ sub get_translated_orfs {
 
 #***************************************************************************
 # Subroutine:  get_utrs
-# Description: get the untranslated regions for this refseq
+# Description: 
 #***************************************************************************
 sub get_utrs {
 
@@ -878,7 +865,6 @@ sub write_self_to_text {
 			#print "\n\t No 5' LTR in $refseq_name";
 			sleep 1;
 		}
-
 	}
 
 
@@ -1251,6 +1237,89 @@ sub create_new_refseq {
 	push (@$refseqfile_text, "//\n");
 
 	# To do: Add any new mutation
+}
+
+#***************************************************************************
+# DEVELOPMENT
+# Subroutine:  write_self_to_seal
+# Description: create the standard VGLUE text file
+#***************************************************************************
+sub write_self_to_seal {
+
+	my ($self, $directory_path) = @_;
+
+
+	my $seq_obj   = Sequence->new();
+	my $sequence  = $self->{sequence};
+	my $name      = $self->{name};
+	my $genes_ref = $self->{genes};
+	print "\n\t### Name:     $name";
+	#print "\n\t### Sequence: $sequence";
+	my @seal_fasta;  # array to store the outfile
+	my $genome = ">$name.genome\n$sequence\n";
+	push (@seal_fasta, $genome);
+	foreach my $gene_ref (@$genes_ref) {
+
+		my $gene_name  = $gene_ref->{name};
+		my $gene_start = $gene_ref->{start};
+		my $gene_stop  = $gene_ref->{stop};
+		my $gene_coding_start = $gene_ref->{coding_start};
+		my $gene_coding_stop  = $gene_ref->{coding_stop};
+		my $gene_seq = $seq_obj->extract_subsequence($sequence, $gene_start, $gene_stop);
+
+		# Iterate through the exons
+		my $exon = 0;
+		my $starts = $gene_ref->{starts};
+		my $exons  = $gene_ref->{exons};
+		my $orf = '';
+		foreach my $exon_start (@$starts) {
+			$exon++;
+			my $exon_stop = $exons->{$exon_start};
+			
+			#print "\n\t###\t\t exon $exon: spans $exon_start-$exon_stop"; 
+			if ($exon_start < $gene_coding_start) {
+				$exon_start = $gene_coding_start;
+			}
+			if ($exon_stop > $gene_coding_stop) {
+				$exon_stop = $gene_coding_stop;
+			}
+			#print "\n\t###\t\t exon coding $exon_start-$exon_stop"; 
+			
+			my $exon_seq = $seq_obj->extract_subsequence($sequence, $exon_start, $exon_stop);
+			$orf .= $exon_seq;
+		}
+		#print "\n\t$gene_name\n$orf \n\n"; 
+		my $lead_len = $gene_start;
+		my $lead  = '-' x $lead_len;
+		my $f_orf = $lead . $orf;
+		my $fasta = ">$name.$gene_name\n$f_orf\n";
+		push (@seal_fasta, $fasta);
+	
+	}
+
+	my $utrs_ref = $self->{features};
+	foreach my $utr_ref (@$utrs_ref) {
+		my $utr_name  = $utr_ref->{name};
+		my $utr_start = $utr_ref->{start};
+		my $utr_stop  = $utr_ref->{stop};
+		my $utr_coding_start = $utr_ref->{coding_start};
+		my $utr_coding_stop  = $utr_ref->{coding_stop};
+		my $utr_seq = $seq_obj->extract_subsequence($sequence, $utr_start, $utr_stop);
+		#print "\n\t$utr_name\n$orf \n\n"; 
+		my $lead_len = $utr_start - 1;
+		my $lead = '-' x $lead_len;
+		my $f_orf = $lead . $utr_seq;
+		my $fasta = ">$name.$utr_name\n$f_orf\n";
+		push (@seal_fasta, $fasta);
+	}
+	
+	# Write the output FASTA
+	my $file = "$name.seal.fas";
+	if ($directory_path) {
+		$file = $directory_path . "$name.seal.fas";
+	}
+	$fileio->write_file($file, \@seal_fasta);
+	print "\n\t### FILE '$file' created\n\n\n";
 }
 
 ############################################################################

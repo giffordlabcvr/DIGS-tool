@@ -23,10 +23,6 @@ use Base::DevTools;
 ############################################################################
 # Globals
 ############################################################################
-
-
-
-my $io         = IO->new();
 my $devtools   = DevTools->new();
 my $fileio     = FileIO->new();
 my $html_utils = HTML_Utilities->new();
@@ -941,6 +937,14 @@ sub write_top_link_section {
 	$alignlink    .= " to retrieve the GLUE multiple sequence alignment (MSA)</p>";
 	push (@output, $alignlink);
 
+	# Create link to sequences that failed alignment (if any)
+	my $failed_seqs_file = $glue_msa_obj->{failed_seqs_file};
+	if ($failed_seqs_file) {
+		my $faillink  = "<p>Click <a href='$failed_seqs_file'>here</a>";
+		$faillink    .= " to retrieve sequences that failed to align</p>";
+		push (@output, $faillink);
+	}
+
 	# Create link to phylogeny (if set)
 	if ($self->{phylogeny}) {
 		
@@ -970,14 +974,13 @@ sub write_top_link_section {
 		# Close summary table
 		#my $table_close = $writer->close_table(); 
 		#push (@$html_ref, $table_close);
-		my $treelink  = "<p>Click <a href='$tree_file'>here</a> to retrieve the tree, ";
-		$treelink .= "Click <a href='figtree.html' target='figtree'>here</a>";
-		$treelink .= "  to view the tree</p>";
-	
+
+		my $treelink  = "<p>Click <a href='$tree_file'>here</a> to retrieve the tree </p> ";
+		push (@output, $treelink);
+		#$treelink .= "Click <a href='figtree.html' target='figtree'>here</a>";
 		#my $phylopath = $self->{phylotype_path};
 		#my $phylolink  = "<p>Click <a href='$phylopath'>here</a>phylotyping file</p>";
 		#push (@$html_ref, $phylolink);
-		push (@output, $treelink);
 	}
 
 	$self->{html_output} = \@output;
@@ -985,8 +988,8 @@ sub write_top_link_section {
 
 
 #***************************************************************************
-# Subroutine: 
-# Description: 
+# Subroutine:  create_phylotype_annotation 
+# Description: Create phylotype annotation
 #***************************************************************************
 sub create_phylotype_annotation {
 
@@ -1234,6 +1237,7 @@ sub format_table_muts {
 			unless ($list) { die; }
 			$color = $list_ref->{color};
 			unless ($color) { die; }
+
 			if ($listname eq 'typical') {
 				if ($list->{$mutation_key}) {
 					# skip typical list
@@ -1241,16 +1245,19 @@ sub format_table_muts {
 					next; 
 				}
 				else {
-					$color = 'darkred'; 
-					$f_mutation = "<font color=$color>$mutation</font>";    
-					$on_list = 'true';
+					unless ($on_list) {
+						#print "<BR> Mutation $mutation_key is atypical";
+						$color = 'green'; 
+						$f_mutation = "<font color=$color>$mutation</font>";    
+						$on_list = 'true';
+					}
 				}
 			}
 			elsif ($list->{$mutation_key}) {
 				$f_mutation = "<font color=$color>$mutation</font>";    
 				$on_list = 'true';
 				#die "\n\t LIST $listname";
-				#print "<BR> $listname: $color, mutation '$f_mutation'";
+				print "<BR> list $listname: color $color, mutation '$f_mutation'";
 			}
 		}	
 		unless ($on_list) {

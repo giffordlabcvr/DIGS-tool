@@ -1,4 +1,3 @@
-#!/usr/bin/perl -w
 ############################################################################
 # Script:       GLUE.pm 
 # Description:  Create GLUE MSAs
@@ -144,39 +143,47 @@ sub create_glue_alignment {
 	my $flat_dir      = $self->{refseq_use_path};
 	my $refseq        = $self->{refseq};
 	my $report_dir    = $self->{report_dir};
+	my $refseq_name   = $refseq->{name};
 	unless ($refseq)      { die "\n\t NO refseq found \n\n"; } # Sanity checking
 	unless ($refseq_name) { die "\n\t NO refseq name found\n\n"; } # Sanity checking
 	unless ($flat_dir)    { die; } # Sanity checking
+	if ($output_type eq 'html') { $self->write_process_header(); }
 
-	my @html;
-	my $indent = ' ' x 10;
-	my $html_header   = $self->{html_header};
-	my $refseq_name   = $refseq->{name};
-	if ($output_type eq 'html') { 
-		# Define the page in the correct format and write it
-		unless ($html_header) { die "\n\t No HTML header found\n\n"; } # Sanity checking
-		my @page_header;
-		$fileio->read_file($html_header, \@page_header);
-		my $header = join ("\n", @page_header);
-		print $header;
-	}
-
-	# Set up rolling output
-	my $sequences_ref  = $self->{sequences};
-	unless ($sequences_ref) {die; }
-	my $num_seqs       = scalar @$sequences_ref;
-	my $next_i = $self->set_up_rolling_output($num_seqs, $output_type);
-	my $i = 0;
-	my $start = $i + 1;
-	#$devtools->print_array($sequences_ref); die;
-	
 	# Align each of the input sequences in turn
 	my $num_aligned_sequences = 0;
 	my $num_failed = 0;
 	my @valid;
 	my @failed;
+	my $sequences_ref  = $self->{sequences};
+	unless ($sequences_ref) {die; }
+	#$devtools->print_array($sequences_ref); die;
+	
+	# Set up rolling output
+	my $num_seqs       = scalar @$sequences_ref;
+	my $next_i = $self->set_up_rolling_output($num_seqs, $output_type);
+	my $i = 0;
+	my $start = $i + 1;
 	foreach my $seq_ref (@$sequences_ref) {
 		
+		# Upload sequence & GLUE MSA data to databae
+		if ($self->{upload_to_db}) { # Load data to sequence database
+			unless ($self->{upload_msa_data}) { 
+				die;
+				next; # Skip alignment
+			}
+			my $result = $self->check_if_sequence_uploaded($seq_ref);
+
+			if ($result) {
+				my $data_ref = $seq_ref->{data};
+				if ($data_ref) { $self->load_data_to_sequence_db($seq_ref); }
+				else  { 
+					print "\n\n No data found in DB upload routine\n\n";
+					sleep 2;
+				}
+				next; 
+			}
+		}
+
 		# Show rolling output
 		$i++;
 		$next_i = $self->show_rolling_output($start, $next_i, $i, $num_seqs, $output_type);
@@ -189,10 +196,11 @@ sub create_glue_alignment {
 		unless ($seq_ref->{blast_valid}) {
 			$num_failed++;
 			my $message = " BLAST-align fail $num_failed: sequence '$header'";
+			push (@failed, $seq_ref);
 			$io->show_output_message($message, $self->{output_type});
 			next;
 		}
-		
+			
 		# Do MUSCLE align
 		#$self->glue_muscle_align($seq_ref);
 		
@@ -211,7 +219,13 @@ sub create_glue_alignment {
 
 		# Upload sequence & GLUE MSA data to databae
 		if ($self->{upload_to_db}) { # Load data to sequence database
-			$self->load_data_to_sequence_db($seq_ref);
+			my $data_ref = $seq_ref->{data};
+			if ($data_ref) {
+				$self->load_data_to_sequence_db($seq_ref);
+			}
+			else {
+				die "\n\n No data found in DB upload routine\n\n";
+			}
 		}
 	}
 
@@ -237,7 +251,66 @@ sub create_glue_alignment {
 		$glue_msa_obj->{mutation_profiled} = 'true';
 	}
 
+	# Write the failed sequences
+	my $failed_num = scalar @failed; 
+	if ($failed_num) {
+		my $failed_seqs_file = 'failed_sequences.fas';
+		my $failed_seqs_path = $report_dir  . $failed_seqs_file;
+		$seqio->write_fasta($failed_seqs_path, \@failed);
+		$message ="\n\t # $num_failed failed sequences written to file '$failed_seqs_path'";
+		$io->show_output_message($message, $self->{output_type});
+		$self->{failed_seqs_file} = $failed_seqs_file; 
+		$self->{failed_seqs_path} = $failed_seqs_path; 
+	}	
 	return 1;	
+}
+
+#***************************************************************************
+# Subroutine:  write_process_header
+# Description: write process
+#***************************************************************************
+sub write_process_header {
+
+	my ($self) = @_;
+	
+	# Define the page in the correct format and write it
+	my $html_header   = $self->{html_header};
+	unless ($html_header) { die "\n\t No HTML header found\n\n"; } # Sanity checking
+	my @page_header;
+	$fileio->read_file($html_header, \@page_header);
+	my $header = join ("\n", @page_header);
+	print $header;
+}
+	
+#***************************************************************************
+# Subroutine:  check_if_sequence_uploaded
+# Description: check if sequence uploaded 
+#***************************************************************************
+sub check_if_sequence_uploaded {
+
+	my ($self, $seq_ref) = @_;
+	
+	# Get the table references
+	my $db_obj = $self->{sequence_db};
+	my $sequence_table = $db_obj->{sequence_table};
+	unless ($sequence_table) { 
+		die "\n\t Sequence DB has not been correctly loaded\n\n\n";
+	}	
+
+	my %data;
+	my $sequence_id = $seq_ref->{header};
+	my $data_ref    = $seq_ref->{data};
+	
+	my @data;
+	my @fields = qw [ sequence_id ];
+	my $where = "WHERE Sequence_id = '$sequence_id'";
+	$sequence_table->select_rows(\@fields, \@data, $where);
+	my $row = shift @data;
+	if ($row->{sequence_id}) {
+		print "\n\t # Skipping sequence $sequence_id already in the databse";
+		return 1;
+	}
+	return 0;
 }
 
 #***************************************************************************
@@ -284,13 +357,11 @@ sub load_data_to_sequence_db {
 
 	# Get the table references
 	my $db_obj = $self->{sequence_db};
-	my $mutation_table = $db_obj->{mutation_table};
-	my $genotype_table = $db_obj->{genotype_table};
 	my $sequence_table = $db_obj->{sequence_table};
 	my $location_table = $db_obj->{location_table};
-	unless ($sequence_table and $location_table) { 
-		die "\n\t Sequence DB has not been correctly loaded\n\n\n";
-	}	
+	my $genotype_table = $db_obj->{genotype_table};
+	my $mutation_table = $db_obj->{mutation_table};
+	my $position_table = $db_obj->{position_table};
 
 	my %data;
 	$data{'sequence_id'}     = $seq_ref->{header};
@@ -321,11 +392,11 @@ sub load_data_to_sequence_db {
 	unless ($data{isolation_date}) {
 		$data{isolation_date} = 'NULL';
 	}
-	$data{'sample_id'} = 'NULL';
+	$data{'isolate_id'} = 'NULL';
 	if ($data{'isolate'}) {
-		my $sample_id = $data{'isolate'};
-		$sample_id =~ s/\s+//g;
-		$data{'sample_id'} = $sample_id;
+		my $isolate_id = $data{'isolate'};
+		$isolate_id =~ s/\s+//g;
+		$data{'isolate_id'} = $isolate_id;
 	}
 	$data{'sequence'}        = $sequence;
 	#$data{'sequence_date'}   = $seq_ref->{sequence_date};
@@ -340,9 +411,10 @@ sub load_data_to_sequence_db {
 			}
 		}
 	}
-	unless ($data{'sample_id'}) {
+	unless ($data{'isolate_id'}) {
 		my $isolate = $data{'isolate'};
-		$data{'sample_id'} = $isolate;
+		unless ($isolate) { $isolate = 'NULL'; }
+		$data{'isolate_id'} = $isolate;
 	}
 	unless ($data{'location_id'}) {
 		$data{'location_id'} = 'NK';
@@ -350,18 +422,138 @@ sub load_data_to_sequence_db {
 	$data{'score'}           = 'NA';
 	$data{'start'}           = $seq_ref->{aln_start};
 	$data{'stop'}            = $seq_ref->{aln_stop};
+	
+	$self->apply_filter_translations(\%data);
+
 	#$devtools->print_hash(\%data); # die;
 	$sequence_table->insert_row(\%data);
 	$location_table->insert_row(\%data);
 	$genotype_table->insert_row(\%data);
 
+	if ($self->{upload_msa_data}) {
+		$self->load_position_data($seq_ref);
+		$self->load_mutation_data($seq_ref);
+	}
 	#$devtools->print_hash($seq_ref); die;
-	$self->load_mutation_data($seq_ref);
 	#$self->load_insertion_data($seq_ref);
 	#$devtools->print_hash(\%fields); die;
 	#$devtools->print_array(\@parsed); die;
 }
 
+
+#***************************************************************************
+# Subroutine:  apply_filter_translations 
+# Description: add sequence data to DB
+#***************************************************************************
+sub apply_filter_translations {
+
+	my ($self, $data_ref) = @_;
+
+	my $db_obj = $self->{sequence_db};
+	my $filters = $db_obj->{db_filters};
+	my $geno_filter = $filters->{genotype};
+
+	my $genotype   = $data_ref->{genotype};	
+	my $f_genotype = $geno_filter->{$genotype};	
+	if ($f_genotype) {
+		$data_ref->{genotype} = $f_genotype;
+		if ($f_genotype ne $genotype) {
+			#print "\n\t Filters: converted '$genotype' to $f_genotype";
+		}
+	}
+	else {
+		#print "\n\t No filter for '$genotype'";
+	}
+
+	my $host_filter = $filters->{host};
+	my $host   = $data_ref->{host};	
+	unless ($host) { die;}
+	my $f_host = $host_filter->{$host};	
+	if ($f_host) {
+		$data_ref->{host} = $f_host;
+		if ($f_host ne $host) {
+			print "\n\t Filters: converted '$host' to $f_host";
+		}
+	}
+	else {
+		print "\n\t No filter for '$host'";
+	}
+
+
+	#my $country_filters  = $filters->{country};
+	#$devtools->print_hash($geno_filter);
+	#die;
+
+}
+
+#***************************************************************************
+# Subroutine:  apply_date_filters
+# Description: add sequence data to DB
+#***************************************************************************
+sub apply_date_filters {
+
+	my ($self, $date) = @_;
+
+	my $filter_date;
+
+	# If its just a year (4 digits) set to middle of of year
+	# If dd-mmm-yyyy then reformat
+	# If mmm-yyyy then reformat
+	
+	return $filter_date;
+}
+
+#***************************************************************************
+# Subroutine:  load_position_data
+# Description: add sequence data to DB
+#***************************************************************************
+sub load_position_data {
+
+	my ($self, $seq_ref) = @_;
+
+	# Get the table reference
+	my $db_obj = $self->{sequence_db};
+	my $position_table = $db_obj->{position_table};
+	unless ($position_table) {
+		die "\n\t Sequence DB has not been correctly loaded\n\n\n";
+	}	
+
+	#$devtools->print_hash($seq_ref); die;
+	my $seq_id = $seq_ref->{header};
+	my $id     = $seq_ref->{sequence_id};
+	#print "<BR><BR> ############## SEQ ID: $seq_id  ($id)"; # DEBUG
+	my $valid_positions = $seq_ref->{valid_positions}; 
+	my @keys = sort keys %$valid_positions;
+	foreach my $key (@keys) {
+		my $position_ref = $valid_positions->{$key};
+		my $position     = $position_ref->{position};	
+		my $gene         = $position_ref->{gene};	
+		my $refseq       = $seq_ref->{name};	
+		#print "\n\t Refseq '$refseq': $gene\t$position";
+		my @fields = qw [ pos_count ];
+		my @data;
+		my $where = " WHERE Refseq_ID = '$refseq'
+		                AND Gene_ID   = '$gene'
+		                AND Position  =  $position ";
+		$position_table->select_rows(\@fields, \@data, $where);
+		my $data_ref = shift @data;
+		my $count = $data_ref->{pos_count};
+		my %data;
+		$data{refseq_id} = $refseq;
+		$data{position}  = $position;
+		$data{gene_id}   = $gene;
+		unless ($count) {
+			$count = 1;
+			$data{pos_count} = $count;
+			$position_table->insert_row(\%data);
+		}
+		else {
+			$count++;
+			$data{pos_count} = $count;
+			$position_table->update(\%data, $where);
+		}		
+	}
+}
 
 #***************************************************************************
 # Subroutine:  load_mutation_data
@@ -371,7 +563,7 @@ sub load_mutation_data {
 
 	my ($self, $seq_ref) = @_;
 
-	# Get the table references
+	# Get the table reference
 	my $db_obj = $self->{sequence_db};
 	my $mutation_table = $db_obj->{mutation_table};
 	unless ($mutation_table) {
@@ -564,48 +756,81 @@ sub create_phylogeny {
 	
 	my ($self) = @_;
 
-	# Override (if option for phylogenetic analysis not set)
-	unless ($self->{phylogeny}) { return; }
+	my $alignment = $self->{glue_msa_obj};
+	my $start = $alignment->{lowest_start};
+	my $stop  = $alignment->{highest_stop};
+	unless ($start and $stop) { die; }
 	
+	# Load the reference MSA and stack on the query sequence MSA
+	if ($self->{glue_refset}) {
+		my %msa_data;
+		my $refset_path = $self->{glue_refset}; # Get path to the RSS
+		my $error = $seqio->read_GLUE_MSA($refset_path, \%msa_data, $start, $stop);
+		if ($error) {
+			print $error;
+			return;
+		}
+		my $ref_sequences_ref = $msa_data{refalign_sequences};
+		#$devtools->print_hash(\%msa_data); die;
+		#$devtools->print_array($ref_sequences_ref); die;
+		$self->{refalign_sequences} = $ref_sequences_ref;
+	}
+	
+	# Hand off to the appropriate phylogenetic reconstruction fxn
+	$self->{phylogeny_method} = 'FASTME'; # HACK  TODO - remove
+	if ($self->{phylogeny_method} eq 'FASTME') {
+		$self->create_FASTME_phylogeny();
+	}
+	else {
+		# No other phylogenetic reconstruction interfaces have been implemnted so far
+		die;
+	}
+}
+
+#***************************************************************************
+# Subroutine:  create_FASTME_phylogeny 
+# Description: create a distance tree using submitted sequences and a 
+#              reference sequence set
+#***************************************************************************
+sub create_FASTME_phylogeny {
+	
+	my ($self) = @_;
+
 	# Get relevant objects from self
 	my $phylogeny_obj = $self->{phylogeny_obj};
 	my $output_path   = $self->{report_dir};
 	my $alignment     = $self->{glue_msa_obj};
-	$io->show_output_message("\n\t # Creating phylogeny", $self->{output_type});	
+	my $sequences     = $alignment->{sequences};
+	#$devtools->print_hash($alignment); die;
 	
-	# Load the reference MSA and stack on the query sequence MSA
-	my $fasta_path;
-	if ($self->{include_glue_refset}) {
-		#my $rss_path      = $self->{rss_path}; # Get path to the RSS
-		#my $refseq        = $self->{refseq};
-		#my $refseq_name   = $refseq->{name};
-		#my $path = $rss_path . $refseq_name . '.fas';
-		#$alignment->load_reference_set($path);
-		# Stack with reference GLUE aligns
-		# Write the alignment in minimal FASTA format (no leading or trailing)
-		#my $fasta_file = 'GLUE_MSA_stacked.txt';
-		#$fasta_path = $output_path . $fasta_file;	
-		#my $flag = 'true';
-		#$alignment->write_glue_alignment($fasta_path, $flag);
-		#my $stacked_aln_ref = $alignment->{sequences};
-		#$seqio->read_fasta($fasta_path, \@sequences);
-		#print "\n\t ALIGN FILE $align_file";
-		#$devtools->print_array(\@stacked_aln); die;
-		#$devtools->print_array(\@rss_seqs);
-		die;
-	}
-
 	# Write sequences as PHYLIP	
-	my @translation;
 	my @phylip;
 	my $datatool = DataTool->new();
-	my $sequences = $self->{sequences};
+	my $ref_sequences = $self->{refalign_sequences};
+	my @combined_seqs;
+	if ($ref_sequences) {
+		@combined_seqs = ( @$sequences, @$ref_sequences );
+	}
+	else {
+		@combined_seqs = @$sequences;
+	}
+
+	#foreach my $seq_ref (@combined_seqs) {
+	#	my $sequence_id = $seq_ref->{sequence_id};
+	#	my $header      = $seq_ref->{header};
+	#	print "\n\t ## Sequence ID: $sequence_id\t$header";
+	#}
+	#die;
+	#$devtools->print_array(\@combined_seqs); die;
+
 	my %translation;
-	$datatool->fasta_to_phylip($sequences, \@phylip, \@translation, \%translation);
+	my @translation;
+	$datatool->fasta_to_phylip(\@combined_seqs, \@phylip, \@translation, \%translation);
 	my $align_file = $output_path . 'FASTME_input_MSA.phy'; 
 	$fileio->write_file($align_file, \@phylip);
 	
 	# Build the tree
+	$io->show_output_message("\n\t # Creating <a href='http://www.ncbi.nlm.nih.gov/CBBresearch/Desper/FastME.html' target='blank'>FASTME</a> phylogeny", $self->{output_type});	
 	my %tree_output;
 	$phylogeny_obj->build_nj_tree($align_file, \%tree_output); # Create the tree
 	#$devtools->print_hash(\%tree_output); die;
@@ -616,6 +841,7 @@ sub create_phylogeny {
 	# Get the newick and back translate to the orginal seq IDs
 	my $back_newick = $bioio->back_translate_newick($newick, \%translation);
 	$alignment->{newick} = $back_newick;
+	#die;
 
 	# Write tree to file
 	my $refseq_name = $self->{refseq}->{name};
@@ -627,8 +853,12 @@ sub create_phylogeny {
 	my $back_newick_path = $output_path . $back_newick_file;
 	my $back_tree_string = "tree $refseq_name = [&R] " . $back_newick;
 	$fileio->write_text_to_file($back_newick_path, $back_tree_string);
-	$alignment->{tree_file} = $newick_file;
-	$alignment->{tree_path} = $newick_path;
+
+	# Store data
+	#$alignment->{tree_file} = $newick_file;
+	#$alignment->{tree_path} = $newick_path;
+	$alignment->{tree_file} = $back_newick_file;
+	$alignment->{tree_path} = $back_newick_path;
 }
 
 ############################################################################

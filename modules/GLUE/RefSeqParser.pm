@@ -78,9 +78,6 @@ sub parse_refseq_flatfile {
 	#=== Get the entire nucleic acid sequence	
 	# Use the genbank fxn (the same start and end tokens are used: 'ORIGIN' & '//')
 	my $sequence = $self->get_sequence(\@refseq_file);
-	unless ($sequence) {
-		die "\n\t Couldn't extract sequence from RefSeq file\n\t '$file_path', check formatting\n\n";
-	 }
 	$sequence =~ s/\s+//g;    # IMPORTANT!!!!!
 	$sequence = uc $sequence;
 	$refseq_data_ref->{sequence} = $sequence;

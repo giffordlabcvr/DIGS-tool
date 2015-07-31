@@ -21,8 +21,8 @@ use Base::FileIO;
 use Base::SeqIO;
 use Base::DevTools;
 use Base::Console;
+use Base::HTML_Utilities;
 use Base::Sequence; # For performing basic sequence manipulations
-#use Base::HTML_Utilities;
 
 ############################################################################
 # Globals
@@ -36,6 +36,8 @@ my $devtools   = DevTools->new();
 my $console    = Console->new();
 
 my $header_limit  = 50;
+my $set_id_len    = 30;
+
 my $default_delimiter =  "\t";  # default for delimited files
 1;
 
@@ -91,6 +93,8 @@ sub fasta_to_delimited {
 		my $header       = $seq_ref->{header};
 		my $sequence     = $seq_ref->{sequence};
 		my $seq_len      = length $sequence;
+		print "\n\t ## $header";
+
 		$header =~ s/\s+//g; # Remove whitespace
 		$sequence =~ s/\s+//g; # Remove whitespace
 		chomp $header;
@@ -110,8 +114,6 @@ sub fasta_to_phylip {
 
 	my ($self, $fasta_ref, $phylip_ref, $table_ref, $translation_ref) = @_;
 	
-	my $set_id_len = 20;
-
 	my $phycount;
 	my $last_seq_len;
 	foreach my $sequence_ref (@$fasta_ref) {
@@ -119,6 +121,7 @@ sub fasta_to_phylip {
 		$phycount++;
 		my $header      = $sequence_ref->{header};
 		my $sequence_id = $sequence_ref->{sequence_id};
+		#my $sequence_id = $sequence_ref->{header};
 		my $sequence    = $sequence_ref->{sequence};
 		chomp $sequence_id;
 	
@@ -143,9 +146,12 @@ sub fasta_to_phylip {
 		my $id_len;
 		foreach my $char (@sequence_id) {
 			$phy_id .= $char;	
-			$id_len = length($phy_id);
-			if ($id_len eq 10) { last; }
+			#if ($id_len eq ($set_id_len - 10)) { last; }
 		}
+		#$phy_id =~ s/\s+//g;		
+		$phy_id = $sequence_id; 
+		$id_len = length($phy_id);
+
 		my $spacer_len = ($set_id_len - $id_len);
 		my $spacer = ' ' x $spacer_len;
 		my $phy_seq = $phy_id . $spacer . $sequence . "\n";
@@ -153,7 +159,7 @@ sub fasta_to_phylip {
 		$translation_ref->{$phy_id} = $header;
 
 		# store id relationship in translation table 
-		my $id_pair = "$sequence_id\t$phy_id\n";
+		my $id_pair = "$phy_id\t$phy_id\n";
 		push (@$table_ref, $id_pair);
 	}
 	
@@ -262,13 +268,14 @@ sub delimited_to_fasta {
 # Subroutine:  genbank_to_fasta_and_data
 # Description: convert GenBank file into a FASTA file and linked data file 
 #***************************************************************************
-sub genbank_to_fasta_and_data {
+sub genbank_to_fasta_and_data2 {
 	
 	my ($self, $infile, $seq_ref, $data_ref) = @_;
 
 	# Declare variables
 	my $i = 0;
 	my $seq_id;
+	my $header;
 	my $seq_date;
 	my $GBFILE = $infile;
 	my $sequence       = '';
@@ -278,7 +285,258 @@ sub genbank_to_fasta_and_data {
 	my $genotype       = undef;
 	my $serotype       = undef;
 	my $isolate        = undef;
+	my $isolate_source = undef;
 	my $host           = undef;
+	my $breed          = undef;
+	my $seq_flag       = undef;
+	my $feature_flag   = undef;
+	my $cds_flag       = undef;
+	my $cd_coordinates = undef;
+	my $matpep_flag    = undef;
+	my $prev_line      = undef;
+	my $matpep_coordinates = undef;
+	my $trans_flag         = undef;
+	my $product_flag       = undef;
+	my $product = '';
+	my $current_orf = '';
+	my %translations;	
+	unless (open(GBFILE, "$infile")) {
+		print "\n\t Cannot open file \"$infile\"\n\n";
+		exit;
+	}
+
+	# Iterate through file
+	foreach my $line (<GBFILE>) {
+
+	    chomp($line);
+		$i++;
+		#print "\n\t LINE $i\t $line";
+	    # do line-by-line processing.
+		if ($line =~ /^\/\//) {  # End of Genbank entry
+			
+			# Do some processing to get start and stop
+			#print "\n\t ## Processed Genbank entry for '$seq_id' ($iso_country, $iso_date)";
+			$seq_flag = undef;
+			my %data;
+			$data{sequence_id}         = $seq_id;
+			$data{definition}          = $header;
+			$data{isolation_country}   = $iso_country;
+			$data{isolation_date}      = $iso_date;
+			$data{sequence_date}       = $seq_date;
+			unless ($sequence and $seq_id) { 
+				print "\n\t No sequence for '$seq_id"; sleep 2; exit;
+			}
+			$data{sequence}            = uc $sequence;
+			my $genotype_method  = "genbank_annotation";
+			unless ($genotype) { 
+				$genotype = 'NULL';
+				$genotype_method = 'NA';
+			}
+			$data{genotype} = $genotype;
+			$data{genotype_method} = $genotype_method;
+			unless ($serotype) {  $serotype = 'NULL'; }
+			$data{serotype} = $serotype;
+			unless ($isolate) {  $isolate = 'NULL'; }
+			$data{isolate} = $isolate;
+			unless ($isolate_source) {  $isolate_source = 'NULL'; }
+			$data{isolate_source} = $isolate_source;
+			unless ($host)  {  $host  = 'NULL'; }
+			unless ($breed) {  $breed = 'NULL'; }
+			$data{host}  = $host;
+			$data{breed} = $breed;
+			#$devtools->print_hash(\%data); die;
+			#push(@$data_ref, \%data);
+			$data_ref->{$seq_id} = \%data;	
+		
+			$sequence = uc $sequence;
+			#print "\n\t sequence ID = '$seq_id'";
+			my $seq_obj = Sequence->new($sequence, $seq_id, $seq_id);
+			push(@$seq_ref, $seq_obj);
+
+			# RESET
+			$sequence    = '';
+			$seq_id      = '';
+			$seq_date    = '';
+			$iso_country = 'NK';
+			$genotype    = undef;
+			$serotype    = undef;
+			$host        = undef;
+			$isolate     = undef;
+			
+		}
+		elsif ($seq_flag) {
+			$line =~ s/\s//g;
+			$line =~ s/\d//g;
+			$sequence .= $line; 
+			#print "\n\t Adding to sequence '$seq_id'";
+		}
+
+
+		if ($line =~ /^FEATURES/) {
+			#print "\n\tStart of features block";
+			$feature_flag = 1;
+		}
+		if ($feature_flag) {
+			if ($line =~ /country/) {
+				my @line = split(/"/, $line);
+				#$devtools->print_array(\@line);
+				$iso_country = $line[1];
+				$iso_country =~ s/'/_/g;
+				my @iso_country = split (/:/, $iso_country);
+				$iso_country = $iso_country[0];
+				unless ($iso_country =~ /\w/) { $iso_country = 'NK'; }
+				#print "\n\t # GOT country '$iso_country' for $seq_id";
+			
+			}
+			if ($line =~ /collection_date/) {
+				my @line = split(/"/, $line);
+				$iso_date = $line[1];
+				$iso_date =~ s/'/_/g;
+				#print "\n\t # GOT date '$iso_date' for $seq_id";
+			}
+			if ($line =~ /note="genotype/) {
+				my @line = split(/"/, $line);
+				#$devtools->print_array(\@line);
+				$genotype = $line[1];
+				my @genotype = split (/;/, $genotype);
+				$genotype = $genotype[0];
+				$genotype =~ s/genotype://g;
+				$genotype =~ s/ //g;
+				$genotype =~ s/genotype//g;
+				#print "\n\t # GOT genotype '$genotype' for $seq_id";
+			}
+			if ($line =~ /\/serotype/) {
+				my @line = split(/=/, $line);
+				#$devtools->print_array(\@line);
+				$serotype = $line[1];
+				my @serotype = split (/;/, $serotype);
+				$serotype = $serotype[0];
+				$serotype =~ s/"//g;
+				$serotype =~ s/serotype//g;
+				print "\n\t # GOT serotype '$serotype' for $seq_id";
+			}
+			if ($line =~ /\/isolate/) {
+				my @line = split(/=/, $line);
+				#$devtools->print_array(\@line);
+				$isolate = $line[1];
+				$isolate =~ s/"//g;
+				print "\n\t # GOT isolate '$isolate' for $seq_id";
+			}
+			if ($line =~ /\/isolation_source/) {
+				my @line = split(/=/, $line);
+				#$devtools->print_array(\@line);
+				$isolate_source = $line[1];
+				$isolate_source =~ s/"//g;
+				print "\n\t # GOT isolate_source '$isolate_source' for $seq_id";
+			}
+			if ($line =~ /\/host/) {
+				if ($line =~ /breed/) {
+					my @breedsplit = split(/breed/, $line);
+					$breed = pop @breedsplit;
+					$breed =~ s/"//g;
+					$breed =~ s/^\s+//g; # Remove leading whitespace
+					$breed =~ s/\s+$//;; # Remove trailing whitespace
+				}
+				else { $breed = 'NULL'; }
+				my @line = split(/=/, $line);
+				$host = $line[1];
+				$host =~ s/"//g;
+				print "\n\t # GOT host '$host', breed '$breed' for $seq_id";
+				print "\n\t # HOST line '$line'";
+			}
+
+
+			if ($line =~ /\/translation\"/) {
+				#print "\n\tStart of features block";
+				$trans_flag = 1;
+			}
+			if ($trans_flag) {
+				$line =~ s/\/translation\"//g;
+				$current_orf .=$line;
+				if ($line =~ /\"/) {
+					$translations{$product} = $current_orf;
+					$trans_flag = undef;
+					$product_flag = undef;
+					$product = '';
+					$current_orf = '';
+				}
+			}
+		
+			if ($line =~ /\/product\"/) {
+				$product_flag = 1;
+				my @product_line = split('=', $line);
+				$product = pop @product_line;
+				$product =~ s/"//g;
+				$product = $seq_id . "_" . $product;	
+			}
+			if ($trans_flag) {
+				$line =~ s/\/translation\"//g;
+				$current_orf .=$line;
+				if ($line =~ /\"/) {
+					$trans_flag = undef;
+				}
+			}
+		}
+		if ($line =~ /^ORIGIN/) {
+			#print "\n\tStart of sequence for '$seq_id'";
+			$seq_flag = 1;
+			$feature_flag = undef;
+		}
+		elsif ($line =~ /^LOCUS/) {
+			my @line = split(/\s+/, $line);
+			#$devtools->print_array(\@line);
+			$seq_id = $line[1];
+			$seq_date= pop @line;
+			print "\n\t ####### Processing entry ($seq_id) date '$seq_date'";
+		}
+		elsif ($line =~ /^DEFINITION/) {
+			my @line = split(/DEFINITION/, $line);
+			#$devtools->print_array(\@line);
+			$header = join('', @line);
+			$header =~ s/'//g;
+			#print "\n\t ####### Definition: '$line'";
+			#print "\n\t ####### Definition: '$header'";
+		}
+
+		#elsif($line =~ /^ACCESSION/) {
+		#	my @line = split (/\s+/, $line);
+		#	$accession = pop @line;
+		#}
+		#elsif($compress_line =~ /^ORGANISM/) {
+
+		my $prev_line = $line;
+	}
+}
+
+
+
+
+
+
+#***************************************************************************
+# Subroutine:  genbank_to_fasta_and_data
+# Description: convert GenBank file into a FASTA file and linked data file 
+#***************************************************************************
+sub genbank_to_fasta_and_data {
+	
+	my ($self, $infile, $seq_ref, $data_ref) = @_;
+
+	# Declare variables
+	my $i = 0;
+	my $seq_id;
+	my $header;
+	my $seq_date;
+	my $GBFILE = $infile;
+	my $sequence       = '';
+	my $accession      = 'NULL';
+	my $iso_date       = 'NULL';
+	my $iso_country    = 'NK';
+	my $genotype       = undef;
+	my $serotype       = undef;
+	my $isolate        = undef;
+	my $isolate_source = undef;
+	my $host           = undef;
+	my $breed          = undef;
 	my $seq_flag       = undef;
 	my $feature_flag   = undef;
 	my $cds_flag       = undef;
@@ -305,6 +563,7 @@ sub genbank_to_fasta_and_data {
 			$seq_flag = undef;
 			my %data;
 			$data{sequence_id}         = $seq_id;
+			$data{definition}          = $header;
 			$data{isolation_country}   = $iso_country;
 			$data{isolation_date}      = $iso_date;
 			$data{sequence_date}       = $seq_date;
@@ -323,15 +582,19 @@ sub genbank_to_fasta_and_data {
 			$data{serotype} = $serotype;
 			unless ($isolate) {  $isolate = 'NULL'; }
 			$data{isolate} = $isolate;
-			unless ($host) {  $host = 'NULL'; }
-			$data{host} = $host;
+			unless ($isolate_source) {  $isolate_source = 'NULL'; }
+			$data{isolate_source} = $isolate_source;
+			unless ($host)  {  $host  = 'NULL'; }
+			unless ($breed) {  $breed = 'NULL'; }
+			$data{host}  = $host;
+			$data{breed} = $breed;
 			#$devtools->print_hash(\%data); die;
-			push(@$data_ref, \%data);
-			
+			#push(@$data_ref, \%data);
+			$data_ref->{$seq_id} = \%data;	
+		
 			$sequence = uc $sequence;
-			my $header = $seq_id;
 			#print "\n\t sequence ID = '$seq_id'";
-			my $seq_obj = Sequence->new($sequence, $header, $seq_id);
+			my $seq_obj = Sequence->new($sequence, $seq_id, $seq_id);
 			push(@$seq_ref, $seq_obj);
 
 			# RESET
@@ -401,11 +664,27 @@ sub genbank_to_fasta_and_data {
 				$isolate =~ s/"//g;
 				print "\n\t # GOT isolate '$isolate' for $seq_id";
 			}
+			if ($line =~ /\/isolation_source/) {
+				my @line = split(/=/, $line);
+				#$devtools->print_array(\@line);
+				$isolate_source = $line[1];
+				$isolate_source =~ s/"//g;
+				print "\n\t # GOT isolate_source '$isolate_source' for $seq_id";
+			}
 			if ($line =~ /\/host/) {
+				if ($line =~ /breed/) {
+					my @breedsplit = split(/breed/, $line);
+					$breed = pop @breedsplit;
+					$breed =~ s/"//g;
+					$breed =~ s/^\s+//g; # Remove leading whitespace
+					$breed =~ s/\s+$//;; # Remove trailing whitespace
+				}
+				else { $breed = 'NULL'; }
 				my @line = split(/=/, $line);
 				$host = $line[1];
 				$host =~ s/"//g;
-				print "\n\t # GOT host '$host' for $seq_id";
+				print "\n\t # GOT host '$host', breed '$breed' for $seq_id";
+				print "\n\t # HOST line '$line'";
 			}
 		}
 		if ($line =~ /^ORIGIN/) {
@@ -420,6 +699,15 @@ sub genbank_to_fasta_and_data {
 			$seq_date= pop @line;
 			print "\n\t ####### Processing entry ($seq_id) date '$seq_date'";
 		}
+		elsif ($line =~ /^DEFINITION/) {
+			my @line = split(/DEFINITION/, $line);
+			#$devtools->print_array(\@line);
+			$header = join('', @line);
+			$header =~ s/'//g;
+			#print "\n\t ####### Definition: '$line'";
+			#print "\n\t ####### Definition: '$header'";
+		}
+
 		#elsif($line =~ /^ACCESSION/) {
 		#	my @line = split (/\s+/, $line);
 		#	$accession = pop @line;
@@ -441,6 +729,66 @@ sub genbank_to_fasta_and_data {
 }
 
 ############################################################################
+# SECTION: Sequence filtering functions
+############################################################################
+
+#***************************************************************************
+# Subroutine:  filter_seqs_by_length 
+# Description: filter a fasta file of sequences using a length cut off
+# Arguments: $file (a path)
+#            $fasta_ref (array to store output)
+#            $count_gaps (flag to count gap characters)
+# print "<BR> $minimum, $length";
+#***************************************************************************
+sub filter_seqs_by_length {
+
+	my ($self, $fasta_ref, $fasta_in, $fasta_out, $options_ref) = @_;
+
+	# Get options	
+	my $direction = $options_ref->{direction};
+	my $threshold  = $options_ref->{threshold};
+	my $count_gaps = $options_ref->{count_gaps};
+
+	# Index the sequences by size
+	foreach my $seq_ref (@$fasta_ref) {
+		
+		my $id           = $seq_ref->{sequence_id};
+		my $sequence     = $seq_ref->{sequence};
+		my $length;
+		if ($count_gaps) {
+			# Count any gaps if flag is set to do so
+			$length = length $sequence;
+		} 
+		else {
+			# Don't count gaps
+			my $adjusted_seq = $sequence;
+			$adjusted_seq =~ s/-//g;
+			$length = length $adjusted_seq;
+		}
+		
+		# Include or exclude based on length
+		my $store = undef;
+		if ($direction eq 'above') {
+			if ($length <= $threshold) { 
+				push (@$fasta_in, $seq_ref);
+			}
+			else {
+				push (@$fasta_out, $seq_ref);
+			}	
+		}
+		elsif ($direction eq 'below') {
+			if ($length >= $threshold) { 
+				push (@$fasta_in, $seq_ref);
+			}
+			else {
+				push (@$fasta_out, $seq_ref);
+			}	
+		}
+		else { die; }
+	}
+}
+
+############################################################################
 # SECTION: Sequence sorting functions
 ############################################################################
 
@@ -453,7 +801,7 @@ sub genbank_to_fasta_and_data {
 #***************************************************************************
 sub sort_seqs_by_length {
 
-	my ($self, $fasta_ref, $sorted_ref, $minimum, $count_gaps) = @_;
+	my ($self, $fasta_ref, $sorted_ref, $count_gaps) = @_;
 	
 	# Index the sequences by size
 	my %seq_lengths;
@@ -475,27 +823,15 @@ sub sort_seqs_by_length {
 			$adjusted_seq =~ s/-//g;
 			$length = length $adjusted_seq;
 		}
-		my $store = undef;
-		if ($minimum) {	
-			#print "<BR> $minimum, $length";
-			if ($length >= $minimum) { 
-				$store = 1; 
-			}
-			else {
-				$exclude++;
-			}	
+		
+		if ($seq_lengths{$length}) {
+			my $seqs_ref = $seq_lengths{$length};
+			push (@$seqs_ref, $id);
 		}
-		else { $store = 1; }
-		if ($store) {
-			if ($seq_lengths{$length}) {
-				my $seqs_ref = $seq_lengths{$length};
-				push (@$seqs_ref, $id);
-			}
-			else {
-				my @seqs;
-				push (@seqs, $id);
-				$seq_lengths{$length} = \@seqs;
-			}
+		else {
+			my @seqs;
+			push (@seqs, $id);
+			$seq_lengths{$length} = \@seqs;
 		}
 	}
 
@@ -520,6 +856,19 @@ sub sort_seqs_by_length {
 	}
 	return $exclude;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #***************************************************************************
 # Subroutine:  sort_sequences_on_data_column
