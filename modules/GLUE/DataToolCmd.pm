@@ -81,6 +81,7 @@ sub show_help_page {
 
 	my($HELP) = "\n\t usage: $0 -m[options] -s[options] -f[files] -d[files]
       \n\t # Convert between formats";
+
 	  $HELP  .= "\n\t  -m=1        :   FASTA to Delimited";
 	  $HELP  .= "\n\t  -m=2        :   Delimited to FASTA";
 	  $HELP  .= "\n\t  -m=3        :   Genbank to FASTA+DATA";
@@ -93,6 +94,7 @@ sub show_help_page {
 	  $HELP  .= "\n\t  -m=x        :   FASTA to PHYLIP";
 	  $HELP  .= "\n\t  -m=x        :   Expand GLUE MSA";
 	  $HELP  .= "\n\t  -m=x        :   Compress GLUE MSA";
+
 	  $HELP  .= "\n\n\t # Sorting, filtering, linking";
 	  $HELP  .= "\n\t  -s=1        :   Shorten FASTA headers"; 
 	  $HELP  .= "\n\t  -s=2        :   Sort sequences by length"; 
@@ -101,6 +103,7 @@ sub show_help_page {
 	  $HELP  .= "\n\t  -s=5        :   Sort sequences by data column"; 
 	  $HELP  .= "\n\t  -s=6        :   Concatenate using shared ID"; 
 	  $HELP  .= "\n\t  -s=7        :   Order aligned seqs by start position (staggered)"; 
+	  $HELP  .= "\n\t  -s=8        :   Sort on header"; 
 	print $HELP;
 
 }
@@ -204,7 +207,52 @@ sub run_sort_tools_cmd_line {
 	elsif ($sort eq 7) {
 		$self->sort_aligned_seqs_by_start($seqfiles);
 	}
+	elsif ($sort eq 8) {
+		$self->sort_seqs($seqfiles);
+	}
 	else { die; }
+}
+
+#***************************************************************************
+# Subroutine:  sort_seqs
+# Description: 
+#***************************************************************************
+sub sort_seqs {
+
+	my ($self, $infiles) = @_;
+
+	my $result = undef;
+	my %hash;
+	my %sequences;
+	foreach my $infile (@$infiles) {
+
+		print "\n\t # Sorting file '$infile' by FASTA header";
+		my @fasta;
+		$seqio->read_fasta($infile, \@fasta);
+		
+		my %by_header;
+		foreach my $seq_ref (@fasta) {
+
+			my $header   = $seq_ref->{header};
+			my $sequence = $seq_ref->{sequence};
+			unless ($header) { die };
+			$by_header{$header} = $sequence;
+		}
+
+		my @sorted = sort keys %by_header;
+
+		my @sorted_fasta;
+		foreach my $header (@sorted) {
+			
+			my $sequence = $by_header{$header};
+			my $fasta = ">$header\n$sequence\n";
+			push (@sorted_fasta, $fasta);
+		}
+
+		my $outfile = $infile . '.sort.txt';
+		$fileio->write_file($outfile, \@sorted_fasta);
+	}
+
 }
 
 #***************************************************************************
@@ -222,7 +270,7 @@ sub sort_aligned_seqs_by_start {
 	my %sequences;
 	foreach my $infile (@$infiles) {
 
-		print "\n\t # Converting file '$infile' from FASTA to data";
+		print "\n\t # Sorting file '$infile' by sequence start";
 		my @fasta;
 		$seqio->read_fasta($infile, \@fasta);
 		my $num_seqs = scalar @fasta;

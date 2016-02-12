@@ -435,7 +435,10 @@ sub load_glue_query {
 	
 		# Iterate through UTRs and add those
 		my @utr_names = keys %utr_sequences;
-		unless ($bit_score_min_blastn) { die; }
+		unless ($bit_score_min_blastn) { 
+			print  "\n\n\t ERROR:  Required parameter 'bit_score_min_blastn' is not set in control file\n\n"; 
+			exit;
+		}
 		foreach my $utr_name (@utr_names) {
 			my $utr_seq = $utr_sequences{$utr_name};
 			$self->add_na_probe($probes_ref, $refseq_name, $utr_name, $utr_seq);

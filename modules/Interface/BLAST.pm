@@ -144,7 +144,7 @@ sub extract_sequence {
 	my $command = $blast_path . "blastdbcmd -db $target_path";
 	$command .= " -entry $scaffold ";
 	$command .= " -range $start-$end ";
-	if ($orientation eq '-ve') { $command .= ' -strand minus '; }
+	if ($orientation eq '-') { $command .= ' -strand minus '; }
 	
 	# Execute the command
 	my @sequence = `$command`;
@@ -218,7 +218,7 @@ sub parse_tab_format_results {
 		# Set orientaton
 		my $orientation;
 		if  ($aln_stop < $aln_start) {
-			$orientation = '-ve';
+			$orientation = '-';
 			
 			# switch the start and stop around if in -ve orientation
 			my $switch_start = $aln_stop; 
@@ -227,7 +227,7 @@ sub parse_tab_format_results {
 			$match{aln_stop}   = $switch_stop;
 		}
 		else {
-			$orientation = '+ve';
+			$orientation = '+';
 			$match{aln_start} = $aln_start;
 			$match{aln_stop}   = $aln_stop;
 		}

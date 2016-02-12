@@ -52,7 +52,6 @@ sub new {
 		process_id            => $params_ref->{process_id},
 		reference_glue        => $params_ref->{reference_glue},
 		query_glue            => $params_ref->{query_glue},
-
 	};
 
 	bless ($self, $class);
@@ -64,10 +63,10 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  summarise_reference_library
+# Subroutine:  convert_reference_library
 # Description: summarise a library of GLUE reference sequences
 #***************************************************************************
-sub summarise_reference_library {
+sub convert_reference_library {
 
 	my ($self) = @_;
 
@@ -93,7 +92,25 @@ sub summarise_reference_library {
 	$fileio->write_file("tab.txt", \@list);
 
 	# Write features as FASTA
-	$self->write_features_as_fasta(\%refseq_library);
+	#$self->write_features_as_fasta(\%refseq_library);
+
+	my @refseq_names = keys %refseq_library;
+	my %features;
+	my %feature_names;
+	foreach my $refseq_name (@refseq_names) {
+	
+		my @new_file;
+		push (@new_file, "  create feature whole_genome \"Whole genome\"");
+		push (@new_file, "    feature whole_genome set metatag INFORMATIONAL");
+
+		#$devtools->print_hash($refseq_ref); die;
+		print "\n\t Getting features for '$refseq_name'";
+		my $refseq = $refseq_library{$refseq_name};
+		$refseq->convert_features();
+		$refseq->write_self_to_text('text/');
+		$refseq->write_self_to_seal('seal/');
+
+	}
 
 }
 
@@ -164,7 +181,7 @@ sub write_features_as_fasta {
 	
 		#$refseq_ref->describe();
 		#$devtools->print_hash($refseq_ref); die;
-		print "\n\t Getting features for '$refseq_name'";
+		#print "\n\t Getting features for '$refseq_name'";
 		my $refseq = $refseq_library->{$refseq_name};
 		my %utrs;
 		my %na_orfs;

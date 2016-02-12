@@ -789,20 +789,58 @@ sub write_self_to_text {
 	my @file;  # array to store the outfile
 	
 	# Do metadata section
-	my $refseq_name       = $self->{name};
-	my $full_name         = $self->{full_name};
-	my $virus_group       = $self->{virus_group};
-	my $virus_genus       = $self->{virus_genus};
-	my $virus_subgroup    = $self->{virus_subgroup};
-	my $virus_class       = $self->{virus_class};
-	my $virus_supertribe  = $self->{virus_supertribe};
-	my $virus_tribe       = $self->{virus_tribe};
-	my $virus_state       = $self->{virus_state};
-	my $genome_coverage   = $self->{genome_coverage};
-	my $genome_state      = $self->{genome_state};
-	my $virus_subfamily   = $self->{virus_subfamily};
-	my $sequence_type     = $self->{sequence_type};
-	unless ($virus_subfamily) { die; }
+	my $refseq_name;
+	my $full_name = '';
+	my $virus_group = '';
+	my $virus_genus = '';
+	my $virus_subgroup = '';
+	my $virus_class = '';
+	my $virus_supertribe = '';
+	my $virus_tribe = '';
+	my $virus_state = '';
+	my $genome_coverage = '';
+	my $genome_state = '';
+	my $virus_subfamily= '';
+	my $sequence_type= '';
+	
+	# Do metadata section
+	$refseq_name       = $self->{name};
+	if ($self->{full_name}) {
+		$full_name         = $self->{full_name};
+	}
+	if ($self->{virus_group}) {
+		$virus_group       = $self->{virus_group};
+	}
+	if ($self->{virus_genus}) {
+		$virus_genus       = $self->{virus_genus};
+	}
+	if ($self->{virus_subgroup}) {
+		$virus_subgroup    = $self->{virus_subgroup};
+	}
+	if ($self->{virus_class}) {
+		$virus_class       = $self->{virus_class};
+	}
+	if ($self->{virus_supertribe}) {
+		$virus_supertribe  = $self->{virus_supertribe};
+	}
+	if ($self->{virus_tribe}) {
+		$virus_tribe       = $self->{virus_tribe};
+	}
+	if ($self->{virus_state}) {
+		$virus_state       = $self->{virus_state};
+	}
+	if ($self->{genome_coverage}) {
+		$genome_coverage   = $self->{genome_coverage};
+	}
+	if ($self->{genome_state}) {
+		$genome_state      = $self->{genome_state};
+	}
+	if ($self->{virus_subfamily}) {
+		$virus_subfamily   = $self->{virus_subfamily};
+	}
+	if ($self->{sequence_type}) {
+		$sequence_type     = $self->{sequence_type};
+	}
 
 	push (@file, "Begin Metadata;");
 	push (@file, "\nname             = $refseq_name;");
@@ -821,7 +859,6 @@ sub write_self_to_text {
 		my $genome_state    = $self->{genome_state};
 		push (@file, "\ngenome_state     = $genome_state;");
 	}
-	unless ($self->{sequence_type}) { die; }
 	push (@file, "\nsequence_type    = $sequence_type;");
 
 	if ($self->{host_sci_name}) {
@@ -844,20 +881,33 @@ sub write_self_to_text {
 		my $features_ref   = $self->{features};	
 		push (@file, "\n\nBegin Features;");
 		my $feature_ref = shift @$features_ref;	
-		my $ftype      = $feature_ref->{type};
-		my $fname      = $feature_ref->{name};
-		my $ffull_name = $feature_ref->{full_name};
-		if ($ffull_name eq 'leader') { $ffull_name = 'LEA'; } 
-
-		my $fstart = $feature_ref->{start};
-		my $fstop  = $feature_ref->{stop};
+		#$devtools->print_hash($feature_ref);
+		
+		my $type      = '';
+		my $name      = '';
+		my $full_name = '';
+		my $start     = '';
+		my $stop      = '';
+	
+		if ($feature_ref->{type}) {	
+			$type  = $feature_ref->{type};
+		}
+		$name      = $feature_ref->{name};
+		$full_name = $feature_ref->{full_name};
+		if ($full_name) {
+			if ($full_name eq 'leader') { $full_name = 'LEA'; } 
+		}
+		$start = $feature_ref->{start};
+		$stop  = $feature_ref->{stop};
+		
 		my @feature_string;	
-		push (@feature_string, $ftype);
-		push (@feature_string, $ffull_name);
-		push (@feature_string, $fname);
-		push (@feature_string, $fstart);
-		push (@feature_string, $fstop);
-		if ($ftype eq 'UTR' and $fname eq 'LTR') {
+		push (@feature_string, $type);
+		push (@feature_string, $full_name);
+		push (@feature_string, $name);
+		push (@feature_string, $start);
+		push (@feature_string, $stop);
+
+		if ($type eq 'UTR' and $name eq 'LTR') {
 			my $feature_string = join ("\t", @feature_string);
 			push (@file, "\n$feature_string");
 		}
@@ -872,18 +922,26 @@ sub write_self_to_text {
 		# Do features section
 		my $features_ref   = $self->{features};	
 		my $feature_ref = shift @$features_ref;	
-		my $ftype      = $feature_ref->{type};
-		my $fname      = $feature_ref->{name};
-		my $ffull_name = $feature_ref->{full_name};
-		my $fstart = $feature_ref->{start};
-		my $fstop  = $feature_ref->{stop};
+		my $type      = '';
+		my $name      = '';
+		my $full_name = '';
+		my $start     = '';
+		my $stop      = '';
+		
+		if ($feature_ref->{type}) {	
+			$type  = $feature_ref->{type};
+		}
+		$name      = $feature_ref->{name};
+		$full_name = $feature_ref->{full_name};
+		$start = $feature_ref->{start};
+		$stop  = $feature_ref->{stop};
 		my @feature_string;	
-		push (@feature_string, $ftype);
-		push (@feature_string, $ffull_name);
-		push (@feature_string, $fname);
-		push (@feature_string, $fstart);
-		push (@feature_string, $fstop);
-		if ($ftype eq 'UTR' and $fname eq 'LEA') {
+		push (@feature_string, $type);
+		push (@feature_string, $full_name);
+		push (@feature_string, $name);
+		push (@feature_string, $start);
+		push (@feature_string, $stop);
+		if ($type eq 'UTR' and $name eq 'LEA') {
 			my $feature_string = join ("\t", @feature_string);
 			push (@file, "\n$feature_string");
 		}
@@ -899,9 +957,13 @@ sub write_self_to_text {
 	foreach my $feature_ref (@$features_ref) {
 		#print "<BR> WRITING $name";
 		my @feature_string;
-		my $type      = $feature_ref->{type};
-		my $name      = $feature_ref->{name};
-		my $full_name = $feature_ref->{full_name};
+		my $type      = '';
+		my $name      = '';
+		my $full_name = '';
+		
+		$type      = $feature_ref->{type};
+		$name      = $feature_ref->{name};
+		$full_name = $feature_ref->{full_name};
 		push (@feature_string, $type);
 		push (@feature_string, $full_name);
 		push (@feature_string, $name);
@@ -920,18 +982,26 @@ sub write_self_to_text {
 		# Do features section
 		my $features_ref   = $self->{features};	
 		my $feature_ref = shift @$features_ref;	
-		my $ftype      = $feature_ref->{type};
-		my $fname      = $feature_ref->{name};
-		my $ffull_name = $feature_ref->{full_name};
-		my $fstart = $feature_ref->{start};
-		my $fstop  = $feature_ref->{stop};
+
+		my $type      = '';
+		my $name      = '';
+		my $full_name = '';
+		if ($type) {
+			$type      = $feature_ref->{type};
+		}
+		$name      = $feature_ref->{name};
+		$full_name = $feature_ref->{full_name};
+		
+		my $start = $feature_ref->{start};
+		my $stop  = $feature_ref->{stop};
+
 		my @feature_string;	
-		push (@feature_string, $ftype);
-		push (@feature_string, $ffull_name);
-		push (@feature_string, $fname);
-		push (@feature_string, $fstart);
-		push (@feature_string, $fstop);
-		if ($ftype eq 'UTR' and $fname eq 'LTR') {
+		push (@feature_string, $type);
+		push (@feature_string, $full_name);
+		push (@feature_string, $name);
+		push (@feature_string, $start);
+		push (@feature_string, $stop);
+		if ($type eq 'UTR' and $name eq 'LTR') {
 			my $feature_string = join ("\t", @feature_string);
 			push (@file, "\n$feature_string");
 		}
@@ -1320,6 +1390,169 @@ sub write_self_to_seal {
 	}
 	$fileio->write_file($file, \@seal_fasta);
 	print "\n\t### FILE '$file' created\n\n\n";
+}
+
+############################################################################
+# CONVERT 
+############################################################################
+
+#***************************************************************************
+# Subroutine:  convert_features
+# Description: convert features
+#***************************************************************************
+sub convert_features {
+
+	my ($self) = @_;
+
+	my %rv_features_set;
+	$rv_features_set{'5LTR'} = "\"5' long terminal repeat\"";
+	$rv_features_set{'LEA'}  = "\"Leader region\"";
+	$rv_features_set{'PBS'}  = "\"Primer binding site\"";
+	$rv_features_set{'GAG'}  = "\"Group-specific antigen\"";
+	$rv_features_set{'POL'}  = "\"Polymerase\"";
+	$rv_features_set{'ENV'}  = "\"Envelope\"";
+	$rv_features_set{'PPT'}  = "\"Polypurine tract\"";
+	$rv_features_set{'3LTR'} = "\"3' long terminal repeat\"";
+
+	my @file;
+	my $seq_obj  = Sequence->new();
+	#print "\n\t### Refseq description";
+	my $accession        = $self->{accession};
+	my $name             = $self->{name};
+	my $full_name        = $self->{full_name};
+	my $seq_len          = $self->{seq_len};
+	my $virus_family     = $self->{virus_family};
+	my $virus_subfamily  = $self->{virus_subfamily};
+	my $virus_supertribe = $self->{virus_supertribe};
+	my $virus_tribe      = $self->{virus_tribe};
+	my $virus_genus      = $self->{virus_genus};
+	my $virus_subgroup   = $self->{virus_subgroup};
+	my $genome_coverage  = $self->{genome_coverage};
+	my $genome_state     = $self->{genome_state};
+	my $sequence_type    = $self->{sequence_type};
+	my $host_sci_name    = $self->{host_sci_name};
+	my $host_common_name = $self->{host_common_name};
+	my $sequence         = $self->{sequence};
+
+	# Name
+	my @data;
+	if ($name) {
+		 push (@data, $name);
+	}
+	else { push (@data, ''); }
+
+	if ($full_name) {
+		 push (@data, $full_name);
+	}
+	else { push (@data, ''); }
+	
+	if ($accession) {
+		 push (@data, $accession);
+	}
+	else { push (@data, ''); }
+
+	# Family
+	if ($virus_family) {
+		 push (@data, $virus_family);
+	}
+	else { push (@data, ''); }
+
+	if ($virus_subfamily) {
+		 push (@data, $virus_subfamily);
+	}
+	else { push (@data, ''); }
+
+	# Tribe
+	if ($virus_tribe) {
+		 push (@data, $virus_tribe);
+	}
+	else { push (@data, ''); }
+
+	if ($virus_supertribe) {
+		 push (@data, $virus_supertribe);
+	}
+	else { push (@data, ''); }
+
+	# Genus and subgroup
+	if ($virus_genus) {
+		 push (@data, $virus_genus);
+	}
+	else { push (@data, ''); }
+
+	if ($virus_subgroup) {
+		 push (@data, $virus_subgroup);
+	}
+	else { push (@data, ''); }
+
+
+	# Proviral genome info
+	if ($genome_coverage) {
+		 push (@data, $genome_coverage);
+	}
+	else { push (@data, ''); }
+
+	if ($genome_state) {
+		 push (@data, $genome_state);
+	}
+	else { push (@data, ''); }
+	if ($sequence_type) {
+		 push (@data, $sequence_type);
+	}
+	else { push (@data, ''); }
+	if ($host_sci_name) {
+		 push (@data, $host_sci_name);
+	}
+	else { push (@data, ''); }
+	if ($host_common_name) {
+		 push (@data, $host_common_name);
+	}
+	else { push (@data, ''); }
+
+	my $dataline = join ("\t", @data);
+	my @data_file;
+	push (@data_file, "$dataline\n");
+	my $data_file_name = $name . '.data';
+	$fileio->write_file($data_file_name, \@data_file);
+	#print "\n\t #DATA FOR $name:  $dataline";	
+
+	# Start creating XML
+	my $line;
+	$line  = "create reference $name ";
+	if ($accession) {
+		$line .= "ncbi-refseqs $name\n"
+	}
+	else {
+		$line .= "paleovirus_refseqs $name\n"
+	}
+	push (@file, $line);
+	$line  = "reference $name\n\n";
+	push (@file, $line);
+
+	# Create features XML
+	my $genes_ref = $self->{genes};
+	#print "\n\t### Locations of genes within this refseq:";
+	foreach my $gene_ref (@$genes_ref) {
+		my $gene_name    = $gene_ref->{name};
+		$gene_name = uc $gene_name;
+		my $gene_details = $rv_features_set{$gene_name};
+		my $gene_start = $gene_ref->{coding_start};
+		my $gene_stop  = $gene_ref->{coding_stop};
+		push (@file, "  add feature-location $gene_name\n");
+		push (@file, "  feature-location $gene_name\n");
+		push (@file, "    add segment $gene_start $gene_stop\n");
+		push (@file, "    exit\n\n");
+	}
+	push (@file, "  exit\n\n");
+	
+	my $file_name = $name . '.glue';
+	$fileio->write_file($file_name, \@file);
+	my $fasta_name = $name . '.fasta';
+	my $fasta = ">$name\n$sequence\n";
+	my @seqfile;
+	push (@seqfile, $fasta);
+	$fileio->write_file($fasta_name, \@seqfile);
+
+
 }
 
 ############################################################################

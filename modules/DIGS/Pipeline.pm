@@ -138,15 +138,7 @@ sub run_digs_process {
 		my $retrieve_obj = Retrieve->new($self);
 		$retrieve_obj->run_data_retrieval_functions();
 	}
-	elsif ($option eq 8) { # Create BED format file for UCSC genome browser 
-		if($self->{ucsc_extracted}){
-			$self->UCSCtracks(1);
-		}
-		if($self->{ucsc_loci}){
-			$self->UCSCtracks(2);
-		}
-    } 
-	elsif ($option eq 9) { # Add a table of data to the screening database
+	elsif ($option eq 8) { # Add a table of data to the screening database
 		$self->extend_screening_db();
 	}
 }
@@ -452,15 +444,21 @@ sub do_reverse_blast {
 	if ($probe_type eq 'UTR') {
 		$lib_path  = $self->{blast_utr_lib_path};
 		$blast_alg = 'blastn';
+		unless ($lib_path) { 
+			print "\n\t NO UTR LIBRARY defined"; 
+		}
 	}
 	elsif ($probe_type eq 'ORF') {
 		$lib_path  = $self->{blast_orf_lib_path};
+		unless ($lib_path) { 
+			print "\n\t NO ORF LIBRARY defined"; 
+		}
 		$blast_alg = 'blastx';
 	}
 	else { die; }
+	unless ($lib_path) { return; }
 
 	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
-	unless ($lib_path) { die "\n\n\t NO BLAST LIBRARY defined\n\n\n"; }
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
 	my @results;
 	$blast_obj->parse_tab_format_results($result_file, \@results);
@@ -629,9 +627,6 @@ sub reassign {
 		if ($assigned_name ne $previous_assign 
 		or  $assigned_gene ne $previous_gene) {
 			
-			# Insert the data
-			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
-			print " to $assigned_name ($assigned_gene)";
 			# Insert the data
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
@@ -987,12 +982,18 @@ sub inspect_adjacent_hits {
 	# Calculate the gap between the query coordinates of the two matches
 	# Note this may be a negative number if the queries overlap 
 	my $query_gap;
-	if ($orientation eq '+ve') {
+	
+	# TO REMOVE
+	if ($orientation eq '+ve') { $orientation = '+'; }
+	if ($orientation eq '-ve') { $orientation = '-'; }
+	if ($orientation eq '+') {
 		$query_gap = $query_start - $last_query_end;
 	}
-	elsif ($orientation eq '-ve') {
+	elsif ($orientation eq '-') {
 		$query_gap = $last_query_start - $query_end;
 	}
+	
+	else { print "\n\t orientation = $orientation\n\n";  die; }
 	
 	### Deal with contingencies that mean hits definitely should or should not be consolidated
 
@@ -1026,17 +1027,17 @@ sub inspect_adjacent_hits {
 
 	# For positive orientation hits
 	# If the query_start of this hit is before the query_end of the last, then its a distinct hit
-	elsif ($orientation eq '+ve' and $buffer_start < $last_query_end) {
+	elsif ($orientation eq '+' and $buffer_start < $last_query_end) {
 		if ($verbose) {
-			print "\n\t    DISTINCT +ve: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
+			print "\n\t    DISTINCT +: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
 		}
 		return 0;
 	}
 	# For negative orientation hits
 	# If the query_start of this hit < query_end of the last, then its a distinct hit
-	elsif ($orientation eq '-ve' and ($last_query_start - $query_end) > $probe_buffer ) {
+	elsif ($orientation eq '-' and ($last_query_start - $query_end) > $probe_buffer ) {
 		if ($verbose) {
-			print "\n\t    DISTINCT -ve: ($last_query_start - $query_end) > $probe_buffer \tsubject gap: $subject_gap";
+			print "\n\t    DISTINCT -: ($last_query_start - $query_end) > $probe_buffer \tsubject gap: $subject_gap";
 		}
 		return 0;
 	}
@@ -1153,12 +1154,12 @@ sub defragment {
             foreach my $scaf (@scaffolds){
 
                     # Run the consolidate on plus strand
-                    push(@CONSmain, $cons_obj->consolidate( $scaf, '+ve', $assigned));
-                    print "\nDone Consolidating $assigned in $scaf +ve orientation\n";
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '+', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf + orientation\n";
 
                     # Run the consolidate on minus strand
-                    push(@CONSmain, $cons_obj->consolidate( $scaf, '-ve', $assigned));
-                    print "\nDone Consolidating $assigned in $scaf -ve orientation\n";
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '-', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf - orientation\n";
             }    
     
             # Insert the data
@@ -1326,7 +1327,7 @@ sub UCSCtracks{
 		my $feature = $row->{Assigned_name} . '_' . $gene;
         my $score = 100;
         my $strand;
-        if($row->{Orientation} eq '+ve'){
+        if($row->{Orientation} eq '+'){
            $strand = '+';
         }else{
            $strand = '-';
@@ -1353,16 +1354,16 @@ sub UCSCtracks{
 #***************************************************************************
 sub extend_screening_db {
 
-	my ($self, $ctl_file) = @_;
+	my ($self) = @_;
 
 	# Try to read the tab-delimited infile
-	my $infile = $self->{reference_data};
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
 	unless ($infile) { die; }
-	#print "\n\t infile '$infile'";
-	#$devtools->print_array(\@infile);
 	my @infile;
 	$fileio->read_file($infile, \@infile);
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	#print "\n\t infile 'print_array(\@infile);
 	#sleep 2;
 	my @data;
 	my $line_number = 0;
@@ -1452,10 +1453,12 @@ sub extend_screening_db {
 			my $value = $elements[$column_num];
 			$column_num++;
 			my $type  = $fields{$column_num};
-			if ($verbose) {
+			#if ($verbose) {
 				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			#}
+			unless ($value) { 
+				$value = 'NULL';
 			}
-			unless ($value) { die; }
 			$insert{$field} = $value;
 		}
 		#$devtools->print_hash(\%insert);
@@ -1514,9 +1517,9 @@ sub run_utility_function {
 	elsif ($option eq 6) { # Retrieve data
 		my $refseqlib_obj = RefSeqLibrary->new($self);
 		$refseqlib_obj->{reference_glue} = $ctl_file;
-		$refseqlib_obj->summarise_reference_library();    
+		print " UNIMPLEMENTED \n\n\n"; exit;
+		$refseqlib_obj->convert_reference_library();    
 	}
-
 }
 
 #***************************************************************************
@@ -1668,8 +1671,7 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=5  flush a screening DB"; 
 		$HELP  .= "\n\t -m=6  drop a screening DB"; 
 		$HELP  .= "\n\t -m=7  retrieve data from a screening DB"; 
-		$HELP  .= "\n\t -m=8  create BED file for UCSC genome browser";
-		$HELP  .= "\n\t -m=9  manage ancillary tables in screening database\n"; 
+		$HELP  .= "\n\t -m=8  manage ancillary tables in screening database\n"; 
 	
 		$HELP  .= "\n\t -u=1  validate screening DB"; 
 		$HELP  .= "\n\t -u=2  clean up screening DB"; 

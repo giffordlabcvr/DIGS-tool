@@ -307,7 +307,7 @@ sub load_extract_data {
 					 #AND (e_value_exp >= $e_value_exp OR e_value_exp = 1)" ;
 					 #AND Bit_score > $bit_score
 	# INCORPRATE PARAMETERS FOR THIS SEARCH INTO QUERY
-	if ($orientation eq '+ve') {
+	if ($orientation eq '+') {
 			$query .= " ORDER BY extract_start";
 	} else{
 			$query .= " ORDER BY extract_start DESC";
@@ -320,7 +320,7 @@ sub load_extract_data {
 
 	my $row_count = 0;
 	my ($row,$i,$value, $field);
-	if ($orientation eq '+ve'){
+	if ($orientation eq '+'){
 		while ($row = $sth->fetchrow_arrayref) {
 			$row_count++;
 			$i = 0;
@@ -400,7 +400,7 @@ sub ORFcons {
 	#SET UP THE COMPARISON DEPENDING OF THE ORIENTATION
 	#IN ORDER TO STATE IF ONE HIT GOES AFTER THE OTHER
 	#AND NOT OVERLAPPING
-	if($orientation eq '-ve') {
+	if($orientation eq '-') {
 		$comparison = ($start_current_NT < $end_previous_NT);
 		$comparison2 = ($end_current_NT < $end_previous_NT);
 	}
@@ -509,7 +509,7 @@ sub consolidate_features {
 		#format the information of the member into a Feature loci
 		$reference_to_loci=$ORFtable->[$lastORF];
 		$Feature[0]=$reference_to_loci->{'record_id'};
-		if ($ori eq '+ve'){
+		if ($ori eq '+'){
 				$Feature[1]=$reference_to_loci->{'extract_start'};
 				$Feature[2]=$reference_to_loci->{'extract_end'};
 		}else{
@@ -549,7 +549,7 @@ sub consolidate_features {
 			}
 		}
 		#arrange the proper coordinates acording to the orientation
-		if ($ori eq '+ve'){
+		if ($ori eq '+'){
 			$reference_to_loci=$ORFtable->[0];
 			$Feature[1]= $reference_to_loci->{'extract_start'}; #get the start from the first member
 			$reference_to_loci=$ORFtable->[$lastORF];
@@ -619,7 +619,7 @@ sub consolidate_features {
 
 	#print "blastdbcmd $gi = $scaffold_len\n";
 	#die;
-	if ($ori eq '+ve'){
+	if ($ori eq '+'){
 		if ($Feature[1] >= $threshold_chr_end){
 				$Feature[6] = 'X-' . $gen_st;
 		}else{
@@ -633,7 +633,7 @@ sub consolidate_features {
 			$Feature[6] = 'T-' . $gen_st;
 		}
 	}
-	if ($ori eq '+ve'){
+	if ($ori eq '+'){
 		if ($Feature[2] <= ($scaffold_len - $threshold_chr_end)){
 			$Feature[6] .= '-X';
 		}else{

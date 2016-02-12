@@ -472,7 +472,7 @@ sub extract_multiple_sequences {
 			print "\n\t NOT FOUND!!";
 			die;
 		}
-		if ($orientation eq '-ve') {
+		if ($orientation eq '-') {
 			$sequence = $seq_obj->reverse_and_complement($sequence);
 		}
 		my $fasta = ">$chunk $scaffold $start-$stop\n$sequence\n\n";
@@ -537,7 +537,7 @@ sub extend_and_extract_multiple_sequences {
 			die;
 		}
 		
-		if ($orientation eq '-ve') {
+		if ($orientation eq '-') {
 			$sequence = $seq_obj->reverse_and_complement($sequence);
 		}
 		my $fasta = ">$chunk $scaffold $start-$stop\n$sequence\n\n";
@@ -588,7 +588,7 @@ sub extract_using_sql_query {
 		}
 		
 		
-		#if ($orientation eq '-ve') {
+		#if ($orientation eq '-') {
 		#	$start = $start + 30;
 		#	$stop = $stop - 9;
 		#	if ($stop < 1) { $stop = 1; }
@@ -607,7 +607,7 @@ sub extract_using_sql_query {
 			print "\n\t NOT FOUND!!";
 			die;
 		}
-		if ($orientation eq '-ve') {
+		if ($orientation eq '-') {
 			$sequence = $sequence_obj->reverse_and_complement($sequence);
 		}
 		my $fasta = ">$chunk $scaffold $start-$stop\n$sequence\n\n";
