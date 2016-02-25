@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Module:       BLAST.pm 
-# Description:  Interface to BLAST
-# History:      Rob Gifford January 2007: Creation
+# Module:      BLAST.pm 
+# Description: Interface to BLAST
+# History:     Rob Gifford January 2007: Creation
 ############################################################################
 package BLAST;
 
@@ -24,7 +24,6 @@ use Base::DevTools;
 ############################################################################
 
 my $fileio   = FileIO->new();
-my $devtools = DevTools->new();
 1;
 
 ############################################################################
@@ -33,7 +32,7 @@ my $devtools = DevTools->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: 
+# Description: Create a new BLAST.pm 'object'
 #***************************************************************************
 sub new {
 
@@ -72,9 +71,6 @@ sub blast {
 	my $outfmt      = $options_ref->{outfmt};
 	unless ($outfmt) { $outfmt = 7; } # default output format is tab-delimited ( -outfmt 7) 
 	
-	#$devtools->print_web_hash($options_ref); die;
-	#$devtools->print_web_hash($self); die;
-	
 	# Create BLAST command
 	$blast_path .= $method;
 	my $blast_type;  
@@ -108,13 +104,12 @@ sub blast {
 	$command .= "-outfmt $outfmt";
 
 	# Execute the command 
-	#print "\n\n $command"; # die; # DEBUG
 	system $command;		
 }
 
 #***************************************************************************
-# Subroutine:  BLAST extract_sequence
-# Description: just an interface to the BLAST+ sequence extraction functions 
+# Subroutine:  extract_sequence
+# Description: Interface to the BLAST+ sequence extraction functions 
 #              see: http://www.ncbi.nlm.nih.gov/books/NBK1763/
 #***************************************************************************
 sub extract_sequence {
@@ -233,7 +228,6 @@ sub parse_tab_format_results {
 		}
 		$match{orientation}   = $orientation; 
 		$match{bit_score}     = $bit_score;
-		#$devtools->print_hash(\%match); die;
 		push(@$result_ref, \%match);
 	}		
 }

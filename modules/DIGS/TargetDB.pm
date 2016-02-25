@@ -17,10 +17,8 @@ use strict;
 
 # Base classes
 use Base::FileIO;
-use Base::SeqIO;
 use Base::DevTools;
 use Base::Console;
-use Base::Sequence;
 
 ############################################################################
 # Globals
@@ -34,8 +32,6 @@ my $blast_program = 'formatdb';
 
 # Create base objects
 my $fileio    = FileIO->new();
-my $seqio     = SeqIO->new();
-my $devtools  = DevTools->new();
 my $console   = Console->new();
 1;
 
@@ -45,7 +41,7 @@ my $console   = Console->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: Parameters
+# Description: Create a new TargetDB.pm 'object'
 #***************************************************************************
 sub new {
 
@@ -77,135 +73,6 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  summarise_genomes_long
-# Description: summarise data in the 'target genomes' directory
-#***************************************************************************
-sub summarise_genomes_long {
-
-	my ($self) = @_;
-	
-	# Get variables from self
-	my $genome_path = $self->{genome_use_path};
-	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
-	
-	# Index genomes by key ( organism | type | version )
-	my %server_data;
-	$self->read_genome_directory(\%server_data);
-
-	# add header row
-	my @summary;
-	my @header = ('File', 'Organism', 'Data type', 'Version', 'Scaffolds',
-                  '# nucleotides', '# lines');
-	my $header = join ("\t", @header);
-	$header .= "\n";
-	push (@summary, $header);
-
-	# Iterate through and check formatting in each genome
-	print "\n\n\t ### Summarising genomes\n";
-	my @keys = keys %server_data;
-	foreach my $key (@keys) {
-		
-		# Get genome data
-		my $genome_ref  = $server_data{$key};
-		my $organism    = $genome_ref->{organism};
-		my $type        = $genome_ref->{source_type};
-		my $version     = $genome_ref->{version};
-		my $path        = $genome_ref->{version_path};
-		print "\n\t ### Summarising target files for '$organism'";
-		#$devtools->print_hash($genome_ref);
-
-		# Iterate through indexing by file stems
-		my $files_ref   = $genome_ref->{files};
-		my @files;
-		foreach my $file (@$files_ref) {
-			my @file_bits = split (/\./, $file);
-			my $type = pop @file_bits;
-			if ($type eq 'fa') {
-				push (@files, $file);
-			}
-		}
-		my @sorted = sort @files;
-		#$devtools->print_array(\@sorted);
-		
-		# Get statistics for each file
-		foreach my $file (@sorted) {
-		
-			# Get path to file
-			my $chunk_path = $genome_path . "/$path/$file";
-			my %data;
-			$self->get_genome_chunk_stats(\%data, $chunk_path);
-			my $total_bases    = $data{total_bases};
-			my $line_count     = $data{total_lines};
-			my $num_scaffolds  = $data{number_scaffolds};
-			#print "\n\t FILE $file: $chunk_path";
-			#$devtools->print_hash(\%data); die;
-			
-			my @line;
-			push (@line, $file);
-			push (@line, $organism);
-			push (@line, $type);
-			push (@line, $version);
-			push (@line, $num_scaffolds);
-			push (@line, $total_bases);
-			push (@line, $line_count);
-			my $line = join("\t", @line);
-			push (@summary, "$line\n");
-		}
-	}
-
-	# write results to file
-	my $summary = "target_genomes_summary.txt";
-	print "\n\n\t ### Writing summary to '$summary'\n";
-	$fileio->write_file($summary, \@summary);
-}
-
-#***************************************************************************
-# Subroutine:  summarise_genomes_short
-# Description: summarise data in the 'target genomes' directory
-#***************************************************************************
-sub summarise_genomes_short {
-
-	my ($self) = @_;
-	
-	#  Get member data structure that describes expected directory structure
-	my $genome_path = $self->{genome_use_path};
-	unless ($genome_path) { die  "\n\t Path not set\n\n\n"; }
-	my $levels_ref  = $self->{directory_levels};
-	unless ($levels_ref)  { die  "\n\t Levels not set\n\n\n"; }
-	my @levels = sort by_number keys %$levels_ref;
-
-	# Index current, locally-held genome data 
-	my @genome_files;
-	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
-
-	# Iterate through the files
-	my %genome_keys;
-	foreach my $file_ref (@genome_files) {
-		
-		#$devtools->print_hash($file_ref);
-		my $grouping = $file_ref->{grouping};
-		my $organism = $file_ref->{organism};
-		my $type     = $file_ref->{source_type};
-		my $version  = $file_ref->{version};
-		my $key = $grouping . '|' .$organism . '|' . $type . '|' . $version;
-		$genome_keys{$key} = 1;
-	}
-	
-	# add header row
-	my @summary;
-	my @header = ('Grouping', 'Organism', 'Data type', 'Version');
-	my $header = join("\t", @header);
-	push (@summary, "$header\n");
-	my @keys = sort keys %genome_keys;
-	foreach my $key (@keys) {
-		$key =~ s/\|/\t/g;
-		push (@summary, "$key\n");
-	}
-	$fileio->write_file('target_genome_keys.txt', \@summary);
-
-}
-
-#***************************************************************************
 # Subroutine:  refresh_genomes
 # Description: refresh the 'target genomes' directory
 #***************************************************************************
@@ -222,7 +89,6 @@ sub refresh_genomes {
 	
 	print "\n\n\t Refreshing genome data under path '$genome_path'\n\n";
 	$self->read_genome_directory(\%server_data);
-	#$devtools->print_hash(\%server_data); die;
 
 	# Iterate through and check formatting in each genome
 	print "\n\n\t #~#~# Loading target genome data\n";
@@ -235,7 +101,6 @@ sub refresh_genomes {
 		my $type        = $genome_ref->{source_type};
 		my $version     = $genome_ref->{version};
 		my $path        = $genome_ref->{version_path};
-		#$devtools->print_hash($genome_ref);
 		
 		print "\n\t #~#~# Checking '$organism' genome: '$type' version '$version'";
 		$self->check_genome_formatting($genome_ref);
@@ -259,8 +124,7 @@ sub refresh_genomes {
 
 #***************************************************************************
 # Subroutine:  read_genome_directory
-# Description: read in the contents of a structured directory containing
-#              genome data files
+# Description: read in the contents of a structured directory containing genome data files
 #***************************************************************************
 sub read_genome_directory { 
 
@@ -280,7 +144,6 @@ sub read_genome_directory {
 	# Iterate through the files
 	foreach my $file_ref (@genome_files) {
 		
-		#$devtools->print_hash($file_ref);
 		my $file     = $file_ref->{file};
 		my $type     = $file_ref->{source_type};
 		my $organism = $file_ref->{organism};
@@ -314,7 +177,7 @@ sub read_genome_directory {
 
 #***************************************************************************
 # Subroutine:  check_genome_formatting
-# Description: 
+# Description: look for pre-existing BLAST indexes for sequence files in a genome directory 
 #***************************************************************************
 sub check_genome_formatting {
 
@@ -327,7 +190,6 @@ sub check_genome_formatting {
 	my @unformatted;
 	foreach my $file (@$files_ref) {
 		
-		#$devtools->print_hash($file_ref);
 		my @file_bits = split (/\./, $file);
 		my $type = pop @file_bits;
 		my $stem = join ('.', @file_bits);
@@ -343,7 +205,7 @@ sub check_genome_formatting {
 		}
 	
 		# Check if the file looks like a BLAST sequence database file	
-		my $result = $self->check_for_blast_filetype($type);
+		my $result = $self->check_filetype($type);
 		unless ($result) {
 			print "\n\t   File '$file' is not a recognized BLAST sequence database associated filetype";
 		}
@@ -372,13 +234,10 @@ sub check_genome_formatting {
 
 	}
 
-	#$devtools->print_hash(\%stems);
-
 	my @stems = keys %stems;
 	foreach my $stem (@stems) {
 		
 		my $types_ref = $stems{$stem};
-		#$devtools->print_hash($types_ref);
 		my $nin = $types_ref->{nin};
 		my $nsq = $types_ref->{nsq};
 		my $nhr = $types_ref->{nhr};
@@ -390,7 +249,7 @@ sub check_genome_formatting {
 			my $stemfile_data = $stems{$stem};
 			my $stemfile_name = $stemfile_data->{stemfile_name};
 			if ($target) {
-				print "\n\t  adding unformatted target  $target for '$stemfile_name' (ignoring)";
+				print "\n\t  adding unformatted target  $target for '$stemfile_name'";
 				push (@unformatted, $target); 
 			}
 			else {
@@ -404,17 +263,15 @@ sub check_genome_formatting {
 		}
 	}
 
-	#$devtools->print_array(\@unformatted);
-
 	$genome_ref->{formatted}   = \@formatted;
 	$genome_ref->{unformatted} = \@unformatted;
 }
 
 #***************************************************************************
-# Subroutine:  check_for_blast_filetype
+# Subroutine:  check_filetype
 # Description: Check if string $type is a known file extension of BLAST database
 #***************************************************************************
-sub check_for_blast_filetype {
+sub check_filetype {
 
 	my ($self, $type) = @_;
 	my $result = undef;
@@ -433,7 +290,7 @@ sub check_for_blast_filetype {
 
 #***************************************************************************
 # Subroutine:  format_genome
-# Description: 
+# Description: format sequence files in a directory for BLAST 
 #***************************************************************************
 sub format_genome {
 
@@ -471,7 +328,6 @@ sub format_genome {
 		my $line_count     = $data{total_lines};
 		my $num_scaffolds  = $data{number_scaffolds};
 		print "\n\t Target file line count: $line_count";
-		#$devtools->print_hash(\%data); die;
 
 		if ($num_scaffolds > 50 and $line_count > $line_limit) {
 			
@@ -494,7 +350,6 @@ sub format_genome {
 				system $command;
 			}
 
-			#$devtools->print_array(\@split_chunks); die;
 			if ($done_split) {
 				foreach my $new_chunk_path (@split_chunks) {
        				my $command = "makeblastdb -in $new_chunk_path -dbtype nucl -parse_seqids > /dev/null";
@@ -574,7 +429,7 @@ sub get_genome_chunk_stats {
 
 #***************************************************************************
 # Subroutine:  split_genome_chunk
-# Description: 
+# Description: split a large sequence file into several files 
 #***************************************************************************
 sub split_genome_chunk {
 
@@ -635,9 +490,7 @@ sub split_genome_chunk {
 
 #***************************************************************************
 # Subroutine:  split_longline_contig
-# Description: reformat any contigs where the sequence is formatted as
-#              one long line of text, so that they are split over multiple
-#              lines (much easier to work with in a command line context)
+# Description: split single line of sequence into several lines
 #***************************************************************************
 sub split_longline_contig {
 
@@ -704,8 +557,133 @@ sub split_longline_contig {
 }
 
 #***************************************************************************
+# Subroutine:  summarise_genomes_long
+# Description: summarise data in the 'target genomes' directory
+#***************************************************************************
+sub summarise_genomes_long {
+
+	my ($self) = @_;
+	
+	# Get variables from self
+	my $genome_path = $self->{genome_use_path};
+	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
+	
+	# Index genomes by key ( organism | type | version )
+	my %server_data;
+	$self->read_genome_directory(\%server_data);
+
+	# add header row
+	my @summary;
+	my @header = ('File', 'Organism', 'Data type', 'Version', 'Scaffolds',
+                  '# nucleotides', '# lines');
+	my $header = join ("\t", @header);
+	$header .= "\n";
+	push (@summary, $header);
+
+	# Iterate through and check formatting in each genome
+	print "\n\n\t ### Summarising genomes\n";
+	my @keys = keys %server_data;
+	foreach my $key (@keys) {
+		
+		# Get genome data
+		my $genome_ref  = $server_data{$key};
+		my $organism    = $genome_ref->{organism};
+		my $type        = $genome_ref->{source_type};
+		my $version     = $genome_ref->{version};
+		my $path        = $genome_ref->{version_path};
+		print "\n\t ### Summarising target files for '$organism'";
+
+		# Iterate through indexing by file stems
+		my $files_ref   = $genome_ref->{files};
+		my @files;
+		foreach my $file (@$files_ref) {
+			my @file_bits = split (/\./, $file);
+			my $type = pop @file_bits;
+			if ($type eq 'fa') {
+				push (@files, $file);
+			}
+		}
+		my @sorted = sort @files;
+		
+		# Get statistics for each file
+		foreach my $file (@sorted) {
+		
+			# Get path to file
+			my $chunk_path = $genome_path . "/$path/$file";
+			my %data;
+			$self->get_genome_chunk_stats(\%data, $chunk_path);
+			my $total_bases    = $data{total_bases};
+			my $line_count     = $data{total_lines};
+			my $num_scaffolds  = $data{number_scaffolds};
+			#print "\n\t FILE $file: $chunk_path";
+			
+			my @line;
+			push (@line, $file);
+			push (@line, $organism);
+			push (@line, $type);
+			push (@line, $version);
+			push (@line, $num_scaffolds);
+			push (@line, $total_bases);
+			push (@line, $line_count);
+			my $line = join("\t", @line);
+			push (@summary, "$line\n");
+		}
+	}
+
+	# write results to file
+	my $summary = "target_genomes_summary.txt";
+	print "\n\n\t ### Writing summary to '$summary'\n";
+	$fileio->write_file($summary, \@summary);
+}
+
+#***************************************************************************
+# Subroutine:  summarise_genomes_short
+# Description: summarise data in the 'target genomes' directory
+#***************************************************************************
+sub summarise_genomes_short {
+
+	my ($self) = @_;
+	
+	#  Get member data structure that describes expected directory structure
+	my $genome_path = $self->{genome_use_path};
+	unless ($genome_path) { die  "\n\t Path not set\n\n\n"; }
+	my $levels_ref  = $self->{directory_levels};
+	unless ($levels_ref)  { die  "\n\t Levels not set\n\n\n"; }
+	my @levels = sort by_number keys %$levels_ref;
+
+	# Index current, locally-held genome data 
+	my @genome_files;
+	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
+
+	# Iterate through the files
+	my %genome_keys;
+	foreach my $file_ref (@genome_files) {
+		
+		my $grouping = $file_ref->{grouping};
+		my $organism = $file_ref->{organism};
+		my $type     = $file_ref->{source_type};
+		my $version  = $file_ref->{version};
+		my $key = $grouping . '|' .$organism . '|' . $type . '|' . $version;
+		$genome_keys{$key} = 1;
+	}
+	
+	# add header row
+	my @summary;
+	my @header = ('Grouping', 'Organism', 'Data type', 'Version');
+	my $header = join("\t", @header);
+	push (@summary, "$header\n");
+	my @keys = sort keys %genome_keys;
+	foreach my $key (@keys) {
+		$key =~ s/\|/\t/g;
+		push (@summary, "$key\n");
+	}
+	$fileio->write_file('target_genome_keys.txt', \@summary);
+
+}
+
+#***************************************************************************
 # Subroutine:  by number
-# Description: by number - for use with perl 'sort' 
+# Description: sort an array of integers by ascending numerical order 
 #***************************************************************************
 sub by_number { $a <=> $b }	
 

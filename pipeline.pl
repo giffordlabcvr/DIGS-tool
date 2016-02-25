@@ -2,17 +2,19 @@
 ############################################################################
 # Script:      pipeline.pl 
 # Description: control script for database-integrated genome screening (DIGS)
-# History:     Version 1.0 Creation: Rob J Gifford 2014
+# History:     Version 1.1
 ############################################################################
 
+# Check the required environment variable are defined
 unless ($ENV{DIGS_GENOMES}) {
-	print  "\n\n\t Environment variable '\$DIGS_GENOMES' is undefined\n";
+	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
 unless ($ENV{DIGS_HOME2}) {
-	print  "\n\n\t Environment variable '\$DIGS_HOME2' is undefined\n";
+	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
+
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
 
@@ -36,15 +38,10 @@ use Interface::BLAST;   # Interface to BLAST
 use Interface::MySQLtable;   # Interface to BLAST 
 
 # DIGS framework modules
-use DIGS::Pipeline;
-use DIGS::ScreenBuild;
+use DIGS::DIGS;
+use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
-use DIGS::Consolidation;
-# GLUE framework modules
-use GLUE::RefSeqLibrary; # Functions to set up screen
-use GLUE::RefSeqParser;  # GLUE RefSeq parsing
-use GLUE::RefSeq;        # GLUE RefSeq
 
 ############################################################################
 # Paths & Globals
@@ -55,7 +52,7 @@ my $genome_use_path = $ENV{DIGS_GENOMES} . '/';
 my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
 
 # Version number	
-my $program_version = '1.0';
+my $program_version = '1.1';
 
 # Create a unique process ID for this DIGS screening process
 my $pid  = $$;
@@ -67,7 +64,6 @@ my $process_id  = $pid . '_' . $time;
 ############################################################################
 
 # Base utilites
-my $seqio      = SeqIO->new();
 my $fileio     = FileIO->new();
 my $devtools   = DevTools->new();
 my $console    = Console->new();
@@ -84,7 +80,7 @@ $params{process_id}         = $process_id;
 $params{blast_bin_path}     = $blast_bin_path; 
 $params{genome_use_path}    = $genome_use_path;
 $params{blast_obj}          = $blast_obj;
-my $pipeline_obj = Pipeline->new(\%params);
+my $pipeline_obj = DIGS->new(\%params);
 
 ############################################################################
 # Set up USAGE statement
@@ -111,53 +107,35 @@ exit;
 #***************************************************************************
 sub main {
 	
-	# Read in options using GetOpt::Long
-	
-	# Define options that require a file path
+	# Options that require a file path
 	my $infile   = undef;
 	
-	# Define options that require a numerical value
+	# Options that require a numerical value
 	my $mode     = undef;
-	my $utility  = undef;
 
-	# Define options that don't require a value
+	# Options that don't require a value
 	my $help     = undef;
-	my $refresh_genomes = undef;
-	my $verbose  = undef;
 	my $version  = undef;
-	GetOptions ('mode|m=i'    => \$mode, 
-			    'infile|i=s'  => \$infile,
-			    'utility|u=i' => \$utility,
-			    'help'        => \$help,
-			    'refresh_genomes'    => \$refresh_genomes,
-			    'verbose'     => \$verbose,
-			    'version'     => \$version,
-	) or die $USAGE;
-
 	
-	if ($refresh_genomes)    { # Override genome directory processing step
-		$pipeline_obj->{refresh_genomes} = 'true';
-	}
-	if ($verbose)    { # Set verbose output flag
-		$pipeline_obj->{verbose} = 'true';
-	}
-
+	# Read in options using GetOpt::Long
+	GetOptions ('mode|m=i'        => \$mode, 
+			    'infile|i=s'      => \$infile,
+			    'help'            => \$help,
+			    'version'         => \$version,
+	) or die $USAGE;
+	
 	# Hand off to functions
-	if ($help)    { # Show help page
+	if ($version) { print "\n\t DIGS tool version $program_version\n\n" }
+	elsif ($help) { # Show help page
 		$pipeline_obj->show_help_page();
+		exit;
 	}
-	elsif ($version) {
-		print "\n\t DIGS tool version '$program_version'\n\n"
-	}
-	elsif ($mode) { # Hand off to Pipeline.pm
+	elsif ($mode) { # Run the digs tool 
 		$pipeline_obj->run_digs_process($mode, $infile); 
 	}
-	elsif ($utility) { # Hand off to Pipeline.pm utility function
-		$pipeline_obj->run_utility_function($utility, $infile); 
-	}
-	else {
-		die $USAGE;
-	}
+	else { die $USAGE; }
+
+	# Exit script
 	print "\n\n\t # Exit\n\n";
 }
 

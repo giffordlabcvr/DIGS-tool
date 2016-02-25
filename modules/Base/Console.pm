@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Module:       Console.pm 
-# Description:  Functions for text console programs 
-# History:      Rob Gifford, November 2006: Creation
+# Module:      Console.pm 
+# Description: Basic console functions
+# History:     Rob Gifford, November 2006: Creation
 ############################################################################
 package Console;
 
@@ -55,7 +55,7 @@ sub new {
 
 #***************************************************************************
 # Subroutine:  refresh_console
-# Description: Clear the screen by sending the 'clear' command via 'system'
+# Description: Refresh the console screenview 
 #***************************************************************************
 sub refresh {
 
@@ -184,7 +184,7 @@ sub ask_int_question {
 		print "$question : ";
 		$answer = <STDIN>;
 		chomp $answer; 
-	} until ($answer =~ /\d/); # TODO: this isn't strict enough
+	} until ($answer =~ /\d/); 
 	return $answer;
 }
 
@@ -195,7 +195,6 @@ sub ask_int_question {
 # Arguments:   $question: the question to ask 
 #              $lower_bound, $upper_bound: the specified bounds
 # Returns:     $answer: the integer value entered by the user
-# TODO:        doesn't discriminate ints and floats
 #***************************************************************************
 sub ask_int_with_bounds_question {
 

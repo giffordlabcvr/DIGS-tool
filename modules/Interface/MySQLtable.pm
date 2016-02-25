@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 ############################################################################
 # Module:      MySQLtable.pm
-# Description: 
-# History:     (RG) March  2011: Creation 
+# Description: MySQL table functions
+# History:     March  2011: Creation 
 ############################################################################
 package MySQLtable;
 
@@ -18,7 +18,6 @@ use strict;
 ############################################################################
 # Globals
 ############################################################################
-my $devtools = DevTools->new();
 1;
 
 ############################################################################
@@ -27,7 +26,7 @@ my $devtools = DevTools->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: Create a new table object
+# Description: Create a new MySQLtable.pm object
 #***************************************************************************
 sub new {
 
@@ -63,15 +62,12 @@ sub insert_row {
 	
 	my $dbh = $self->{dbh};
 	my $field_ref = $self->{fields};
-	#$devtools->print_hash($field_ref);
-	#$devtools->print_hash($data_ref); die;
 	my @fields = keys %$field_ref;
 	my $fields = join(',', @fields);	
 	my $insert_clause = "INSERT INTO $self->{name} \( $fields\)";
 	my @values;
 	foreach my $field (@fields) {
 
-		#print "\n\t $field";
 		my $value = $data_ref->{$field};
 		chomp $value;        # remove newline
 		$value =~ s/\s+$//;  # remove trailing whitespace
@@ -90,8 +86,6 @@ sub insert_row {
 	my $value_clause = " VALUES \($values\)";
 	my $insert = "$insert_clause $value_clause";
 	my $sth = $dbh->prepare($insert);
-	# DEBUG
-	#print "\n\n\t$insert\n\n";
 	unless ($sth->execute()) { print $insert; exit; }	
 	
 	# Get the sample ID (generated via autoincrement)
@@ -114,15 +108,10 @@ sub select_rows {
 	
 	# remove any quotations
 	$fields =~ s/"//g;
-	
 	my $query = "SELECT $fields FROM $self->{name}";
 	if ($where) { $query .= " $where"; }
-
 	my $sth = $dbh->prepare($query);
 	unless ($sth->execute()) { print $query; exit; }
-	
-	# DEBUG
-	#print "\n\n\t$query\n\n"; 
 	my $row_count = 0;
 	while (my $row = $sth->fetchrow_arrayref) {
 		
@@ -135,7 +124,6 @@ sub select_rows {
 			if ($field =~ m/ AS /) {
               	my @field = split(/\'/,$field);
 				my $alias = pop @field; 
-                #print "\n\t $field aliased to $alias"; die;
 				$field = $alias;
 			}
 			
@@ -165,7 +153,6 @@ sub select_distinct {
 	
 	my $query = "SELECT DISTINCT $fields FROM $self->{name}";
 	if ($where) { $query .= " $where"; }
-	#print "\n\t #### SELECT DISTINCT QUERY:\n\n $query \n\n";
 	my $sth = $dbh->prepare($query);
 	$sth->execute();	
 	while (my $row = $sth->fetchrow_arrayref) {
@@ -192,7 +179,6 @@ sub update {
 	
 	my $dbh          = $self->{dbh};
 	my $fields_ref   = $self->{fields};
-	#$devtools->print_hash($fields_ref);die;
 	
 	my @set_clause;
 	my @fields = keys %$set;
@@ -210,15 +196,11 @@ sub update {
 		push (@set_clause, $subclause);
 	}
 	my $set_clause = join (',', @set_clause);
-
-	#my $where_clause = $self->hash_to_delimited_ist($where, ' AND ');
 	my $query = "UPDATE $self->{name}
 	             SET    $set_clause 
 				 $where";
-	#print "\n\n\t $query";
 	my $sth = $dbh->prepare($query);
 	$sth->execute();	
-	#exit;
 }
 
 #***************************************************************************
@@ -239,14 +221,13 @@ sub delete_rows {
 
 #***************************************************************************
 # Subroutine:  flush
-# Description: generic fxn to empty table of all data 
+# Description: Empty table of all data 
 #***************************************************************************
 sub flush {
 
 	my ($self, $where) = @_;	
 	
 	my $dbh = $self->{dbh};
-	#print "\n\t*** Emptying Table $self->{name} ***\n";
 	my $query = "DELETE from $self->{name}";
 	if ($where) {
 		$query .= $where;
@@ -257,14 +238,13 @@ sub flush {
 
 #***************************************************************************
 # Subroutine:  reset_primary_key
-# Description:  
+# Description: Reset primary key of table to start counting at 1
 #***************************************************************************
 sub reset_primary_keys {
 
 	my ($self) = @_;
 	
 	my $dbh = $self->{dbh};
-	#print "\n\t*** Resetting Primary Key in $self->{name} ***\n";
 	my $alter = "ALTER TABLE $self->{name} AUTO_INCREMENT=1";
 	my $sth = $dbh->prepare($alter);
 	$sth->execute();	
