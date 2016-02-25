@@ -17,7 +17,6 @@ use strict;
 
 # Base classes
 use Base::FileIO;
-use Base::DevTools;
 
 ############################################################################
 # Globals
