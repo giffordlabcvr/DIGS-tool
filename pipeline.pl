@@ -10,13 +10,13 @@ unless ($ENV{DIGS_GENOMES}) {
 	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_HOME2}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
+unless ($ENV{DIGS_HOME}) {
+	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
 
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
+use lib ($ENV{DIGS_HOME}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
