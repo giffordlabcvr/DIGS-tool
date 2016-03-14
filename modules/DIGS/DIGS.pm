@@ -126,6 +126,10 @@ sub run_digs_process {
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
+	else {
+		print "\n\t  Unrecognized option '-m=$option'\n";
+
+	}
 }
 
 ############################################################################
@@ -167,14 +171,18 @@ sub screen {
 	my %queries;
 	my $loader_obj = $self->{loader_obj};
 	unless ($loader_obj) { die; }  # Sanity checking
-	$loader_obj->set_up_screen($self, \%queries);
+	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
+	unless ($total_queries)  { 
+		print "\n\t  Exiting without screening.\n\n";	
+		exit;
+	}
+	$self->{total_queries} = $total_queries;
 
 	# Iterate through and excute screens
 	print "\n\t  Starting database-integrated genome screening\n";
 	my @probes = keys %queries;
-	my $total_queries = scalar @probes;
-	my $num_queries   = 0;
-	$self->{total_queries} = $total_queries;
+
+	my $num_queries = 0;
 	foreach my $probe_name (@probes) {
 		
 		# Get the array of queries for this target file
@@ -217,7 +225,7 @@ sub search {
 	my $total_queries   = $self->{total_queries};
 	my $num_queries     = $self->{num_queries};	
 	unless ($num_queries and $total_queries) { die; }
-	my $percent_prog    = $num_queries / $total_queries;
+	my $percent_prog    = ($num_queries / $total_queries) * 100;
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
 
 	# Sanity checking

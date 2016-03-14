@@ -82,6 +82,17 @@ sub refresh_genomes {
 	# Get variables from self
 	my $genome_path = $self->{genome_use_path};
 	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
+
+	# Show warning
+	print "\n\t ### WARNING! ";
+	print "\n\t ### This is utility function  ";
+	print "\n\t ### It requires that target FASTA files are named in the expected way  ";
+	print "\n\t ### i.e. using one of the following file extensions:";
+	print "\n\t ### '.fas', '.fa', '.fasta'  ";
+	sleep 2;
+
+	# Ask user how to handle the process
+	my $question = "\n\t Automatically format entire genome folder, or prompt for each ";
 	
 	# Index genomes by key ( organism | type | version )
 	my %server_data;

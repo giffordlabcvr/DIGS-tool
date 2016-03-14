@@ -17,6 +17,7 @@ unless ($ENV{DIGS_HOME}) {
 
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME}) . '/modules/'; 
+use lib '/System/Library/Perl/Extras/5.12/DBIx/Class/Storage/DBI/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -85,7 +86,7 @@ my $pipeline_obj = DIGS->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file]\n\n";
+my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
 
 ############################################################################
 # Main program

@@ -87,7 +87,7 @@ sub set_up_screen  {
 	$self->set_targets(\%targets);
 	
 	# Create the BLAST queries for this screen
-	$self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
 }
 
 ############################################################################
@@ -306,7 +306,17 @@ sub set_targets {
 	}
 	my @keys = keys %$targets_ref;
 	my $unique_targets = scalar @keys;
-	unless ($unique_targets) { die "\n\t No target databases found\n\n\n";	}
+	unless ($unique_targets) {
+		print "\n\n\t No target databases found";
+		print " - check target paths are correctly specified in control file\n";
+		print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
+		print "\n\t  TARGETS block from control file has these paths:";
+		foreach my $path (@$target_paths_ref) {
+			print "\n\t\t $path";
+		}
+		print "\n\n";
+		exit;
+	}
 	print "\n\t  Targets:           $unique_targets target files";
 }
 
@@ -340,7 +350,7 @@ sub set_queries {
 	my $num_probes = scalar @$probes_ref;
 	unless ($num_probes) { die "\n\t no probes found\n\n\n"; }
 
-	my $i;
+	my $outstanding;
 	foreach my $probe_ref (@$probes_ref) {
 		my $blast_alg       = $probe_ref->{blast_alg};
 		my $bitscore_cutoff = $probe_ref->{bitscore_cutoff};
@@ -381,12 +391,13 @@ sub set_queries {
 			# Create a unique key for this query
 			my @key = ( $genome_id, $target_name, $probe_id );
 			my $key = join ('|', @key);
+
 			if ($done{$key}) { 
 				next; # Skip queries that have been issued
 			} 
 
 			# Else store the query
-			$i++;
+			$outstanding++;
 			$probe_ref->{genome_id}   = $genome_id;		
 			$probe_ref->{organism}    = $organism;		
 			$probe_ref->{version}     = $version;
@@ -409,9 +420,9 @@ sub set_queries {
 	}
 
 	# Show number of queries loaded
-	unless ($i) { print "\n\n\t ### No screening queries were loaded\n"; }
-	else { print "\n\t  Total queries:     $i\n"; }
-	return $i;
+	unless ($outstanding) { print "\n\n\t ### No outstanding searches were loaded\n"; }
+	else { print "\n\t  Searches to run    $outstanding\n"; }
+	return $outstanding;
 }
 
 ############################################################################
