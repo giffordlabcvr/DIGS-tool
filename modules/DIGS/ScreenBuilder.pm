@@ -560,6 +560,7 @@ sub parse_targets_block {
 	foreach my $line (@target_block) {
 		chomp $line;
 		$line =~ s/\s+//g; # remove whitespace
+		if ($line =~ /^\s*$/)   { next; } # discard blank line
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
 		push (@targets, $line);
 		$targets++;
