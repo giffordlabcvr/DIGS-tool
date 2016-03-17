@@ -18,7 +18,6 @@ Instructions for installing and running the DIGS tool can be found on [these pag
 DIGS requires PERL, BLAST and MySQL.
 
 After downloading this repository, you will next need to:
-
 	- Install Perl DBI and DBD::MySQL packages (if they are not already installed)
 	- Set $DIGS_HOME and $DIGS_GENOMES environment variables
 		- $DIGS_HOME = path to this repository

@@ -25,9 +25,8 @@ use Base::Console;
 
 my $s_length      = 70;           # Standard line length
 my $line_limit    = 10000000000;     # Maximum number lines in file 
-my $blast_program = 'formatdb';
-
-
+#my $blast_program = 'formatdb';
+my $blast_program = 'makeblastdb';
 
 # Create base objects
 my $fileio    = FileIO->new();
