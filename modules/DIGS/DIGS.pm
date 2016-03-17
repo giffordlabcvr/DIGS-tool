@@ -506,7 +506,7 @@ sub extend_screening_db {
 	}
 	my $row_count = 0;
 	foreach my $line (@data) { # Add data to the table
-		my $row_count++;
+		$row_count++;
 		chomp $line;
 		my %insert;
 		my @elements = split ("\t", $line);
