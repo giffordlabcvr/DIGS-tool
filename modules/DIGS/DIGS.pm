@@ -183,6 +183,8 @@ sub screen {
 	my @probes = keys %queries;
 
 	my $num_queries = 0;
+	my %crossmatching;
+	$self->{crossmatching} = \%crossmatching;
 	foreach my $probe_name (@probes) {
 		
 		# Get the array of queries for this target file
@@ -204,6 +206,9 @@ sub screen {
 	my $output_dir = $loader_obj->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
+
+	# Show cross matches at end
+	$self->show_cross_matching();
 
 	# Print finished message
 	print "\n\n\t ### SCREEN COMPLETE ~ + ~ + ~";
@@ -344,8 +349,9 @@ sub assign {
 		my $probe_gene  = $query_ref->{probe_gene};
 		my $probe_key = $probe_name . '_' . $probe_gene; 
 		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
 			#print "\n\t\t #   cross match to '$assigned'";
+			$crossmatch_count++;
+			$self->update_cross_matching($probe_key, $assigned);
 		}
 
 		# Insert the data to the Extracted table
@@ -1075,6 +1081,54 @@ sub update_db_loci {
 		}
 		else { 
 			#print "\n\t ## keeping hit $record_id";
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  update_cross_matching
+# Description: update a hash to record cross-matches
+#***************************************************************************
+sub update_cross_matching {
+
+	my ($self, $probe_key, $assigned) = @_;
+	
+	my $crossmatch_ref = $self->{crossmatching};
+	
+	if ($crossmatch_ref->{$probe_key}) {
+		my $cross_matches_ref = $crossmatch_ref->{$probe_key};
+		if ($cross_matches_ref->{$assigned}) {
+			$cross_matches_ref->{$assigned}++;
+		}
+		else {
+			$cross_matches_ref->{$assigned} = 1;
+		}
+	}
+	else {
+		my %crossmatch;
+		$crossmatch{$assigned} = 1;
+		$crossmatch_ref->{$probe_key} = \%crossmatch;
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_cross_matching
+# Description: show contents of hash that records cross-matches
+#***************************************************************************
+sub show_cross_matching {
+
+	my ($self) = @_;
+
+	print "\n\n\t  Summary of cross-matching";   
+	my $crossmatch_ref = $self->{crossmatching};
+	my @probe_names = keys 	%$crossmatch_ref;
+	foreach my $probe_name (@probe_names) {
+		
+		my $cross_matches_ref = $crossmatch_ref->{$probe_name};
+		my @cross_matches = keys %$cross_matches_ref;
+		foreach my $cross_match (@cross_matches) {
+			my $count = $cross_matches_ref->{$cross_match};
+			print "\n\t\t #   $count x $probe_name to $cross_match";
 		}
 	}
 }

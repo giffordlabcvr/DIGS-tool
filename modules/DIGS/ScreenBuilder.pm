@@ -700,8 +700,7 @@ sub read_genome_files {
 		my $path = $file_ref->{path};
 	
 		my $file_type = $fileio->get_infile_type($file);
-		#if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
-		if ($file_type eq 'fa') {
+		if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
 			
 			$path =~ s/\/\//\//g;
 			my @path = split(/\//, $path);
