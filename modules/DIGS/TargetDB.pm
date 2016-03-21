@@ -83,16 +83,19 @@ sub refresh_genomes {
 	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
 
 	# Show warning
-	print "\n\t ### WARNING! ";
-	print "\n\t ### This is utility function  ";
+	print "\n\t ### WARNING: This is utility function that relies on regular file formatting.\n";
 	print "\n\t ### It requires that target FASTA files are named in the expected way  ";
-	print "\n\t ### i.e. using one of the following file extensions:";
-	print "\n\t ### '.fas', '.fa', '.fasta'  ";
+	print "\n\t ### i.e. using one of the following file extensions: '.fas', '.fa', '.fasta'\n";
+	print "\n\t ### Note: large FASTA files may generate split index files (01.nin, 02.nin ... etc)";
+	print "\n\t ### When this happens this utility will prompt for formatting, even";
+	print "\n\t ### if index files already exist.\n";
 	sleep 2;
 
 	# Ask user how to handle the process
-	my $question = "\n\t Automatically format entire genome folder, or prompt for each ";
-	
+	my $question = "\n\t Prompt before formatting each genome? ";
+	my $prompt = $console->ask_yes_no_question($question);
+	if ($prompt eq 'n') { $prompt = undef; }
+
 	# Index genomes by key ( organism | type | version )
 	my %server_data;
 	
@@ -121,11 +124,14 @@ sub refresh_genomes {
 			foreach my $file (@$unformatted_ref) {
 				print "\n\t file '$file'";
 			}
-			my $question = "\n\n\t Do you want to format the above files?";
-			my $answer   = $console->ask_yes_no_question($question);
-			if ($answer eq 'y') {
-				$self->format_genome($genome_ref);
-			}	
+			if ($prompt) {
+				my $question = "\n\n\t Do you want to format the above files?";
+				my $answer   = $console->ask_yes_no_question($question);
+				if ($answer eq 'y') {
+					$self->format_genome($genome_ref);
+				}	
+			}
+			else { $self->format_genome($genome_ref); }
 		}
 	}
 	print "\n\n";

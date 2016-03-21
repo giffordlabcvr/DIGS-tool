@@ -132,15 +132,12 @@ sub parse_control_file {
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
 	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
-	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
 	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
 	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
 	$pipeline_obj->{query_glue}             = $self->{query_glue};
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
-	$pipeline_obj->{length_threshold}       = $self->{length_threshold_between_ORFs};
 }
 
 #***************************************************************************
@@ -152,14 +149,17 @@ sub setup_reference_library {
 	my ($self, $pipeline_obj) = @_;
 
 	# Get reference library params
+	my $reference_type;
 	my $ref_fasta;
 	if ($self->{reference_aa_fasta}) {
  		$self->{reference_library_type} = 'aa';
 		$ref_fasta = $self->{reference_aa_fasta};
+		$reference_type = 'amino acid';
 	}
 	elsif ($self->{reference_na_fasta}) {
  		$self->{reference_library_type} = 'na';
 		$ref_fasta = $self->{reference_na_fasta};
+		$reference_type = 'nucleic acid';
 	}
 	unless ($ref_fasta)  {die; }
 	
@@ -170,9 +170,9 @@ sub setup_reference_library {
 		my @fasta;
 		$self->read_fasta($ref_fasta, \@fasta);
 		$num_fasta = scalar @fasta;
-		unless ($num_fasta) { die "\n\t  Reference library protein FASTA not found'\n\n\n"; }
+		unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n\n"; }
 
-		print "\n\t  Reference library: $num_fasta amino acid sequences";
+		print "\n\t  Reference library: $num_fasta $reference_type sequences";
 		my $i = 0;
 		foreach my $seq_ref (@fasta) {
 			$i++;
@@ -208,14 +208,17 @@ sub setup_blast_probes {
 	my ($self, $probes_ref) = @_;
 
 	# Get parameters from self
+	my $probe_type;
 	my $query_fasta;
 	if ($self->{query_aa_fasta}) {
  		$self->{probe_library_type} = 'aa';
 		$query_fasta = $self->{query_aa_fasta};
+		$probe_type = 'amino acid';
 	}
 	elsif ($self->{query_na_fasta}) {
  		$self->{probe_library_type} = 'na';
 		$query_fasta = $self->{query_na_fasta};
+		$probe_type = 'nucleic acid';
 	}
 	else { 
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
@@ -225,7 +228,7 @@ sub setup_blast_probes {
 	my @fasta;
 	$self->read_fasta($query_fasta, \@fasta);
 	my $num_fasta = scalar @fasta;
-	print "\n\t  Probes:            $num_fasta amino acid sequences";
+	print "\n\t  Probes:            $num_fasta $probe_type sequences";
 	my $i = 0;
 	my $type = $self->{probe_library_type};
 	foreach my $seq_ref (@fasta) {
