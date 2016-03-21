@@ -188,9 +188,11 @@ sub screen {
 		# Get the array of queries for this target file
 		my $probe_queries = $queries{$probe_name};
 		foreach my $query_ref (@$probe_queries) {  
+	
 			# Increment query count
 			$num_queries++;		
 			$self->{num_queries} = $num_queries;
+
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);	
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
@@ -276,7 +278,6 @@ sub search {
 	my $num_hits = scalar @hits;
 	if ($num_hits > 0) {
 		print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
-		print "\n\t\t # in  $organism, $data_type, $version, '$target_name'";
 	}
 	foreach my $hit_ref (@hits) {
 	
@@ -324,10 +325,11 @@ sub assign {
 
 	# Extract hits 
 	my @extracted;
-	$self->extract_unassigned_hits($query_ref, \@extracted);	
+	my $new_sequences = $self->extract_unassigned_hits($query_ref, \@extracted);	
 	
 	# Iterate through the matches
 	my $assigned_count = 0;
+	my $crossmatch_count = 0;
 	foreach my $hit_ref (@extracted) {
 
 		# Set the linking to the BLAST result table
@@ -336,11 +338,24 @@ sub assign {
 		
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my %data = %$hit_ref; # Make a copy
-		$self->do_reverse_blast(\%data);
-		$assigned_count++;
+		my $assigned = $self->do_reverse_blast(\%data);
+		if ($assigned) { $assigned_count++; }
+		my $probe_name  = $query_ref->{probe_name};
+		my $probe_gene  = $query_ref->{probe_gene};
+		my $probe_key = $probe_name . '_' . $probe_gene; 
+		if ($probe_key ne $assigned) {
+			$crossmatch_count++;
+			#print "\n\t\t #   cross match to '$assigned'";
+		}
 
-		# Insert the data
+		# Insert the data to the Extracted table
 		my $extract_id = $table->insert_row(\%data);
+	}
+
+	print "\n\t\t # $new_sequences newly identified hits";
+	if ($new_sequences > 0) {
+		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
+		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
 	}
 }
 
@@ -593,7 +608,7 @@ sub initialise_reassign {
 }
 
 #***************************************************************************
-# Subroutine:  reverse_blast
+# Subroutine:  do_reverse_blast
 # Description: Execute the 2nd BLAST in a round of paired BLAST
 #***************************************************************************
 sub do_reverse_blast {
@@ -636,15 +651,11 @@ sub do_reverse_blast {
 	if ($probe_type eq 'UTR') {
 		$lib_path  = $self->{blast_utr_lib_path};
 		$blast_alg = 'blastn';
-		unless ($lib_path) { 
-			print "\n\t NO UTR LIBRARY defined"; 
-		}
+		unless ($lib_path) { die "\n\t NO UTR LIBRARY defined"; }
 	}
 	elsif ($probe_type eq 'ORF') {
 		$lib_path  = $self->{blast_orf_lib_path};
-		unless ($lib_path) { 
-			print "\n\t NO ORF LIBRARY defined"; 
-		}
+		unless ($lib_path) {  die "\n\t NO ORF LIBRARY defined"; }
 		$blast_alg = 'blastx';
 	}
 	else { die; }
@@ -655,17 +666,17 @@ sub do_reverse_blast {
 	my @results;
 	$blast_obj->parse_tab_format_results($result_file, \@results);
 
-	# Get the best match from this file
+	# Define some variables for capturing the result
 	my $top_match = shift @results;
 	my $query_start   = $top_match->{query_start};
 	my $query_end     = $top_match->{query_stop};
 	my $subject_start = $top_match->{aln_start};
 	my $subject_end   = $top_match->{aln_stop};
 	my $assigned_name = $top_match->{scaffold};	
-	
+	my $assigned      = 1;
+
+	# Deal with a query that matched nothing in the 2nd BLAST search
 	unless ($assigned_name) {	
-		
-		print "\n\t ### No match found in reference library\n";
 		$hit_ref->{assigned_name}    = 'Unassigned';
 		$hit_ref->{assigned_gene}    = 'Unassigned';
 		$hit_ref->{identity}         = 0;
@@ -679,14 +690,14 @@ sub do_reverse_blast {
 		$hit_ref->{query_start}      = 0;
 		$hit_ref->{subject_end}      = 0;
 		$hit_ref->{subject_start}    = 0;
+		$assigned = undef;
 	}
-	else {	
+	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
 
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
 		my @assigned_name = split('_', $assigned_name);
 		my $assigned_gene = pop @assigned_name;
 		$assigned_name = join ('_', @assigned_name);
-		#print " assigned to: $assigned_name: $assigned_gene!";
 		$hit_ref->{assigned_name}    = $assigned_name;
 		$hit_ref->{assigned_gene}    = $assigned_gene;
 		$hit_ref->{identity}         = $top_match->{identity};
@@ -700,6 +711,7 @@ sub do_reverse_blast {
 		$hit_ref->{query_start}      = $query_start;
 		$hit_ref->{subject_end}      = $subject_end;
 		$hit_ref->{subject_start}    = $subject_start;
+		$assigned = $assigned_name . '_' . $assigned_gene;
 	}
 
 	# Clean up
@@ -707,6 +719,8 @@ sub do_reverse_blast {
 	my $command2 = "rm $result_file";
 	system $command1;
 	system $command2;
+
+	return $assigned;
 }
 
 #***************************************************************************
@@ -736,6 +750,7 @@ sub extract_unassigned_hits {
 	#print "\n\t ### There are $num_hits hits to extract";
 
 	# Store all outstanding matches as sequential, target-ordered sets 
+	my $new_hits = scalar @hits;
 	foreach my $hit_ref (@hits) {
 		
 		# Skip previously extracted hits
@@ -768,6 +783,8 @@ sub extract_unassigned_hits {
 	}
 	#my $num_extracted = scalar @$extracted_ref;	
 	#print "\n\t Num extracted $num_extracted";	
+
+	return $new_hits;
 }
 
 #***************************************************************************
