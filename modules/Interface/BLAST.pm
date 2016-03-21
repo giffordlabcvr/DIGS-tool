@@ -103,6 +103,7 @@ sub blast {
 	$command .= "-outfmt $outfmt";
 
 	# Execute the command 
+	#print "\n\t COMMAND $command"; sleep 1;
 	system $command;		
 }
 

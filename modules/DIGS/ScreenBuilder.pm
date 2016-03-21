@@ -136,7 +136,6 @@ sub parse_control_file {
 	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
 	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
 	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
-	$pipeline_obj->{query_glue}             = $self->{query_glue};
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
 }
 
@@ -191,8 +190,16 @@ sub setup_reference_library {
 	}
 
 	# Format the library for BLAST
-	if ($num_fasta) { $self->create_blast_lib(\@ref_fasta, 'aa'); }
-	
+	if ($num_fasta) {
+		if ($self->{reference_library_type} eq 'aa') {
+			$self->create_blast_lib(\@ref_fasta, 'aa');
+		}
+		elsif ($self->{reference_library_type} eq 'na') {
+			$self->create_blast_lib(\@ref_fasta, 'na');
+		}
+		else { die; }
+	}
+
 	# Set the paths to the BLAST-formatted libraries
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
@@ -242,18 +249,19 @@ sub setup_blast_probes {
 			my $seq       = $seq_ref->{sequence};
 			
 			my %probe;
-			$probe{probe_type}      = 'ORF';
 			$probe{probe_name}      = $name;
 			$probe{probe_gene}      = $gene_name;
 			$probe{probe_id}        = $name . "_$gene_name";
 			$probe{sequence}        = $seq;
 			
 			if ($type eq 'aa') {
-				$probe{blast_alg} = 'tblastn';
+				$probe{probe_type}  = 'ORF';
+				$probe{blast_alg}   = 'tblastn';
 				$probe{bitscore_cutoff} = $self->{bit_score_min_tblastn};
 			}
 			if ($type eq 'na') {
-				$probe{blast_alg} = 'blastn';
+				$probe{probe_type}  = 'UTR';
+				$probe{blast_alg}   = 'blastn';
 				$probe{bitscore_cutoff} = $self->{bit_score_min_blastn};
 			}
 			push(@$probes_ref, \%probe);	
