@@ -42,6 +42,7 @@ use DIGS::DIGS;
 use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
+#use DIGS::Utility;
 
 ############################################################################
 # Paths & Globals
@@ -115,22 +116,29 @@ sub main {
 	# Options that don't require a value
 	my $help     = undef;
 	my $version  = undef;
+	my $utility  = undef;
 	
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
+			    'utility=i'       => \$utility,
 			    'infile|i=s'      => \$infile,
 			    'help'            => \$help,
 			    'version'         => \$version,
 	) or die $USAGE;
 	
 	# Hand off to functions
-	if ($version) { print "\n\t DIGS tool version $program_version\n\n" }
+	if ($version) { 
+		print "\n\t DIGS tool version $program_version\n\n"
+	}
 	elsif ($help) { # Show help page
 		$pipeline_obj->show_help_page();
 		exit;
 	}
 	elsif ($mode) { # Run the digs tool 
 		$pipeline_obj->run_digs_process($mode, $infile); 
+	}
+	elsif ($utility) { # Run the digs tool
+		$pipeline_obj->run_utility_process($utility, $infile); 
 	}
 	else { die $USAGE; }
 

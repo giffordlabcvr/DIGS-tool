@@ -132,6 +132,48 @@ sub run_digs_process {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  run_utility_process
+# Description: handler for DIGS tool utility functions 
+#***************************************************************************
+sub run_utility_process {
+
+	my ($self, $option, $ctl_file) = @_;
+
+ 	# Show title
+	$self->show_title();  
+
+	# Do initial set up and sanity checking for options that require it
+	unless ($option < 6) { # Validate configurations that require a control file
+		# An infile must be defined
+		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
+		$self->initialise($ctl_file);
+	}
+
+	# If it exists, load the screening database specified in the control file
+	if ( $option > 2 and $option < 7) {
+		my $db_name = $self->{db_name};
+		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+		my $db_obj = ScreeningDB->new($self);
+		$db_obj->load_screening_db($db_name);	
+		$self->{db} = $db_obj; # Store the database object reference 
+	}
+
+	# Hand off to functions 
+	if ($option eq 1)    { # Create a screening DB 
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_short();
+	}
+	elsif ($option eq 2)    { # Create a screening DB 
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_long();
+	}
+	else {
+		print "\n\t  Unrecognized option '-m=$option'\n";
+
+	}
+}
+
 ############################################################################
 # MAIN FUNCTIONS
 ############################################################################
@@ -1163,13 +1205,16 @@ sub show_help_page {
 
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
+        $HELP  .= "\n\t ### Main functions"; 
         $HELP  .= "\n\t -m=1  Create screening DB"; 
 		$HELP  .= "\n\t -m=2  Screen"; 
 		$HELP  .= "\n\t -m=3  Reassign"; 
 		$HELP  .= "\n\t -m=4  Flush screening DB"; 
 		$HELP  .= "\n\t -m=5  Drop screening DB"; 
 		$HELP  .= "\n\t -m=6  Manage ancillary tables"; 
-		$HELP  .= "\n\t -m=7  Format genome directory (\$DIGS_GENOMES)\n\n"; 
+		$HELP  .= "\n\t -m=7  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+        $HELP  .= "\n\t ### Utility functions"; 
+		$HELP  .= "\n\t -u=1  Summarise the genome directory ($ENV{DIGS_GENOMES})\n\n"; 
 	print $HELP;
 }
 
