@@ -17,7 +17,7 @@ unless ($ENV{DIGS_HOME}) {
 
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME}) . '/modules/'; 
-use lib '/System/Library/Perl/Extras/5.12/DBIx/Class/Storage/DBI/'; 
+#use lib '/System/Library/Perl/Extras/5.12/DBIx/Class/Storage/DBI/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
