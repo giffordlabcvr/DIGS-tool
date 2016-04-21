@@ -42,7 +42,6 @@ use DIGS::DIGS;
 use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
-#use DIGS::Utility;
 
 ############################################################################
 # Paths & Globals

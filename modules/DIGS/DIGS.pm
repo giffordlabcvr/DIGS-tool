@@ -2,7 +2,7 @@
 ############################################################################
 # Module:      DIGS.pm
 # Description: Genome screening pipeline using reciprocal BLAST
-# History:     December 2009: Created by Robert Gifford 
+# History:     December 2013: Created by Robert Gifford 
 ############################################################################
 package DIGS;
 
@@ -128,7 +128,6 @@ sub run_digs_process {
 	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
-
 	}
 }
 
@@ -145,32 +144,34 @@ sub run_utility_process {
 
 	# Do initial set up and sanity checking for options that require it
 	unless ($option < 6) { # Validate configurations that require a control file
-		# An infile must be defined
 		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file);
 	}
 
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 2 and $option < 7) {
+	if ( $option > 3 and $option < 7) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
 		$db_obj->load_screening_db($db_name);	
-		$self->{db} = $db_obj; # Store the database object reference 
+		$self->{db} = $db_obj; # database initialised here 
 	}
 
 	# Hand off to functions 
-	if ($option eq 1)    { # Create a screening DB 
+	if ($option eq 1)    { # Summarise target genome directory (short)
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_short();
 	}
-	elsif ($option eq 2)    { # Create a screening DB 
+	elsif ($option eq 2) { # Summarise target genome directory (long)
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_long();
 	}
+	elsif ($option eq 3)    { # convert NCBI refseq formatted headers to DIGS 
+		my $utility_db_obj = Utility->new($self);
+		$utility_db_obj->defragment();
+	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
-
 	}
 }
 
@@ -1214,7 +1215,9 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=6  Manage ancillary tables"; 
 		$HELP  .= "\n\t -m=7  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
-		$HELP  .= "\n\t -u=1  Summarise the genome directory ($ENV{DIGS_GENOMES})\n\n"; 
+		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
+		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file):";
+		$HELP  .= "\n\t -u=3  Interactive defragment:\n\n"; 
 	print $HELP;
 }
 

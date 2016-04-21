@@ -94,6 +94,36 @@ sub insert_row {
 	return $db_id;
 }	
 
+
+#***************************************************************************
+# Subroutine:  select row
+# Description: Generic select fxn for a selecting a single row and storing 
+#              data in a hash 
+# Arguments:   $field_ref: reference to an array with fields to fetch 
+#              $data_ref:  reference to a hash to store the data
+#              $where:     the where clause of the select as a string
+#***************************************************************************
+sub select_row {
+
+	my ($self, $field_ref, $data_ref, $where) = @_;
+
+	my $dbh = $self->{dbh};
+	my $fields = join(',', @$field_ref);
+	my $query = "SELECT $fields FROM $self->{name} $where";
+	my $sth = $dbh->prepare($query);
+	##print "\n\t QUERY $query\n\n\n";
+	$sth->execute();	
+
+	# get the values into a hash
+	my $i = 0;
+	my @row = $sth->fetchrow_array;
+	foreach my $field (@$field_ref) {
+		
+		$data_ref->{$field} = $row[$i];
+		$i++;
+	}
+}
+
 #***************************************************************************
 # Subroutine:  select rows
 # Description: Generic select fxn for a one or more rows and storing the
