@@ -111,18 +111,21 @@ sub run_digs_process {
 	elsif ($option eq 3) { # Reassign data in Exracted table
 		$self->reassign();	
 	}
-	elsif ($option eq 4) { # Flush screening DB
+	elsif ($option eq 4) { # Reassign data in Exracted table
+		$self->defragment();	
+	}
+	elsif ($option eq 5) { # Flush screening DB
 		my $db = $self->{db};
 		$db->flush_screening_db();
 	}
-	elsif ($option eq 5) { # Drop screening DB 
+	elsif ($option eq 6) { # Drop screening DB 
 		my $db = $self->{db};
 		$db->drop_screening_db();    
 	}
-	elsif ($option eq 6) { # Add a table of data to the screening database
+	elsif ($option eq 7) { # Add a table of data to the screening database
 		$self->extend_screening_db();
 	}
-	elsif ($option eq 7) { # Add a table of data to the screening database
+	elsif ($option eq 8) { # Add a table of data to the screening database
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
@@ -165,10 +168,6 @@ sub run_utility_process {
 	elsif ($option eq 2) { # Summarise target genome directory (long)
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_long();
-	}
-	elsif ($option eq 3)    { # convert NCBI refseq formatted headers to DIGS 
-		my $utility_db_obj = Utility->new($self);
-		$utility_db_obj->defragment();
 	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
@@ -1210,14 +1209,14 @@ sub show_help_page {
         $HELP  .= "\n\t -m=1  Create screening DB"; 
 		$HELP  .= "\n\t -m=2  Screen"; 
 		$HELP  .= "\n\t -m=3  Reassign"; 
-		$HELP  .= "\n\t -m=4  Flush screening DB"; 
-		$HELP  .= "\n\t -m=5  Drop screening DB"; 
-		$HELP  .= "\n\t -m=6  Manage ancillary tables"; 
-		$HELP  .= "\n\t -m=7  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=4  Defragment"; 
+		$HELP  .= "\n\t -m=5  Flush screening DB"; 
+		$HELP  .= "\n\t -m=6  Drop screening DB"; 
+		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
+		$HELP  .= "\n\t -m=8  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file):";
-		$HELP  .= "\n\t -u=3  Interactive defragment:\n\n"; 
 	print $HELP;
 }
 
