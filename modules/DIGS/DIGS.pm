@@ -93,7 +93,7 @@ sub run_digs_process {
 	}
 
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 7) {
+	if ( $option > 1 and $option < 8) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -112,7 +112,7 @@ sub run_digs_process {
 		$self->reassign();	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
-		$self->defragment();	
+		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
 		my $db = $self->{db};
@@ -833,6 +833,135 @@ sub extract_unassigned_hits {
 	#print "\n\t Num extracted $num_extracted";	
 
 	return $new_hits;
+}
+
+
+#***************************************************************************
+# Subroutine: interactive_defragment 
+# Description:
+#***************************************************************************
+sub interactive_defragment {
+
+	my ($self) = @_;
+
+	my $db = $self->{db};
+
+	# Display current settings
+	my $redundancy_mode= $self->{redundancy_mode};
+	my $threadhit_probe_buffer=$self->{threadhit_probe_buffer};
+	my $threadhit_gap_buffer=$self->{threadhit_gap_buffer};
+	my $threadhit_max_gap=$self->{threadhit_max_gap};
+
+	print "\n\t # Current Setting\n";
+	print "\n\t # threadhit_probe_buffer: $threadhit_probe_buffer";
+	print "\n\t # threadhit_gap_buffer: $threadhit_gap_buffer";
+	print "\n\t # threadhit_max_gap: $threadhit_max_gap";
+	my $blast_results_table = $db->{blast_results_table};
+	
+	# Set the fields to get values for
+	my @fields = qw [ record_id target_name scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end hit_length ];
+
+	# Order by ascending start coordinates within each scaffold in the target file
+	my $where = "ORDER BY organism, target_name, scaffold, subject_start ";
+	
+	# Get the relevant loci
+	my @hits;
+	$blast_results_table->select_rows(\@fields, \@hits, $where);
+	my $numhits = scalar @hits;
+	print "\n\n\t # There are currently $numhits distinct record in the BLAST table";
+
+	my $max = 100000;
+	my $question1 = "\n\t # Set the value for threadhit_probe_buffer ";
+	my $question2 = "\n\t # Set the value for threadhit_gap_buffer ";
+	my $question3 = "\n\t # Set the value for threadhit_max_gap ";
+	my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_probe_buffer, $max);
+	my $t_gap_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_gap_buffer, $max);
+	my $_max_gap = $console->ask_int_with_bounds_question($question1, $threadhit_max_gap, $max);
+	
+	# Get hits by scaffold
+	$self->preview_defragment(\@hits);
+}
+
+#***************************************************************************
+# Subroutine: preview_defragment 
+# Description:
+#***************************************************************************
+sub preview_defragment {
+
+	my ($self, $hits_ref) = @_;
+
+	# Iterate through consolidating as we go
+	my $i;
+	my %last_hit;
+	my @output;
+	my $blast_count= 0;
+	foreach my $hit_ref (@$hits_ref)  {
+
+		# Get hit values
+		my $record_id     = $hit_ref->{record_id};
+		my $target_name   = $hit_ref->{target_name};
+		my $scaffold      = $hit_ref->{scaffold};
+		my $orientation   = $hit_ref->{orientation};
+		my $subject_start = $hit_ref->{subject_start};
+		my $subject_end   = $hit_ref->{subject_end};
+		my $query_start   = $hit_ref->{query_start};
+		my $query_end     = $hit_ref->{query_end};
+		
+		# Get last hit values
+		my $last_record_id     = $last_hit{record_id};
+		my $last_scaffold      = $last_hit{scaffold};
+		my $last_target_name   = $last_hit{target_name};
+		my $last_orientation   = $last_hit{orientation};
+		my $last_subject_start = $last_hit{subject_start};
+		my $last_subject_end   = $last_hit{subject_end};
+		my $gap = $subject_start - $last_subject_end;
+		$blast_count++;
+
+		if ($target_name ne $last_target_name) {
+			$i=1;
+			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+			#print $line;
+			push (@output, $line);	
+		}
+
+		elsif ($last_scaffold) {	
+			if ($scaffold ne $last_scaffold) {
+				$i=1;
+				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+				#print $line;
+				push (@output, $line);	
+			}
+			else {
+				$i++; 
+				my $line  = "\t\t Gap of $gap nucleotides";
+				#print $line;
+				push (@output, $line);	
+			}
+		}
+
+		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
+		   $line .= ",$subject_start,$subject_end ($orientation)";
+		   $line .= ": query: $query_start, $query_end";
+		if ($i) {
+			if ($i > 1 and $gap < 1000) { 
+				print "\n\t  ### ARRAY HIT"; 
+				$line .= "\t  ### ARRAY HIT\n"; 
+			}
+		}
+		push (@output, $line);	
+		#print $line;
+
+		# Update last hit data
+		$last_hit{record_id}     = $record_id;
+		$last_hit{target_name}   = $target_name;
+		$last_hit{scaffold}      = $scaffold;
+		$last_hit{orientation}   = $orientation;
+		$last_hit{subject_start} = $subject_start;
+		$last_hit{subject_end}   = $subject_end;
+	}
+
 }
 
 #***************************************************************************
