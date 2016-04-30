@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!usr/bin/perl -w
 ############################################################################
 # Module:      DIGS.pm
 # Description: Genome screening pipeline using reciprocal BLAST
@@ -17,6 +17,7 @@ use strict;
 # Base classes
 use Base::FileIO;
 use Base::Console;
+use Base::DevTools;
 
 # Program components
 use DIGS::ScreenBuilder; # Functions to set up screen
@@ -28,6 +29,7 @@ use DIGS::ScreenBuilder; # Functions to set up screen
 # Base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
+my $devtools  = DevTools->new();
 my $verbose   = undef;
 1;
 
@@ -86,7 +88,7 @@ sub run_digs_process {
 	$self->show_title();  
 
 	# Do initial set up and sanity checking for options that require it
-	unless ($option > 6) { # Validate configurations that require a control file
+	if ($option < 8) { # Validate configurations that require a control file
 		# An infile must be defined
 		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file);
@@ -430,6 +432,8 @@ sub reassign {
 	# Iterate through the matches
 	print "\n\n\t  Reassigning Extracted table\n";
 	my $count = 0;
+	my %reassign_matrix;
+	my %unique_keys;
 	foreach my $hit_ref (@assigned_seqs) {
 
 		# Set the linking to the BLAST result table
@@ -458,18 +462,46 @@ sub reassign {
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
-			# Insert the data
+			
+			# Show the results
 			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
 			my $where = " WHERE Record_id = $blast_id ";
+			
+			# Update the matrix
+			my $previous_key = $previous_assign . '_' . $previous_gene;
+			my $assigned_key = $assigned_name . '_' . $assigned_gene;
+			$unique_keys{$assigned_key} = 1;
+			$unique_keys{$previous_key} = 1;
+			if ($reassign_matrix{$previous_key}) {
+				my $hash_ref = $reassign_matrix{$previous_key};
+				if ($hash_ref->{$assigned_key}) {
+					$hash_ref->{$assigned_key}++;
+				}
+				else {
+					$hash_ref->{$assigned_key} = 1;
+				}
+			}
+			else {
+				my %hash;
+				$hash{$assigned_key} = 1;
+				$reassign_matrix{$previous_key} = \%hash; 
+			}
+
+			# Insert the data
 			$extracted_table->update($hit_ref, $where);
 		}
 	}
+	
+	# Write out the matrix
+	$self->write_matrix(\%reassign_matrix, \%unique_keys);
+
 	# Cleanup
 	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
 }
+
 
 ############################################################################
 # SECTION: Extend the screening database by adding ancillary tables
@@ -852,7 +884,7 @@ sub interactive_defragment {
 	my $threadhit_gap_buffer=$self->{threadhit_gap_buffer};
 	my $threadhit_max_gap=$self->{threadhit_max_gap};
 
-	print "\n\t # Current Setting\n";
+	print "\n\n\t # Current Settings";
 	print "\n\t # threadhit_probe_buffer: $threadhit_probe_buffer";
 	print "\n\t # threadhit_gap_buffer: $threadhit_gap_buffer";
 	print "\n\t # threadhit_max_gap: $threadhit_max_gap";
@@ -870,18 +902,39 @@ sub interactive_defragment {
 	my @hits;
 	$blast_results_table->select_rows(\@fields, \@hits, $where);
 	my $numhits = scalar @hits;
-	print "\n\n\t # There are currently $numhits distinct record in the BLAST table";
+	print "\n\t # There are currently $numhits distinct record in the BLAST table";
 
-	my $max = 100000;
-	my $question1 = "\n\t # Set the value for threadhit_probe_buffer ";
-	my $question2 = "\n\t # Set the value for threadhit_gap_buffer ";
-	my $question3 = "\n\t # Set the value for threadhit_max_gap ";
-	my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_probe_buffer, $max);
-	my $t_gap_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_gap_buffer, $max);
-	my $_max_gap = $console->ask_int_with_bounds_question($question1, $threadhit_max_gap, $max);
-	
-	# Get hits by scaffold
-	$self->preview_defragment(\@hits);
+	my $choice;
+	do {
+
+		my $max = 100000;
+		my $question1 = "\n\n\t # Set the value for threadhit_probe_buffer ";
+		my $question2 = "\t # Set the value for threadhit_gap_buffer ";
+		my $question3 = "\t # Set the value for threadhit_max_gap ";
+		my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_probe_buffer, $max);
+		my $t_gap_buffer = $console->ask_int_with_bounds_question($question2, $threadhit_gap_buffer, $max);
+		my $t_max_gap = $console->ask_int_with_bounds_question($question3, $threadhit_max_gap, $max);
+		
+		# Get hits by scaffold
+		$self->preview_defragment(\@hits);
+		
+		# Prompt for what to do next
+		print "\n\t # Option 1: preview new parameters";
+		print "\n\t # Option 2: apply these parameters";
+		print "\n\t # Option 3: exit";
+		my $list_question = "\n\n\t # Choose an option:";
+		$choice = $console->ask_list_question($list_question, 3);
+
+	} until ($choice > 1);
+
+	if ($choice eq 2) {
+		die;
+	}
+	elsif ($choice eq 3) {
+		die;
+	}
+	else { die; }
+
 }
 
 #***************************************************************************
@@ -1257,6 +1310,63 @@ sub update_db_loci {
 }
 
 #***************************************************************************
+# Subroutine: write matrix 
+# Description:
+#***************************************************************************
+sub write_matrix {
+
+    my ($self, $matrix_ref, $keys_ref) = @_;
+
+    my @matrix;
+    my @keys = sort keys %$keys_ref;
+	
+	# Reformat the keys - split into the two separate elements
+	my %reformatted;
+    my @horizontal;
+	foreach my $key (@keys) {
+    
+		my @key = split('_', $key);
+		my $second_part = pop @key;
+		my $first_part = shift @key;
+		my $reformatted_key = $first_part . " ($second_part)";
+		$reformatted{$key} = $reformatted_key;
+		push (@horizontal, $reformatted_key);
+	}
+
+	# Create the header row for the matrix
+    my $horizontal = join("\t", @horizontal);
+	push (@matrix, "\t$horizontal\n");
+
+	foreach my $key (@keys) {
+		
+		# Write the name
+		my @line;
+		my $f_key = $reformatted{$key};
+		push (@line, $f_key);
+		
+		# Write the numbers (internal part of the matrix)
+		foreach my $comparison_key (@keys) {
+			
+			my $count;
+			my $hash_ref = $matrix_ref->{$key};
+			$count = $hash_ref->{$comparison_key};
+			unless ($count) { $count = '0'; }
+			push (@line, $count);
+		}
+		# Create matrix row
+    	my $line = join("\t", @line);
+		push (@matrix, "$line\n");
+	}
+
+	my $file = 'matrix.txt';
+	$fileio->write_file($file, \@matrix);
+
+	$devtools->print_hash($matrix_ref);
+
+
+}
+
+#***************************************************************************
 # Subroutine:  update_cross_matching
 # Description: update a hash to record cross-matches
 #***************************************************************************
@@ -1345,7 +1455,7 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=8  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file):";
+		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)\n\n";
 	print $HELP;
 }
 
