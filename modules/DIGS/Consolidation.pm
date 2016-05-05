@@ -22,7 +22,8 @@ use Base::Console;
 
 # Program components
 use DIGS::ScreenBuilder; # Functions to set up screen
-#use DIGS::ScreeningDB; # Functions to insert Loci data
+#### DBM TESTING
+use DIGS::ScreeningDB; # Functions to insert Loci data
 
 ############################################################################
 # Globals
