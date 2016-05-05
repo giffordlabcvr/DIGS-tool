@@ -21,6 +21,7 @@ use Base::DevTools;
 
 # Program components
 use DIGS::ScreenBuilder; # Functions to set up screen
+use DIGS::Consolidation; # Defragmentation functions
 
 ############################################################################
 # Globals

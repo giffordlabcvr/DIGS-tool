@@ -19,11 +19,10 @@ use strict;
 use Base::FileIO;
 use Base::DevTools;
 use Base::Console;
-use Base::Sequence;    # For performing basic sequence manipulations
 
 # Program components
-use DIGS::ScreenBuild; # Functions to set up screen
-use DIGS::ScreeningDB; # Functions to insert Loci data
+use DIGS::ScreenBuilder; # Functions to set up screen
+#use DIGS::ScreeningDB; # Functions to insert Loci data
 
 ############################################################################
 # Globals
