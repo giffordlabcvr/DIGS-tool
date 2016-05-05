@@ -1,0 +1,172 @@
+Species	Phylum	Host_class	Host_superorder	Common_name	Biota	Host_order	Host_suborder	Genome_type	Version
+Homo_sapiens	Vertebrates	Mammals	Supraprimates	Human	Terrestrial	Primates	Catarrhini	complete	goldenpath_hg38
+Pan_troglodytes	Vertebrates	Mammals	Supraprimates	Chimpanzee	Terrestrial	Primates	Catarrhini	complete	goldenpath_panTro4
+Gorilla_gorilla	Vertebrates	Mammals	Supraprimates	Gorilla	Terrestrial	Primates	Catarrhini	complete	goldenpath_gorGor3
+Pongo_abelii	Vertebrates	Mammals	Supraprimates	Orang tan	Terrestrial	Primates	Catarrhini	complete	goldenpath_ponAbe2
+Nomascus_leucogenys	Vertebrates	Mammals	Supraprimates	White-cheeked gibbon	Terrestrial	Primates	Catarrhini	complete	ensembl_79_Nleu1.0
+Macaca_mulatta	Vertebrates	Mammals	Supraprimates	Macaque	Terrestrial	Primates	Catarrhini	low_coverage	goldenpath_rheMac3
+Papio_anubis	Vertebrates	Mammals	Supraprimates	Olive baboon	Terrestrial	Primates	Catarrhini	low_coverage	goldenpath_papAnu2
+Chlorocebus_sabaeus	Vertebrates	Mammals	Supraprimates	Green monkey	Terrestrial	Primates	Catarrhini	complete	ensembl_79_ChlSab1.1
+Cercocebus_atys	Vertebrates	Mammals	Supraprimates	Sooty mangabey	Terrestrial	Primates	Catarrhini	low_coverage	ncbi_100_2015
+Colobus_angolensis_palliatus	Vertebrates	Mammals	Supraprimates	Angola colobus	Terrestrial	Primates	Catarrhini	low_coverage	ncbi_100_2015
+Rhinopithecus_roxellana	Vertebrates	Mammals	Supraprimates	Golden snub-nosed monkey	Terrestrial	Primates	Catarrhini	low_coverage	ncbi_100_2014-11-18
+Callithrix_jacchus	Vertebrates	Mammals	Supraprimates	Marmoset	Terrestrial	Primates	Platyrrhini	low_coverage	goldenpath_calJac3
+Saimiri_boliviensis	Vertebrates	Mammals	Supraprimates	Black-capped squirrel monkey	Terrestrial	Primates	Platyrrhini	complete	goldenpath_saiBol1
+Tarsius_syrichta	Vertebrates	Mammals	Supraprimates	Tarsier	Terrestrial	Primates	Strepsirrhini	complete	goldenpath_tarSyr1
+Otolemur_garnettii	Vertebrates	Mammals	Supraprimates	Bushbaby	Terrestrial	Primates	Strepsirrhini	complete	goldenpath_otoGar3
+Microcebus_murinus	Vertebrates	Mammals	Supraprimates	Grey mouse lemur	Terrestrial	Primates	Strepsirrhini	low_coverage	goldenpath_micMur1
+Propithecus_coquereli	Vertebrates	Mammals	Supraprimates	Coquerels sifaka	Terrestrial	Primates	Strepsirrhini	low_coverage	Pcoq_1.0
+Daubentonia_madagascariensis	Vertebrates	Mammals	Supraprimates	Aye-aye	Terrestrial	Primates	Strepsirrhini	low_coverage	broad_1.0_oct_2012
+Galeopterus_variegatus	Vertebrates	Mammals	Supraprimates	Colugo	Terrestrial	Dermoptera	Dermoptera	low_coverage	G-variegatus_3.0.2_apr_2015
+Tupaia_belangeri	Vertebrates	Mammals	Supraprimates	Tree shrew	Terrestrial	Scandentia	Scandentia	low_coverage	goldenpath_tupBel1
+Chinchilla_lanigera	Vertebrates	Mammals	Supraprimates	Chinchilla	Terrestrial	Rodentia	NULL	low_coverage	broad_v0_2012
+Heterocephalus_glaber	Vertebrates	Mammals	Supraprimates	Naked mole rat	Terrestrial	Rodentia	NULL	low_coverage	goldenpath_hetGla2
+Octodon_degus	Vertebrates	Mammals	Supraprimates	Degu	Terrestrial	Rodentia	NULL	low_coverage	broad_1.0_july_2012
+Cavia_porcellus	Vertebrates	Mammals	Supraprimates	Guinea pig	Terrestrial	Rodentia	NULL	low_coverage	goldenpath_cavPor3
+Rattus_norvegicus	Vertebrates	Mammals	Supraprimates	Brown rat	Terrestrial	Rodentia	NULL	complete	goldenpath_rn6
+Mus_musculus	Vertebrates	Mammals	Supraprimates	House mouse	Terrestrial	Rodentia	NULL	complete	goldenpath_mm10
+Cricetulus_griseus	Vertebrates	Mammals	Supraprimates	Chinese hamster	Terrestrial	Rodentia	NULL	complete	goldenpath_criGri1
+Jaculus_jaculus	Vertebrates	Mammals	Supraprimates	Lesser Egyptian jerboa	Terrestrial	Rodentia	NULL	low_coverage	broad_JacJac1.0
+Mesocricetus_auratus	Vertebrates	Mammals	Supraprimates	Golden hamster	Terrestrial	Rodentia	NULL	low_coverage	broad_1.1_april_2013
+Microtus_ochrogaster	Vertebrates	Mammals	Supraprimates	Microtus_ochrogaster	Terrestrial	Rodentia	NULL	complete	broad_1.0_april_2013
+Elephantulus_edwardii	Vertebrates	Mammals	Supraprimates	Cape elephant shrew	Terrestrial	Rodentia	NULL	low_coverage	broad_1.0_april_2013
+Fukomys_damarensis	Vertebrates	Mammals	Supraprimates	Damara mole-rat	Terrestrial	Rodentia	NULL	low_coverage	ncbi_1.0_2014
+Oryctolagus_cuniculus	Vertebrates	Mammals	Supraprimates	European rabbit	Terrestrial	Lagomorpha	NULL	complete	goldenpath_oryCun2
+Ochotona_princeps	Vertebrates	Mammals	Supraprimates	Pika	Terrestrial	Lagomorpha	NULL	complete	goldenpath_ochPri3
+Tursiops_truncatus	Vertebrates	Mammals	Laurasiatheria	Bottlenose dolphin	Aquatic	Cetartiodactyla	Cetacea	low_coverage	goldenpath_turTru2
+Lipotes_vexillifer	Vertebrates	Mammals	Laurasiatheria	Baiji	Aquatic	Cetartiodactyla	Cetacea	low_coverage	ncbi_100_2014-04-27
+Balaenoptera_acutorostrata	Vertebrates	Mammals	Laurasiatheria	Minke whale	Aquatic	Cetartiodactyla	Cetacea	low_coverage	goldenpath_balAcu1
+Orcinus_orca	Vertebrates	Mammals	Laurasiatheria	Orca	Aquatic	Cetartiodactyla	Cetacea	low_coverage	ncbi_ANOL02_jan_2013
+Physeter_catodon	Vertebrates	Mammals	Laurasiatheria	Sperm whale	Aquatic	Cetartiodactyla	Cetacea	low_coverage	2.0.2
+Capra_hircus	Vertebrates	Mammals	Laurasiatheria	Goat	Terrestrial	Cetartiodactyla	NULL	complete	iggc_1.0_april_2013
+Ovis_aires	Vertebrates	Mammals	Laurasiatheria	Sheep	Terrestrial	Cetartiodactyla	NULL	low_coverage	goldenpath_oviAri3
+Bos_taurus	Vertebrates	Mammals	Laurasiatheria	Cow	Terrestrial	Cetartiodactyla	NULL	low_coverage	goldenpath_bosTau7
+Sus_scrofa	Vertebrates	Mammals	Laurasiatheria	Pig	Terrestrial	Cetartiodactyla	NULL	complete	goldenpath_susScr3
+Bison_bison	Vertebrates	Mammals	Laurasiatheria	Bison	Terrestrial	Cetartiodactyla	NULL	low_coverage	ncbi_UMD1_2015-05-14
+Bos_grunniens	Vertebrates	Mammals	Laurasiatheria	Yak	Terrestrial	Cetartiodactyla	NULL	low_coverage	bbu_UMD_2015-05-14
+Bubalus_bubalis	Vertebrates	Mammals	Laurasiatheria	Buffalo	Terrestrial	Cetartiodactyla	NULL	low_coverage	ncbi_100_2015-05-14
+Camelus_ferus	Vertebrates	Mammals	Laurasiatheria	Camel	Terrestrial	Cetartiodactyla	NULL	low_coverage	bacsac_1.0_april_2013
+Vicugna_pacos	Vertebrates	Mammals	Laurasiatheria	Alpaca	Terrestrial	Cetartiodactyla	NULL	low_coverage	goldenpath_vicPac2
+Equus_caballus	Vertebrates	Mammals	Laurasiatheria	Horse	Terrestrial	Perissodactyla	NULL	complete	goldenpath_equCab2_Dec13
+Ceratotherium_simum	Vertebrates	Mammals	Laurasiatheria	Rhino	Terrestrial	Perissodactyla	NULL	low_coverage	goldenpath_cerSim1
+Ursus_maritimus	Vertebrates	Mammals	Laurasiatheria	Polar bear	Terrestrial	Carnivora	NULL	low_coverage	GAJD01_1.0_june_2013
+Ailuropoda_melanoleuca	Vertebrates	Mammals	Laurasiatheria	Panda	Terrestrial	Carnivora	NULL	low_coverage	goldenpath_ailMel1
+Canis_familiaris	Vertebrates	Mammals	Laurasiatheria	Dog	Terrestrial	Carnivora	NULL	low_coverage	goldenpath_canFam3
+Felis_catus	Vertebrates	Mammals	Laurasiatheria	Cat	Terrestrial	Carnivora	NULL	complete	goldenpath_felCat5
+Acinonyx_jubatus	Vertebrates	Mammals	Laurasiatheria	Cheetah	Terrestrial	Carnivora	NULL	low_coverage	aciJub1
+Panthera_tigris_altaica	Vertebrates	Mammals	Laurasiatheria	Panther	Terrestrial	Carnivora	NULL	low_coverage	ncbi_100_2014-03
+Mustela_furo	Vertebrates	Mammals	Laurasiatheria	Ferret	Terrestrial	Carnivora	NULL	low_coverage	goldenpath_musFur1
+Odobenus_rosmarus	Vertebrates	Mammals	Laurasiatheria	Walrus	Aquatic	Carnivora	NULL	low_coverage	marinemamm_1.0_april_2013
+Leptonychotes_weddellii	Vertebrates	Mammals	Laurasiatheria	Weddel seal	Aquatic	Carnivora	NULL	low_coverage	broad_1.1_april_2013
+Erinaceus_europaeus	Vertebrates	Mammals	Laurasiatheria	European hedgehog	Terrestrial	Eulipotyphyla	NULL	low_coverage	goldenpath_eriEur2
+Sorex_araneus	Vertebrates	Mammals	Laurasiatheria	Common shrew	Terrestrial	Eulipotyphyla	NULL	low_coverage	goldenpath_sorAra2
+Megaderma_lyra	Vertebrates	Mammals	Laurasiatheria	Greater false vampire bat	Terrestrial	Chiroptera	NULL	low_coverage	ncbi_AWHB00000000.1_2015-05
+Rhinolophus_ferrumequinum	Vertebrates	Mammals	Laurasiatheria	Greater horseshoe bat	Terrestrial	Chiroptera	NULL	low_coverage	ncbi_AWHA00000000.1_2015-05
+Pteropus_alecto	Vertebrates	Mammals	Laurasiatheria	Black flying fox	Terrestrial	Chiroptera	NULL	low_coverage	broad_1.0_april_2012
+Pteropus_vampyrus	Vertebrates	Mammals	Laurasiatheria	Large flying fox	Terrestrial	Chiroptera	NULL	low_coverage	goldenpath_pteVam1
+Eidolon_helvum	Vertebrates	Mammals	Laurasiatheria	Straw-coloured fruit bat	Terrestrial	Chiroptera	NULL	low_coverage	GCA_000465285.1
+Pteronotus_parnellii	Vertebrates	Mammals	Laurasiatheria	Parnells mustached bat	Terrestrial	Chiroptera	NULL	low_coverage	ncbi_AWGZ00000000.1_2015-05
+Eptesicus_fuscus	Vertebrates	Mammals	Laurasiatheria	Big brown bat	Terrestrial	Chiroptera	NULL	low_coverage	broad_1.0_april_2013
+Myotis_lucifugus	Vertebrates	Mammals	Laurasiatheria	Little brown bat	Terrestrial	Chiroptera	NULL	low_coverage	goldenpath_myoLuc2
+Myotis_davidii	Vertebrates	Mammals	Laurasiatheria	Davids myotis	Terrestrial	Chiroptera	NULL	low_coverage	bgi_1.1_april_2013
+Myotis_brandtii	Vertebrates	Mammals	Laurasiatheria	Brandts bat	Terrestrial	Chiroptera	NULL	low_coverage	ncbi_100_2013
+Orycteropus_afer	Vertebrates	Mammals	Afrotheria	Aardvark	Terrestrial	Afrotheria	NULL	low_coverage	broad_v0_2012
+Echinops_telfairi	Vertebrates	Mammals	Afrotheria	Tenrec	Terrestrial	Afrotheria	NULL	complete	goldenpath_echTel2
+Chrysochloris_asiatica	Vertebrates	Mammals	Afrotheria	Cape golden mole	Terrestrial	Afrotheria	NULL	low_coverage	broad_ChrAsi1.0_2012
+Procavia_capensis	Vertebrates	Mammals	Afrotheria	Hyrax	Terrestrial	Afrotheria	NULL	low_coverage	goldenpath_proCap1
+Trichechus_manatus	Vertebrates	Mammals	Afrotheria	Manatee	Aquatic	Afrotheria	NULL	complete	goldenpath_triMan1
+Loxodonta_africana	Vertebrates	Mammals	Afrotheria	Elephant	Terrestrial	Afrotheria	NULL	complete	goldenpath_loxAfr3
+Choloepus_hoffmanni	Vertebrates	Mammals	Xenarthra	Two-toed sloth	Terrestrial	Xenarthra	NULL	complete	goldenpath_choHof1
+Dasypus_novemcinctus	Vertebrates	Mammals	Xenarthra	Nine-banded armadillo	Terrestrial	Xenarthra	NULL	complete	goldenpath_dasNov3
+Monodelphis_domestica	Vertebrates	Mammals	Marsupials	Opossum	Terrestrial	Marsupials	NULL	complete	goldenpath_monDom5
+Macropus_eugenii	Vertebrates	Mammals	Marsupials	Tammar wallaby	Terrestrial	Marsupials	NULL	low_coverage	goldenpath_macEug2
+Sarcophilus_harrisii	Vertebrates	Mammals	Marsupials	Tasmanian devil	Terrestrial	Marsupials	NULL	complete	goldenpath_sarHar1
+Ornithorhynchus_anatinus	Vertebrates	Mammals	Monotremata	Platypus	Aquatic	Monotremata	NULL	low_coverage	goldenpath_ornAna1_2007-03
+Xenopus_tropicalis	Vertebrates	Amphibia	Amphibia	Western clawed frog	Aquatic	Anura	NULL	low_coverage	v7_2015-06-19
+Ambystoma_mexicanum	Vertebrates	Amphibia	Amphibia	Axolotl	Aquatic	Caudata	NULL	transcriptome	sung-2015
+Cynops_pyrrhogaster	Vertebrates	Amphibia	Amphibia	Japanese fire belly newt	Aquatic	Caudata	NULL	transcriptome	sung-2016
+Hynobius_chinensis	Vertebrates	Amphibia	Amphibia	Chinese salamander	Aquatic	Caudata	NULL	transcriptome	sung-2015
+Notophthalmus_viridescens	Vertebrates	Amphibia	Amphibia	Eastern newt	Aquatic	Caudata	NULL	transcriptome	sung-2015
+Triturus_carnifex	Vertebrates	Amphibia	Amphibia	Italian crested newt	Aquatic	Caudata	NULL	transcriptome	sung_2016
+Apteryx_australis_mantelli	Vertebrates	Reptiles	Paleognathae	North Island brown kiwi	Terrestrial	Apterygiformes	NULL	low_coverage	AptMant0
+Haliaeetus_albicilla	Vertebrates	Reptiles	Neognathae	White-tailed eagle	Terrestrial	Accipitriformes	NULL	low_coverage	bgi_2012-3-16
+Haliaeetus_leucocephalus	Vertebrates	Reptiles	Neognathae	Bald eagle	Terrestrial	Accipitriformes	NULL	low_coverage	bgi_2012-03-16
+Anas_platyrhynchos	Vertebrates	Reptiles	Neognathae	Peking duck	Aquatic	Anseriformes	NULL	complete	ensembl_79_BGI_duck_1.0
+Calypte_anna	Vertebrates	Reptiles	Neognathae	Annas hummingbird	Terrestrial	Apodiformes	NULL	low_coverage	bgi_2011-10-28
+Chaetura_pelagica	Vertebrates	Reptiles	Neognathae	Chimney swift	Terrestrial	Apodiformes	NULL	low_coverage	bgi_2011-10-28
+Buceros_rhinoceros	Vertebrates	Reptiles	Neognathae	Rhinoceros hornbill	Terrestrial	Bucerotiformes	NULL	low_coverage	bgi_2011-10-28
+Antrostomus_carolinensis	Vertebrates	Reptiles	Neognathae	Chuck-wills-widow	Terrestrial	Caprimulgiformes	NULL	low_coverage	bgi_2011-10-28
+Cariama_cristata	Vertebrates	Reptiles	Neognathae	Red-legged seriema	Terrestrial	Cariamiformes	NULL	low_coverage	bgi_2011-10-28
+Cathartes_aura	Vertebrates	Reptiles	Neognathae	Turkey vulture	Terrestrial	Cathartiformes	NULL	low_coverage	bgi_2011-10-28
+Charadrius_vociferus	Vertebrates	Reptiles	Neognathae	Killdeer	Terrestrial	Charadriiformes	NULL	low_coverage	bgi_2011-10-28
+Colius_striatus	Vertebrates	Reptiles	Neognathae	Speckled mousebird	Terrestrial	Coliiformes	NULL	low_coverage	bgi_2011-10-28
+Columba_livia	Vertebrates	Reptiles	Neognathae	Pigeon	Terrestrial	Columbiformes	NULL	low_coverage	bgi_2011-10-28
+Merops_nubicus	Vertebrates	Reptiles	Neognathae	Carmine bee-eater	Terrestrial	Coraciiformes	NULL	low_coverage	bgi_2011-10-28
+Cuculus_canorus	Vertebrates	Reptiles	Neognathae	Common cuckoo	Terrestrial	Cuculiformes	NULL	low_coverage	bgi_2011-10-28
+Eurypyga_helias	Vertebrates	Reptiles	Neognathae	Sunbittern	Terrestrial	Eurypygiformes	NULL	low_coverage	bgi_2011-10-28
+Falco_peregrinus	Vertebrates	Reptiles	Neognathae	Peregrine falcon	Terrestrial	Falconiformes	NULL	low_coverage	bgi_2011-10-28
+Gallus_gallus	Vertebrates	Reptiles	Neognathae	Chicken	Terrestrial	Galliformes	NULL	complete	goldenpath_galGal4
+Meleagris_gallopavo	Vertebrates	Reptiles	Neognathae	Turkey	Terrestrial	Galliformes	NULL	low_coverage	goldenpath_melGal1
+Gavia_stellata	Vertebrates	Reptiles	Neognathae	Red-throated loon	Aquatic	Gaviiformes	NULL	low_coverage	bgi_2011-10-28
+Balearica_regulorum	Vertebrates	Reptiles	Neognathae	Grey-crowned crane	Terrestrial	Gruiformes	NULL	low_coverage	bgi_2011-10-28
+Leptosomus_discolor	Vertebrates	Reptiles	Neognathae	Cuckoo-roller	Terrestrial	Leptosomiformes	NULL	low_coverage	bgi_2011-10-28
+Mesitornis_unicolor	Vertebrates	Reptiles	Neognathae	Brown mesite	Terrestrial	Mesitornithiformes	NULL	low_coverage	bgi_2011-10-28
+Tauraco_erythrolophus	Vertebrates	Reptiles	Neognathae	Red-crested turaco	Terrestrial	Musophagiformes	NULL	low_coverage	bgi_2011-10-28
+Opisthocomus_hoazin	Vertebrates	Reptiles	Neognathae	Hoatzin	Terrestrial	Opisthocomiformes	NULL	low_coverage	bgi_2011-10-28
+Chlamydotis_undulata	Vertebrates	Reptiles	Neognathae	Macqueens bustard	Terrestrial	Otidiformes	NULL	low_coverage	bgi_2011-10-28
+Acanthisitta_chloris	Vertebrates	Reptiles	Neognathae	Rifleman	Terrestrial	Passeriformes	NULL	low_coverage	bgi_2011-10-28
+Corvus_brachyrhynchos	Vertebrates	Reptiles	Neognathae	American crow	Terrestrial	Passeriformes	NULL	low_coverage	bgi_2011-10-28
+Corvus_cornix_cornix	Vertebrates	Reptiles	Neognathae	Hooded crow	Terrestrial	Passeriformes	NULL	low_coverage	932674
+Ficedula_albicollis	Vertebrates	Reptiles	Neognathae	Collared flycatcher	Terrestrial	Passeriformes	NULL	low_coverage	FicAlb_1.4
+Geospiza_fortis	Vertebrates	Reptiles	Neognathae	Medium ground finch	Terrestrial	Passeriformes	NULL	low_coverage	goldenpath_geoFor1
+Manacus_vitellinus	Vertebrates	Reptiles	Neognathae	Golden-collared manakin	Terrestrial	Passeriformes	NULL	low_coverage	28/10/2011
+Taeniopygia_guttata	Vertebrates	Reptiles	Neognathae	Zebra finch	Terrestrial	Passeriformes	NULL	low_coverage	goldenpath_taeGut2
+Egretta_garzetta	Vertebrates	Reptiles	Neognathae	Little egret	Terrestrial	Pelecaniformes	NULL	low_coverage	bgi_2011-10-28
+Nipponia_nippon	Vertebrates	Reptiles	Neognathae	Crested ibis	Terrestrial	Pelecaniformes	NULL	low_coverage	bgi_2011-10-28
+Pelecanus_crispus	Vertebrates	Reptiles	Neognathae	Dalmatian pelican	Terrestrial	Pelecaniformes	NULL	low_coverage	bgi_2011-10-28
+Phaethon_lepturus	Vertebrates	Reptiles	Neognathae	White-tailed tropicbird	Terrestrial	Phaethontiformes	NULL	low_coverage	bgi_2011-10-28
+Phoenicopterus_ruber	Vertebrates	Reptiles	Neognathae	American flamingo	Aquatic	Phoenicopteriformes	NULL	low_coverage	bgi_2011-10-28
+Picoides_pubescens	Vertebrates	Reptiles	Neognathae	Downy woodpecker	Terrestrial	Piciformes	NULL	low_coverage	bgi_2011-10-28
+Podiceps_cristatus	Vertebrates	Reptiles	Neognathae	Great-crested grebe	Aquatic	Podicipediformes	NULL	low_coverage	bgi_2011-10-28
+Fulmarus_glacialis	Vertebrates	Reptiles	Neognathae	Northern fulmar	Terrestrial	Procellariiformes	NULL	low_coverage	bgi_2011-10-28
+Melopsittacus_undulatus	Vertebrates	Reptiles	Neognathae	Budgerigar	Terrestrial	Psittaciformes	NULL	low_coverage	goldenpath_melUnd1
+Nestor_notabilis	Vertebrates	Reptiles	Neognathae	Kea	Terrestrial	Psittaciformes	NULL	low_coverage	bgi_2011-10-28
+Pterocles_gutturalis	Vertebrates	Reptiles	Neognathae	Yellow-thoated sandgrouse	Terrestrial	Pteroclidiformes	NULL	low_coverage	bgi_2011-10-28
+Aptenodytes_forsteri	Vertebrates	Reptiles	Neognathae	Emperor penguin	Aquatic	Sphenisciformes	NULL	low_coverage	bgi_2011-10-28
+Pygoscelis_adeliae	Vertebrates	Reptiles	Neognathae	Adelie penguin	Aquatic	Sphenisciformes	NULL	low_coverage	bgi_2011-10-28
+Tyto_alba	Vertebrates	Reptiles	Neognathae	Barn owl	Terrestrial	Strigiformes	NULL	low_coverage	bgi_2011-10-28
+Struthio_camelus	Vertebrates	Reptiles	Paleognathae	Common ostrich	Terrestrial	Struthioniformes	NULL	low_coverage	bgi_2011-10-28
+Phalacrocorax_carbo	Vertebrates	Reptiles	Neognathae	Great cormorant	Aquatic	Suliformes	NULL	low_coverage	bgi_2011-10-28
+Tinamus_guttatus	Vertebrates	Reptiles	Neognathae	White-throated tinamou	Terrestrial	Tinamiformes	NULL	low_coverage	bgi_2011-10-28
+Apaloderma_vittatum	Vertebrates	Reptiles	Neognathae	Bar-tailed trogon	Terrestrial	Trogoniformes	NULL	low_coverage	bgi_2011-10-28
+Crocodylus_porosus	Vertebrates	Reptiles	Crocodilia	Saltwater crocodile	Aquatic	Crocodilia	NULL	low_coverage	sub2
+Gavialis_gangeticus	Vertebrates	Reptiles	Crocodilia	Gharial	Aquatic	Crocodilia	NULL	low_coverage	ggan_v0.2
+Alligator_sinensis	Vertebrates	Reptiles	Crocodilia	Chinese alligator	Aquatic	Crocodilia	NULL	low_coverage	ASM45574v1
+Alligator_mississippiensis	Vertebrates	Reptiles	Crocodilia	American alligator	Aquatic	Crocodilia	NULL	low_coverage	goldenpath_allMis1_2012
+Oryzias_latipes	Vertebrates	Fish	Actinopterygii	Japanese rice fish	Aquatic	Beloniformes	NULL	complete	medaka1
+Astyanax_mexicanus	Vertebrates	Fish	Actinopterygii	Mexican tetra	Aquatic	Characiformes	NULL	complete	ensembl_79_AstMex102
+Clupea_harengus	Vertebrates	Fish	Actinopterygii	Atlantic herring	Aquatic	Clupeiformes	NULL	low_coverage	ncbi_7950_2015
+Danio_rerio	Vertebrates	Fish	Actinopterygii	Zebrafish	Aquatic	Cypriniformes	NULL	complete	ensembl_79_Zv9
+Poecilia_formosa	Vertebrates	Fish	Actinopterygii	Amazon molly	Aquatic	Cyprinodontiformes	NULL	low_coverage	PoeFor_5.1.2
+Xiphophorus_maculatus	Vertebrates	Fish	Actinopterygii	Southern platyfish	Aquatic	Cyprinodontiformes	NULL	low_coverage	ncbi_100_2013
+Austrofundulus_limnaeus	Vertebrates	Fish	Actinopterygii	Rivuline	Aquatic	Cyprinodontiformes	NULL	low_coverage	1
+Gadus_morhua	Vertebrates	Fish	Actinopterygii	Atlantic cod	Aquatic	Gadiformes	NULL	low_coverage	goldenpath_gadMor1_2010_05
+Gasterosteus_aculeatus	Vertebrates	Fish	Actinopterygii	Stickleback	Aquatic	Gasterosteiformes	NULL	complete	BROADS1
+Lepisosteus_oculatus	Vertebrates	Fish	Actinopterygii	Spotted gar	Aquatic	Lepisosteiformes	NULL	complete	LepOcu1
+Notothenia_coriiceps	Vertebrates	Fish	Actinopterygii	Black rockcod	Aquatic	Perciformes	NULL	low_coverage	ncbi_8208_2014
+Oreochromis_niloticus	Vertebrates	Fish	Actinopterygii	Nile tilapia	Aquatic	Perciformes	NULL	low_coverage	goldenpath_oreNil2_2011_01
+Pundamilia_nyererei	Vertebrates	Fish	Actinopterygii	Cichlid	Aquatic	Perciformes	NULL	low_coverage	PunNye1.0
+Larimichthys_crocea	Vertebrates	Fish	Actinopterygii	Large yellow croaker	Aquatic	Perciformes	NULL	low_coverage	NeoBri1.0
+Takifugu_rubripes	Vertebrates	Fish	Actinopterygii	Fugu	Aquatic	Tetraodontiformes	NULL	low_coverage	FUGU4
+Tetraodon_nigroviridis	Vertebrates	Fish	Actinopterygii	Green spotted puffer	Aquatic	Tetraodontiformes	NULL	complete	TETRAODON8
+Callorhinchus_milii	Vertebrates	Fish	Chondrichthyes	Ghost shark	Aquatic	Chimaeriformes	NULL	low_coverage	goldenpath_calMil1_2013-12
+Petromyzon_marinus	Vertebrates	Fish	Hyperoartia	Sea lamprey	Aquatic	Petromyzontiformes	NULL	low_coverage	Pmarinus_7.0
+Latimeria_chalumnae	Vertebrates	Fish	Sarcopterygii	Coelocanth	Aquatic	Coelacanthiformes	NULL	low_coverage	LatCha1
+Anolis_carolinensis	Vertebrates	Reptiles	Squamata	Green anole	Terrestrial	Squamata	NULL	complete	ensembl_79_AnoCar2.0
+Gekko_japonicus	Vertebrates	Reptiles	Squamata	Japanese gekko	Terrestrial	Squamata	NULL	low_coverage	V1.1
+Thamnophis_sirtalis	Vertebrates	Reptiles	Squamata	Garter snake	Terrestrial	Squamata	NULL	low_coverage	6
+Python_bivittatus	Vertebrates	Reptiles	Squamata	Burmese python	Terrestrial	Squamata	NULL	low_coverage	5.0.2
+Chelonia_mydas	Vertebrates	Reptiles	Squamata	Green sea turtle	Aquatic	Testudines	NULL	low_coverage	CheMyd_1.0
+Chrysemys_picta	Vertebrates	Reptiles	Squamata	Painted turtle	Aquatic	Testudines	NULL	low_coverage	goldenpath_chrPic1_2011
+Pelodiscus_sinensis	Vertebrates	Reptiles	Squamata	Chinese softshell turtle	Aquatic	Testudines	NULL	low_coverage	PelSin_1.0
+Protobothrops_mucrosquamatus	Vertebrates	Reptiles	Squamata	Viper	Terrestrial	Squamata	NULL	low_coverage	P.Mucros_1.0
