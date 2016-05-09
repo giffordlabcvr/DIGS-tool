@@ -116,7 +116,7 @@ sub consolidate {
 	my $head_scaff	=	$scaffold_array[1];
 
 	if(!@data_ref){
-		print "No $fam hits on $scaffold $orientation\n";
+		print "No hits on $scaffold $orientation\n";
 		return('nohits');
 	}
 
@@ -299,13 +299,18 @@ sub load_extract_data {
 				WHERE Orientation = '$orientation'  
 				AND Scaffold = '$scaffold_array[1]'
 				AND Bit_score > $bit_score 
-				AND Assigned_name = '$fam'
 				AND Organism = '$organism_array[0]'
 				AND Data_type = '$organism_array[1]'
 				AND Version = '$organism_array[2]'
 				AND Target_name = '$scaffold_array[0]'";
-					 #AND (e_value_exp >= $e_value_exp OR e_value_exp = 1)" ;
-					 #AND Bit_score > $bit_score
+	#This Change is to allow for a mixed consolidation
+	if($fam){
+		$query .= " AND Assigned_name = '$fam'";
+	}
+	#AND (e_value_exp >= 100 OR e_value_exp = 1)
+	#AND Assigned_name = '$fam'
+	#AND (e_value_exp >= $e_value_exp OR e_value_exp = 1)" ;
+	#AND Bit_score > $bit_score
 	# INCORPRATE PARAMETERS FOR THIS SEARCH INTO QUERY
 	if ($orientation eq '+') {
 			$query .= " ORDER BY extract_start";
@@ -417,6 +422,7 @@ sub ORFcons {
 				#IF THE LENGTH BETWEEN THE TWO HITS IS MINOR THAN $length_threshold
 				#CONSOLIDATE ORF (AND STORE NEW CONSOLIDATED HIT IN $previous_hit       
 				$previous_hit->{'record_id'} .= '-' . $current_hit->{'record_id'};
+				$previous_hit->{'assigned_name'} .= '_' . $current_hit->{'assigned_name'};
 				$previous_hit->{$realex_end} = $end_current_NT;
 				$previous_hit->{$subject_end} = $end_current_AA;
 				$out = 1; #FLAG OF SUCCESFUL CONSOLIDATION
@@ -431,6 +437,7 @@ sub ORFcons {
 			#BUT THE CURRENT_START GOES BEFORE PREVIOUS_END AT THE NUCLEOTIDE LEVEL (THEY ARE OVERLAPPING)
 			#CONSOLIDATE ORF (AND STORE NEW CONSOLIDATED HIT IN $previous_hit 
 			$previous_hit->{'record_id'} .= '-' . $current_hit->{'record_id'};
+			$previous_hit->{'assigned_name'} .= '_' . $current_hit->{'assigned_name'};
 			$previous_hit->{$realex_end} = $end_current_NT;
 			$previous_hit->{$subject_end} = $end_current_AA;
 			$out = 1;
@@ -444,6 +451,7 @@ sub ORFcons {
 				#IF THE LENGTH BETWEEN THE TWO HITS IS MINOR THAN $length_threshold
 				#CONSOLIDATE ORF (AND STORE NEW CONSOLIDATED HIT IN $previous_hit
 				$previous_hit->{'record_id'} .= '-' . $current_hit->{'record_id'};
+				$previous_hit->{'assigned_name'} .= '_' . $current_hit->{'assigned_name'};
 				$previous_hit->{$realex_end} = $end_current_NT;
 				$previous_hit->{$subject_end} = $end_current_AA;
 				$out = 1;
@@ -461,6 +469,7 @@ sub ORFcons {
 				#IF THE CURRENT_END IS BIGGER THAN THE PREVIOUS_END OR IF THEY DO FINISH AT THE SME POINT 
 				#CONSOLIDATE ORF (AND STORE NEW CONSOLIDATED HIT IN $previous_hit
 				$previous_hit->{'record_id'} .= '-' . $current_hit->{'record_id'};
+				$previous_hit->{'assigned_name'} .= '_' . $current_hit->{'assigned_name'};
 				$previous_hit->{$realex_end} = $end_current_NT;
 				$previous_hit->{$subject_end} = $end_current_AA;
 				$out = 1;
@@ -486,16 +495,19 @@ sub consolidate_features {
 	my ($self, $ori, $scaffold, $ORFtable, $chunk_path) = @_;
 
 	my ($reference_to_loci, $flag_1st_member, $lastORF,$flag_family, $counter4names, $ORF, $gene, $current_name, $previous_name);
+	my $feature_name;
 	my $threshold_chr_end = 200;
 	$lastORF = scalar(@{$ORFtable}); #get the number of members in the loci to be consolidated
 	$lastORF--; #because the first position of the array is [0]
 	my @Feature;
 	my @names=();
+	my @feature_names;
 	my @counter_name_array=();
-	my @THEnames;
+	my @THEnames=();
 	my $scaffold_len;
 	my @paths;
 	my $gi;
+	my $name;
 
 	if($scaffold =~ /\|(\d+)\|/){
 			$gi = $1;
@@ -518,9 +530,52 @@ sub consolidate_features {
 		}
 
 		$gene=$reference_to_loci->{'assigned_gene'};
-		$current_name=$reference_to_loci->{'assigned_name'};
+		#The following is to get the names off all the Sequences that compose a Locus
+		#When The consolidation mode is set on MIXED
+		$feature_name=$reference_to_loci->{'assigned_name'};
+		if($feature_name=~ /_/){
+			@feature_names = ();
+			@feature_names = split(/_/,$feature_name);
+			#find out what family is represented the most and it will be chosen as the loci family
+        	$flag_family = 0;
+        	@THEnames=();
+			foreach $name (sort(@feature_names)){
+        	    #get the first family name
+        	    if($flag_family == 0){ 
+        	        push(@THEnames, $name);
+        	        $previous_name = $name;
+        	        $counter4names=1;
+        	        $flag_family =1;
+        	        next;
+        	    }else{
+        	        #count the abundance of the families that nake the loci
+        	        #and store it into an array representing the abundance
+        	        if($previous_name eq $name){
+        	            $counter4names++;
+        	            $counter_name_array[$counter4names]=$previous_name;
+        	        }
+        	        else{
+        	            $counter_name_array[$counter4names]=$previous_name;
+        	            push(@THEnames, $name);
+       	           		$previous_name=$name;
+                   		$counter4names=1;
+       	                $counter_name_array[$counter4names]=$previous_name;
+           		    }
+	            }
+	        }
+        	#$Feature[3]=pop(@counter_name_array); #get the last family name (i.e. the most abundant)
+        	$current_name=pop(@counter_name_array);
+        	$Feature[4]='';
+        	#$Feature[5]=$ori;
+        	$Feature[4] .= join('/', @THEnames); #concatenate the different family names that compose the loci 
+	
+		}else{
+			$current_name=$feature_name;
+			$Feature[4]=$current_name;
+		}
+		#$current_name=$reference_to_loci->{'assigned_name'};
 		$Feature[3]=$current_name;
-		$Feature[4]=$current_name;
+		#$Feature[4]=$current_name;
 		$Feature[5]=$ori;
 		$Feature[6]=$gene;
 		$Feature[7]=$reference_to_loci->{'target_name'};
@@ -530,6 +585,7 @@ sub consolidate_features {
 	}
 	else{ #if the loci contains more than one member
 		$flag_1st_member = 0;
+		@names=();
 		foreach $ORF (@{$ORFtable}){ #go through the members
 			if($flag_1st_member==0){ #get the chunk name and the organim only from the first member
 				$Feature[7]=$ORF->{'target_name'};
@@ -541,8 +597,15 @@ sub consolidate_features {
 			$Feature[0] .= $ORF->{'record_id'}; #concatenate a list of the Record_ID of each member
 			$gene     = $ORF->{'assigned_gene'};
 			$current_name  = $ORF->{'assigned_name'};
+			if($current_name=~ /_/){
+				@feature_names=();
+				@feature_names = split(/_/,$current_name);
+				push(@names,@feature_names);
+			}else{
+				push(@names, $current_name); #put in an array the names of the families that make the loci
+			}
 			$Feature[6] .= $gene; #concatenate the name of the members
-			push(@names, $current_name); #put in an array the names of the families that make the loci
+			#push(@names, $current_name); #put in an array the names of the families that make the loci
 			if ($ORFtable->[$lastORF] != $ORF){ #separate the record_id and the member names by a '-'
 					$Feature[0] .= '-';
 					$Feature[6] .= '-';
@@ -563,7 +626,8 @@ sub consolidate_features {
 		}
 		#find out what family is represented the most and it will be chosen as the loci family
 		$flag_family = 0;
-		foreach my $name (sort(@names)){
+		@THEnames=();
+		foreach $name (sort(@names)){
 			#get the first family name
 			if($flag_family == 0){
 				push(@THEnames, $name);
@@ -616,7 +680,6 @@ sub consolidate_features {
 	unless($scaffold_len){
 		print "\n\t$blast_exe -db $chunk_path -entry $gi -outfmt %l\n";
 	}
-
 	#print "blastdbcmd $gi = $scaffold_len\n";
 	#die;
 	if ($ori eq '+'){
@@ -648,13 +711,13 @@ sub consolidate_features {
 		}
 	}
 
-	my %results = (
+	 my %results = (
 		'extracted_id'     => $Feature[0],
 		'orientation'      => $Feature[5],
 		'extract_start'    => $Feature[1],
 		'extract_end'      => $Feature[2],
 		'assigned_name'    => $Feature[3],
-		#'assigned_notes'   => $Feature[4], #the different family names that compose the loci
+		'assigned_notes'   => $Feature[4], #the different family names that compose the loci
 		'scaffold'         => $scaffold,
 		'target_name'      => $Feature[7],
 		'organism'         => $Feature[8],
@@ -663,6 +726,7 @@ sub consolidate_features {
 		'version'          => $Feature[10]
 	);
 	return(\%results); # return a reference to a hash
+	
 }
 
 #***************************************************************************
@@ -670,17 +734,21 @@ sub consolidate_features {
 # Description: 
 #***************************************************************************
 sub insert_loci_data {
-
-	my ($self, $db_name, $Featuresmain_ref) = @_;
+	
+	#I add the consolidation file that will store the identities of 
+	#the sequences that composed a Locus (when consolidation mode is set to MIXED)
+	my ($self, $db_name, $Featuresmain_ref, $consolidation_file) = @_;
 
 	my $db_obj = $self->{db};
 	unless ($db_obj) { die; }
-
+	if($consolidation_file){
+		open(TAB, ">>$consolidation_file") || die "\n\tCannot open $consolidation_file\n";
+	}
 	# GET A LIST OF UNIQUE SCAFFOLDS, associated with chunk info
 	my $loci_table = $db_obj->{loci_table};
 	my $loci_link_table = $db_obj->{loci_link_table};
 	unless ($loci_table and $loci_link_table) { die; }
-
+	#print "\n\tI entered here!!!!!!!\n";	
 	my ($reftoarray, $reftohash);
 	my $insert_clause;
 	foreach $reftoarray (@$Featuresmain_ref){ #each entry of Featuresmain is an aarray of hashes for each scaffold
@@ -703,7 +771,20 @@ sub insert_loci_data {
 				#$devtools->print_hash(\%link_data); die;
 				$loci_link_table->insert_row(\%link_data);
 			}
+			my $names_string = $reftohash->{'assigned_notes'};
+            my @assigned_names = split('/', $names_string);
+			my $assigned_name = $reftohash->{'assigned_name'};
+			if($consolidation_file){
+				print TAB "$locus_id\t$assigned_name";
+            	foreach my $name (@assigned_names) {
+                	print TAB "\t$name";
+				
+            	}
+				print TAB "\n";
+			}   
 		}
 	}
+
+	if($consolidation_file){close(TAB);}
 }
 

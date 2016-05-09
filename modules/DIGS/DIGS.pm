@@ -67,6 +67,7 @@ sub new {
 	
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},
+		consolidation_mode     => '',   # Obtained from control file
 	};
 	
 	bless ($self, $class);
@@ -89,14 +90,14 @@ sub run_digs_process {
 	$self->show_title();  
 
 	# Do initial set up and sanity checking for options that require it
-	if ($option < 8) { # Validate configurations that require a control file
+	if ($option < 9) { # Validate configurations that require a control file
 		# An infile must be defined
 		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file);
 	}
 
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 8) {
+	if ( $option > 1 and $option < 9) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -117,18 +118,21 @@ sub run_digs_process {
 	elsif ($option eq 4) { # Reassign data in Exracted table
 		$self->interactive_defragment();	
 	}
-	elsif ($option eq 5) { # Flush screening DB
+	elsif ($option eq 5) { # Consolidate Extracted Data in Loci table
+        $self->consolidate();
+    }    
+	elsif ($option eq 6) { # Flush screening DB
 		my $db = $self->{db};
 		$db->flush_screening_db();
 	}
-	elsif ($option eq 6) { # Drop screening DB 
+	elsif ($option eq 7) { # Drop screening DB 
 		my $db = $self->{db};
 		$db->drop_screening_db();    
 	}
-	elsif ($option eq 7) { # Add a table of data to the screening database
+	elsif ($option eq 8) { # Add a table of data to the screening database
 		$self->extend_screening_db();
 	}
-	elsif ($option eq 8) { # Add a table of data to the screening database
+	elsif ($option eq 9) { # Add a table of data to the screening database
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
@@ -501,6 +505,270 @@ sub reassign {
 	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
+}
+
+############################################################################
+# SECTION: Consolidation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  Consolidate
+# Description:  
+#***************************************************************************
+sub consolidate {
+
+    my ($self) = @_;
+    print "\n\t ### Consolidating hits into Loci\n";
+    # Set up for consolidation
+    my @scaffolds;
+    my %scaffolds_assigned;
+    my @assigned_names;
+    my %chunks;
+    my $consolidation_mode = $self->{consolidation_mode};
+    $self->get_tax_group();
+    if($consolidation_mode == 1){
+        $self->set_up_consolidation_assigned(\@scaffolds,\%scaffolds_assigned, \@assigned_names, \%chunks);
+        print "\n\tDONE SET UP\n";
+        $self->consolidate_assigned(\@scaffolds,\%scaffolds_assigned, \@assigned_names, \%chunks);
+    }else{
+        #mixed
+        $self->set_up_consolidation_mixed(\@scaffolds,\%scaffolds_assigned, \@assigned_names, \%chunks);
+        print "\n\tDONE SET UP\n";
+        $self->consolidate_mixed(\@scaffolds,\%scaffolds_assigned, \@assigned_names, \%chunks);
+    }    
+
+    print "\n\t ### Done Consolidating hits into Loci\n";
+}
+
+#***************************************************************************
+# Subroutine:  get_tax_group
+# Description: get the taxonomic group of the screening targets
+#***************************************************************************
+sub get_tax_group{
+
+    my ($self) = @_;
+
+    #GET PATH TO CHUNK
+    my $first_group;
+    my $group;
+    my $paths = $self->{target_paths};
+    unless ($paths) {
+        print "\npaths\t$paths\n";
+        die;
+    }
+    my $first_path = shift(@$paths);
+    my @path_bits = split(/\//,$first_path);
+    if ($first_path =~ /^\//){
+        $first_group = $path_bits[1];
+    }else{
+        $first_group = $path_bits[0];
+    }
+    foreach my $path (@$paths){
+        @path_bits =();
+        @path_bits = split(/\//,$path);
+        if ($path =~ /^\//){
+            $group = $path_bits[1];
+        }else{
+            $group = $path_bits[0];
+        }
+        if ($group ne $first_group){
+            die "\n\tCannot consolidate from Screening using multiple taxonomic groups\n";
+        }
+    }
+    if($group){
+        $self->{group} = $group;
+    }else{
+        $self->{group} = $first_group;
+    }
+    #and then from extracted get Organism Data type and VErsion (including the target_name)
+}
+
+
+
+#***************************************************************************
+# Subroutine:  set_up_consolidation_assigned
+# Description: 
+#***************************************************************************
+sub set_up_consolidation_assigned {
+
+    my ($self, $scaffs_array_ref, $scaffs_hash_ref, $assigned_ref, $chunks_ref) = @_;
+
+    my $db_obj = $self->{db};
+    unless ($db_obj) { die; }
+
+    # GET A LIST OF ALL ASSIGNED_NAME FROM EXTRACTED
+    my $extracted_table = $db_obj->{extracted_table};
+    my @fields = qw [ assigned_name ];
+    my @data;
+    $extracted_table->select_distinct(\@fields, \@data);
+    foreach my $row (@data) {
+
+        my $assigned_name = $row->{assigned_name};
+        chomp ($assigned_name);
+        push(@$assigned_ref, $assigned_name);
+    }
+
+    print "\n\tDONE ASSIGNED SET UP\n";
+
+    foreach my $assigned (@$assigned_ref){
+    #my @a = ('Actinopterygii_Morone.Ocean2', 'Actinopterygii_Esox.Omega');
+    #foreach my $assigned (@a){
+        # GET A LIST OF UNIQUE SCAFFOLDS, associated with chunk info
+        my @array_of_scaffolds = ();
+        @fields = ();
+        @fields = qw [ organism data_type version target_name scaffold ];
+        @data = ();
+        my $where = 'WHERE Assigned_name = \'' . $assigned . '\'';
+        $extracted_table->select_distinct(\@fields, \@data, $where);
+        foreach my $row (@data) {
+
+            my $organism    = $row->{organism};
+            my $data_type   = $row->{data_type};
+            my $version     = $row->{version};
+            my $chunk_name  = $row->{target_name};
+            my $scaffold    = $row->{scaffold};
+
+            chomp($organism);
+            chomp($data_type);
+            chomp($version);
+            chomp($chunk_name);
+            chomp($scaffold);
+
+            my $key = $version . '/' . $chunk_name . '^' . $scaffold;
+            my $content = $organism . '/' . $data_type . '/';
+            my $key2 = $content . $key;
+            $chunks_ref->{$key} = $content;
+
+            push (@$scaffs_array_ref, $key2);
+            push (@array_of_scaffolds, $key2);
+        }
+        @{$scaffs_hash_ref->{$assigned}} = @array_of_scaffolds;
+        print "\n\tDONE Scaffolds with $assigned\n";
+    }
+
+}
+
+#***************************************************************************
+# Subroutine:  set up consolidation mixed
+# Description: 
+#***************************************************************************
+sub set_up_consolidation_mixed {
+
+    my ($self, $scaffs_array_ref, $scaffs_hash_ref, $assigned_ref, $chunks_ref) = @_;
+
+    my $db_obj = $self->{db};
+    unless ($db_obj) { die; }
+
+    # GET A LIST OF ALL ASSIGNED_NAME FROM EXTRACTED
+    my $extracted_table = $db_obj->{extracted_table};
+    my @fields = qw [ assigned_name ];
+    my @data;
+    $extracted_table->select_distinct(\@fields, \@data);
+    foreach my $row (@data) {
+
+        my $assigned_name = $row->{assigned_name};
+        chomp ($assigned_name);
+        push(@$assigned_ref, $assigned_name);
+    }
+
+    print "\n\tDONE ASSIGNED SET UP\n";
+  
+    my @array_of_scaffolds = ();
+    @fields = ();
+    @fields = qw [ organism data_type version target_name scaffold ];
+    @data = ();
+    $extracted_table->select_distinct(\@fields, \@data);
+    foreach my $row (@data) {
+
+        my $organism    = $row->{organism};
+        my $data_type   = $row->{data_type};
+        my $version     = $row->{version};
+        my $chunk_name  = $row->{target_name};
+        my $scaffold    = $row->{scaffold};
+
+        chomp($organism);
+        chomp($data_type);
+        chomp($version);
+        chomp($chunk_name);
+        chomp($scaffold);
+
+        my $key = $version . '/' . $chunk_name . '^' . $scaffold;
+        my $content = $organism . '/' . $data_type . '/';
+        my $key2 = $content . $key;
+        $chunks_ref->{$key} = $content;
+
+        push (@$scaffs_array_ref, $key2);
+        push (@array_of_scaffolds, $key2);
+    }
+}
+
+#***************************************************************************
+# Subroutine:  consolidate_assigned
+# Description:  
+#***************************************************************************
+sub consolidate_assigned {
+
+    my ($self, $scaffs_array_ref, $scaffs_hash_ref, $assigned_ref, $chunks_ref) = @_;
+
+    my @array_of_scaffolds;
+
+    my $cons_obj = Consolidation->new($self);
+
+    # DO THE CONSOLIDATION FOR EACH Assigned and Scaffold
+    foreach my $assigned (@{$assigned_ref}){
+        my @CONSmain;  # This is where the results get stored
+        @array_of_scaffolds = ();
+        @array_of_scaffolds = @{$scaffs_hash_ref->{$assigned}};
+        foreach my $scaf (@array_of_scaffolds){
+
+                    # Run the consolidate on plus strand
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '+ve', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf +ve orientation\n";
+
+                    # Run the consolidate on minus strand
+                    push(@CONSmain, $cons_obj->consolidate( $scaf, '-ve', $assigned));
+                    print "\nDone Consolidating $assigned in $scaf -ve orientation\n";
+        }   
+
+            # Insert the data
+            my $db_name   = $self->{db_name};
+            $cons_obj->insert_loci_data($db_name, \@CONSmain);
+            print "\n##################################################################\n";
+            #die;
+    }   
+}
+
+
+#***************************************************************************
+# Subroutine:  consolidate_mixed
+# Description:  
+#***************************************************************************
+sub consolidate_mixed {
+
+    my ($self, $scaffs_array_ref, $scaffs_hash_ref, $assigned_ref, $chunks_ref) = @_;
+
+    my $consolidation_file = $self->{consolidation_file};
+   
+    my $cons_obj = Consolidation->new($self);
+
+    # DO THE CONSOLIDATION FOR EACH Assigned and Scaffold
+    foreach my $scaf (@{$scaffs_array_ref}){
+        my @CONSmain;
+        # Run the consolidate on plus strand
+        push(@CONSmain, $cons_obj->consolidate( $scaf, '+ve'));
+        print "\nDone Consolidating $scaf +ve orientation\n";
+
+        # Run the consolidate on minus strand
+        push(@CONSmain, $cons_obj->consolidate( $scaf, '-ve'));
+        print "\nDone Consolidating $scaf -ve orientation\n";
+
+        # Insert the data
+        my $db_name   = $self->{db_name};
+        $cons_obj->insert_loci_data($db_name, \@CONSmain, $consolidation_file);
+        print "\n##################################################################\n";
+        #die;
+    }   
+
 }
 
 
@@ -1450,10 +1718,11 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=2  Screen"; 
 		$HELP  .= "\n\t -m=3  Reassign"; 
 		$HELP  .= "\n\t -m=4  Defragment"; 
-		$HELP  .= "\n\t -m=5  Flush screening DB"; 
-		$HELP  .= "\n\t -m=6  Drop screening DB"; 
-		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
-		$HELP  .= "\n\t -m=8  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=5  Consolidate";
+		$HELP  .= "\n\t -m=6  Flush screening DB"; 
+		$HELP  .= "\n\t -m=7  Drop screening DB"; 
+		$HELP  .= "\n\t -m=8  Manage ancillary tables"; 
+		$HELP  .= "\n\t -m=9  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)\n\n";

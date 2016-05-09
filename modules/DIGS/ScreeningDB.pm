@@ -65,6 +65,8 @@ sub new {
 		status_table          => 0,
 		blast_results_table   => 0,
 		extracted_table       => 0,
+		loci_table            => 0,
+		loci_link_table       => 0,
 	
 	};
 	
@@ -107,7 +109,9 @@ sub load_screening_db {
 	print   "\t  Connecting to DB:  $db_name";
 	$self->load_status_table($dbh);	
 	$self->load_blast_results_table($dbh);	
-	$self->load_extracted_table($dbh);	
+	$self->load_extracted_table($dbh);
+	$self->load_loci_table($dbh);
+	$self->load_loci_link_table($dbh);	
 }
 
 ############################################################################
@@ -206,6 +210,51 @@ sub load_extracted_table {
 	$self->{extracted_table} = $extract_table;
 }
 
+#***************************************************************************
+# Subroutine:  load_loci_table
+# Description: load screening database table 'Loci'
+#***************************************************************************
+sub load_loci_table {
+
+    my ($self, $dbh) = @_;
+
+    # Definition of the loci table
+    my %loci_fields = (
+        organism         => 'varchar',
+        version          => 'varchar',
+        data_type        => 'varchar',
+        target_name      => 'varchar',
+        scaffold         => 'varchar',
+        orientation      => 'varchar',
+        assigned_name    => 'varchar',
+        extract_start    => 'int',
+        extract_end      => 'int',
+        genome_structure => 'text',
+
+    );   
+    my $loci_table = MySQLtable->new('Loci', $dbh, \%loci_fields);
+    $self->{loci_table} = $loci_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_loci_link_table
+# Description: load screening database table 'Loci'
+#***************************************************************************
+sub load_loci_link_table {
+
+    my ($self, $dbh) = @_;
+
+    # Definition of the loci table
+    my %loci_fields = (
+        locus_id       => 'int',
+        extracted_id   => 'int',
+    );   
+    my $loci_table = MySQLtable->new('Loci_link', $dbh, \%loci_fields);
+    $self->{loci_link_table} = $loci_table;
+}
+
+
+
 ############################################################################
 # CREATE SCREENING DATABASE TABLES
 ############################################################################
@@ -234,6 +283,8 @@ sub create_screening_db {
 	$self->create_status_table($dbh);
 	$self->create_blast_results_table($dbh);
 	$self->create_extracted_table($dbh);
+	$self->create_loci_table($dbh);
+	$self->create_loci_link_table($dbh);
 }
 
 #***************************************************************************
@@ -343,6 +394,61 @@ sub create_extracted_table {
 }
 
 #***************************************************************************
+# Subroutine:  create_loci_table
+# Description: create MySQL 'Loci' table
+#***************************************************************************
+sub create_loci_table {
+
+    my ($self, $dbh) = @_;
+
+    # Loci table 
+    my $loci = "CREATE TABLE `Loci` (
+        `Record_ID`         int(11) NOT NULL auto_increment,
+        `Organism`      varchar(100) NOT NULL default '0',
+        `Data_type`     varchar(100) NOT NULL default '0',
+        `Version`       varchar(100) NOT NULL default '0',
+        `Target_name`   varchar(100) NOT NULL default '0',
+
+        `Scaffold`      varchar(100) default 'NULL',
+        `Orientation`   varchar(100) NOT NULL default '0',
+
+        `Assigned_name`    varchar(100) NOT NULL default '0',
+        `Extract_start`     int(11) NOT NULL default '0',
+        `Extract_end`       int(11) NOT NULL default '0',
+        `Genome_structure`  text NOT NULL,
+      
+        `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`Record_ID`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+    my $sth = $dbh->prepare($loci);
+    unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_loci_link_table
+# Description: create MySQL 'Loci' table
+#***************************************************************************
+sub create_loci_link_table {
+
+    my ($self, $dbh) = @_;
+
+    # Loci table 
+    my $loci = "CREATE TABLE `Loci_link` (
+      `Record_ID`       int(11) NOT NULL auto_increment,
+      `Locus_ID`        int(11) NOT NULL default '0',
+      `Extracted_ID`    int(11) NOT NULL default '0',
+      `Timestamp`       timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`Record_ID`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+    my $sth = $dbh->prepare($loci);
+    unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+############################################################################
+# UPDATING DATABASES AND TABLES
+############################################################################
+
+#***************************************************************************
 # Subroutine:  index_previously_executed_queries 
 # Description: index BLAST searches that have previously been executed
 #***************************************************************************
@@ -436,10 +542,13 @@ sub flush_screening_db {
 		#sleep 3;
 
 		# get tables
-		my $blast_results_table  = $self->{blast_results_table};
-		my $extracted_table      = $self->{extracted_table};
-		my $status_table         = $self->{status_table};
-		
+		my $blast_results_table  	= $self->{blast_results_table};
+		my $extracted_table      	= $self->{extracted_table};
+		my $status_table         	= $self->{status_table};
+		my $loci_table         		= $self->{loci_table};
+		my $loci_link_table         = $self->{loci_link_table};
+
+
 		# Flush result tables
 		$blast_results_table->flush();
 		$blast_results_table->reset_primary_keys();
@@ -447,6 +556,11 @@ sub flush_screening_db {
 		$extracted_table->reset_primary_keys();
 		$status_table->flush();
 		$status_table->reset_primary_keys();
+		$loci_table->flush();
+		$loci_table->reset_primary_keys();
+		$loci_link_table->flush();
+		$loci_link_table->reset_primary_keys();
+
 	}
 }
 

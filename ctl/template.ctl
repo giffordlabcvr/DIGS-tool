@@ -20,3 +20,14 @@ ENDBLOCK;
 BEGIN TARGETS;
 Mammals/Mus_musculus/complete/goldenpath_mm10
 ENDBLOCK;
+
+BEGIN CONSOLIDATION;
+#consolidate by assigned -> consolidation_mode=1
+#consolidate mixed -> consolidation_mode=2
+consolidation_mode=1;
+#consolidation_file: will store the identities of the sequences that form a Locus when consolidation_mode=2
+consolidation_file=[path for consolidation_file];
+length_threshold_between_ORFs=10000;
+genome_structure=LTR-gag-pol-env-LTR;
+ENDBLOCK;
+

@@ -115,6 +115,9 @@ sub parse_control_file {
 	# READ the 'TARGETS' block
 	$self->parse_targets_block(\@ctl_file);
 	
+    # READ the 'CONSOLIDATION' block
+    $self->parse_consolidation_block(\@ctl_file);
+
 	# Set parameters in pipeline object
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
@@ -137,6 +140,11 @@ sub parse_control_file {
 	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
 	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
+    $pipeline_obj->{length_threshold}       = $self->{length_threshold_between_ORFs};
+    $pipeline_obj->{genome_structure}       = $self->{genome_structure};
+    $pipeline_obj->{consolidation_mode}     = $self->{consolidation_mode};
+    $pipeline_obj->{consolidation_file}     = $self->{consolidation_file};
+
 }
 
 #***************************************************************************
@@ -578,6 +586,48 @@ sub parse_targets_block {
 	}
 	$self->{target_paths} = \@targets;
 }
+
+#***************************************************************************
+# Subroutine:  parse_consolidation_block
+# Description: get parameters for defragmenting/consolidating hits
+#***************************************************************************
+sub parse_consolidation_block {
+
+    my ($self, $file_ref) = @_;
+
+    # Parse the 'CONSOLIDATION' block
+    my $start = 'BEGIN CONSOLIDATION';
+    my $stop  = 'ENDBLOCK';
+    my $db_block = $fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
+    unless ($db_block)  {
+        print "\n\t Warning no 'CONSOLIDATION' block found\n\n\n";
+        return;
+    }
+
+    # Get the 'CONSOLIDATION' block values and validate
+    my $length_threshold    = $self->{length_threshold_between_ORFs};
+    my $genome_structure    = $self->{genome_structure};
+    my $consolidation_mode  = $self->{consolidation_mode};
+    my $consolidation_file  = $self->{consolidation_file};
+
+    unless ($length_threshold)  {
+        die "\n\t Control file error: 'length_threshold_between_ORFs' undefined in 'CONSOLIDATION' block\n\n\n";
+    }
+    unless ($genome_structure)  {
+        die "\n\t Control file error: 'genome_structure' undefined in 'CONSOLIDATION' block\n\n\n";
+    }
+    if ($consolidation_mode)  {
+        if($consolidation_mode==2){
+            unless ($consolidation_file){
+                die "\n\t Control file error: 'consolidation_file' undefined in 'CONSOLIDATION' block\n\n\n";
+            }
+        }
+    }else{
+        die "\n\t Control file error: 'consolidation_mode' undefined in 'CONSOLIDATION' block\n\n\n";
+    }
+
+}
+
 
 #***************************************************************************
 # Subroutine:  create output directories
