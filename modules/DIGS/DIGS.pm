@@ -176,6 +176,39 @@ sub run_utility_process {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  run_digs_test
+# Description: handler for DIGS tool test functions 
+#***************************************************************************
+sub run_digs_test {
+
+	my ($self, $option, $ctl_file) = @_;
+
+ 	# Show title
+	$self->show_title();  
+
+	# Hand off to functions 
+	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
+	$self->{override} = 'true';
+	$self->initialise($ctl_file);
+		
+	my $db_name = $self->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	
+	my $db_obj = ScreeningDB->new($self);
+	#$db_obj->drop_screening_db($db_name);	
+	$self->create_screening_db($ctl_file);	
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # database initialised here
+
+	if ($option eq 1) { # Load test database
+		$self->load_test_data();
+	}
+	else {
+		print "\n\t  Unrecognized option '-t=$option'\n";
+	}
+}
+
 ############################################################################
 # MAIN FUNCTIONS
 ############################################################################
@@ -635,6 +668,9 @@ sub initialise {
 
 	my ($self, $ctl_file) = @_;
 
+	# Get override setting
+	my $override = $self->{override};
+
 	# Try opening control file
 	my @ctl_file;
 	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
@@ -645,10 +681,12 @@ sub initialise {
 	# If control file looks OK, store the path and parse the file
 	$self->{ctl_file}   = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self);
+	$loader_obj->parse_control_file($ctl_file, $self, $override);
 
 	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj; 
+	$self->{loader_obj} = $loader_obj;
+	
+	
 }
 
 #***************************************************************************
@@ -1361,9 +1399,7 @@ sub write_matrix {
 	my $file = 'matrix.txt';
 	$fileio->write_file($file, \@matrix);
 
-	$devtools->print_hash($matrix_ref);
-
-
+	#$devtools->print_hash($matrix_ref);
 }
 
 #***************************************************************************
@@ -1457,6 +1493,51 @@ sub show_help_page {
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)\n\n";
 	print $HELP;
+}
+
+
+############################################################################
+# TEST AND VALIDATION FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  load_test_data
+# Description: 
+#***************************************************************************
+sub load_test_data {
+
+	my ($self) = @_;
+
+	my %data;
+	$data{blast_id}        = 1;
+	$data{organism}        = 'Test_organism';
+	$data{data_type}       = 'Test_data_type';
+	$data{version}         = 'Test_version';
+	$data{target_name}     = 'Test_target_name';
+	$data{probe_type}      = 'Test_probe_type';
+	$data{scaffold}        = 'Test_scaffold';
+	$data{extract_start}   = '10000';
+	$data{extract_end}     = '11000';
+	$data{sequence_length} = '1000';
+	$data{sequence}        = 'ATG';
+	$data{assigned_name}   = 'Test_assign';
+	$data{assigned_gene}   = 'Test_assign_gene';
+	$data{assigned_gene}   = 'Test_assign_gene';
+	$data{Orientation}     = '+';
+	$data{Bit_score}       = 100;
+	$data{Identity}        = 100;
+	$data{e_value_num}     = '100';
+	$data{e_value_exp}     = '1';
+	$data{Subject_start}   = '1';
+	$data{Subject_end}     = '1000';
+	$data{Query_start}     = '1';
+	$data{Query_end}       = '1000';
+	$data{Align_len}       = '1000';
+	$data{Gap_openings}    = '0';
+	$data{Mismatches}      = '0';
+	
+	my $db = $self->{db}; # database initialised here
+
 }
 
 ############################################################################

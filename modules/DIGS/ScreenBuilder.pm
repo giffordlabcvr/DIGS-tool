@@ -100,7 +100,7 @@ sub set_up_screen  {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj) = @_;
+	my ($self, $ctl_file, $pipeline_obj, $override) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -110,10 +110,14 @@ sub parse_control_file {
 	$self->parse_screendb_block(\@ctl_file);
 
 	# Parse the 'SCREENSETS' block
-	$self->parse_screensets_block(\@ctl_file);
+	unless ($override) {
+		$self->parse_screensets_block(\@ctl_file);
+	}
 
 	# READ the 'TARGETS' block
-	$self->parse_targets_block(\@ctl_file);
+	unless ($override) {
+		$self->parse_targets_block(\@ctl_file);
+	}
 	
 	# Set parameters in pipeline object
 	$pipeline_obj->{db_name}                = $self->{db_name};

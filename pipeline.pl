@@ -111,18 +111,23 @@ sub main {
 	
 	# Options that require a numerical value
 	my $mode     = undef;
-
+	my $utility  = undef;
+	my $test     = undef;
+	
 	# Options that don't require a value
 	my $help     = undef;
 	my $version  = undef;
-	my $utility  = undef;
-	
+
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
 			    'utility=i'       => \$utility,
+			    'test|m=i'        => \$test,
+			    
 			    'infile|i=s'      => \$infile,
+			    
 			    'help'            => \$help,
 			    'version'         => \$version,
+			    
 	) or die $USAGE;
 	
 	# Hand off to functions
@@ -133,11 +138,14 @@ sub main {
 		$pipeline_obj->show_help_page();
 		exit;
 	}
-	elsif ($mode) { # Run the digs tool 
+	elsif ($mode) { # Main DIGS tool functions 
 		$pipeline_obj->run_digs_process($mode, $infile); 
 	}
-	elsif ($utility) { # Run the digs tool
+	elsif ($utility) { # Utility functions
 		$pipeline_obj->run_utility_process($utility, $infile); 
+	}
+	elsif ($test) { # Tests
+		$pipeline_obj->run_digs_test($test, $infile); 
 	}
 	else { die $USAGE; }
 
