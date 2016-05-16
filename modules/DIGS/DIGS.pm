@@ -255,7 +255,7 @@ sub screen {
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);
 			
-			# Consolidate the BLAST table based on results
+			# Deal with overlapping, redundant & fragmented hits
 			$self->consolidate_hits($query_ref);
 		
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
@@ -278,7 +278,6 @@ sub screen {
 #***************************************************************************
 # Subroutine:  search
 # Description: execute a search (i.e. run a BLAST query)
-# Arguments:   $query_ref - data structure with the query details
 #***************************************************************************
 sub search {
 	
@@ -290,6 +289,7 @@ sub search {
 	my $tmp_path        = $self->{tmp_path};
 	my $min_length      = $self->{seq_length_minimum};
 
+	# Show screening process
 	my $total_queries   = $self->{total_queries};
 	my $num_queries     = $self->{num_queries};	
 	unless ($num_queries and $total_queries) { die; }
@@ -339,14 +339,12 @@ sub search {
 
 	# Store new new BLAST hits that meet conditions
 	my $blast_results_table = $db_ref->{blast_results_table};
-	my $i = 0;
 	my $num_hits = scalar @hits;
 	if ($num_hits > 0) {
 		print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
 	}
-	foreach my $hit_ref (@hits) {
 	
-		$i++;
+	foreach my $hit_ref (@hits) {
 		
 		# Skip sequences that are too short
 		my $start  = $hit_ref->{subject_start};
@@ -381,136 +379,15 @@ sub consolidate_hits {
 
 	# Get the set of hits (rows in BLAST_results table) to look at
 	my @hits;
-	select_blast_hits_for_consolidation($query_ref, \@hits);
+	$self->select_blast_hits_for_consolidation($query_ref, \@hits);
 	
 	# Apply consolidation rules to overlapping and/or redundant hits
 	my %consolidated;
 	my %retained;
-	do_consolidation($query_ref, \@hits, \%consolidated, \%retained);
+	$self->do_consolidation($query_ref, \@hits, \%consolidated, \%retained);
 
 	# Update database
-	$self->update_db_loci(\@hits, \%retained, \%consolidated);
-	
-}
-
-#***************************************************************************
-# Subroutine:  select_blast_hits_for_consolidation
-# Description: select BLAST hits according to 'redundancy_mode' setting
-#***************************************************************************
-sub select_blast_hits_for_consolidation {
-	
-	my ($self, $query_ref, $hits_ref) = @_;
-	
-	# Get relevant member variables and objects
-	my $db_ref  = $self->{db};
-	my $redundancy_mode = $self->{redundancy_mode};
-	my $blast_results_table = $db_ref->{blast_results_table};
-	unless ($redundancy_mode) { die; } 
-	
-	# Set the fields to get values for
-	my @fields = qw [ record_id scaffold orientation
-	                  subject_start subject_end
-                      query_start query_end ];
-
-	# Get the information for this query
-	my $target_name = $query_ref->{target_name};
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-
-	my $where  = " WHERE target_name = '$target_name'";
-
-	# Handle different modes
-	if ($redundancy_mode eq 1) {
-		return; # Do nothing else
-	}
-	if ($self->{redundancy_mode} eq 2) {
-		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
-		$where .= " AND probe_gene = '$probe_gene' ";
-	}
-	elsif ($self->{redundancy_mode} eq 3) {
-		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
-		$where .= " AND probe_name = '$probe_name'
-                    AND probe_gene = '$probe_gene' ";
-	}
-
-	# Order by ascending start coordinates within each scaffold in the target file
-	$where .= "ORDER BY scaffold, subject_start ";
-	
-	# Get the table rows for these hits
-	$blast_results_table->select_rows(\@fields, $hits_ref, $where);
-	
-}
-
-#***************************************************************************
-# Subroutine:  do_consolidation
-# Description: apply consolidation rules to overlapping/redundant hits
-#***************************************************************************
-sub do_consolidation {
-	
-	my ($self, $query_ref, $hits_ref, $retained_ref, $consolidated_ref) = @_;
-	
-	# Iterate through consolidating as we go
-	my $i;
-	my %last_hit;
-	my $consolidated_count = 0;
-	foreach my $hit_ref (@$hits_ref)  {
-
-		# Get hit values
-		$i++;
-		my $record_id     = $hit_ref->{record_id};
-		my $scaffold      = $hit_ref->{scaffold};
-		my $orientation   = $hit_ref->{orientation};
-		my $subject_start = $hit_ref->{subject_start};
-		
-		# Get last hit values
-		my $last_record_id     = $last_hit{record_id};
-		my $last_scaffold      = $last_hit{scaffold};
-		my $last_orientation   = $last_hit{orientation};
-		my $consolidated;
-
-		if ($verbose) {
-			print "\n\t $subject_start: RECORD ID $record_id";
-		}
-
-		# Keep if first in this loop process
-		if ($i eq 1) {
-			$retained_ref->{$record_id} = 1;
-		}
-		# ...or if first hit on scaffold
-		elsif ($scaffold ne $last_scaffold) {
-			$retained_ref->{$record_id} = 1;
-		}
-		# ...or if in opposite orientation to last hit
-		elsif ($orientation ne $last_orientation) {
-			$retained_ref->{$record_id} = 1;
-		}
-		else { # If we get this far we have two hits on the same scaffold
-			
-			# Check whether to consolidate hit on the same target scaffold
-			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
-
-			# Keep track of the outcome
-			if ($consolidated) {
-				$consolidated_count++;
-				my %hit = %last_hit; # Make a copy
-				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
-				$consolidated_ref->{$record_id} = \%hit;
-				$retained_ref->{$last_record_id} = 1;
-			}
-			else { $retained_ref->{$record_id} = 1; }
-		}
-		
-		# Update the 'last hit' to the current one before exiting this iteration
-		unless ($consolidated) {
-			$last_hit{record_id}     = $record_id;
-			$last_hit{scaffold}      = $scaffold;
-			$last_hit{orientation}   = $orientation;
-			$last_hit{subject_start} = $hit_ref->{subject_start};
-			$last_hit{subject_end}   = $hit_ref->{subject_end};
-			$last_hit{query_start}   = $hit_ref->{query_start};
-			$last_hit{query_end}     = $hit_ref->{query_end};
-		}
-	}
+	$self->update_db_loci(\@hits, \%consolidated, \%retained);
 	
 }
 
@@ -656,11 +533,6 @@ sub reassign {
 	system $command1;
 }
 
-
-############################################################################
-# SECTION: Extend the screening database by adding ancillary tables
-############################################################################
-
 #***************************************************************************
 # Subroutine:  extend_screening_db
 # Description: console managemant of ancillary tables in the screening database
@@ -777,7 +649,7 @@ sub extend_screening_db {
 }
 
 ############################################################################
-# ANCILLARY FUNCTIONS 
+# INTERNALS
 ############################################################################
 
 #***************************************************************************
@@ -803,6 +675,13 @@ sub initialise {
 	$self->{ctl_file}   = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($self);
 	$loader_obj->parse_control_file($ctl_file, $self, $override);
+
+	# Update numthreads setting in BLAST object
+	my $num_threads = $loader_obj->{num_threads};
+	unless ($num_threads) {
+		$num_threads = 1;
+	}
+	$self->{blast_obj}->{num_threads} = $num_threads;
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
@@ -963,7 +842,7 @@ sub do_reverse_blast {
 
 #***************************************************************************
 # Subroutine:  extract_unassigned_hits
-# Description: extract BLAST hit sequences that are not in Extracted table
+# Description: extract sequences that are not in Extracted table
 #***************************************************************************
 sub extract_unassigned_hits {
 	
@@ -1026,9 +905,13 @@ sub extract_unassigned_hits {
 }
 
 
+############################################################################
+# FUNCTIONS associated with consolidating / defragmenting BLAST hits 
+###########################################################################
+
 #***************************************************************************
-# Subroutine: interactive_defragment 
-# Description:
+# Subroutine:  interactive_defragment 
+# Description: console driven menu options for interactive defragment
 #***************************************************************************
 sub interactive_defragment {
 
@@ -1096,83 +979,123 @@ sub interactive_defragment {
 }
 
 #***************************************************************************
-# Subroutine: preview_defragment 
-# Description:
+# Subroutine:  select_blast_hits_for_consolidation
+# Description: select BLAST hits according to 'redundancy_mode' setting
 #***************************************************************************
-sub preview_defragment {
+sub select_blast_hits_for_consolidation {
+	
+	my ($self, $query_ref, $hits_ref) = @_;
+	
+	# Get relevant member variables and objects
+	my $db_ref  = $self->{db};
+	my $redundancy_mode = $self->{redundancy_mode};
+	my $blast_results_table = $db_ref->{blast_results_table};
+	unless ($redundancy_mode) { die; } 
+	
+	# Set the fields to get values for
+	my @fields = qw [ record_id scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end ];
 
-	my ($self, $hits_ref) = @_;
+	# Get the information for this query
+	my $target_name = $query_ref->{target_name};
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
 
+	my $where  = " WHERE target_name = '$target_name'";
+
+	# Handle different modes
+	if ($redundancy_mode eq 1) {
+		return; # Do nothing else
+	}
+	if ($self->{redundancy_mode} eq 2) {
+		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
+		$where .= " AND probe_gene = '$probe_gene' ";
+	}
+	elsif ($self->{redundancy_mode} eq 3) {
+		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
+		$where .= " AND probe_name = '$probe_name'
+                    AND probe_gene = '$probe_gene' ";
+	}
+
+	# Order by ascending start coordinates within each scaffold in the target file
+	$where .= "ORDER BY scaffold, subject_start ";
+	
+	# Get the table rows for these hits
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where);
+	
+}
+
+#***************************************************************************
+# Subroutine:  do_consolidation
+# Description: apply consolidation rules to overlapping/redundant hits
+#***************************************************************************
+sub do_consolidation {
+	
+	my ($self, $query_ref, $hits_ref, $retained_ref, $consolidated_ref) = @_;
+	
 	# Iterate through consolidating as we go
 	my $i;
 	my %last_hit;
-	my @output;
-	my $blast_count= 0;
+	my $consolidated_count = 0;
 	foreach my $hit_ref (@$hits_ref)  {
 
 		# Get hit values
+		$i++;
 		my $record_id     = $hit_ref->{record_id};
-		my $target_name   = $hit_ref->{target_name};
 		my $scaffold      = $hit_ref->{scaffold};
 		my $orientation   = $hit_ref->{orientation};
 		my $subject_start = $hit_ref->{subject_start};
-		my $subject_end   = $hit_ref->{subject_end};
-		my $query_start   = $hit_ref->{query_start};
-		my $query_end     = $hit_ref->{query_end};
 		
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
 		my $last_scaffold      = $last_hit{scaffold};
-		my $last_target_name   = $last_hit{target_name};
 		my $last_orientation   = $last_hit{orientation};
-		my $last_subject_start = $last_hit{subject_start};
-		my $last_subject_end   = $last_hit{subject_end};
-		my $gap = $subject_start - $last_subject_end;
-		$blast_count++;
+		my $consolidated;
 
-		if ($target_name ne $last_target_name) {
-			$i=1;
-			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-			#print $line;
-			push (@output, $line);	
+		if ($verbose) {
+			print "\n\t $subject_start: RECORD ID $record_id";
 		}
 
-		elsif ($last_scaffold) {	
-			if ($scaffold ne $last_scaffold) {
-				$i=1;
-				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-				#print $line;
-				push (@output, $line);	
-			}
-			else {
-				$i++; 
-				my $line  = "\t\t Gap of $gap nucleotides";
-				#print $line;
-				push (@output, $line);	
-			}
+		# Keep if first in this loop process
+		if ($i eq 1) {
+			$retained_ref->{$record_id} = 1;
 		}
-
-		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
-		   $line .= ",$subject_start,$subject_end ($orientation)";
-		   $line .= ": query: $query_start, $query_end";
-		if ($i) {
-			if ($i > 1 and $gap < 1000) { 
-				print "\n\t  ### ARRAY HIT"; 
-				$line .= "\t  ### ARRAY HIT\n"; 
-			}
+		# ...or if first hit on scaffold
+		elsif ($scaffold ne $last_scaffold) {
+			$retained_ref->{$record_id} = 1;
 		}
-		push (@output, $line);	
-		#print $line;
+		# ...or if in opposite orientation to last hit
+		elsif ($orientation ne $last_orientation) {
+			$retained_ref->{$record_id} = 1;
+		}
+		else { # If we get this far we have two hits on the same scaffold
+			
+			# Check whether to consolidate hit on the same target scaffold
+			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
 
-		# Update last hit data
-		$last_hit{record_id}     = $record_id;
-		$last_hit{target_name}   = $target_name;
-		$last_hit{scaffold}      = $scaffold;
-		$last_hit{orientation}   = $orientation;
-		$last_hit{subject_start} = $subject_start;
-		$last_hit{subject_end}   = $subject_end;
+			# Keep track of the outcome
+			if ($consolidated) {
+				$consolidated_count++;
+				my %hit = %last_hit; # Make a copy
+				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
+				$consolidated_ref->{$record_id} = \%hit;
+				$retained_ref->{$last_record_id} = 1;
+			}
+			else { $retained_ref->{$record_id} = 1; }
+		}
+		
+		# Update the 'last hit' to the current one before exiting this iteration
+		unless ($consolidated) {
+			$last_hit{record_id}     = $record_id;
+			$last_hit{scaffold}      = $scaffold;
+			$last_hit{orientation}   = $orientation;
+			$last_hit{subject_start} = $hit_ref->{subject_start};
+			$last_hit{subject_end}   = $hit_ref->{subject_end};
+			$last_hit{query_start}   = $hit_ref->{query_start};
+			$last_hit{query_end}     = $hit_ref->{query_end};
+		}
 	}
-
 }
 
 #***************************************************************************
@@ -1308,6 +1231,8 @@ sub update_db_loci {
 	
 	my ($self, $hits_ref, $retained_ref, $consolidated_ref) = @_;
 
+	#$devtools->print_hash($consolidated_ref); exit;
+
 	# Get relevant member variabless
 	my $db_ref  = $self->{db};
 	my $blast_results_table = $db_ref->{blast_results_table};
@@ -1359,8 +1284,140 @@ sub update_db_loci {
 }
 
 #***************************************************************************
-# Subroutine: write matrix 
+# Subroutine: preview_defragment 
 # Description:
+#***************************************************************************
+sub preview_defragment {
+
+	my ($self, $hits_ref) = @_;
+
+	# Iterate through consolidating as we go
+	my $i;
+	my %last_hit;
+	my @output;
+	my $blast_count= 0;
+	foreach my $hit_ref (@$hits_ref)  {
+
+		# Get hit values
+		my $record_id     = $hit_ref->{record_id};
+		my $target_name   = $hit_ref->{target_name};
+		my $scaffold      = $hit_ref->{scaffold};
+		my $orientation   = $hit_ref->{orientation};
+		my $subject_start = $hit_ref->{subject_start};
+		my $subject_end   = $hit_ref->{subject_end};
+		my $query_start   = $hit_ref->{query_start};
+		my $query_end     = $hit_ref->{query_end};
+		
+		# Get last hit values
+		my $last_record_id     = $last_hit{record_id};
+		my $last_scaffold      = $last_hit{scaffold};
+		my $last_target_name   = $last_hit{target_name};
+		my $last_orientation   = $last_hit{orientation};
+		my $last_subject_start = $last_hit{subject_start};
+		my $last_subject_end   = $last_hit{subject_end};
+		my $gap = $subject_start - $last_subject_end;
+		$blast_count++;
+
+		if ($target_name ne $last_target_name) {
+			$i=1;
+			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+			#print $line;
+			push (@output, $line);	
+		}
+
+		elsif ($last_scaffold) {	
+			if ($scaffold ne $last_scaffold) {
+				$i=1;
+				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+				#print $line;
+				push (@output, $line);	
+			}
+			else {
+				$i++; 
+				my $line  = "\t\t Gap of $gap nucleotides";
+				#print $line;
+				push (@output, $line);	
+			}
+		}
+
+		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
+		   $line .= ",$subject_start,$subject_end ($orientation)";
+		   $line .= ": query: $query_start, $query_end";
+		if ($i) {
+			if ($i > 1 and $gap < 1000) { 
+				print "\n\t  ### ARRAY HIT"; 
+				$line .= "\t  ### ARRAY HIT\n"; 
+			}
+		}
+		push (@output, $line);	
+		#print $line;
+
+		# Update last hit data
+		$last_hit{record_id}     = $record_id;
+		$last_hit{target_name}   = $target_name;
+		$last_hit{scaffold}      = $scaffold;
+		$last_hit{orientation}   = $orientation;
+		$last_hit{subject_start} = $subject_start;
+		$last_hit{subject_end}   = $subject_end;
+	}
+}
+
+
+############################################################################
+# Crossmatching-associated FUNCTIONS
+###########################################################################
+
+#***************************************************************************
+# Subroutine:  update_cross_matching
+# Description: update a hash to record cross-matches
+#***************************************************************************
+sub update_cross_matching {
+
+	my ($self, $probe_key, $assigned) = @_;
+	
+	my $crossmatch_ref = $self->{crossmatching};
+	
+	if ($crossmatch_ref->{$probe_key}) {
+		my $cross_matches_ref = $crossmatch_ref->{$probe_key};
+		if ($cross_matches_ref->{$assigned}) {
+			$cross_matches_ref->{$assigned}++;
+		}
+		else {
+			$cross_matches_ref->{$assigned} = 1;
+		}
+	}
+	else {
+		my %crossmatch;
+		$crossmatch{$assigned} = 1;
+		$crossmatch_ref->{$probe_key} = \%crossmatch;
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_cross_matching
+# Description: show contents of hash that records cross-matches
+#***************************************************************************
+sub show_cross_matching {
+
+	my ($self) = @_;
+
+	print "\n\n\t  Summary of cross-matching";   
+	my $crossmatch_ref = $self->{crossmatching};
+	my @probe_names = keys 	%$crossmatch_ref;
+	foreach my $probe_name (@probe_names) {
+		
+		my $cross_matches_ref = $crossmatch_ref->{$probe_name};
+		my @cross_matches = keys %$cross_matches_ref;
+		foreach my $cross_match (@cross_matches) {
+			my $count = $cross_matches_ref->{$cross_match};
+			print "\n\t\t #   $count x $probe_name to $cross_match";
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  write matrix 
+# Description: write cross-matching results as a matrix
 #***************************************************************************
 sub write_matrix {
 
@@ -1412,53 +1469,9 @@ sub write_matrix {
 	#$devtools->print_hash($matrix_ref);
 }
 
-#***************************************************************************
-# Subroutine:  update_cross_matching
-# Description: update a hash to record cross-matches
-#***************************************************************************
-sub update_cross_matching {
-
-	my ($self, $probe_key, $assigned) = @_;
-	
-	my $crossmatch_ref = $self->{crossmatching};
-	
-	if ($crossmatch_ref->{$probe_key}) {
-		my $cross_matches_ref = $crossmatch_ref->{$probe_key};
-		if ($cross_matches_ref->{$assigned}) {
-			$cross_matches_ref->{$assigned}++;
-		}
-		else {
-			$cross_matches_ref->{$assigned} = 1;
-		}
-	}
-	else {
-		my %crossmatch;
-		$crossmatch{$assigned} = 1;
-		$crossmatch_ref->{$probe_key} = \%crossmatch;
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_cross_matching
-# Description: show contents of hash that records cross-matches
-#***************************************************************************
-sub show_cross_matching {
-
-	my ($self) = @_;
-
-	print "\n\n\t  Summary of cross-matching";   
-	my $crossmatch_ref = $self->{crossmatching};
-	my @probe_names = keys 	%$crossmatch_ref;
-	foreach my $probe_name (@probe_names) {
-		
-		my $cross_matches_ref = $crossmatch_ref->{$probe_name};
-		my @cross_matches = keys %$cross_matches_ref;
-		foreach my $cross_match (@cross_matches) {
-			my $count = $cross_matches_ref->{$cross_match};
-			print "\n\t\t #   $count x $probe_name to $cross_match";
-		}
-	}
-}
+############################################################################
+# Program title and help menu FUNCTIONS
+###########################################################################
 
 #***************************************************************************
 # Subroutine:  show_title

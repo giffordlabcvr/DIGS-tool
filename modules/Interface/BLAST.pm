@@ -41,6 +41,8 @@ sub new {
 	# Member variables
 	my $self = {
 	    blast_bin_path  => $parameter_ref->{blast_bin_path},
+	    num_threads     => $parameter_ref->{num_threads},
+
 	};
 
 	bless ($self, $class);
