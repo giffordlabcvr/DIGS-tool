@@ -219,8 +219,8 @@ sub set_up_screen {
 	}
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
-
 }
+
 #***************************************************************************
 # Subroutine:  screen
 # Description: do the core database-integrated genome screening processes
@@ -253,7 +253,11 @@ sub screen {
 			$self->{num_queries} = $num_queries;
 
 			# Do the 1st BLAST (probe vs target)
-			$self->search($query_ref);	
+			$self->search($query_ref);
+			
+			# Consolidate the BLAST table based on results
+			$self->consolidate_hits($query_ref);
+		
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->assign($query_ref);
 		}	
@@ -285,7 +289,7 @@ sub search {
 	my $blast_obj       = $self->{blast_obj};
 	my $tmp_path        = $self->{tmp_path};
 	my $min_length      = $self->{seq_length_minimum};
-	my $redundancy_mode = $self->{redundancy_mode};
+
 	my $total_queries   = $self->{total_queries};
 	my $num_queries     = $self->{num_queries};	
 	unless ($num_queries and $total_queries) { die; }
@@ -296,7 +300,6 @@ sub search {
 	unless ($min_length)      { die "\n\t Default_min_seqlen undefined\n\n\n"; }
 	unless ($blast_obj)       { die; } 
 	unless ($tmp_path)        { die; } 
-	unless ($redundancy_mode) { die; } 
 	unless ($db_ref)          { die; } 
 
 	# Get query details
@@ -363,14 +366,152 @@ sub search {
 		$blast_results_table->insert_row($hit_ref);
 	} 
 
-	# Consolidate the BLAST table based on results
-	if ($redundancy_mode > 1) {
-		$self->consolidate_hits($query_ref);
-	}
-	
 	# Update the status table
 	my $status_table = $db_ref->{status_table};
 	$status_table->insert_row($query_ref);
+}
+
+#***************************************************************************
+# Subroutine:  consolidate_hits
+# Description: Consolidate the BLAST table based on results
+#***************************************************************************
+sub consolidate_hits {
+	
+	my ($self, $query_ref) = @_;
+
+	# Get the set of hits (rows in BLAST_results table) to look at
+	my @hits;
+	select_blast_hits_for_consolidation($query_ref, \@hits);
+	
+	# Apply consolidation rules to overlapping and/or redundant hits
+	my %consolidated;
+	my %retained;
+	do_consolidation($query_ref, \@hits, \%consolidated, \%retained);
+
+	# Update database
+	$self->update_db_loci(\@hits, \%retained, \%consolidated);
+	
+}
+
+#***************************************************************************
+# Subroutine:  select_blast_hits_for_consolidation
+# Description: select BLAST hits according to 'redundancy_mode' setting
+#***************************************************************************
+sub select_blast_hits_for_consolidation {
+	
+	my ($self, $query_ref, $hits_ref) = @_;
+	
+	# Get relevant member variables and objects
+	my $db_ref  = $self->{db};
+	my $redundancy_mode = $self->{redundancy_mode};
+	my $blast_results_table = $db_ref->{blast_results_table};
+	unless ($redundancy_mode) { die; } 
+	
+	# Set the fields to get values for
+	my @fields = qw [ record_id scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end ];
+
+	# Get the information for this query
+	my $target_name = $query_ref->{target_name};
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
+
+	my $where  = " WHERE target_name = '$target_name'";
+
+	# Handle different modes
+	if ($redundancy_mode eq 1) {
+		return; # Do nothing else
+	}
+	if ($self->{redundancy_mode} eq 2) {
+		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
+		$where .= " AND probe_gene = '$probe_gene' ";
+	}
+	elsif ($self->{redundancy_mode} eq 3) {
+		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
+		$where .= " AND probe_name = '$probe_name'
+                    AND probe_gene = '$probe_gene' ";
+	}
+
+	# Order by ascending start coordinates within each scaffold in the target file
+	$where .= "ORDER BY scaffold, subject_start ";
+	
+	# Get the table rows for these hits
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where);
+	
+}
+
+#***************************************************************************
+# Subroutine:  do_consolidation
+# Description: apply consolidation rules to overlapping/redundant hits
+#***************************************************************************
+sub do_consolidation {
+	
+	my ($self, $query_ref, $hits_ref, $retained_ref, $consolidated_ref) = @_;
+	
+	# Iterate through consolidating as we go
+	my $i;
+	my %last_hit;
+	my $consolidated_count = 0;
+	foreach my $hit_ref (@$hits_ref)  {
+
+		# Get hit values
+		$i++;
+		my $record_id     = $hit_ref->{record_id};
+		my $scaffold      = $hit_ref->{scaffold};
+		my $orientation   = $hit_ref->{orientation};
+		my $subject_start = $hit_ref->{subject_start};
+		
+		# Get last hit values
+		my $last_record_id     = $last_hit{record_id};
+		my $last_scaffold      = $last_hit{scaffold};
+		my $last_orientation   = $last_hit{orientation};
+		my $consolidated;
+
+		if ($verbose) {
+			print "\n\t $subject_start: RECORD ID $record_id";
+		}
+
+		# Keep if first in this loop process
+		if ($i eq 1) {
+			$retained_ref->{$record_id} = 1;
+		}
+		# ...or if first hit on scaffold
+		elsif ($scaffold ne $last_scaffold) {
+			$retained_ref->{$record_id} = 1;
+		}
+		# ...or if in opposite orientation to last hit
+		elsif ($orientation ne $last_orientation) {
+			$retained_ref->{$record_id} = 1;
+		}
+		else { # If we get this far we have two hits on the same scaffold
+			
+			# Check whether to consolidate hit on the same target scaffold
+			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
+
+			# Keep track of the outcome
+			if ($consolidated) {
+				$consolidated_count++;
+				my %hit = %last_hit; # Make a copy
+				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
+				$consolidated_ref->{$record_id} = \%hit;
+				$retained_ref->{$last_record_id} = 1;
+			}
+			else { $retained_ref->{$record_id} = 1; }
+		}
+		
+		# Update the 'last hit' to the current one before exiting this iteration
+		unless ($consolidated) {
+			$last_hit{record_id}     = $record_id;
+			$last_hit{scaffold}      = $scaffold;
+			$last_hit{orientation}   = $orientation;
+			$last_hit{subject_start} = $hit_ref->{subject_start};
+			$last_hit{subject_end}   = $hit_ref->{subject_end};
+			$last_hit{query_start}   = $hit_ref->{query_start};
+			$last_hit{query_end}     = $hit_ref->{query_end};
+		}
+	}
+	
 }
 
 #***************************************************************************
@@ -1035,115 +1176,6 @@ sub preview_defragment {
 }
 
 #***************************************************************************
-# Subroutine:  consolidate_hits
-# Description: Consolidate the BLAST table based on results
-#***************************************************************************
-sub consolidate_hits {
-	
-	my ($self, $query_ref) = @_;
-
-	# Get relevant member variables and objects
-	my $db_ref  = $self->{db};
-	my $blast_results_table = $db_ref->{blast_results_table};
-	my $blast_chains_table  = $db_ref->{blast_chains_table};
-
-	# Set the fields to get values for
-	my @fields = qw [ record_id scaffold orientation
-	                  subject_start subject_end
-                      query_start query_end ];
-
-	# Get the information for this query
-	my $target_name = $query_ref->{target_name};
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-
-	my $where  = " WHERE target_name = '$target_name'";
-
-	# Filter by gene name 
-	if ($self->{redundancy_mode} eq 2) {
-		$where .= " AND probe_gene = '$probe_gene' ";
-	}
-	elsif ($self->{redundancy_mode} eq 3) {
-		$where .= " AND probe_name = '$probe_name'
-                    AND probe_gene = '$probe_gene' ";
-	}
-
-	# Order by ascending start coordinates within each scaffold in the target file
-	$where .= "ORDER BY scaffold, subject_start ";
-	
-	# Get the relevant loci
-	my @hits;
-	$blast_results_table->select_rows(\@fields, \@hits, $where);
-
-	# Iterate through consolidating as we go
-	my $i;
-	my %last_hit;
-	my %consolidated;
-	my %retained;
-	my $consolidated_count = 0;
-	foreach my $hit_ref (@hits)  {
-
-		# Get hit values
-		$i++;
-		my $record_id     = $hit_ref->{record_id};
-		my $scaffold      = $hit_ref->{scaffold};
-		my $orientation   = $hit_ref->{orientation};
-		my $subject_start = $hit_ref->{subject_start};
-		
-		# Get last hit values
-		my $last_record_id     = $last_hit{record_id};
-		my $last_scaffold      = $last_hit{scaffold};
-		my $last_orientation   = $last_hit{orientation};
-		my $consolidated;
-
-		if ($verbose) {
-			print "\n\t $subject_start: RECORD ID $record_id";
-		}
-
-		# Keep if first in this loop process
-		if ($i eq 1) {
-			$retained{$record_id} = 1;
-		}
-		# ...or if first hit on scaffold
-		elsif ($scaffold ne $last_scaffold) {
-			$retained{$record_id} = 1;
-		}
-		# ...or if in opposite orientation to last hit
-		elsif ($orientation ne $last_orientation) {
-			$retained{$record_id} = 1;
-		}
-		else { # If we get this far we have two hits on the same scaffold
-			
-			# Check whether to consolidate hit on the same target scaffold
-			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
-
-			# Keep track of the outcome
-			if ($consolidated) {
-				$consolidated_count++;
-				my %hit = %last_hit; # Make a copy
-				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
-				$consolidated{$record_id} = \%hit;
-				$retained{$last_record_id} = 1;
-			}
-			else { $retained{$record_id} = 1; }
-		}
-		
-		# Update the 'last hit' to the current one before exiting this iteration
-		unless ($consolidated) {
-			$last_hit{record_id}     = $record_id;
-			$last_hit{scaffold}      = $scaffold;
-			$last_hit{orientation}   = $orientation;
-			$last_hit{subject_start} = $hit_ref->{subject_start};
-			$last_hit{subject_end}   = $hit_ref->{subject_end};
-			$last_hit{query_start}   = $hit_ref->{query_start};
-			$last_hit{query_end}     = $hit_ref->{query_end};
-		}
-	}
-	# Update BLAST table
-	$self->update_db_loci(\@hits, \%retained, \%consolidated);
-}
-
-#***************************************************************************
 # Subroutine:  inspect_adjacent_hits
 # Description: determine whether two adjacent hits should be joined
 #***************************************************************************
@@ -1377,7 +1409,6 @@ sub write_matrix {
 
 	my $file = 'matrix.txt';
 	$fileio->write_file($file, \@matrix);
-
 	#$devtools->print_hash($matrix_ref);
 }
 
@@ -1521,34 +1552,6 @@ sub load_test_data {
 
 	my ($self) = @_;
 
-	my %data;
-	$data{blast_id}        = 1;
-	$data{organism}        = 'Test_organism';
-	$data{data_type}       = 'Test_data_type';
-	$data{version}         = 'Test_version';
-	$data{target_name}     = 'Test_target_name';
-	$data{probe_type}      = 'Test_probe_type';
-	$data{scaffold}        = 'Test_scaffold';
-	$data{extract_start}   = '10000';
-	$data{extract_end}     = '11000';
-	$data{sequence_length} = '1000';
-	$data{sequence}        = 'ATG';
-	$data{assigned_name}   = 'Test_assign';
-	$data{assigned_gene}   = 'Test_assign_gene';
-	$data{assigned_gene}   = 'Test_assign_gene';
-	$data{Orientation}     = '+';
-	$data{Bit_score}       = 100;
-	$data{Identity}        = 100;
-	$data{e_value_num}     = '100';
-	$data{e_value_exp}     = '1';
-	$data{Subject_start}   = '1';
-	$data{Subject_end}     = '1000';
-	$data{Query_start}     = '1';
-	$data{Query_end}       = '1000';
-	$data{Align_len}       = '1000';
-	$data{Gap_openings}    = '0';
-	$data{Mismatches}      = '0';
-	
 	my $db = $self->{db}; # database initialised here
 
 }
