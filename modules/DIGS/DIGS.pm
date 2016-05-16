@@ -108,6 +108,7 @@ sub run_digs_process {
 		$self->create_screening_db($ctl_file);
 	}
 	elsif ($option eq 2) { # Screen
+		$self->set_up_screen();
 		$self->screen();	
 	}
 	elsif ($option eq 3) { # Reassign data in Exracted table
@@ -176,39 +177,6 @@ sub run_utility_process {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  run_digs_test
-# Description: handler for DIGS tool test functions 
-#***************************************************************************
-sub run_digs_test {
-
-	my ($self, $option, $ctl_file) = @_;
-
- 	# Show title
-	$self->show_title();  
-
-	# Hand off to functions 
-	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
-	$self->{override} = 'true';
-	$self->initialise($ctl_file);
-		
-	my $db_name = $self->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	
-	my $db_obj = ScreeningDB->new($self);
-	#$db_obj->drop_screening_db($db_name);	
-	$self->create_screening_db($ctl_file);	
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # database initialised here
-
-	if ($option eq 1) { # Load test database
-		$self->load_test_data();
-	}
-	else {
-		print "\n\t  Unrecognized option '-t=$option'\n";
-	}
-}
-
 ############################################################################
 # MAIN FUNCTIONS
 ############################################################################
@@ -233,17 +201,13 @@ sub create_screening_db {
 }
 
 #***************************************************************************
-# Subroutine:  screen
-# Description: do the core database-integrated genome screening processes
+# Subroutine:  set_up_screen
+# Description: set up files and directories for screening
 #***************************************************************************
-sub screen {
+sub set_up_screen {
 
-	my ($self, $mode) = @_;
-
-	# Get relevant member variables and objects
-	my $db_ref = $self->{db};
-	unless ($db_ref) { die; }  # Sanity checking
-
+	my ($self) = @_;
+	
 	# Set up the screening queries
 	my %queries;
 	my $loader_obj = $self->{loader_obj};
@@ -253,11 +217,27 @@ sub screen {
 		print "\n\t  Exiting without screening.\n\n";	
 		exit;
 	}
+	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
+
+}
+#***************************************************************************
+# Subroutine:  screen
+# Description: do the core database-integrated genome screening processes
+#***************************************************************************
+sub screen {
+
+	my ($self, $mode) = @_;
+
+	# Get relevant member variables and objects
+	my $db_ref      = $self->{db};
+	my $queries_ref = $self->{queries};
+	my $loader_obj  = $self->{loader_obj};
+	unless ($db_ref and $queries_ref and $loader_obj) { die; }  # Sanity checking
 
 	# Iterate through and excute screens
 	print "\n\t  Starting database-integrated genome screening\n";
-	my @probes = keys %queries;
+	my @probes = keys %$queries_ref;
 
 	my $num_queries = 0;
 	my %crossmatching;
@@ -265,7 +245,7 @@ sub screen {
 	foreach my $probe_name (@probes) {
 		
 		# Get the array of queries for this target file
-		my $probe_queries = $queries{$probe_name};
+		my $probe_queries = $queries_ref->{$probe_name};
 		foreach my $query_ref (@$probe_queries) {  
 	
 			# Increment query count
@@ -685,7 +665,6 @@ sub initialise {
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
-	
 	
 }
 
@@ -1499,6 +1478,40 @@ sub show_help_page {
 ############################################################################
 # TEST AND VALIDATION FUNCTIONS
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  run_digs_test
+# Description: handler for DIGS tool test functions 
+#***************************************************************************
+sub run_digs_test {
+
+	my ($self, $option, $ctl_file) = @_;
+
+ 	# Show title
+	$self->show_title();  
+
+	# Hand off to functions 
+	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
+	$self->{override} = 'true';
+	$self->initialise($ctl_file);
+		
+	my $db_name = $self->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	
+	my $db_obj = ScreeningDB->new($self);
+	#$db_obj->drop_screening_db($db_name);	
+	$self->create_screening_db($ctl_file);	
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # database initialised here
+
+	if ($option eq 1) { # Load test
+		die;
+		$self->load_test_data();
+	}
+	else {
+		print "\n\t  Unrecognized option '-t=$option'\n";
+	}
+}
 
 #***************************************************************************
 # Subroutine:  load_test_data

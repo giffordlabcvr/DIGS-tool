@@ -121,7 +121,7 @@ sub main {
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
 			    'utility=i'       => \$utility,
-			    'test|m=i'        => \$test,
+			    'test|t=i'        => \$test,
 			    
 			    'infile|i=s'      => \$infile,
 			    

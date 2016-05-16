@@ -6,9 +6,9 @@ Begin SCREENDB;
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-	query_aa_fasta=[path to probes];
-	reference_aa_fasta=[path to references];
-	output_path=tmp/;
+	query_aa_fasta=erv-l_rt_probe.fa;
+	reference_aa_fasta=erv_rt_references.fa;
+	output_path=./digs/tmp/;
 	redundancy_mode=2;
 	seq_length_minimum=30;
 	bit_score_min_tblastn=100;
@@ -18,5 +18,5 @@ BEGIN SCREENSETS;
 ENDBLOCK;
 
 BEGIN TARGETS;
-Mammals/Mus_musculus/complete/goldenpath_mm10
+Homo_sapiens/complete/goldenpath_hg19/chrY.fa
 ENDBLOCK;
