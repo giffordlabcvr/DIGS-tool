@@ -6,8 +6,8 @@ Begin SCREENDB;
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-	query_aa_fasta=erv-l_rt_probe.fa;
-	reference_aa_fasta=erv_rt_references.fa;
+	query_aa_fasta=./digs/example/herv-k-hml2_rt_probe.fa;
+	reference_aa_fasta=./digs/example/erv_rt_references.fa
 	output_path=./digs/tmp/;
 	redundancy_mode=2;
 	seq_length_minimum=30;
