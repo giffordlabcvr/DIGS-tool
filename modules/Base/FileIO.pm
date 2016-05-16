@@ -138,6 +138,25 @@ sub write_text_to_file {
 }
 
 #***************************************************************************
+# Subroutine:  append_text_to_file
+# Description: append a text string to an ouput file
+# Arguments:   $file: the name of the file to write to 
+#              $text; the string to append
+#***************************************************************************
+sub append_text_to_file {
+
+	my ($self, $file, $text) = @_;
+
+	unless (open(OUTFILE, ">>$file")) {
+		print "\n\t Couldn't open file \"$file\" for writing\n\n";
+		return;
+	}
+	print OUTFILE $text;
+	close OUTFILE;
+	#print "\n\t File \"$file\" created!\n\n";
+}
+
+#***************************************************************************
 # Subroutine:  read_standard_field_value_block
 # Description: read a NEXUS style block containing [field]=[value] lines 
 # Returns:     1 if block was found and lines were read

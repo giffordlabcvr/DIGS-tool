@@ -75,6 +75,13 @@ sub set_up_screen  {
 	# Create the output directories
 	$self->create_output_directories($pipeline_obj);
 	
+	# Create log file
+	my $report_dir = $self->{report_dir};
+	my $process_id = $self->{process_id};
+	my $log_file   = $report_dir . "/log.txt";
+	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
+	$pipeline_obj->{log_file} = $log_file;
+
 	# Set up the reference library for BLAST
 	$self->setup_reference_library($pipeline_obj);
 
@@ -88,6 +95,7 @@ sub set_up_screen  {
 	
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	
 }
 
 ############################################################################
