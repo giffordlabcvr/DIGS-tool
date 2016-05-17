@@ -1040,12 +1040,12 @@ sub do_consolidation {
 	my $consolidated_count = 0;
 	foreach my $hit_ref (@$hits_ref)  {
 
-		# Get hit values
+		# Get current hit values
 		$i++;
-		my $record_id     = $hit_ref->{record_id};
-		my $scaffold      = $hit_ref->{scaffold};
-		my $orientation   = $hit_ref->{orientation};
-		my $subject_start = $hit_ref->{subject_start};
+		my $record_id          = $hit_ref->{record_id};
+		my $scaffold           = $hit_ref->{scaffold};
+		my $orientation        = $hit_ref->{orientation};
+		my $subject_start      = $hit_ref->{subject_start};
 		
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
@@ -1139,28 +1139,22 @@ sub inspect_adjacent_hits {
 	#print "\t #### Gap:   $subject_gap\n";
 
 	# Calculate the gap between the query coordinates of the two matches
-	# Note this may be a negative number if the queries overlap 
-	my $query_gap;
-	
-	# TO REMOVE
-	if ($orientation eq '+ve') { $orientation = '+'; }
-	if ($orientation eq '-ve') { $orientation = '-'; }
+	# Note - this may be a negative number if the queries overlap 
+	my $query_gap;	
 	if ($orientation eq '+') {
 		$query_gap = $query_start - $last_query_end;
 	}
 	elsif ($orientation eq '-') {
 		$query_gap = $last_query_start - $query_end;
-	}
-	
+	}	
 	else { print "\n\t orientation = $orientation\n\n";  die; }
 	
-	### Deal with contingencies that mean hits definitely should or should not be consolidated
-
-	#   1. Hit is entirely within a previous hit it is redundant
+	# Deal with contingencies that mean hits definitely should or should not be consolidated
+	# 1. Hit is entirely within a previous hit it is redundant
 	if ($last_subject_start <= $subject_start and $last_subject_end >= $subject_end) {
 		return 1; # Effectively discarding current hit
 	}
-	#   2. Hits are too far apart
+	# 2. Hits are too far apart
 	elsif ($max_gap) {
 		if ($subject_gap > $max_gap) {
 			return 0;  
