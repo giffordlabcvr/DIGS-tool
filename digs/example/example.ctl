@@ -1,5 +1,5 @@
 Begin SCREENDB;
-    db_name=[your screening database name];
+    db_name=DIGS_example_1;;
     mysql_server=[localhost];
 	mysql_username=[your username];
 	mysql_password=[your password];
@@ -18,5 +18,5 @@ BEGIN SCREENSETS;
 ENDBLOCK;
 
 BEGIN TARGETS;
-Homo_sapiens/complete/goldenpath_hg19/chrY.fa
+Mammals/Homo_sapiens/complete/goldenpath_hg19/chrY.fa
 ENDBLOCK;
