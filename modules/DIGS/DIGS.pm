@@ -668,7 +668,7 @@ sub do_reverse_blast {
 	my $subject_start = $top_match->{aln_start};
 	my $subject_end   = $top_match->{aln_stop};
 	my $assigned_name = $top_match->{scaffold};	
-	my $assigned      = 1;
+	my $assigned;
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
 	unless ($assigned_name) {	
@@ -715,6 +715,7 @@ sub do_reverse_blast {
 	system $command1;
 	system $command2;
 
+	unless ($assigned) { $assigned = 'UNASSIGNED'; }
 	return $assigned;
 }
 
