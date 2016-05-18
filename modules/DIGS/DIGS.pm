@@ -773,13 +773,9 @@ sub extend_screening_db {
 		my $question5 = "\n\n\t Apply to which of the above tables?";
 		my $answer5   = $console->ask_simple_choice_question($question5, \@choices);
 		$table_to_use = $extra_tables{$answer5};
-	
 		unless ($table_to_use) { die; }
 	}
 		
-		
-		
-
 	# Upload data to table
 	my @data;
 	unless ($answer4 eq 4) {
@@ -806,12 +802,9 @@ sub extend_screening_db {
 		}
 		
 		my $header_row = shift @data;
-		my @header_row = split ("\t", $header_row);
-	
-			
+		my @header_row = split ("\t", $header_row);		
 		print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
 		my $i;
-	
 		foreach my $element (@header_row) {
 			chomp $element;
 			$i++;
@@ -821,6 +814,8 @@ sub extend_screening_db {
 			push (@fields, $element);
 			$fields{$element} = "varchar";
 		}
+		
+		# Prompt user - did we read the file correctly?
 		my $question3 = "\n\n\t Is this correct?";
 		my $answer3 = $console->ask_yes_no_question($question3);
 		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
@@ -828,10 +823,12 @@ sub extend_screening_db {
 		}
 	}
 
+
 	# Create table if first time
 	if ($answer4 eq 1) {
 		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
 	}
+
 	# Get a reference to a table object for the ancillary table
 	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
 	$db->{$table_to_use} = $anc_table;
@@ -866,19 +863,6 @@ sub extend_screening_db {
 		}
 		$anc_table->insert_row(\%insert);
 	}
-}
-
-#***************************************************************************
-# Subroutine:  read_ancillary_data_table
-# Description: 
-#***************************************************************************
-sub read_ancillary_data_table {
-
-	my ($self, $ctl_file) = @_;
-
-	# Get override setting
-
-
 }
 
 ############################################################################
@@ -1586,7 +1570,7 @@ sub run_digs_test {
 
 #***************************************************************************
 # Subroutine:  load_test_data
-# Description: 
+# Description: load some data into the extracted table for testing
 #***************************************************************************
 sub load_test_data {
 
@@ -1597,8 +1581,43 @@ sub load_test_data {
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }	
 	my $db_obj = ScreeningDB->new($self);
 	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # database initialised here
 
+	# Get a reference to a table object 
+	my $table = $db_obj->{Extracted};
+
+	
+	# Try to read the tab-delimited infile
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
+	unless ($infile) { die; }
+	my @infile;
+	$fileio->read_file($infile, \@infile);
+	shift @infile; # Remove header row
+		
+	my $row_count = 0;
+	my %fields;
+	my @fields;
+	foreach my $line (@infile) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@fields) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields{$column_num};
+			#if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			#}
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			$insert{$field} = $value;
+		}
+		$table->insert_row(\%insert);
+	}
 }
 
 ############################################################################
