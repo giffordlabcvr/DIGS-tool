@@ -715,7 +715,7 @@ sub do_reverse_blast {
 	system $command1;
 	system $command2;
 
-	unless ($assigned) { $assigned = 'UNASSIGNED'; }
+	unless ($assigned) { $assigned = 'Unassigned'; }
 	return $assigned;
 }
 
@@ -727,52 +727,19 @@ sub extend_screening_db {
 
 	my ($self) = @_;
 
-	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $infile = $console->ask_question($question1);
-	unless ($infile) { die; }
-	my @infile;
-	$fileio->read_file($infile, \@infile);
-	my @data;
-	my $line_number = 0;
-	foreach my $line (@infile) {
-		$line_number++;
-		if     ($line =~ /^\s*$/)  { next; } # discard blank line
-		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-		unless ($line =~ /\t/)     { die; }
-		push (@data, $line);
-	}
-	my $header_row = shift @data;
-	my @header_row = split ("\t", $header_row);
-	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
-	my $i;
-	my %fields;
-	my @fields;
-	foreach my $element (@header_row) {
-		chomp $element;
-		$i++;
-		$element =~ s/\s+/_/g;
-		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
-		print "\n\t\t Column $i: '$element'";
-		push (@fields, $element);
-		$fields{$element} = "varchar";
-	}
-	my $question3 = "\n\n\t Is this correct?";
-	my $answer3 = $console->ask_yes_no_question($question3);
-	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
-		print "\n\t\t Aborted!\n\n\n"; exit;
-	}
 
-	# Create new table or add to existing one
+	# Show the options
 	my $db = $self->{db};
 	unless ($db) { die; }
 	my %extra_tables;
 	my @extra_tables;
 	my $table_to_use;
 
+	my %fields;
+	my @fields;
 	my @choices = qw [ 1 2 3 4 ];
-	print "\n\t\t 1. Create new ancillary table";
+	
+	print "\n\n\t\t 1. Create new ancillary table";
 	print "\n\t\t 2. Append data to existing ancillary table";
 	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
 	print "\n\t\t 4. Drop an ancillary table\n";
@@ -802,6 +769,52 @@ sub extend_screening_db {
 	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
 	my $anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
     $db->{$table_to_use} = $anc_table;
+
+
+	# Try to read the tab-delimited infile
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
+	unless ($infile) { die; }
+	my @infile;
+	$fileio->read_file($infile, \@infile);
+	my @data;
+	my $line_number = 0;
+	foreach my $line (@infile) {
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { die; }
+		push (@data, $line);
+	}
+	my $data = scalar @data;
+	unless ($data) {
+		die "\n\t Couldn't read input file\n\n";
+	}
+	
+	my $header_row = shift @data;
+	my @header_row = split ("\t", $header_row);
+
+		
+	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+	my $i;
+
+	foreach my $element (@header_row) {
+		chomp $element;
+		$i++;
+		$element =~ s/\s+/_/g;
+		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+		print "\n\t\t Column $i: '$element'";
+		push (@fields, $element);
+		$fields{$element} = "varchar";
+	}
+	my $question3 = "\n\n\t Is this correct?";
+	my $answer3 = $console->ask_yes_no_question($question3);
+	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+		print "\n\t\t Aborted!\n\n\n"; exit;
+	}
+	
+	
 
 	if ($answer4 == '4') {	# Drop an ancillary table
 		$db->drop_ancillary_table($table_to_use);

@@ -89,6 +89,11 @@ sub blast {
 		$command  = "$blast_path -query $probe_path -db $target_path ";
 		$command .= "-out $result_path ";
 	}
+	
+	my $num_threads  = $self->{num_threads};
+	if  ($num_threads) {
+		$command .= "-num_threads $num_threads ";
+	}
 
 	if ($set_params) {  
 		if ($word_size)  { $command .= " -word_size $word_size "; }
