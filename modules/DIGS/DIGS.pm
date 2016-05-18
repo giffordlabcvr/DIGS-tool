@@ -826,16 +826,16 @@ sub extend_screening_db {
 			print "\n\t\t Aborted!\n\n\n"; exit;
 		}
 	}
-	$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
-	
+
+	# Create table if first time
+	if ($answer4 eq 1) {
+		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+	}
+	# Get a reference to a table object for the ancillary table
 	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
-    $db->{$table_to_use} = $anc_table;
-
-
-
-
-
-	if ($answer4 == '4') {	# Drop an ancillary table
+	$db->{$table_to_use} = $anc_table;
+		
+	if ($answer4 == '4') {	# Drop the ancillary table
 		$db->drop_ancillary_table($table_to_use);
 		return;
 	}
@@ -843,8 +843,6 @@ sub extend_screening_db {
 		$anc_table->flush();
 		$anc_table->reset_primary_keys();
 	}
-	
-	
 	
 	my $row_count = 0;
 	foreach my $line (@data) { # Add data to the table
