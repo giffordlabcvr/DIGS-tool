@@ -118,6 +118,7 @@ sub run_digs_process {
 		$self->reassign();	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
+		print "\n\t Sorry, not yet implemented!\n\n";
 		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
@@ -1276,14 +1277,14 @@ sub interactive_defragment {
 
 		my $max = 100000;
 		my $question1 = "\n\n\t # Set the range for merging hits";
-		my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);
+		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);
 		
 		my $question2 = "\t # Set the redundancy mode ";
 		my @mode_options = qw [ 1 2 3 ];
-		my $t_defragment_range = $console->ask_simple_choice_question($question2, \@mode_options);
+		my $t_mode = $console->ask_simple_choice_question($question2, \@mode_options);
 		
 		# Get hits by scaffold
-		$self->preview_defragment(\@hits);
+		$self->preview_defragment(\@hits, $t_range, $t_mode);
 		
 		# Prompt for what to do next
 		print "\n\t # Option 1: preview new parameters";
@@ -1298,18 +1299,17 @@ sub interactive_defragment {
 		die;
 	}
 	elsif ($choice eq 3) {
-		die;
+		return;
 	}
-	else { die; }
-
 }
+
 #***************************************************************************
 # Subroutine: preview_defragment 
 # Description:
 #***************************************************************************
 sub preview_defragment {
 
-	my ($self, $hits_ref) = @_;
+	my ($self, $hits_ref, $t_range, $t_mode) = @_;
 
 	# Iterate through merging as we go
 	my $i;
@@ -1336,28 +1336,36 @@ sub preview_defragment {
 		my $last_orientation   = $last_hit{orientation};
 		my $last_subject_start = $last_hit{subject_start};
 		my $last_subject_end   = $last_hit{subject_end};
-		my $gap = $subject_start - $last_subject_end;
+		
+		my $gap;
 		$blast_count++;
-
-		if ($target_name ne $last_target_name) {
-			$i=1;
-			my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-			#print $line;
-			push (@output, $line);	
+		
+		unless ($last_subject_end) {
+			$gap = 0;
 		}
+		else {
+			$gap = $subject_start - $last_subject_end;
 
-		elsif ($last_scaffold) {	
-			if ($scaffold ne $last_scaffold) {
+			if ($target_name ne $last_target_name) {
 				$i=1;
 				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
 				#print $line;
 				push (@output, $line);	
 			}
-			else {
-				$i++; 
-				my $line  = "\t\t Gap of $gap nucleotides";
-				#print $line;
-				push (@output, $line);	
+
+			elsif ($last_scaffold) {	
+				if ($scaffold ne $last_scaffold) {
+					$i=1;
+					my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
+					#print $line;
+					push (@output, $line);	
+				}
+				else {
+					$i++; 
+					my $line  = "\t\t Gap of $gap nucleotides";
+					#print $line;
+					push (@output, $line);	
+				}
 			}
 		}
 
@@ -1365,7 +1373,7 @@ sub preview_defragment {
 		   $line .= ",$subject_start,$subject_end ($orientation)";
 		   $line .= ": query: $query_start, $query_end";
 		if ($i) {
-			if ($i > 1 and $gap < 1000) { 
+			if ($i > 1 and $gap < $t_range) { 
 				print "\n\t  ### ARRAY HIT"; 
 				$line .= "\t  ### ARRAY HIT\n"; 
 			}
