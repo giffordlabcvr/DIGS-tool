@@ -118,7 +118,7 @@ sub run_digs_process {
 		$self->reassign();	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
-		print "\n\t Sorry, not yet implemented!\n\n";
+		print "\n\t Sorry, not yet implemented!\n\n"; exit
 		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
