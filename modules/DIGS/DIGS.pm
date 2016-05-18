@@ -259,7 +259,7 @@ sub screen {
 			$self->search($query_ref);
 			
 			# Deal with overlapping, redundant & fragmented hits
-			$self->consolidate_hits($query_ref);
+			$self->merge_hits($query_ref);
 		
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->assign($query_ref);
@@ -373,10 +373,10 @@ sub search {
 }
 
 #***************************************************************************
-# Subroutine:  consolidate_hits
-# Description: Consolidate the BLAST table based on results
+# Subroutine:  merge_hits
+# Description: Merge overlapping, redundant and fragmented BLAST hits
 #***************************************************************************
-sub consolidate_hits {
+sub merge_hits {
 	
 	my ($self, $query_ref) = @_;
 
@@ -385,12 +385,12 @@ sub consolidate_hits {
 	$self->select_blast_hits_for_consolidation($query_ref, \@hits);
 	
 	# Apply consolidation rules to overlapping and/or redundant hits
-	my %consolidated;
+	my %merged;
 	my %retained;
-	$self->do_consolidation($query_ref, \@hits, \%consolidated, \%retained);
+	$self->do_consolidation($query_ref, \@hits, \%merged, \%retained);
 
 	# Update database
-	$self->update_db_loci(\@hits, \%consolidated, \%retained);
+	$self->update_db_loci(\@hits, \%merged, \%retained);
 	
 }
 
@@ -727,32 +727,41 @@ sub extend_screening_db {
 
 	my ($self) = @_;
 
-
-	# Show the options
+	# Get database handle
 	my $db = $self->{db};
 	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+
+	# Declare the variables & data structures we need
 	my %extra_tables;
 	my @extra_tables;
 	my $table_to_use;
-
 	my %fields;
 	my @fields;
+	my $anc_table;
+	my $table_name;
+
+	# Show the options
 	my @choices = qw [ 1 2 3 4 ];
-	
 	print "\n\n\t\t 1. Create new ancillary table";
 	print "\n\t\t 2. Append data to existing ancillary table";
 	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
 	print "\n\t\t 4. Drop an ancillary table\n";
 	my $question4 = "\n\t Choose an option";
 	my $answer4   = $console->ask_simple_choice_question($question4, \@choices);
-	if ($answer4 == '1') {	# Create new table
+
+	# Create new table
+	if ($answer4 == '1') {	
 		my $table_name_question = "\n\t What is the name of the new table?";
-		my $table_name = $console->ask_question($table_name_question);
-		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+		$table_name = $console->ask_question($table_name_question);
 	}
+	# or choose one of the ancillary tables already in the DB
 	else {
-		my @choices;
+
+		# Get the ancillary tables in this DB
 		$db->get_ancillary_table_names(\@extra_tables);
+		
 		my $table_num = 0;
 		foreach my $table_name (@extra_tables) {
 			$table_num++;
@@ -763,58 +772,68 @@ sub extend_screening_db {
 		my $question5 = "\n\n\t Apply to which of the above tables?";
 		my $answer5   = $console->ask_simple_choice_question($question5, \@choices);
 		$table_to_use = $extra_tables{$answer5};
+	
+		unless ($table_to_use) { die; }
 	}
-	unless ($table_to_use) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-	my $anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
+		
+		
+		
+
+	# Upload data to table
+	my @data;
+	unless ($answer4 eq 4) {
+
+		# Try to read the tab-delimited infile
+		print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+		my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+		my $infile = $console->ask_question($question1);
+		unless ($infile) { die; }
+		my @infile;
+		$fileio->read_file($infile, \@infile);
+
+		my $line_number = 0;
+		foreach my $line (@infile) {
+			$line_number++;
+			if     ($line =~ /^\s*$/)  { next; } # discard blank line
+			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+			unless ($line =~ /\t/)     { die; }
+			push (@data, $line);
+		}
+		my $data = scalar @data;
+		unless ($data) {
+			die "\n\t Couldn't read input file\n\n";
+		}
+		
+		my $header_row = shift @data;
+		my @header_row = split ("\t", $header_row);
+	
+			
+		print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+		my $i;
+	
+		foreach my $element (@header_row) {
+			chomp $element;
+			$i++;
+			$element =~ s/\s+/_/g;
+			if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+			print "\n\t\t Column $i: '$element'";
+			push (@fields, $element);
+			$fields{$element} = "varchar";
+		}
+		my $question3 = "\n\n\t Is this correct?";
+		my $answer3 = $console->ask_yes_no_question($question3);
+		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+			print "\n\t\t Aborted!\n\n\n"; exit;
+		}
+	}
+	$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+	
+	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
     $db->{$table_to_use} = $anc_table;
 
 
-	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $infile = $console->ask_question($question1);
-	unless ($infile) { die; }
-	my @infile;
-	$fileio->read_file($infile, \@infile);
-	my @data;
-	my $line_number = 0;
-	foreach my $line (@infile) {
-		$line_number++;
-		if     ($line =~ /^\s*$/)  { next; } # discard blank line
-		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-		unless ($line =~ /\t/)     { die; }
-		push (@data, $line);
-	}
-	my $data = scalar @data;
-	unless ($data) {
-		die "\n\t Couldn't read input file\n\n";
-	}
-	
-	my $header_row = shift @data;
-	my @header_row = split ("\t", $header_row);
 
-		
-	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
-	my $i;
 
-	foreach my $element (@header_row) {
-		chomp $element;
-		$i++;
-		$element =~ s/\s+/_/g;
-		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
-		print "\n\t\t Column $i: '$element'";
-		push (@fields, $element);
-		$fields{$element} = "varchar";
-	}
-	my $question3 = "\n\n\t Is this correct?";
-	my $answer3 = $console->ask_yes_no_question($question3);
-	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
-		print "\n\t\t Aborted!\n\n\n"; exit;
-	}
-	
-	
 
 	if ($answer4 == '4') {	# Drop an ancillary table
 		$db->drop_ancillary_table($table_to_use);
@@ -824,6 +843,9 @@ sub extend_screening_db {
 		$anc_table->flush();
 		$anc_table->reset_primary_keys();
 	}
+	
+	
+	
 	my $row_count = 0;
 	foreach my $line (@data) { # Add data to the table
 		$row_count++;
@@ -845,6 +867,19 @@ sub extend_screening_db {
 		}
 		$anc_table->insert_row(\%insert);
 	}
+}
+
+#***************************************************************************
+# Subroutine:  read_ancillary_data_table
+# Description: 
+#***************************************************************************
+sub read_ancillary_data_table {
+
+	my ($self, $ctl_file) = @_;
+
+	# Get override setting
+
+
 }
 
 ############################################################################
@@ -979,12 +1014,12 @@ sub select_blast_hits_for_consolidation {
 #***************************************************************************
 sub do_consolidation {
 	
-	my ($self, $query_ref, $hits_ref, $retained_ref, $consolidated_ref) = @_;
+	my ($self, $query_ref, $hits_ref, $retained_ref, $merged_ref) = @_;
 	
 	# Iterate through consolidating as we go
 	my $i;
 	my %last_hit;
-	my $consolidated_count = 0;
+	my $merged_count = 0;
 	foreach my $hit_ref (@$hits_ref)  {
 
 		# Get current hit values
@@ -998,7 +1033,7 @@ sub do_consolidation {
 		my $last_record_id     = $last_hit{record_id};
 		my $last_scaffold      = $last_hit{scaffold};
 		my $last_orientation   = $last_hit{orientation};
-		my $consolidated;
+		my $merged;
 
 		if ($verbose) {
 			print "\n\t $subject_start: RECORD ID $record_id";
@@ -1019,21 +1054,21 @@ sub do_consolidation {
 		else { # If we get this far we have two hits on the same scaffold
 			
 			# Check whether to consolidate hit on the same target scaffold
-			$consolidated = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
+			$merged = $self->inspect_adjacent_hits(\%last_hit, $hit_ref);
 
 			# Keep track of the outcome
-			if ($consolidated) {
-				$consolidated_count++;
+			if ($merged) {
+				$merged_count++;
 				my %hit = %last_hit; # Make a copy
 				$hit{hit_length} = ($hit{subject_end} - $hit{subject_start}) + 1;
-				$consolidated_ref->{$record_id} = \%hit;
+				$merged_ref->{$record_id} = \%hit;
 				$retained_ref->{$last_record_id} = 1;
 			}
 			else { $retained_ref->{$record_id} = 1; }
 		}
 		
 		# Update the 'last hit' to the current one before exiting this iteration
-		unless ($consolidated) {
+		unless ($merged) {
 			$last_hit{record_id}     = $record_id;
 			$last_hit{scaffold}      = $scaffold;
 			$last_hit{orientation}   = $orientation;
@@ -1054,10 +1089,8 @@ sub inspect_adjacent_hits {
 	my ($self, $last_hit_ref, $hit_ref) = @_;
 
 	# Get parameters for consolidating hits from self
-	my $probe_buffer = $self->{threadhit_probe_buffer};
-	my $gap_buffer   = $self->{threadhit_gap_buffer};
-	my $max_gap      = $self->{threadhit_max_gap};
-	unless ($probe_buffer and $gap_buffer and $max_gap) { die; } 
+	my $defragment_range   = $self->{defragment_range};
+	unless ($defragment_range) { die; } 
 
 	# Get data for 1st hit (i.e. most 'leftward' in the target sequence)
 	my $last_record_id     = $last_hit_ref->{record_id};
@@ -1096,49 +1129,34 @@ sub inspect_adjacent_hits {
 	}	
 	else { print "\n\t orientation = $orientation\n\n";  die; }
 	
-	# Deal with contingencies that mean hits definitely should or should not be consolidated
+	# Deal with contingencies that mean hits definitely should or should not be merged
 	# 1. Hit is entirely within a previous hit it is redundant
 	if ($last_subject_start <= $subject_start and $last_subject_end >= $subject_end) {
 		return 1; # Effectively discarding current hit
 	}
-	# 2. Hits are too far apart
-	elsif ($max_gap) {
-		if ($subject_gap > $max_gap) {
-			return 0;  
-		}
-	}
 
 	### Deal with situations where hits are partially (but not completely) overlapping
-	#   or where they are close enough to each other consider consolidating them
+	#   or where they are close enough to each other consider merging them
 	
 	# Set the position based on threadhit_probe_biffer
-	my $buffer_start = $query_start + $probe_buffer;
+	my $buffer_start = $query_start;
 
 	if ($subject_gap < 1) {
-		# Describe the consolidation:
-		if ($verbose) {
-			print "\t    SUBJECT GAP: Merged hit $record_id into hit $last_record_id (subject_gap: $subject_gap)";
-		}
+		# Describe the merging event:
 		$last_hit_ref->{subject_end} = $hit_ref->{subject_end};
 		$last_hit_ref->{query_end}   = $hit_ref->{query_end};
-		return 1;  # Consolidated (joined) hits
+		return 1;  # Hits have been merged
 	}
 	
 
 	# For positive orientation hits
 	# If the query_start of this hit is before the query_end of the last, then its a distinct hit
 	elsif ($orientation eq '+' and $buffer_start < $last_query_end) {
-		if ($verbose) {
-			print "\n\t    DISTINCT +: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
-		}
 		return 0;
 	}
 	# For negative orientation hits
 	# If the query_start of this hit < query_end of the last, then its a distinct hit
-	elsif ($orientation eq '-' and ($last_query_start - $query_end) > $probe_buffer ) {
-		if ($verbose) {
-			print "\n\t    DISTINCT -: ($last_query_start - $query_end) > $probe_buffer \tsubject gap: $subject_gap";
-		}
+	elsif ($orientation eq '-' and ($last_query_start - $query_end) ) {
 		return 0;
 	}
 
@@ -1146,19 +1164,12 @@ sub inspect_adjacent_hits {
 	else {
 
 		my $nt_query_gap = $query_gap * 3;
-		if (($subject_gap - $nt_query_gap) < $gap_buffer) {
-			# Describe the consolidation:
-			if ($verbose) {
-				print "\n\t    Merged hit $record_id into hit $last_record_id: subject gap ($subject_gap) nt query gap ($nt_query_gap) ";
-			}
+		if (($subject_gap - $nt_query_gap) < $defragment_range) {
 			$last_hit_ref->{subject_end} = $hit_ref->{subject_end};
 			$last_hit_ref->{query_end}   = $hit_ref->{query_end};
 			return 1;  # Consolidated (joined) hits
 		}
 		else {
-			if ($verbose) {
-				print "\n\t    DISTINCT LAST: start $query_start (buffer $buffer_start) is too much less than end of last query ($last_query_end) \tsubject gap: $subject_gap";
-			}
 			return 0;  # Distinct hit
 		}
 	}
@@ -1170,24 +1181,24 @@ sub inspect_adjacent_hits {
 #***************************************************************************
 sub update_db_loci {
 	
-	my ($self, $hits_ref, $retained_ref, $consolidated_ref) = @_;
+	my ($self, $hits_ref, $retained_ref, $merged_ref) = @_;
 
-	#$devtools->print_hash($consolidated_ref); exit;
+	#$devtools->print_hash($merged_ref); exit;
 
 	# Get relevant member variabless
 	my $db_ref  = $self->{db};
 	my $blast_results_table = $db_ref->{blast_results_table};
 	my $extracted_table     = $db_ref->{extracted_table};
 
-	# Update BLAST table with consolidated hits
+	# Update BLAST table with merged hits
 	my $blast_updated = 0;
 	my $blast_deleted = 0;
 	my $extract_deleted = 0;
-	my @ids = keys %$consolidated_ref;
+	my @ids = keys %$merged_ref;
 	foreach my $record_id (@ids)  {
 
 		my $where   = " WHERE record_id = $record_id ";
-		my $hit_ref = $consolidated_ref->{$record_id};		
+		my $hit_ref = $merged_ref->{$record_id};		
 		delete $hit_ref->{record_id};
 		#print "\n\t ## updating hit record ID $record_id in BLAST results";
 		my $this_id = $blast_results_table->update($hit_ref, $where);
@@ -1241,14 +1252,11 @@ sub interactive_defragment {
 
 	# Display current settings
 	my $redundancy_mode= $self->{redundancy_mode};
-	my $threadhit_probe_buffer=$self->{threadhit_probe_buffer};
-	my $threadhit_gap_buffer=$self->{threadhit_gap_buffer};
-	my $threadhit_max_gap=$self->{threadhit_max_gap};
+	my $defragment_range=$self->{defragment_range};
 
-	print "\n\n\t # Current Settings";
-	print "\n\t # threadhit_probe_buffer: $threadhit_probe_buffer";
-	print "\n\t # threadhit_gap_buffer: $threadhit_gap_buffer";
-	print "\n\t # threadhit_max_gap: $threadhit_max_gap";
+	print "\n\n\t # Current settings (based on control file)";
+	print "\n\t # redundancy mode: $redundancy_mode";
+	print "\n\t # defragment_range: $defragment_range";
 	my $blast_results_table = $db->{blast_results_table};
 	
 	# Set the fields to get values for
@@ -1269,12 +1277,12 @@ sub interactive_defragment {
 	do {
 
 		my $max = 100000;
-		my $question1 = "\n\n\t # Set the value for threadhit_probe_buffer ";
-		my $question2 = "\t # Set the value for threadhit_gap_buffer ";
-		my $question3 = "\t # Set the value for threadhit_max_gap ";
-		my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $threadhit_probe_buffer, $max);
-		my $t_gap_buffer = $console->ask_int_with_bounds_question($question2, $threadhit_gap_buffer, $max);
-		my $t_max_gap = $console->ask_int_with_bounds_question($question3, $threadhit_max_gap, $max);
+		my $question1 = "\n\n\t # Set the range for merging hits";
+		my $t_probe_buffer = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);
+		
+		my $question2 = "\t # Set the redundancy mode ";
+		my @mode_options = qw [ 1 2 3 ];
+		my $t_defragment_range = $console->ask_simple_choice_question($question2, \@mode_options);
 		
 		# Get hits by scaffold
 		$self->preview_defragment(\@hits);
@@ -1305,7 +1313,7 @@ sub preview_defragment {
 
 	my ($self, $hits_ref) = @_;
 
-	# Iterate through consolidating as we go
+	# Iterate through merging as we go
 	my $i;
 	my %last_hit;
 	my @output;
@@ -1313,6 +1321,7 @@ sub preview_defragment {
 	foreach my $hit_ref (@$hits_ref)  {
 
 		# Get hit values
+		
 		my $record_id     = $hit_ref->{record_id};
 		my $target_name   = $hit_ref->{target_name};
 		my $scaffold      = $hit_ref->{scaffold};
@@ -1364,7 +1373,6 @@ sub preview_defragment {
 			}
 		}
 		push (@output, $line);	
-		#print $line;
 
 		# Update last hit data
 		$last_hit{record_id}     = $record_id;
@@ -1375,7 +1383,6 @@ sub preview_defragment {
 		$last_hit{subject_end}   = $subject_end;
 	}
 }
-
 
 ############################################################################
 # Crossmatching-associated FUNCTIONS
@@ -1552,23 +1559,23 @@ sub run_digs_test {
 	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 	$self->{override} = 'true';
 	$self->initialise($ctl_file);
-		
-	my $db_name = $self->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 	
-	my $db_obj = ScreeningDB->new($self);
-	#$db_obj->drop_screening_db($db_name);	
-	$self->create_screening_db($ctl_file);	
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # database initialised here
-
-	if ($option eq 1) { # Load test
+	
+	# Prompt for what to do next
+	print "\n\t # Option 1: create a test DB";
+	print "\n\t # Option 2: load test data";
+	print "\n\t # Option 3: exit";
+	my $list_question = "\n\n\t # Choose an option:";
+	my $choice = $console->ask_list_question($list_question, 3);
+	
+	if ($choice eq 1) { # Create test DB	
+		$self->create_screening_db($ctl_file);	
+	}
+	elsif ($choice eq 2) { # Load test data
 		die;
 		$self->load_test_data();
 	}
-	else {
-		print "\n\t  Unrecognized option '-t=$option'\n";
-	}
+	
 }
 
 #***************************************************************************
@@ -1579,7 +1586,12 @@ sub load_test_data {
 
 	my ($self) = @_;
 
-	my $db = $self->{db}; # database initialised here
+	# Create database object
+	my $db_name = $self->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }	
+	my $db_obj = ScreeningDB->new($self);
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # database initialised here
 
 }
 

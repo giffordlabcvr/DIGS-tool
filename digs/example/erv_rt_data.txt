@@ -1,0 +1,27 @@
+Virus_name	Subfamily	Clade	Genus	State
+ERV-9	Orthoretrovirinae	I	Gamma-like	Endogenous
+ERV-Fc	Orthoretrovirinae	I	Gamma-like	Endogenous
+HERV-E	Orthoretrovirinae	I	Gamma-like	Endogenous
+HERV-H	Orthoretrovirinae	I	Gamma-like	Endogenous
+HERV-W	Orthoretrovirinae	I	Gamma-like	Endogenous
+CERV-2	Orthoretrovirinae	I	Gammaretrovirus	Endogenous
+FeLV	Orthoretrovirinae	I	Gammaretrovirus	Exogenous
+HERV-T	Orthoretrovirinae	I	Gammaretrovirus	Endogenous
+KoRV	Orthoretrovirinae	I	Gammaretrovirus	Exogenous
+MLV	Orthoretrovirinae	I	Gammaretrovirus	Exogenous
+ALV	Orthoretrovirinae	II	Alpharetrovirus	Exogenous
+HERV-K-HML2	Orthoretrovirinae	II	Beta-like	Endogenous
+HERV-K-HML5	Orthoretrovirinae	II	Beta-like	Endogenous
+HERV-K-HML6	Orthoretrovirinae	II	Beta-like	Endogenous
+IAP	Orthoretrovirinae	II	Beta-like	Endogenous
+JSRV	Orthoretrovirinae	II	Betaretrovirus	Exogenous
+MMTV	Orthoretrovirinae	II	Betaretrovirus	Exogenous
+MPMV	Orthoretrovirinae	II	Betaretrovirus	Exogenous
+PTLV1	Orthoretrovirinae	II	Deltaretrovirus	Exogenous
+FIV	Orthoretrovirinae	II	Lentivirus	Exogenous
+pSIVgml	Orthoretrovirinae	II	Lentivirus	Endogenous
+RELIK	Orthoretrovirinae	II	Lentivirus	Endogenous
+HERV-L	Orthoretrovirinae	III	Spuma-like	Endogenous
+HERV-S	Orthoretrovirinae	III	Spuma-like	Endogenous
+SnRV	Orthoretrovirinae	III	Unclassified	Exogenous
+SFV1	Spumavirinae		Spumavirus	Exogenous

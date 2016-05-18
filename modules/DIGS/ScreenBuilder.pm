@@ -141,14 +141,17 @@ sub parse_control_file {
 	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
 	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
 	
+	$pipeline_obj->{target_paths}           = $self->{target_paths};
+	
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
 	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
+	
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
-	$pipeline_obj->{threadhit_probe_buffer} = $self->{threadhit_probe_buffer};
-	$pipeline_obj->{threadhit_gap_buffer}   = $self->{threadhit_gap_buffer};
-	$pipeline_obj->{threadhit_max_gap}      = $self->{threadhit_max_gap};
-	$pipeline_obj->{target_paths}           = $self->{target_paths};
+	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
+	
+	# Deprecated 'threadhit_gap_buffer'
+	$pipeline_obj->{defragment_range}       = $self->{threadhit_gap_buffer};
 }
 
 #***************************************************************************
@@ -505,19 +508,20 @@ sub parse_screensets_block {
 	}
 
 	# Get the 'SCREENSETS' block values and validate
+	my $output_path            = $self->{output_path};
+	
 	my $tblastn_min            = $self->{bit_score_min_tblastn};
 	my $blastn_min             = $self->{bit_score_min_blastn};
 	my $query_aa_fasta         = $self->{query_aa_fasta};
 	my $reference_aa_fasta     = $self->{reference_aa_fasta};
 	my $query_na_fasta         = $self->{query_na_fasta};
 	my $reference_na_fasta     = $self->{reference_na_fasta};
-	my $query_glue             = $self->{query_glue};
-	my $reference_glue         = $self->{reference_glue};
+	
 	my $redundancy_mode        = $self->{redundancy_mode};
-	my $threadhit_probe_buffer = $self->{threadhit_probe_buffer};
-	my $threadhit_gap_buffer   = $self->{threadhit_gap_buffer};
-	my $threadhit_max_gap      = $self->{threadhit_max_gap};
-	my $output_path            = $self->{output_path};
+	my $defragment_range       = $self->{defragment_range};
+	if ($self->{threadhit_gap_buffer}) {
+		$defragment_range = $self->{threadhit_gap_buffer}; # Deprecated
+	}
 
 	unless ($output_path) {
 		print "\n\t Warning no output path defined, results folder will be created in current directory\n\n\n";
@@ -541,21 +545,14 @@ sub parse_screensets_block {
 		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
 		}
 	}
-	unless ($query_aa_fasta or $query_na_fasta or $query_glue) {
+	unless ($query_aa_fasta or $query_na_fasta) {
 		die "\n\t Control file error: no probe library defined\n\n\n";
 	}
 	unless ($redundancy_mode) {
-		# Set extract mode to default (extract everything)
-		$self->{redundancy_mode} = 1;
+		$self->{redundancy_mode} = 2; # Set extract mode to default 
 	}
-	unless ($threadhit_probe_buffer) {
-		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_probe_buffer' is undefined. \n\n\n";
-	}
-	unless ($threadhit_gap_buffer) {
-		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_probe_buffer' is undefined. \n\n\n";
-	}
-	unless ($threadhit_max_gap) {
-		die "\n\t Control file error: 'Screensets' block parameter 'threadhit_max_gap' is undefined. \n\n\n";
+	unless ($defragment_range) {
+		die "\n\t Control file error: 'Screensets' block parameter 'defragment_range' is undefined. \n\n\n";
 	}
 }
 

@@ -1,5 +1,5 @@
 Begin SCREENDB;
-    db_name=DIGS_example_1;;
+    db_name=DIGS_example_1;
     mysql_server=[localhost];
 	mysql_username=[your username];
 	mysql_password=[your password];

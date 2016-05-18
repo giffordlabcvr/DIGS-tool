@@ -112,19 +112,19 @@ sub main {
 	# Options that require a numerical value
 	my $mode     = undef;
 	my $utility  = undef;
-	my $test     = undef;
 	
 	# Options that don't require a value
 	my $help     = undef;
 	my $version  = undef;
+	my $test     = undef;
 
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
 			    'utility=i'       => \$utility,
-			    'test|t=i'        => \$test,
 			    
 			    'infile|i=s'      => \$infile,
 			    
+			    'test'            => \$test,
 			    'help'            => \$help,
 			    'version'         => \$version,
 			    
