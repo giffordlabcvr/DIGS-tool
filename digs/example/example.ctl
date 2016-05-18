@@ -15,7 +15,7 @@ BEGIN SCREENSETS;
 	threadhit_probe_buffer=100;
 	threadhit_gap_buffer=100;
 	threadhit_max_gap=100;
-	num_threads=8;
+	num_threads=4;
 ENDBLOCK;
 
 BEGIN TARGETS;
