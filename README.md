@@ -30,20 +30,24 @@ After downloading this repository, you will next need to:
 
 You can then start exploring genomes using the DIGS tool. Execute the pipeline.pl script as follows:
 
+To see options for screening: 
+
 ```
 ./pipeline.pl -h
 ```
-...to see options for screening. 
 
+To initially create your screening database:
 ```
 ./pipeline.pl -m=1 -i=[path to your control file]
 ```
-...to initially create your screening database. Use:
+
+To initiate DIGS:
+
 ```
 ./pipeline.pl -m=2 -i=[path to your control file]
 ```
 
-...to initiate DIGS.
+
 
 
 ### Authors and Contributors
