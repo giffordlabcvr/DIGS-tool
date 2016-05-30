@@ -85,7 +85,7 @@ sub refresh_genomes {
 	# Show warning
 	print "\n\t ### WARNING: This is utility function that relies on regular file formatting.\n";
 	print "\n\t ### It requires that target FASTA files are named in the expected way  ";
-	print "\n\t ### i.e. using one of the following file extensions: '.fas', '.fa', '.fasta'\n";
+	print "\n\t ### i.e. using one of the following file extensions: '.fas', '.fa', '.fasta', '.faa', '.fna'\n";
 	print "\n\t ### Note: large FASTA files may generate split index files (01.nin, 02.nin ... etc)";
 	print "\n\t ### When this happens this utility will prompt for formatting, even";
 	print "\n\t ### if index files already exist.\n";
@@ -214,7 +214,9 @@ sub check_genome_formatting {
 		}
 		
 		# Parsing the file extension of the target sequence file
-		if ($type eq 'fasta' or $type eq 'fas' or $type eq 'fa') { 
+		if ($type eq 'fasta' or $type eq 'fas' or $type eq 'fa'
+		 or $type eq 'fna' or $type eq 'faa'
+		) { 
 			$type = 'fa'; # standardise type for FASTA files
 			$stem .= ".$type";
 		}
@@ -298,6 +300,8 @@ sub check_filetype {
 		$type eq 'nin' or $type eq 'nhr' or
 		$type eq 'nhd' or $type eq 'nhi' or
 		$type eq 'nog' or $type eq 'nal') {
+		$type eq 'fai') {
+
 		$result = 1;
 	}
 	return $result;
