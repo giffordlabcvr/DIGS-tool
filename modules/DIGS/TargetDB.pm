@@ -217,8 +217,8 @@ sub check_genome_formatting {
 		if ($type eq 'fasta' or $type eq 'fas' or $type eq 'fa'
 		 or $type eq 'fna' or $type eq 'faa'
 		) { 
-			$type = 'fa'; # standardise type for FASTA files
 			$stem .= ".$type";
+			$type = 'fa'; # standardise type for FASTA files
 		}
 	
 		# Check if the file looks like a BLAST sequence database file	
