@@ -299,8 +299,8 @@ sub check_filetype {
 		$type eq 'nin' or $type eq 'nhr' or
 		$type eq 'nin' or $type eq 'nhr' or
 		$type eq 'nhd' or $type eq 'nhi' or
-		$type eq 'nog' or $type eq 'nal') {
-		$type eq 'fai') {
+		$type eq 'nog' or $type eq 'nal' or
+		$type eq 'fai' or $type eq 'txt') {
 
 		$result = 1;
 	}

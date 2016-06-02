@@ -96,6 +96,7 @@ sub run_digs_process {
 		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file);
 	}
+	unless ($self->{defragment_range}) { die; }
 
 	# If it exists, load the screening database specified in the control file
 	if ( $option > 1 and $option < 8) {
@@ -901,6 +902,9 @@ sub initialise {
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
 	
+	# Copy defragment_range setting
+	$self->{defragment_range} = $loader_obj->{defragment_range};
+	
 }
 
 #***************************************************************************
@@ -1073,7 +1077,7 @@ sub inspect_adjacent_hits {
 
 	# Get parameters for consolidating hits from self
 	my $defragment_range   = $self->{defragment_range};
-	unless ($defragment_range) { die; } 
+	unless ($defragment_range) { die "\n\t Defragment range is not set\n\n\n"; } 
 
 	# Get data for 1st hit (i.e. most 'leftward' in the target sequence)
 	my $last_record_id     = $last_hit_ref->{record_id};
