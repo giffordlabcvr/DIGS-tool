@@ -119,8 +119,8 @@ sub run_digs_process {
 		$self->reassign();	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
-		print "\n\n\t  Sorry, this function is not yet implemented (2016-05-18) - watch this space!\n\n"; exit
-		#$self->interactive_defragment();	
+		#print "\n\n\t  Sorry, this function is not yet implemented (2016-05-18) - watch this space!\n\n"; exit
+		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
 		my $db = $self->{db};
@@ -1328,9 +1328,8 @@ sub preview_defragment {
 		my $gap;
 		$blast_count++;
 		
-		unless ($last_subject_end) {
-			$gap = 0;
-		}
+		unless ($last_subject_end) { $gap = 0; }
+
 		else {
 			$gap = $subject_start - $last_subject_end;
 
@@ -1360,10 +1359,11 @@ sub preview_defragment {
 		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
 		   $line .= ",$subject_start,$subject_end ($orientation)";
 		   $line .= ": query: $query_start, $query_end";
-		if ($i) {
+		
+		  if ($i) {
 			if ($i > 1 and $gap < $t_range) { 
-				print "\n\t  ### ARRAY HIT"; 
-				$line .= "\t  ### ARRAY HIT\n"; 
+				print "\n\t  ### OVERLAPPING HITS"; 
+				#$line .= "\t  ### ARRAY HIT\n"; 
 			}
 		}
 		push (@output, $line);	

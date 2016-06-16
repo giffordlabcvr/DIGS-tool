@@ -293,7 +293,7 @@ sub setup_blast_probes {
 
 #***************************************************************************
 # Subroutine:  set_targets
-# Description: get information about the target sequence data files
+# Description: set up the target files for screening
 #***************************************************************************
 sub set_targets {
 	
@@ -305,20 +305,23 @@ sub set_targets {
 		$genome_obj->refresh_genomes($targets_ref);
 	} 
 	
-	# Iterate through targets set target file paths
+	# Iterate through the list of paths 
 	my %paths;
 	my %target_data;
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
 	unless ($target_paths_ref) { die; } 
+	
 	foreach my $path (@$target_paths_ref) {
 		
 		my $full_path = $genome_use_path . "/$path";	
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
+		# If the path is a directory, get paths to all the files in it and its subdirectories
 		if ($exists) {
 			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
 		}
+		# If the path is not to a directory, process as a file 
 		else {
 			$path =~ s/\/\//\//g;
 			my @path = split(/\//, $path);
@@ -344,6 +347,49 @@ sub set_targets {
 		exit;
 	}
 	print "\n\t  Targets:           $unique_targets target files";
+}
+
+#***************************************************************************
+# Subroutine:  read genome files
+# Description: processes the top level (leaves) of the genome directory
+#***************************************************************************
+sub read_genome_files {
+	
+	my ($self, $leaves_ref, $targets_ref) = @_;
+
+	foreach my $file_ref (@$leaves_ref) {
+
+		my $file = $file_ref->{file};
+		my $path = $file_ref->{path};
+	
+		my $file_type = $fileio->get_infile_type($file);
+		
+		# Use files that are of the correct type
+		if ($file_type eq 'fa' or $file_type eq 'fas' 
+		or  $file_type eq 'fasta' or $file_type eq 'fna' ) {
+			
+			$path =~ s/\/\//\//g;
+			my @path = split(/\//, $path);
+			my $file     = pop @path;
+			my $version  = pop @path;
+			my $type     = pop @path;
+			my $organism = pop @path;
+			my $group    = pop @path;
+			unless ($organism and $type and $version) { die; }
+			my @target = ( $organism , $type, $version, $file );
+			my $target_id = join ('|', @target);
+
+			# Store using key
+			my %data;
+			$data{file}      = $file;
+			$data{path}      = $path;
+			$data{organism}  = $organism;
+			$data{version}   = $version;
+			$data{data_type} = $type;
+			$data{group}     = $group;
+			$targets_ref->{$target_id} = \%data;	
+		}
+	}
 }
 
 #***************************************************************************
@@ -693,46 +739,6 @@ sub parse_fasta_header_data {
 	}
 	$data_ref->{name}     = $name;
 	$data_ref->{gene_name} = $gene_name;
-}
-
-#***************************************************************************
-# Subroutine:  read genome files
-# Description: processes the top level (leaves) of the genome directory
-#***************************************************************************
-sub read_genome_files {
-	
-	my ($self, $leaves_ref, $targets_ref) = @_;
-
-	foreach my $file_ref (@$leaves_ref) {
-
-		my $file = $file_ref->{file};
-		my $path = $file_ref->{path};
-	
-		my $file_type = $fileio->get_infile_type($file);
-		if ($file_type eq 'fa' or $file_type eq 'fas' or $file_type eq 'fasta') {
-			
-			$path =~ s/\/\//\//g;
-			my @path = split(/\//, $path);
-			my $file     = pop @path;
-			my $version  = pop @path;
-			my $type     = pop @path;
-			my $organism = pop @path;
-			my $group    = pop @path;
-			unless ($organism and $type and $version) { die; }
-			my @target = ( $organism , $type, $version, $file );
-			my $target_id = join ('|', @target);
-
-			# Store using key
-			my %data;
-			$data{file}      = $file;
-			$data{path}      = $path;
-			$data{organism}  = $organism;
-			$data{version}   = $version;
-			$data{data_type} = $type;
-			$data{group}     = $group;
-			$targets_ref->{$target_id} = \%data;	
-		}
-	}
 }
 
 #***************************************************************************
