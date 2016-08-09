@@ -602,8 +602,6 @@ sub get_ancillary_table_names {
 			if ($item eq 'Status')           { next; }
 			elsif ($item eq 'BLAST_results') { next; }
 			elsif ($item eq 'Extracted')     { next; }
-			elsif ($item eq 'Loci')          { next; }
-			elsif ($item eq 'Loci_link')     { next; }
 			else {
 				push (@$anc_tables_ref, $item)
 			}

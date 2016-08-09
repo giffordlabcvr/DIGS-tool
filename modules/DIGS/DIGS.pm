@@ -764,13 +764,13 @@ sub extend_screening_db {
 		$db->get_ancillary_table_names(\@extra_tables);
 		
 		my $table_num = 0;
-		my @table_choices;
 		foreach my $table_name (@extra_tables) {
 			$table_num++;
 			$extra_tables{$table_num} = $table_name;
 			print "\n\t\t Table $table_num: '$table_name'";
-			push (@table_choices, $table_num);
 		}
+		my @table_choices = keys %extra_tables;
+
 		my $question5 = "\n\n\t Apply to which of the above tables?";
 		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
 		$table_to_use = $extra_tables{$answer5};
