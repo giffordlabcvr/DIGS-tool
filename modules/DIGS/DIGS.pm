@@ -119,7 +119,6 @@ sub run_digs_process {
 		$self->reassign();	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
-		#print "\n\n\t  Sorry, this function is not yet implemented (2016-05-18) - watch this space!\n\n"; exit
 		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
@@ -765,14 +764,15 @@ sub extend_screening_db {
 		$db->get_ancillary_table_names(\@extra_tables);
 		
 		my $table_num = 0;
+		my @table_choices;
 		foreach my $table_name (@extra_tables) {
 			$table_num++;
 			$extra_tables{$table_num} = $table_name;
 			print "\n\t\t Table $table_num: '$table_name'";
-			push (@choices, $table_num);
+			push (@table_choices, $table_num);
 		}
 		my $question5 = "\n\n\t Apply to which of the above tables?";
-		my $answer5   = $console->ask_simple_choice_question($question5, \@choices);
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
 		$table_to_use = $extra_tables{$answer5};
 		unless ($table_to_use) { die; }
 	}
@@ -794,7 +794,7 @@ sub extend_screening_db {
 			$line_number++;
 			if     ($line =~ /^\s*$/)  { next; } # discard blank line
 			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-			unless ($line =~ /\t/)     { die; }
+			unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
 			push (@data, $line);
 		}
 		my $data = scalar @data;
@@ -1377,6 +1377,163 @@ sub preview_defragment {
 		$last_hit{subject_end}   = $subject_end;
 	}
 }
+
+#***************************************************************************
+# Subroutine:  create_combined_track
+# Description: 
+#***************************************************************************
+sub create_combined_track {
+
+	my ($infile) = @_;
+
+	my @output;
+
+	# Read the file with the combined tracks
+	# They should be pre-sorted by scaffold and start position
+	my @combined_tracks;
+	read_file($infile, \@combined_tracks);
+	my $lines = scalar @combined_tracks;
+	unless ($lines) {
+		die "\n\t Unable to read infile '$infile'\n\n";
+	}
+	elsif ($lines eq 1) {
+		print "\n\t Single line of data was read form infile '$infile'";
+		die "\n\t Check line break formatting\n\n";
+	}
+    # Remove header line
+    #shift @combined_tracks;
+	
+	# Load taxonomy information
+	my %taxonomy;
+	#load_translations(\%taxonomy);
+
+	# Validate
+	#validate_translations(\%taxonomy);
+	#die;
+		
+	# Iterate through consolidating as we go
+	print "\n\t Creating Missillac nomenclature";
+	my $i = 0;
+	my $j = 1;
+	my $range = 2000;
+	my $initialised = undef;
+	my %last_hit;
+	my $blast_count= 0;
+	my %defragmented;
+	my %name_counts;
+	foreach my $line (@combined_tracks) {
+
+        $i++;
+        print "\n\t # LINE $i (element $j):";
+		
+        # Capture the values in a hash				
+        my %hit;
+        extract_values_from_track_line($line, \%hit);
+
+	    if ($initialised) {
+            
+            my $new = compare_adjacent_hits(\%hit, \%last_hit, $range);
+           
+            if ($new) {
+                
+                # Finish Missillac record
+                my $array_ref = $defragmented{$j};
+                finish_missillac_entry(\@output, \%taxonomy, $array_ref, \%name_counts, $j);
+
+                # Increment the count
+                $j++;
+            
+                # Initialise new Missillac record
+                initialise_missillac_entry(\%defragmented, \%hit, $j);
+            }
+            else {
+                
+                # Extend current Missillac record
+                extend_missillac_entry(\%defragmented, \%hit, $j);
+
+            }
+        }
+		else {
+			print "\n\t\t First record ($j)";
+            $initialised = 'true';
+            
+            # Initialise new Missillac record
+            initialise_missillac_entry(\%defragmented, \%hit, $j);
+        }
+
+		# Update the 'last hit' values
+		$last_hit{track}       = $hit{track};
+		$last_hit{name}        = $hit{name};
+		$last_hit{scaffold}    = $hit{scaffold};
+		$last_hit{start}       = $hit{start};
+		$last_hit{end}         = $hit{end};
+		$last_hit{orientation} = $hit{orientation};
+		$last_hit{gene}        = $hit{gene};
+		$last_hit{hit_id}      = $hit{hit_id};
+
+	}
+
+	# Write the output
+	my $outfile = $infile . '.missillac.txt';
+	write_file($outfile, \@output)
+}
+
+#***************************************************************************
+# Subroutine:  compare_adjacent_hits
+# Description: compare two hits 
+#***************************************************************************
+sub compare_adjacent_hits {
+
+	my ($hit_ref, $last_hit_ref, $range) = @_;
+
+	# Get the current hit values
+	my $track       = $hit_ref->{track};
+	my $name        = $hit_ref->{name};
+	my $scaffold    = $hit_ref->{scaffold};	
+	my $start       = $hit_ref->{start};
+	my $end         = $hit_ref->{end};
+	my $orientation = $hit_ref->{orientation};			
+
+	# Get the last hit values
+	my $last_track       = $last_hit_ref->{track};
+	my $last_name        = $last_hit_ref->{name};
+	my $last_scaffold    = $last_hit_ref->{scaffold};	
+	my $last_start       = $last_hit_ref->{start};
+	my $last_end         = $last_hit_ref->{end};
+	my $last_orientation = $last_hit_ref->{orientation};			
+	
+	if ($scaffold ne $last_scaffold) {
+		return 1;
+	}
+	
+	my $gap;
+	if ($orientation ne $last_orientation) {
+		return 1;
+	}
+	
+	elsif ($last_orientation eq '+') {
+		$gap = $start - $last_end;		
+	}
+	elsif ($last_orientation eq '-') {		
+		$gap = $end - $last_start;
+	}
+	else {
+		print "\n\t last_orientation = '$last_orientation'";
+	}	
+	#print "\n\t # THIS: '$track' hit in:\t '$scaffold': '$start'-'$end' ('$orientation')";
+	#print "\n\t # LAST: '$last_track' hit in:\t '$last_scaffold': '$last_start'-'$last_end' ('$last_orientation')";
+	print "\n\t # GAP:  '$gap";
+
+	# Test whether to combine this pair into a set
+	if ($gap < $range) {  # Combine
+        return 0;
+	
+	}
+	else { # Don't combine
+		return 1;
+	}
+}
+
 
 ############################################################################
 # Crossmatching-associated FUNCTIONS
