@@ -96,7 +96,6 @@ sub run_digs_process {
 		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file);
 	}
-	unless ($self->{defragment_range}) { die; }
 
 	# If it exists, load the screening database specified in the control file
 	if ( $option > 1 and $option < 8) {
@@ -301,7 +300,6 @@ sub search {
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
 
 	# Sanity checking
-	unless ($min_length)      { die "\n\t Default_min_seqlen undefined\n\n\n"; }
 	unless ($blast_obj)       { die; } 
 	unless ($tmp_path)        { die; } 
 	unless ($db_ref)          { die; } 
@@ -327,19 +325,11 @@ sub search {
 	# Parse out the alignment
 	my @hits;
 	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
-
 	# TODO: catch error from BLAST and don't update Status table	
 
 	# Clean up - remove the result file
 	my $rm_command = "rm $result_file";
 	system $rm_command;
-
-	# Rename coordinate fields to match DB
-	foreach my $hit_ref (@hits) {
-		$hit_ref->{subject_start} = $hit_ref->{aln_start};
-		$hit_ref->{subject_end}   = $hit_ref->{aln_stop};
-		$hit_ref->{query_end}     = $hit_ref->{query_stop};
-	}
 
 	# Store new new BLAST hits that meet conditions
 	my $blast_results_table = $db_ref->{blast_results_table};
@@ -350,21 +340,26 @@ sub search {
 	
 	foreach my $hit_ref (@hits) {
 		
-		# Skip sequences that are too short
-		my $start  = $hit_ref->{subject_start};
-		my $end    = $hit_ref->{subject_end};
-		if ($end - $start < $min_length) {  next; }
-		
+		if ($min_length) { # Skip sequences that are too short
+			my $start  = $hit_ref->{subject_start};
+			my $end    = $hit_ref->{subject_end};
+			if ($end - $start < $min_length) {  next; }
+		}
+			
 		# Record hit in BLAST results table
-		$hit_ref->{organism}     = $organism;
-		$hit_ref->{version}      = $version;
-		$hit_ref->{data_type}    = $data_type;
-		$hit_ref->{target_name}  = $target_name;
-		$hit_ref->{probe_id}     = $probe_id;
-		$hit_ref->{probe_name}   = $probe_name;
-		$hit_ref->{probe_gene}   = $probe_gene;
-		$hit_ref->{probe_type}   = $query_ref->{probe_type};
-		$hit_ref->{hit_length}   = $hit_ref->{align_len};
+		$hit_ref->{organism}      = $organism;
+		$hit_ref->{version}       = $version;
+		$hit_ref->{data_type}     = $data_type;
+		$hit_ref->{target_name}   = $target_name;
+		$hit_ref->{probe_id}      = $probe_id;
+		$hit_ref->{probe_name}    = $probe_name;
+		$hit_ref->{probe_gene}    = $probe_gene;
+		$hit_ref->{probe_type}    = $query_ref->{probe_type};
+		$hit_ref->{hit_length}    = $hit_ref->{align_len};
+		$hit_ref->{subject_start} = $hit_ref->{aln_start}; 	# Rename coordinate fields to match DB
+		$hit_ref->{subject_end}   = $hit_ref->{aln_stop}; 	# Rename coordinate fields to match DB
+		$hit_ref->{query_end}     = $hit_ref->{query_stop}; # Rename coordinate fields to match DB
+
 		$blast_results_table->insert_row($hit_ref);
 	} 
 

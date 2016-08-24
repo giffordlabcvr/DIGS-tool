@@ -226,13 +226,14 @@ sub parse_tab_format_results {
 			my $switch_start = $aln_stop; 
 			my $switch_stop   = $aln_start; 
 			$match{aln_start} = $switch_start;
-			$match{aln_stop}   = $switch_stop;
+			$match{aln_stop}  = $switch_stop;
 		}
 		else {
 			$orientation = '+';
 			$match{aln_start} = $aln_start;
-			$match{aln_stop}   = $aln_stop;
+			$match{aln_stop}  = $aln_stop;
 		}
+		
 		$match{orientation}   = $orientation; 
 		$match{bit_score}     = $bit_score;
 		push(@$result_ref, \%match);

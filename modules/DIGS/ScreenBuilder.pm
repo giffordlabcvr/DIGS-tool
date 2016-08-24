@@ -29,10 +29,6 @@ use DIGS::ScreeningDB;
 # Create base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
-
-# BLAST defaults
-my $default_tblastn_min = 50;
-my $default_blastn_min  = 50;
 1;
 
 ############################################################################
@@ -55,6 +51,8 @@ sub new {
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
 		blast_bin_path       => $parameter_ref->{blast_bin_path},
+		# Member classes 
+		blast_obj              => $parameter_ref->{blast_obj},
 	};
 	bless ($self, $class);
 	return $self;
@@ -82,12 +80,12 @@ sub set_up_screen  {
 	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
 	$pipeline_obj->{log_file} = $log_file;
 
-	# Set up the reference library for BLAST
-	$self->setup_reference_library($pipeline_obj);
-
 	# Import the probes
 	my @probes;
 	$self->setup_blast_probes(\@probes);
+
+	# Set up the reference library for BLAST
+	$self->setup_reference_library($pipeline_obj);
 
 	# Set target sequence files for screening
 	my %targets;
@@ -150,8 +148,6 @@ sub parse_control_file {
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
 	
-	# Deprecated 'threadhit_gap_buffer'
-	$pipeline_obj->{defragment_range}       = $self->{threadhit_gap_buffer};
 }
 
 #***************************************************************************
@@ -218,7 +214,6 @@ sub setup_reference_library {
 	# Set the paths to the BLAST-formatted libraries
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
-	
 }
 
 #***************************************************************************
@@ -231,20 +226,121 @@ sub setup_blast_probes {
 
 	# Get parameters from self
 	my $probe_type;
-	my $query_fasta;
+	my $input_path;
 	if ($self->{query_aa_fasta}) {
  		$self->{probe_library_type} = 'aa';
-		$query_fasta = $self->{query_aa_fasta};
-		$probe_type = 'amino acid';
+		$input_path = $self->{query_aa_fasta};
+		$probe_type = 'amino acid FASTA';
 	}
 	elsif ($self->{query_na_fasta}) {
  		$self->{probe_library_type} = 'na';
-		$query_fasta = $self->{query_na_fasta};
-		$probe_type = 'nucleic acid';
+		$input_path = $self->{query_na_fasta};
+		$probe_type = 'nucleic acid FASTA';
+	}
+	elsif ($self->{query_na_track}) {
+ 		$self->{probe_library_type} = 'na';
+		$input_path = $self->{query_na_track};
+		$probe_type = 'track-extracted';
 	}
 	else { 
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
 	}
+
+	# Get a FASTA set of probes 
+	if ($probe_type eq 'nucleic acid FASTA' or $probe_type eq 'amino acid FASTA') {
+		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
+	}
+	# Get a set of probe sequences from a track
+	elsif ($probe_type eq 'track-extracted') {
+		$self->extract_track_sequences($probes_ref, $input_path, $probe_type);
+	}
+	else {
+		die;
+	}
+}
+
+#***************************************************************************
+# Subroutine:  extract_track_sequences
+# Description: 
+#***************************************************************************
+sub extract_track_sequences {
+	
+	my ($self, $probes_ref) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+	my $track_path  = $self->{query_na_track};
+	my $genome_path = $self->{genome_use_path};
+	my $query_na_track_genome_path = $self->{query_na_track_genome_path}; 
+	
+	# Read FASTA probe library
+	my @track;
+	$fileio->read_file($track_path, \@track);
+
+	# Iterate through the tracks extracting
+	my $i = 0;
+	foreach my $line (@track) {
+		
+		$i++;
+		print "\n\t $i $line";
+		chomp $line; # remove newline
+		my @line = split(" ", $line);
+		my $i;
+		foreach my $element (@line) {
+			$i++;
+			print "\n\t ELEMENT $i : $element"
+		}
+			
+		my $name          = $line[1];
+		my $scaffold      = $line[2];
+		
+		# TODO - hacky -resolve
+		if ($scaffold =~ /Unk/) { next; }
+
+		my $subject_start = $line[3];
+		my $subject_end   = $line[4];
+		my $gene          = $line[5];
+		my $id            = $line[6];
+		my $orientation;
+		if ($subject_start < $subject_end) {
+			$orientation = '+';
+		}
+		elsif ($subject_start > $subject_end) {
+			$orientation = '-';
+			my $switch     = $subject_start;
+			$subject_start = $subject_end;
+			$subject_end   = $switch;
+		}
+		# Extract the sequence
+		my %data;
+		$data{subject_start} = $subject_start;
+		$data{subject_end}   = $subject_end;
+		$data{orientation}   = $orientation;
+		$data{scaffold}      = $scaffold;
+
+		my $target_path = $genome_path . "/$query_na_track_genome_path" . "/$scaffold" . '.fa';;	
+		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
+		if ($sequence) {	
+			print "\n\t got seq $sequence \n\n";
+			my $digs_fasta = ">$name" . ".$id"  . "_$gene" . "\n$sequence\n";
+			push (@$probes_ref, $digs_fasta);;
+		}
+		else {
+			die "\n\t Sequence extraction failed";
+		}
+	}	
+
+	my $outfile = 'extracted.DIGS.fna';
+	$fileio->write_file($outfile, $probes_ref);
+}
+
+#***************************************************************************
+# Subroutine:  get_fasta_probes
+# Description: 
+#***************************************************************************
+sub get_fasta_probes {
+	
+	my ($self, $probes_ref, $query_fasta, $probe_type) = @_;
 
 	# Read FASTA probe library
 	my @fasta;
@@ -555,13 +651,20 @@ sub parse_screensets_block {
 
 	# Get the 'SCREENSETS' block values and validate
 	my $output_path            = $self->{output_path};
-	
-	my $tblastn_min            = $self->{bit_score_min_tblastn};
-	my $blastn_min             = $self->{bit_score_min_blastn};
-	my $query_aa_fasta         = $self->{query_aa_fasta};
-	my $reference_aa_fasta     = $self->{reference_aa_fasta};
+
+	# Nucleic acid FASTA input	
 	my $query_na_fasta         = $self->{query_na_fasta};
 	my $reference_na_fasta     = $self->{reference_na_fasta};
+	my $blastn_min             = $self->{bit_score_min_blastn};
+
+	# Amino acid FASTA input
+	my $query_aa_fasta         = $self->{query_aa_fasta};
+	my $reference_aa_fasta     = $self->{reference_aa_fasta};
+	my $tblastn_min            = $self->{bit_score_min_tblastn};
+
+	# Track based input
+	my $query_na_track         = $self->{query_na_track};
+	my $query_na_track_genome  = $self->{query_na_track_genome}; 
 	
 	my $redundancy_mode        = $self->{redundancy_mode};
 	my $defragment_range       = $self->{defragment_range};
@@ -572,11 +675,13 @@ sub parse_screensets_block {
 	unless ($output_path) {
 		print "\n\t Warning no output path defined, results folder will be created in current directory\n\n\n";
 	}
-	# Validation for a nucleic acid, FASTA-based screen
+	
+	# Validation for a amino acid, FASTA-based screen
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
 		# Check if BLAST bitscore or evalue minimum set
-		unless ($blastn_min) { # Set to default minimum
-			$self->{bit_score_min_tblastn} = $default_blastn_min;
+		unless ($tblastn_min) { # Set to default minimum
+			print "\n\t Warning file error: no bitscore minimum defined for blastn";
+			sleep 1;
 		}
 		unless ($reference_aa_fasta) { # Set to default minimum
 		  die "\n\t Control file error: no AA reference library defined for AA query set\n\n\n";
@@ -584,15 +689,27 @@ sub parse_screensets_block {
 	}
 	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_na_fasta) {
-		unless ($tblastn_min) { # Set to default minimum
-			$self->{bit_score_min_tblastn} = $default_tblastn_min;
+		unless ($blastn_min) { # Set to default minimum
+			print "\n\t Warning file error: no bitscore minimum defined for tblastn\n";
+			sleep 1;
 		}
 		unless ($reference_na_fasta) { # Set to default minimum
 		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
 		}
 	}
-	unless ($query_aa_fasta or $query_na_fasta) {
-		die "\n\t Control file error: no probe library defined\n\n\n";
+	# Validation for a track-based screen
+	if ($query_na_track) {
+		unless ($blastn_min) { # Set to default minimum
+			print "\n\t Warning file error: no bitscore minimum defined for blastn\n";
+			sleep 1;
+		}
+		unless ($reference_na_fasta) { # Set to default minimum
+		  die "\n\t Control file error: no NT reference library defined for NT query set\n\n\n";
+		}
+	}
+
+	unless ($query_aa_fasta or $query_na_fasta or $query_na_track) {
+		die "\n\t Control file error: no query defined\n\n\n";
 	}
 	unless ($redundancy_mode) {
 		$self->{redundancy_mode} = 2; # Set extract mode to default 
@@ -600,6 +717,7 @@ sub parse_screensets_block {
 	unless ($defragment_range) {
 		die "\n\t Control file error: 'Screensets' block parameter 'defragment_range' is undefined. \n\n\n";
 	}
+
 }
 
 #***************************************************************************
