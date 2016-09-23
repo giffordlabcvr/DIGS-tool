@@ -90,6 +90,7 @@ sub set_up_screen  {
 	# Set target sequence files for screening
 	my %targets;
 	$self->set_targets(\%targets);
+	#$self->exclude_targets(\%targets);
 	
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
@@ -106,7 +107,7 @@ sub set_up_screen  {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj, $override) = @_;
+	my ($self, $ctl_file, $pipeline_obj, $minimal_initialise) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -116,12 +117,12 @@ sub parse_control_file {
 	$self->parse_screendb_block(\@ctl_file);
 
 	# Parse the 'SCREENSETS' block
-	unless ($override) {
+	unless ($minimal_initialise) { # Skip this block if this flag is set
 		$self->parse_screensets_block(\@ctl_file);
 	}
 
 	# READ the 'TARGETS' block
-	unless ($override) {
+	unless ($minimal_initialise) { # Skip this block if this flag is set
 		$self->parse_targets_block(\@ctl_file);
 	}
 	
@@ -237,11 +238,6 @@ sub setup_blast_probes {
 		$input_path = $self->{query_na_fasta};
 		$probe_type = 'nucleic acid FASTA';
 	}
-	elsif ($self->{query_na_track}) {
- 		$self->{probe_library_type} = 'na';
-		$input_path = $self->{query_na_track};
-		$probe_type = 'track-extracted';
-	}
 	else { 
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
 	}
@@ -250,88 +246,9 @@ sub setup_blast_probes {
 	if ($probe_type eq 'nucleic acid FASTA' or $probe_type eq 'amino acid FASTA') {
 		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
 	}
-	# Get a set of probe sequences from a track
-	elsif ($probe_type eq 'track-extracted') {
-		$self->extract_track_sequences($probes_ref, $input_path, $probe_type);
-	}
 	else {
 		die;
 	}
-}
-
-#***************************************************************************
-# Subroutine:  extract_track_sequences
-# Description: 
-#***************************************************************************
-sub extract_track_sequences {
-	
-	my ($self, $probes_ref) = @_;
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-	my $track_path  = $self->{query_na_track};
-	my $genome_path = $self->{genome_use_path};
-	my $query_na_track_genome_path = $self->{query_na_track_genome_path}; 
-	
-	# Read FASTA probe library
-	my @track;
-	$fileio->read_file($track_path, \@track);
-
-	# Iterate through the tracks extracting
-	my $i = 0;
-	foreach my $line (@track) {
-		
-		$i++;
-		print "\n\t $i $line";
-		chomp $line; # remove newline
-		my @line = split(" ", $line);
-		my $i;
-		foreach my $element (@line) {
-			$i++;
-			print "\n\t ELEMENT $i : $element"
-		}
-			
-		my $name          = $line[1];
-		my $scaffold      = $line[2];
-		
-		# TODO - hacky -resolve
-		if ($scaffold =~ /Unk/) { next; }
-
-		my $subject_start = $line[3];
-		my $subject_end   = $line[4];
-		my $gene          = $line[5];
-		my $id            = $line[6];
-		my $orientation;
-		if ($subject_start < $subject_end) {
-			$orientation = '+';
-		}
-		elsif ($subject_start > $subject_end) {
-			$orientation = '-';
-			my $switch     = $subject_start;
-			$subject_start = $subject_end;
-			$subject_end   = $switch;
-		}
-		# Extract the sequence
-		my %data;
-		$data{subject_start} = $subject_start;
-		$data{subject_end}   = $subject_end;
-		$data{orientation}   = $orientation;
-		$data{scaffold}      = $scaffold;
-
-		my $target_path = $genome_path . "/$query_na_track_genome_path" . "/$scaffold" . '.fa';;	
-		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
-		if ($sequence) {	
-			print "\n\t got seq $sequence \n\n";
-			my $digs_fasta = ">$name" . ".$id"  . "_$gene" . "\n$sequence\n";
-			push (@$probes_ref, $digs_fasta);;
-		}
-		else {
-			die "\n\t Sequence extraction failed";
-		}
-	}	
-
-	my $outfile = 'extracted.DIGS.fna';
-	$fileio->write_file($outfile, $probes_ref);
 }
 
 #***************************************************************************
@@ -673,14 +590,14 @@ sub parse_screensets_block {
 	}
 
 	unless ($output_path) {
-		print "\n\t Warning no output path defined, results folder will be created in current directory\n\n\n";
+		print "\n\t  Warning no output path defined, results folder will be created in current directory\n\n\n";
 	}
 	
 	# Validation for a amino acid, FASTA-based screen
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
 		# Check if BLAST bitscore or evalue minimum set
 		unless ($tblastn_min) { # Set to default minimum
-			print "\n\t Warning file error: no bitscore minimum defined for blastn";
+			print "\n\t  Warning: no bitscore minimum defined for blastn\n\n";
 			sleep 1;
 		}
 		unless ($reference_aa_fasta) { # Set to default minimum
@@ -690,7 +607,7 @@ sub parse_screensets_block {
 	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_na_fasta) {
 		unless ($blastn_min) { # Set to default minimum
-			print "\n\t Warning file error: no bitscore minimum defined for tblastn\n";
+			print "\n\t Warning: no bitscore minimum defined for tblastn\n\n";
 			sleep 1;
 		}
 		unless ($reference_na_fasta) { # Set to default minimum
@@ -700,7 +617,7 @@ sub parse_screensets_block {
 	# Validation for a track-based screen
 	if ($query_na_track) {
 		unless ($blastn_min) { # Set to default minimum
-			print "\n\t Warning file error: no bitscore minimum defined for blastn\n";
+			print "\n\t  Warning: no bitscore minimum defined for blastn\n\n";
 			sleep 1;
 		}
 		unless ($reference_na_fasta) { # Set to default minimum
@@ -709,7 +626,7 @@ sub parse_screensets_block {
 	}
 
 	unless ($query_aa_fasta or $query_na_fasta or $query_na_track) {
-		die "\n\t Control file error: no query defined\n\n\n";
+		die "\n\t Control file error: no path to query sequence input is defined\n\n\n";
 	}
 	unless ($redundancy_mode) {
 		$self->{redundancy_mode} = 2; # Set extract mode to default 
@@ -932,6 +849,106 @@ sub read_fasta {
 		$seq_obj{sequence_id} = $alias_id;
 		push(@$array_ref, \%seq_obj);
 	}
+}
+
+#***************************************************************************
+# Subroutine:  extract_track_sequences
+# Description: extract FASTA nucs from a genome assembly using an input track 
+#***************************************************************************
+sub extract_track_sequences {
+	
+	my ($self, $extracted_ref, $track_path) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+
+	# Try to read the tab-delimited infile
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers in order!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $query_na_track_genome_path = $console->ask_question($question1);
+	
+	# Read FASTA probe library
+	my @track;
+	$fileio->read_file($track_path, \@track);
+
+	# Iterate through the tracks extracting
+	my $i = 0;	
+	my @probe_fasta;
+	foreach my $line (@track) {
+		
+		$i++;
+		
+		chomp $line; # remove newline
+		my @line = split("\t", $line);
+
+		my $j;
+		#foreach my $element (@line) {
+		#	$j++;
+		#	print "\n\t ELEMENT $j : $element"
+		#}
+		#die;
+		
+		my $name          = $line[0];
+		my $scaffold      = $line[2];
+		
+		# TODO - hacky - resolve
+		if ($scaffold =~ /Unk/) { next; }
+		
+		my $subject_start = $line[3];
+		my $subject_end   = $line[4];
+		my $gene          = $line[5];
+		my $id            = $line[0];
+		my $orientation;
+
+		if ($subject_start < $subject_end) {
+			$orientation = '+';
+		}
+		elsif ($subject_start > $subject_end) {
+			$orientation = '-';
+			my $switch     = $subject_start;
+			$subject_start = $subject_end;
+			$subject_end   = $switch;
+		}
+		
+		# Extract the sequence
+		my %data;
+		$data{subject_start} = $subject_start;
+		$data{subject_end}   = $subject_end;
+		$data{orientation}   = $orientation;
+		$data{scaffold}      = $scaffold;
+
+		my $target_path = "$query_na_track_genome_path" . "/$scaffold" . '.fa';;	
+		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
+		if ($sequence) {	
+			#print "\n\t got seq $sequence \n\n";
+			my %probe;
+			$probe{probe_name}      = $name;
+			$probe{probe_gene}      = $gene;
+			$probe{probe_id}        = $name . "_$gene";
+			$probe{sequence}        = $sequence;
+			$probe{probe_type}      = 'UTR';
+			$probe{blast_alg}       = 'blastn';
+			$probe{bitscore_cutoff} = $self->{bit_score_min_blastn};		
+			
+			push(@$extracted_ref, \%probe);
+			
+			my $header = "$name" . "_$gene";
+			$header =~ s/\(/\./g;
+			$header =~ s/\)//g;
+
+			print "\n\t\t Getting probe $i: $header";
+
+			my $digs_fasta = ">$header" . "\n$sequence\n";
+			push (@probe_fasta, $digs_fasta);;
+		
+		}
+		else {
+			die "\n\t Sequence extraction failed";
+		}
+	}	
+	
+	my $outfile = 'extracted.DIGS.fna';
+	$fileio->write_file($outfile, \@probe_fasta);
 }
 
 ############################################################################

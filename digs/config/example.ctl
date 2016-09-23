@@ -12,9 +12,7 @@ BEGIN SCREENSETS;
 	redundancy_mode=2;
 	seq_length_minimum=30;
 	bit_score_min_tblastn=100;
-	threadhit_probe_buffer=100;
-	threadhit_gap_buffer=100;
-	threadhit_max_gap=100;
+	defragment range=100;
 	num_threads=4;
 ENDBLOCK;
 

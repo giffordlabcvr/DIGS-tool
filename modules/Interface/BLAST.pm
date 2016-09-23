@@ -111,7 +111,8 @@ sub blast {
 
 	# Execute the command 
 	#print "\n\t COMMAND $command"; sleep 1;
-	system $command;		
+	system $command;
+	#die;		
 }
 
 #***************************************************************************

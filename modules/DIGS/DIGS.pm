@@ -146,25 +146,10 @@ sub run_digs_process {
 #***************************************************************************
 sub run_utility_process {
 
-	my ($self, $option, $ctl_file) = @_;
+	my ($self, $option, $infile) = @_;
 
  	# Show title
 	$self->show_title();  
-
-	# Do initial set up and sanity checking for options that require it
-	unless ($option < 6) { # Validate configurations that require a control file
-		unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
-		$self->initialise($ctl_file);
-	}
-
-	# If it exists, load the screening database specified in the control file
-	if ( $option > 3 and $option < 7) {
-		my $db_name = $self->{db_name};
-		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-		my $db_obj = ScreeningDB->new($self);
-		$db_obj->load_screening_db($db_name);	
-		$self->{db} = $db_obj; # database initialised here 
-	}
 
 	# Hand off to functions 
 	if ($option eq 1)    { # Summarise target genome directory (short)
@@ -175,8 +160,14 @@ sub run_utility_process {
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_long();
 	}
+	elsif ($option eq 3) {
+		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
+		my $loader_obj = ScreenBuilder->new($self);
+		my @extracted;
+		$loader_obj->extract_track_sequences(\@extracted, $infile);
+	}
 	else {
-		print "\n\t  Unrecognized option '-m=$option'\n";
+		print "\n\t  Unrecognized option '-u=$option'\n";
 	}
 }
 
@@ -317,6 +308,7 @@ sub search {
 	my $blast_alg    = $query_ref->{blast_alg};
 	my $cutoff       = $query_ref->{bitscore_cutoff};
 	my $result_file  = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
+	unless ($cutoff) {die;}
 
 	# Do the BLAST search
 	print "\n\t  Screen: $num_queries (%$f_percent_prog done): '$organism' file '$target_name' with probe $probe_id";   
@@ -337,12 +329,26 @@ sub search {
 	if ($num_hits > 0) {
 		print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
 	}
+	foreach my $hit_ref (@hits) {
+		
+		#$devtools->print_hash($hit_ref ); die;
+		
+		if ($min_length) { # Skip sequences that are too short
+			my $start  = $hit_ref->{aln_start};
+			my $end    = $hit_ref->{aln_stop};
+			if ($end - $start < $min_length) {  
+				next;
+			}
+		}
+	}
 	
 	foreach my $hit_ref (@hits) {
 		
+		#$devtools->print_hash($hit_ref ); die;
+		
 		if ($min_length) { # Skip sequences that are too short
-			my $start  = $hit_ref->{subject_start};
-			my $end    = $hit_ref->{subject_end};
+			my $start  = $hit_ref->{aln_start};
+			my $end    = $hit_ref->{aln_stop};
 			if ($end - $start < $min_length) {  next; }
 		}
 			
@@ -874,8 +880,8 @@ sub initialise {
 
 	my ($self, $ctl_file) = @_;
 
-	# Get override setting
-	my $override = $self->{override};
+	# Get minimal_initialise setting
+	my $minimal_initialise = $self->{minimal_initialise}; # A flag for parsing
 
 	# Try opening control file
 	my @ctl_file;
@@ -887,7 +893,7 @@ sub initialise {
 	# If control file looks OK, store the path and parse the file
 	$self->{ctl_file}   = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self, $override);
+	$loader_obj->parse_control_file($ctl_file, $self, $minimal_initialise);
 
 	# Update numthreads setting in BLAST object
 	my $num_threads = $loader_obj->{num_threads};
@@ -1130,7 +1136,6 @@ sub inspect_adjacent_hits {
 		return 1;  # Hits have been merged
 	}
 	
-
 	# For positive orientation hits
 	# If the query_start of this hit is before the query_end of the last, then its a distinct hit
 	elsif ($orientation eq '+' and $buffer_start < $last_query_end) {
@@ -1236,53 +1241,147 @@ sub interactive_defragment {
 	my $redundancy_mode= $self->{redundancy_mode};
 	my $defragment_range=$self->{defragment_range};
 
-	print "\n\n\t # Current settings (based on control file)";
-	print "\n\t # redundancy mode: $redundancy_mode";
-	print "\n\t # defragment_range: $defragment_range";
-	my $blast_results_table = $db->{blast_results_table};
+	print "\n\n\t\t Current settings (based on control file)";
+	print "\n\t\t redundancy mode: $redundancy_mode";
+	print "\n\t\t defragment_range: $defragment_range";
+	my $extracted_table = $db->{extracted_table};
 	
 	# Set the fields to get values for
-	my @fields = qw [ record_id target_name scaffold orientation
+	my @fields = qw [ record_id organism assigned_name assigned_gene
+	                  scaffold orientation
 	                  subject_start subject_end
-                      query_start query_end hit_length ];
+                      extract_start extract_end sequence_length ];
 
 	# Order by ascending start coordinates within each scaffold in the target file
-	my $where = "ORDER BY organism, target_name, scaffold, subject_start ";
+	my $where = "ORDER BY organism, target_name, scaffold, extract_start ";
 	
 	# Get the relevant loci
 	my @hits;
-	$blast_results_table->select_rows(\@fields, \@hits, $where);
+	$extracted_table->select_rows(\@fields, \@hits, $where);
 	my $numhits = scalar @hits;
-	print "\n\t # There are currently $numhits distinct record in the BLAST table";
+	print "\n\n\t # There are currently $numhits distinct records in the Extracted table";
 
+	my %defragmented;
 	my $choice;
 	do {
 
 		my $max = 100000;
 		my $question1 = "\n\n\t # Set the range for merging hits";
-		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);
+		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);		
+		my $t_mode = 2;
 		
-		my $question2 = "\t # Set the redundancy mode ";
-		my @mode_options = qw [ 1 2 3 ];
-		my $t_mode = $console->ask_simple_choice_question($question2, \@mode_options);
+		$self->preview_defragment(\%defragmented, \@hits, $t_range, $t_mode);
+
+		my @cluster_ids = keys %defragmented;
+		my $cluster_count;
+		foreach my $id (@cluster_ids) {
 		
-		# Get hits by scaffold
-		$self->preview_defragment(\@hits, $t_range, $t_mode);
+			$cluster_count++;
+			my $hits_ref = $defragmented{$id};
+			my $cluster_size = scalar @$hits_ref;
+
+			if ($cluster_size > 1) {
+				print "\n";
+				foreach my $hit_ref (@$hits_ref) {
+
+					my $organism      = $hit_ref->{organism};			
+					my $assigned_name = $hit_ref->{assigned_name};			
+					my $assigned_gene = $hit_ref->{assigned_gene};			
+					my $scaffold      = $hit_ref->{scaffold};			
+					my $extract_start = $hit_ref->{extract_start};			
+					my $extract_end   = $hit_ref->{extract_end};
+					print "\n\t\t CLUSTER $cluster_count $organism: $assigned_name: $assigned_gene: $scaffold $extract_start-$extract_end";
+
+				}			
+			}
+		}
 		
 		# Prompt for what to do next
-		print "\n\t # Option 1: preview new parameters";
-		print "\n\t # Option 2: apply these parameters";
-		print "\n\t # Option 3: exit";
+		print "\n\n\t\t Option 1: preview new parameters";
+		print "\n\t\t Option 2: apply these parameters";
+		print "\n\t\t Option 3: exit";
 		my $list_question = "\n\n\t # Choose an option:";
 		$choice = $console->ask_list_question($list_question, 3);
 
 	} until ($choice > 1);
 
 	if ($choice eq 2) {
-		die;
+		$self->defragment(\%defragmented, 1);
 	}
 	elsif ($choice eq 3) {
-		return;
+		exit;
+	}
+}
+
+#***************************************************************************
+# Subroutine: defragment 
+# Description: 
+#***************************************************************************
+sub defragment {
+
+	my ($self, $defragmented_ref, $mode) = @_;
+
+	my $db = $self->{db};
+	my $extracted_table = $db->{extracted_table};
+
+	my @cluster_ids = keys %$defragmented_ref;
+	#$devtools->print_hash(\%defragmented);
+	foreach my $id (@cluster_ids) {
+		my $hits_ref = $defragmented_ref->{$id};
+		#$devtools->print_array($hits_ref);
+		#print "\n\t # CLUSTER $id";
+		my @delete_ids;
+		my $highest = undef;
+		my $lowest  = undef;
+		my $longest  = undef;
+		my $longest_id  = undef;
+		my %genes;
+		foreach my $hit_ref (@$hits_ref) {
+			
+			my $record_id     = $hit_ref->{record_id};			
+			my $assigned_name = $hit_ref->{assigned_name};			
+			my $assigned_gene = $hit_ref->{assigned_gene};			
+			my $scaffold      = $hit_ref->{scaffold};			
+			my $extract_start = $hit_ref->{extract_start};			
+			my $extract_end   = $hit_ref->{extract_end};
+			my $orientation   = $hit_ref->{orientation};
+			$genes{$assigned_gene} = $assigned_gene;
+			
+			#print "\n\t\t RECORD ID:\t $record_id, $assigned_name: $scaffold $extract_start-$extract_end";
+			my $length = $extract_end - $extract_start;
+			if ($longest) {		
+				if ($length > $longest) {
+					$longest_id = $record_id;
+				}
+			}
+			else {
+				$longest = $length;
+				$longest_id = $record_id;
+			}							
+		}
+		
+		# DELETE all but longest hit in cluster
+		foreach my $hit_ref (@$hits_ref) {
+			
+			my $record_id     = $hit_ref->{record_id};			
+			unless ($record_id eq $longest_id) {
+				#print "\n\t\t DELETING RECORD ID:\t $record_id";
+				my $where = " WHERE Record_ID = $record_id ";
+				$extracted_table->delete_rows($where);
+		
+			}	
+		}
+		
+		# UPDATE gene information if we have hits from > 1 different gene
+		my @genes = keys %genes;
+		my $num_genes = scalar @genes;
+		if ($num_genes > 1) {
+			my $joined_genes = join ('-', @genes);
+			my $set = " WHERE Record_ID = $longest_id ";
+			my %set;
+			$set{assigned_gene} = $joined_genes;
+			$extracted_table->update(\%set, $set);
+		}
 	}
 }
 
@@ -1292,185 +1391,82 @@ sub interactive_defragment {
 #***************************************************************************
 sub preview_defragment {
 
-	my ($self, $hits_ref, $t_range, $t_mode) = @_;
-
-	# Iterate through merging as we go
-	my $i;
+	my ($self, $defragmented_ref, $hits_ref, $range, $t_mode) = @_;
+	
+	# Iterate through consolidating as we go
+	my $i = 0;
+	my $j = 1;
 	my %last_hit;
-	my @output;
-	my $blast_count= 0;
+	my %name_counts;
+	my $initialised = undef;
+	my $extracted_count = 0;
 	foreach my $hit_ref (@$hits_ref)  {
 
 		# Get hit values
-		
 		my $record_id     = $hit_ref->{record_id};
-		my $target_name   = $hit_ref->{target_name};
+		my $assigned_name = $hit_ref->{assigned_name};
 		my $scaffold      = $hit_ref->{scaffold};
 		my $orientation   = $hit_ref->{orientation};
-		my $subject_start = $hit_ref->{subject_start};
-		my $subject_end   = $hit_ref->{subject_end};
+		my $extract_start = $hit_ref->{extract_start};
+		my $extract_end   = $hit_ref->{extract_end};
 		my $query_start   = $hit_ref->{query_start};
 		my $query_end     = $hit_ref->{query_end};
 		
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
 		my $last_scaffold      = $last_hit{scaffold};
-		my $last_target_name   = $last_hit{target_name};
+		my $last_assigned_name = $last_hit{assigned_name};
 		my $last_orientation   = $last_hit{orientation};
-		my $last_subject_start = $last_hit{subject_start};
-		my $last_subject_end   = $last_hit{subject_end};
-		
+		my $last_extract_start = $last_hit{extract_start};
+		my $last_extract_end   = $last_hit{extract_end};		
 		my $gap;
-		$blast_count++;
-		
-		unless ($last_subject_end) { $gap = 0; }
 
-		else {
-			$gap = $subject_start - $last_subject_end;
-
-			if ($target_name ne $last_target_name) {
-				$i=1;
-				my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-				#print $line;
-				push (@output, $line);	
-			}
-
-			elsif ($last_scaffold) {	
-				if ($scaffold ne $last_scaffold) {
-					$i=1;
-					my $line  = "\n\n ### Target $target_name; Scaffold: '$scaffold'";
-					#print $line;
-					push (@output, $line);	
-				}
-				else {
-					$i++; 
-					my $line  = "\t\t Gap of $gap nucleotides";
-					#print $line;
-					push (@output, $line);	
-				}
-			}
-		}
-
-		my $line  = "\n Hit $blast_count at:\t $target_name, $scaffold";
-		   $line .= ",$subject_start,$subject_end ($orientation)";
-		   $line .= ": query: $query_start, $query_end";
-		
-		  if ($i) {
-			if ($i > 1 and $gap < $t_range) { 
-				print "\n\t  ### OVERLAPPING HITS"; 
-				#$line .= "\t  ### ARRAY HIT\n"; 
-			}
-		}
-		push (@output, $line);	
-
-		# Update last hit data
-		$last_hit{record_id}     = $record_id;
-		$last_hit{target_name}   = $target_name;
-		$last_hit{scaffold}      = $scaffold;
-		$last_hit{orientation}   = $orientation;
-		$last_hit{subject_start} = $subject_start;
-		$last_hit{subject_end}   = $subject_end;
-	}
-}
-
-#***************************************************************************
-# Subroutine:  create_combined_track
-# Description: 
-#***************************************************************************
-sub create_combined_track {
-
-	my ($infile) = @_;
-
-	my @output;
-
-	# Read the file with the combined tracks
-	# They should be pre-sorted by scaffold and start position
-	my @combined_tracks;
-	read_file($infile, \@combined_tracks);
-	my $lines = scalar @combined_tracks;
-	unless ($lines) {
-		die "\n\t Unable to read infile '$infile'\n\n";
-	}
-	elsif ($lines eq 1) {
-		print "\n\t Single line of data was read form infile '$infile'";
-		die "\n\t Check line break formatting\n\n";
-	}
-    # Remove header line
-    #shift @combined_tracks;
-	
-	# Load taxonomy information
-	my %taxonomy;
-	#load_translations(\%taxonomy);
-
-	# Validate
-	#validate_translations(\%taxonomy);
-	#die;
-		
-	# Iterate through consolidating as we go
-	print "\n\t Creating Missillac nomenclature";
-	my $i = 0;
-	my $j = 1;
-	my $range = 2000;
-	my $initialised = undef;
-	my %last_hit;
-	my $blast_count= 0;
-	my %defragmented;
-	my %name_counts;
-	foreach my $line (@combined_tracks) {
-
-        $i++;
-        print "\n\t # LINE $i (element $j):";
-		
-        # Capture the values in a hash				
-        my %hit;
-        extract_values_from_track_line($line, \%hit);
-
+		$extracted_count++;
+		#print "\n\t Extracted count $extracted_count";
 	    if ($initialised) {
-            
-            my $new = compare_adjacent_hits(\%hit, \%last_hit, $range);
-           
+
+            my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $range);
             if ($new) {
                 
-                # Finish Missillac record
-                my $array_ref = $defragmented{$j};
-                finish_missillac_entry(\@output, \%taxonomy, $array_ref, \%name_counts, $j);
+                # Finish record
+				#$devtools->print_hash(\%defragmented); die;
+				#$devtools->print_array($array_ref); die;
+				#unless ($array_ref) { die; }
+				my $array_ref = $defragmented_ref->{$j};
+				$self->finish_cluster($array_ref, \%name_counts, $j);
 
                 # Increment the count
                 $j++;
             
                 # Initialise new Missillac record
-                initialise_missillac_entry(\%defragmented, \%hit, $j);
+                $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
             }
             else {
                 
                 # Extend current Missillac record
-                extend_missillac_entry(\%defragmented, \%hit, $j);
+                $self->extend_cluster($defragmented_ref, $hit_ref, $j);
 
             }
         }
 		else {
-			print "\n\t\t First record ($j)";
+			#print "\n\t\t First record ($j)";
             $initialised = 'true';
             
             # Initialise new Missillac record
-            initialise_missillac_entry(\%defragmented, \%hit, $j);
-        }
+            $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
+			#$devtools->print_hash($defragmented_ref); die;
+		}
 
-		# Update the 'last hit' values
-		$last_hit{track}       = $hit{track};
-		$last_hit{name}        = $hit{name};
-		$last_hit{scaffold}    = $hit{scaffold};
-		$last_hit{start}       = $hit{start};
-		$last_hit{end}         = $hit{end};
-		$last_hit{orientation} = $hit{orientation};
-		$last_hit{gene}        = $hit{gene};
-		$last_hit{hit_id}      = $hit{hit_id};
+		# Update last hit data
+		$last_hit{record_id}     = $record_id;
+		$last_hit{assigned_name} = $assigned_name;
+		$last_hit{scaffold}      = $scaffold;
+		$last_hit{orientation}   = $orientation;
+		$last_hit{extract_start} = $extract_start;
+		$last_hit{extract_end}   = $extract_end;
 
 	}
 
-	# Write the output
-	my $outfile = $infile . '.missillac.txt';
-	write_file($outfile, \@output)
 }
 
 #***************************************************************************
@@ -1479,45 +1475,42 @@ sub create_combined_track {
 #***************************************************************************
 sub compare_adjacent_hits {
 
-	my ($hit_ref, $last_hit_ref, $range) = @_;
+	my ($self, $hit_ref, $last_hit_ref, $range) = @_;
 
 	# Get the current hit values
-	my $track       = $hit_ref->{track};
-	my $name        = $hit_ref->{name};
-	my $scaffold    = $hit_ref->{scaffold};	
-	my $start       = $hit_ref->{start};
-	my $end         = $hit_ref->{end};
-	my $orientation = $hit_ref->{orientation};			
+	my $name           = $hit_ref->{assigned_name};
+	my $scaffold       = $hit_ref->{scaffold};	
+	my $extract_start  = $hit_ref->{extract_start};
+	my $extract_end    = $hit_ref->{extract_end};
+	my $orientation    = $hit_ref->{orientation};			
 
 	# Get the last hit values
-	my $last_track       = $last_hit_ref->{track};
-	my $last_name        = $last_hit_ref->{name};
+	my $last_name        = $last_hit_ref->{assigned_name};
 	my $last_scaffold    = $last_hit_ref->{scaffold};	
-	my $last_start       = $last_hit_ref->{start};
-	my $last_end         = $last_hit_ref->{end};
+	my $last_start       = $last_hit_ref->{extract_start};
+	my $last_end         = $last_hit_ref->{extract_end};
 	my $last_orientation = $last_hit_ref->{orientation};			
 	
 	if ($scaffold ne $last_scaffold) {
 		return 1;
 	}
 	
-	my $gap;
 	if ($orientation ne $last_orientation) {
 		return 1;
 	}
 	
-	elsif ($last_orientation eq '+') {
-		$gap = $start - $last_end;		
+	my $gap;
+	if ($last_orientation eq '+') {
+		$gap = $extract_start - $last_end;		
+		#print "\n\t #\t CALC: '$scaffold': '$extract_start'-'$last_end' = $gap";
 	}
 	elsif ($last_orientation eq '-') {		
-		$gap = $end - $last_start;
+		$gap = $extract_end - $last_start;
+		#print "\n\t #\t CALC: '$scaffold': '$extract_end'-'$last_start' = $gap";
 	}
 	else {
 		print "\n\t last_orientation = '$last_orientation'";
-	}	
-	#print "\n\t # THIS: '$track' hit in:\t '$scaffold': '$start'-'$end' ('$orientation')";
-	#print "\n\t # LAST: '$last_track' hit in:\t '$last_scaffold': '$last_start'-'$last_end' ('$last_orientation')";
-	print "\n\t # GAP:  '$gap";
+	}
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine
@@ -1529,6 +1522,67 @@ sub compare_adjacent_hits {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  initialise_cluster
+# Description: 
+#***************************************************************************
+sub initialise_cluster {
+
+	my ($self, $defragmented_ref, $hit_ref, $count) = @_;
+
+    # Get the current hit values
+	my $name        = $hit_ref->{assigned_name};
+	my $scaffold    = $hit_ref->{scaffold};	
+	#print "\n\t New record ($count) [$name]";
+    my @array;
+    my %hit = %$hit_ref;
+    push (@array, \%hit);
+    $defragmented_ref->{$count} = \@array;
+	
+}
+
+#***************************************************************************
+# Subroutine:  extend_cluster 
+# Description: 
+#***************************************************************************
+sub extend_cluster {
+
+	my ($self, $defragmented_ref, $hit_ref, $count) = @_;
+
+    # Get the current hit values
+	my $name        = $hit_ref->{assigned_name};
+	my $scaffold    = $hit_ref->{scaffold};	
+    
+	#print "\n\t Extending record ($count) [$name]";
+    my $array_ref = $defragmented_ref->{$count};
+    push (@$array_ref, $hit_ref);
+
+}
+
+#***************************************************************************
+# Subroutine:  finish_cluster
+# Description:  
+#***************************************************************************
+sub finish_cluster {
+
+	my ($self, $array_ref, $name_counts_ref, $j) = @_;
+
+	unless ($array_ref) { die; }
+	
+	# Create summary data for this annotation cluster
+	my %cluster_data;
+    foreach my $hit_ref (@$array_ref) {
+   	
+    	# Get the current hit values
+		my $name        = $hit_ref->{assigned_name};
+		my $scaffold    = $hit_ref->{scaffold};	
+		my $start       = $hit_ref->{extract_start};
+		my $end         = $hit_ref->{extract_end};
+		my $orientation = $hit_ref->{orientation};			
+		#print "\n\t\t  # $name: $scaffold:  $start $end";	
+
+    }
+}
 
 ############################################################################
 # Crossmatching-associated FUNCTIONS
@@ -1681,7 +1735,8 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=8  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)\n\n";
+		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)";
+		$HELP  .= "\n\t -u=3  Extract sequences using track\n\n";
 	print $HELP;
 }
 
@@ -1703,10 +1758,9 @@ sub run_digs_test {
 
 	# Hand off to functions 
 	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
-	$self->{override} = 'true';
+	$self->{minimal_initialise} = 'true';
 	$self->initialise($ctl_file);
-	
-	
+		
 	# Prompt for what to do next
 	print "\n\t # Option 1: create a test DB";
 	print "\n\t # Option 2: load test data";
@@ -1740,7 +1794,6 @@ sub load_test_data {
 
 	# Get a reference to a table object 
 	my $table = $db_obj->{Extracted};
-
 	
 	# Try to read the tab-delimited infile
 	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
