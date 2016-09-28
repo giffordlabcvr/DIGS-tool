@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:      pipeline.pl 
+# Script:      digs_tool.pl 
 # Description: control script for database-integrated genome screening (DIGS)
 # History:     Version 1.1
 ############################################################################
@@ -79,7 +79,7 @@ $params{process_id}         = $process_id;
 $params{blast_bin_path}     = $blast_bin_path; 
 $params{genome_use_path}    = $genome_use_path;
 $params{blast_obj}          = $blast_obj;
-my $pipeline_obj = DIGS->new(\%params);
+my $digs_tool_obj = DIGS->new(\%params);
 
 ############################################################################
 # Set up USAGE statement
@@ -135,17 +135,17 @@ sub main {
 		print "\n\t DIGS tool version $program_version\n\n"
 	}
 	elsif ($help) { # Show help page
-		$pipeline_obj->show_help_page();
+		$digs_tool_obj->show_help_page();
 		exit;
 	}
 	elsif ($mode) { # Main DIGS tool functions 
-		$pipeline_obj->run_digs_process($mode, $infile); 
+		$digs_tool_obj->run_digs_process($mode, $infile); 
 	}
 	elsif ($utility) { # Utility functions
-		$pipeline_obj->run_utility_process($utility, $infile); 
+		$digs_tool_obj->run_utility_process($utility, $infile); 
 	}
 	elsif ($test) { # Tests
-		$pipeline_obj->run_digs_test($test, $infile); 
+		$digs_tool_obj->run_digs_test($test, $infile); 
 	}
 	else { die $USAGE; }
 

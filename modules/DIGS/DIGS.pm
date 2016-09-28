@@ -1,7 +1,7 @@
 #!usr/bin/perl -w
 ############################################################################
 # Module:      DIGS.pm
-# Description: Genome screening pipeline using reciprocal BLAST
+# Description: Systematic in silico genome screening  using BLAST and a relational database
 # History:     December 2013: Created by Robert Gifford 
 ############################################################################
 package DIGS;
@@ -343,8 +343,6 @@ sub search {
 	}
 	
 	foreach my $hit_ref (@hits) {
-		
-		#$devtools->print_hash($hit_ref ); die;
 		
 		if ($min_length) { # Skip sequences that are too short
 			my $start  = $hit_ref->{aln_start};
