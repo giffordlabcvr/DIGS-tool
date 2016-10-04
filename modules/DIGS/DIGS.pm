@@ -469,7 +469,9 @@ sub extract_unassigned_hits {
 	my @hits;
 	$db_ref->get_blast_hits_to_extract($query_ref, \@hits);
 	my $num_hits = scalar @hits;
-	#print "\n\t ### There are $num_hits hits to extract";
+	if ($verbose) {
+		print "\n\t ### There are $num_hits hits to extract";
+	}
 
 	# Store all outstanding matches as sequential, target-ordered sets 
 	my $new_hits = scalar @hits;
@@ -1124,9 +1126,6 @@ sub inspect_adjacent_hits {
 	### Deal with situations where hits are partially (but not completely) overlapping
 	#   or where they are close enough to each other consider merging them
 	
-	# Set the position based on threadhit_probe_biffer
-	my $buffer_start = $query_start;
-
 	if ($subject_gap < 1) {
 		# Describe the merging event:
 		$last_hit_ref->{subject_end} = $hit_ref->{subject_end};
@@ -1135,8 +1134,8 @@ sub inspect_adjacent_hits {
 	}
 	
 	# For positive orientation hits
-	# If the query_start of this hit is before the query_end of the last, then its a distinct hit
-	elsif ($orientation eq '+' and $buffer_start < $last_query_end) {
+	# If the query_start of this hit is upstream of the query_end of the last, then its a distinct hit
+	elsif ($orientation eq '+' and $query_start < $last_query_end) {
 		return 0;
 	}
 	# For negative orientation hits
