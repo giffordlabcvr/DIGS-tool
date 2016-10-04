@@ -401,7 +401,9 @@ sub create_unique_directory {
 			die "<br>Internal error, contact webmaster<br>";
 		}
 		else {
-			die "\n\t ### Error: couldn't create output directory - check permissions\n\n";	
+			print "\n\t ### Error: couldn't create output directory";
+			print "\n\t ### Check path and permissions\n\n";
+			die;
 		}
 	}
 }
