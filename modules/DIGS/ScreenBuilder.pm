@@ -353,8 +353,10 @@ sub set_targets {
 		print " - check target paths are correctly specified in control file\n";
 		print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
 		print "\n\t  TARGETS block from control file has these paths:";
+		my $i = 0;
 		foreach my $path (@$target_paths_ref) {
-			print "\n\t\t $path";
+			$i++;
+			print "\n\t\t PATH 1: '$path'";
 		}
 		print "\n\n";
 		exit;
@@ -374,7 +376,6 @@ sub read_genome_files {
 
 		my $file = $file_ref->{file};
 		my $path = $file_ref->{path};
-	
 		my $file_type = $fileio->get_infile_type($file);
 		
 		# Use files that are of the correct type
@@ -401,6 +402,9 @@ sub read_genome_files {
 			$data{data_type} = $type;
 			$data{group}     = $group;
 			$targets_ref->{$target_id} = \%data;	
+		}
+		else {
+			print "\n\t Skipping unknown file type '$file_type'";
 		}
 	}
 }
@@ -678,7 +682,7 @@ sub create_output_directories {
 	my ($self, $pipeline_obj) = @_;
 
 	# Create a unique ID and report directory for this run
-	my $process_id   = $self->{process_id};
+	my $process_id  = $self->{process_id};
 	my $output_path = $self->{output_path};
 	my $report_dir  = $output_path . 'result_set_' . $process_id;
 	$fileio->create_unique_directory($report_dir);
