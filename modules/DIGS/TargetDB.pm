@@ -60,6 +60,8 @@ sub new {
 		line_limit           => $line_limit,
 		genome_use_path      => $parameter_ref->{genome_use_path},
 		blast_bin_path       => $parameter_ref->{blast_bin_path},
+		skipindexing_paths   => $parameter_ref->{skipindexing_paths},
+
 	};
 	
 	bless ($self, $class);
@@ -89,7 +91,6 @@ sub refresh_genomes {
 	print "\n\t ### Note: large FASTA files may generate split index files (01.nin, 02.nin ... etc)";
 	print "\n\t ### When this happens this utility will prompt for formatting, even";
 	print "\n\t ### if index files already exist.\n";
-	sleep 2;
 
 	# Ask user how to handle the process
 	my $question = "\n\t Prompt before formatting each genome? ";
@@ -97,13 +98,20 @@ sub refresh_genomes {
 	if ($prompt eq 'n') { $prompt = undef; }
 
 	# Index genomes by key ( organism | type | version )
-	my %server_data;
-	
-	print "\n\n\t Refreshing genome data under path '$genome_path'\n\n";
+	my %server_data;	
+	print "\n\n\t Refreshing genome data under path '$genome_path'\n";
 	$self->read_genome_directory(\%server_data);
 
+	my %skip;
+	my $skip_ref = $self->{skipindexing_paths};
+	foreach my $skip_path (@$skip_ref) {
+		#print "\n\t SKIP: $skip_path";
+		$skip{$skip_path} = 1;
+	}
+		
 	# Iterate through and check formatting in each genome
-	print "\n\n\t #~#~# Loading target genome data\n";
+	print "\n\t #~#~# Loading target genome data\n";
+	my $skipped = '0';
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
@@ -114,7 +122,14 @@ sub refresh_genomes {
 		my $version     = $genome_ref->{version};
 		my $path        = $genome_ref->{version_path};
 		
-		print "\n\t #~#~# Checking '$organism' genome: '$type' version '$version'";
+		if ($skip{$path}) {  
+			print "\n\t       Skipping '$organism': '$type' '$version'";
+			$skipped++;
+			next;
+		}
+
+		
+		print "\n\t #~#~# Checking '$organism': '$type'  '$version'";
 		$self->check_genome_formatting($genome_ref);
 		my $unformatted_ref = $genome_ref->{unformatted};
 		my $num_unformatted = scalar @$unformatted_ref;
@@ -134,6 +149,7 @@ sub refresh_genomes {
 			else { $self->format_genome($genome_ref); }
 		}
 	}
+	print "\n\n\t #~#~# Skipped '$skipped' files";
 	print "\n\n";
 }
 
