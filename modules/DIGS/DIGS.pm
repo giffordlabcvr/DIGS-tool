@@ -92,9 +92,13 @@ sub run_digs_process {
 
 	# Do initial set up and sanity checking for options that require it
 	# An infile must be defined
-	unless ($ctl_file) {  die "\n\t Option '$option' requires an infile\n\n"; }
-	$self->initialise($ctl_file);
-
+	unless ($ctl_file) {
+		unless ($option eq 8) {  die "\n\t Option '$option' requires an infile\n\n"; }
+	}
+	else {
+		$self->initialise($ctl_file);
+	}
+	
 	# If it exists, load the screening database specified in the control file
 	if ( $option > 1 and $option < 8) {
 		my $db_name = $self->{db_name};
