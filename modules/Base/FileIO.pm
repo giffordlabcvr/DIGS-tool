@@ -368,12 +368,16 @@ sub extract_text_block {
 	# Make start and stop tokens upper case so tokens are not case sensitive
 	$start_token = uc $start_token;
 	$stop_token  = uc $stop_token;
+	#print "\n\t ###  Stop token:  $stop_token";
 
 	my $extract = undef;
 	foreach my $line (@$input_ref) {
+		#print "\n\t ###  Start token: $start_token";
+		chomp $line;
 		my $uc_line = uc $line;
+		#print "\n\t ###  LINE $uc_line;";
 		if ($stop_token) {
-			if ($uc_line =~ $stop_token) { 
+			if ($uc_line =~ $stop_token) {
 				$extract = undef;          
 			}
 		}	

@@ -86,11 +86,11 @@ sub set_up_screen  {
 
 	# Set up the reference library for BLAST
 	$self->setup_reference_library($pipeline_obj);
-
+	
 	# Set target sequence files for screening
 	my %targets;
 	$self->set_targets(\%targets);
-	#$self->exclude_targets(\%targets);
+	#die;
 	
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
@@ -121,9 +121,21 @@ sub parse_control_file {
 		$self->parse_screensets_block(\@ctl_file);
 	}
 
-	# READ the 'TARGETS' block
+	# READ the 'TARGETS' and EXCLUDE blocks
 	unless ($minimal_initialise) { # Skip this block if this flag is set
-		$self->parse_targets_block(\@ctl_file);
+
+		my @targets;
+		my $start_token = 'BEGIN TARGETS';
+		my $stop_token  = 'ENDBLOCK';
+		$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@targets);
+		$self->{target_paths} = \@targets;
+		
+		my @exclude;
+		$start_token = 'BEGIN EXCLUDE';
+		$stop_token  = 'ENDBLOCK';
+		$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
+		$self->{exclude_paths} = \@exclude;
+
 	}
 	
 	# Set parameters in pipeline object
@@ -318,15 +330,22 @@ sub set_targets {
 		$genome_obj->refresh_genomes($targets_ref);
 	} 
 	
+	# Put the paths to exclude in a hash with path as the key
+	my %exclude;
+	my $exclude_paths_ref = $self->{exclude_paths};
+	foreach my $path (@$exclude_paths_ref) {
+		#print "\n\t    Excluding: $path";
+		$exclude{$path} = 1;
+	}
+
 	# Iterate through the list of paths 
 	my %paths;
 	my %target_data;
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
-	unless ($target_paths_ref) { die; } 
-	
+	unless ($target_paths_ref) { die; } 	
 	foreach my $path (@$target_paths_ref) {
-		
+				
 		my $full_path = $genome_use_path . "/$path";	
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
@@ -344,7 +363,7 @@ sub set_targets {
 			$file{path} = $full_path;
 			push (@leaves, \%file);
 		}
-		$self->read_genome_files(\@leaves, $targets_ref);		
+		$self->read_genome_files(\@leaves, $targets_ref, \%exclude);		
 	}
 	my @keys = keys %$targets_ref;
 	my $unique_targets = scalar @keys;
@@ -364,25 +383,28 @@ sub set_targets {
 	print "\n\t  Targets:           $unique_targets target files";
 }
 
+
 #***************************************************************************
 # Subroutine:  read genome files
 # Description: processes the top level (leaves) of the genome directory
 #***************************************************************************
 sub read_genome_files {
 	
-	my ($self, $leaves_ref, $targets_ref) = @_;
+	my ($self, $leaves_ref, $targets_ref, $exclude_ref) = @_;
+
+	my $genome_use_path  = $self->{genome_use_path};
 
 	foreach my $file_ref (@$leaves_ref) {
 
 		my $file = $file_ref->{file};
 		my $path = $file_ref->{path};
+		$path =~ s/\/\//\//g; # Convert any double backslashes to single		
 		my $file_type = $fileio->get_infile_type($file);
-		
+			
 		# Use files that are of the correct type
 		if ($file_type eq 'fa' or $file_type eq 'fas' 
 		or  $file_type eq 'fasta' or $file_type eq 'fna' ) {
 			
-			$path =~ s/\/\//\//g;
 			my @path = split(/\//, $path);
 			my $file     = pop @path;
 			my $version  = pop @path;
@@ -393,6 +415,13 @@ sub read_genome_files {
 			my @target = ( $organism , $type, $version, $file );
 			my $target_id = join ('|', @target);
 
+			my @key_path = ( $group , $organism, $type, $version, $file);
+			my $key_path = join('/', @key_path);
+			#print "\n\t PATH    $key_path";
+			if ($exclude_ref->{$key_path}) { 
+				 next; 
+			} # Exclude paths from the exclude block
+
 			# Store using key
 			my %data;
 			$data{file}      = $file;
@@ -402,9 +431,6 @@ sub read_genome_files {
 			$data{data_type} = $type;
 			$data{group}     = $group;
 			$targets_ref->{$target_id} = \%data;	
-		}
-		else {
-			print "\n\t Skipping unknown file type '$file_type'";
 		}
 	}
 }
@@ -507,7 +533,6 @@ sub set_queries {
 			}
 		}
 	}
-
 	# Show number of queries loaded
 	unless ($outstanding) { print "\n\n\t ### No outstanding searches were loaded\n"; }
 	else { print "\n\t  Searches to run    $outstanding\n"; }
@@ -642,22 +667,19 @@ sub parse_screensets_block {
 }
 
 #***************************************************************************
-# Subroutine:  parse_targets_block
+# Subroutine:  parse_target_block
 # Description: get paths to the target sequence databases for DIGS
 #***************************************************************************
-sub parse_targets_block {
+sub parse_target_block {
 
-	my ($self, $file_ref) = @_;
+	my ($self, $file_ref, $start, $stop, $targets_ref) = @_;
+
+	unless ($start and $stop and $targets_ref) { die; } # Sanity checking
 
 	# READ the 'TARGETS' block
 	my @target_block;
-	my $start = 'BEGIN TARGETS';
-	my $stop  = 'ENDBLOCK';
 	$fileio->extract_text_block($file_ref, \@target_block, $start, $stop);
 	my $screenset_lines = scalar @target_block;
-	unless ($screenset_lines)  {
-		die "\n\n\t Control file error: nothing in 'TARGETS' block\n\n\n";
-	}
 	
 	# Parse the target strings
 	my $targets = 0;
@@ -667,10 +689,9 @@ sub parse_targets_block {
 		$line =~ s/\s+//g; # remove whitespace
 		if ($line =~ /^\s*$/)   { next; } # discard blank line
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
-		push (@targets, $line);
+		push (@$targets_ref, $line);
 		$targets++;
 	}
-	$self->{target_paths} = \@targets;
 }
 
 #***************************************************************************
