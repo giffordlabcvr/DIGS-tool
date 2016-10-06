@@ -135,9 +135,17 @@ sub parse_control_file {
 		$stop_token  = 'ENDBLOCK';
 		$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
 		$self->{exclude_paths} = \@exclude;
-
 	}
+
+	# READ the 'SKIPINDEX' block if present
+	my @skipindex;
+	my $start_token = 'BEGIN SKIPINDEX';
+	my $stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
+	$self->{skipindexing_paths} = \@skipindex;
 	
+	
+
 	# Set parameters in pipeline object
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
@@ -153,6 +161,7 @@ sub parse_control_file {
 	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
 	
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
+	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 	
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
@@ -685,7 +694,9 @@ sub parse_target_block {
 	my $targets = 0;
 	my @targets;
 	foreach my $line (@target_block) {
+		
 		chomp $line;
+		#print "\n\t LINE $line";
 		$line =~ s/\s+//g; # remove whitespace
 		if ($line =~ /^\s*$/)   { next; } # discard blank line
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
