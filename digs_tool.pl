@@ -144,7 +144,7 @@ sub main {
 		$digs_tool_obj->run_utility_process($utility, $infile); 
 	}
 	elsif ($test) { # Tests
-		$digs_tool_obj->run_digs_test($test, $infile); 
+		#$digs_tool_obj->run_digs_test($test, $infile); 
 	}
 	else { die $USAGE; }
 
