@@ -38,6 +38,7 @@ use Interface::MySQLtable;   # Interface to BLAST
 
 # DIGS framework modules
 use DIGS::DIGS;
+use DIGS::Deeper;
 use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
@@ -116,6 +117,7 @@ sub main {
 	my $help     = undef;
 	my $version  = undef;
 	my $test     = undef;
+	my $analysis = undef;
 
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
@@ -124,9 +126,11 @@ sub main {
 			    'infile|i=s'      => \$infile,
 			    
 			    'test'            => \$test,
+			    'analysis=i'      => \$analysis,
+
 			    'help'            => \$help,
 			    'version'         => \$version,
-			    
+			    			    
 	) or die $USAGE;
 	
 	# Hand off to functions
@@ -146,6 +150,11 @@ sub main {
 	elsif ($test) { # Tests
 		#$digs_tool_obj->run_digs_test($test, $infile); 
 	}
+	elsif ($analysis) { # Analysis
+		my $digs_analyser = Deeper->new(\%params);
+		$digs_analyser->run_digs_analysis($analysis, $infile); 
+	}
+
 	else { die $USAGE; }
 
 	# Exit script
