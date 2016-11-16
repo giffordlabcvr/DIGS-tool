@@ -87,7 +87,9 @@ sub run_digs_analysis {
 
 	# Get summary counts
 	$self->summarise_db_counts();
-	
+
+	# Write counts
+	$self->write_db_counts();	
 }
 
 #***************************************************************************
@@ -175,18 +177,22 @@ sub initialise_analysis {
 	#$devtools->print_array(\@targets); exit;
 		
 
-	# Read the target databases
+	# Read the file with target databases and other parameters
 	my @db_file;
 	$valid = $fileio->read_file($target_dbs_path, \@db_file);
 	unless ($valid) { die "\n\t ### Couldn't read db file '$analysis_file'\n\n\n "; }
 	$header_line = shift(@db_file); # Remove header line	
 	my @screening_dbs;
+	# Iterate through the file
 	foreach my $line (@db_file) {
 
 		chomp $line;
 		my @line = split ("\t", $line);
-		my $db_name = shift @line;
-		push (@screening_dbs, $db_name);		
+		my %db_params;
+		$db_params{db_name}     = shift @line;
+		$db_params{select_gene} = shift @line;
+		$db_params{bitscore_cutoff} = shift @line;
+		push (@screening_dbs, \%db_params);		
 
 	}
 	#$devtools->print_array(\@screening_dbs); exit;
@@ -213,7 +219,13 @@ sub summarise_db_counts {
 	
 	# Iterate through the analysis queries
 	my %result_set;
-	foreach my $db_name (@$screening_dbs) {
+	foreach my $db_params_ref (@$screening_dbs) {
+	
+		# Get params for this screening database
+		my $db_name         = $db_params_ref->{db_name};
+		my $select_gene     = $db_params_ref->{select_gene};
+		my $bitscore_cutoff = $db_params_ref->{bitscore_cutoff};
+		unless ($db_name and $select_gene) { die; }
 	
 		# Connect to the database 
 		my $server   = $self->{mysql_server};
@@ -243,28 +255,67 @@ sub summarise_db_counts {
 			$sql_command .= "FROM Extracted ";
 			$sql_command .= "WHERE Organism = '$organism' ";
 			$sql_command .= "AND Version = '$version' ";
+			$sql_command .= "AND Assigned_gene = '$select_gene' ";
 			$sql_command .= "GROUP BY Organism, Version, Assigned_name, Assigned_gene";
 			#print "\n\t$sql_command\n";
-
+			#exit;
+			
 			my $sth = $dbh->prepare($sql_command);
 			unless ($sth->execute()) { print $sql_command; exit; }
 
-			# Get the data
-			while (my $row = $sth->fetchrow_arrayref) {	
-				my $count = @$row[4];
-				my $key = $organism . $version;
-				unless ($count) { die; }
-				$results{$key} = $count;
+			# Get the count value from the results
+			my $count;
+			my $row_count = 0;
+			my $key = $organism . $version;
+ 			while (my $row = $sth->fetchrow_arrayref) {	
+				$row_count++;
+				$count = @$row[4];
+				unless ($count) {  die; }
 			}
-		}
-		
+			unless ($row_count) { $count = '0'; }
+			elsif ($row_count > 1) { die; }
+			print "\n\t # Got value '$count' for key '$key'";
+
+			$results{$key} = $count;
+		}	
 		# Store this DB result set
-		print "\n\t # Storing results for '$db_name'";
+		print "\n\t # Storing results for '$db_name' in results hash";
 		$result_set{$db_name} = \%results;
 	}
+
+	$self->{result_set} = \%result_set;
+	
+}
+
+#***************************************************************************
+# Subroutine:  summarise_db_counts
+# Description: 
+#***************************************************************************
+sub write_db_counts {
+
+	my ($self) = @_;
+
+	my $screen_settings = $self->{screen_settings};
+	my $screening_dbs  = $screen_settings->{screening_dbs};
+	my $target_genomes = $screen_settings->{target_genomes};
+	unless ($screening_dbs and $target_genomes) { die; }
+	
+	my $result_set_ref = $self->{result_set};
 	
 	# Write out the combined results
 	my @output;
+
+    # Write a header row 
+    my $header_line =  "Species\tVersion";
+    foreach my $db_params_ref (@$screening_dbs) {
+    
+        #print "\n\t Writing results for '$db_name'";       
+        my $db_name = $db_params_ref->{db_name};
+        $header_line .= "\t$db_name";
+    }   
+    $header_line .= "\n";
+    push (@output, $header_line);
+
 	# Iterate through the genomes 
 	foreach my $genome_version (@$target_genomes) {
 		
@@ -273,26 +324,31 @@ sub summarise_db_counts {
 		my $version  = $genome_version->{version};
 		my $row = "$organism\t$version\t";
 
-		foreach my $db_name (@$screening_dbs) {
+		foreach my $db_params_ref (@$screening_dbs) {
 	
 			#print "\n\t Writing results for '$db_name'";		
-			my $results_ref = $result_set{$db_name};
+			my $db_name = $db_params_ref->{db_name};
+			my $results_ref = $result_set_ref->{$db_name};
 			#$devtools->print_hash($results_ref); die;
 			my $key = $organism . $version;
 			my $value = $results_ref->{$key};
-			unless ($value) { die; }
-			$row .= "\t$value";
-			
+			unless ($value) { 
+				$row .= "\t0";
+			}
+			else {
+				print "\n\t # Wrote value '$value' for key '$key'";
+				$row .= "\t$value";
+			}
 		
 		}
 		#print "\n\t ROW: $row";
 		push (@output, "$row\n");
 
-	}
-	
+	}	
 	$fileio->write_file('output.txt', \@output);
-	
+
 }
+
 
 ############################################################################
 # EOF
