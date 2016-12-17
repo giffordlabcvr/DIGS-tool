@@ -1274,8 +1274,7 @@ sub interactive_defragment {
 		my $max = 100000;
 		my $question1 = "\n\n\t # Set the range for merging hits";
 		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);		
-		my $t_mode = 2;
-		
+		my $t_mode = 2;		
 		$self->preview_defragment(\%defragmented, \@hits, $t_range, $t_mode);
 
 		my @cluster_ids = keys %defragmented;
@@ -1506,17 +1505,8 @@ sub compare_adjacent_hits {
 	}
 	
 	my $gap;
-	if ($last_orientation eq '+') {
-		$gap = $extract_start - $last_end;		
-		#print "\n\t #\t CALC: '$scaffold': '$extract_start'-'$last_end' = $gap";
-	}
-	elsif ($last_orientation eq '-') {		
-		$gap = $extract_end - $last_start;
-		#print "\n\t #\t CALC: '$scaffold': '$extract_end'-'$last_start' = $gap";
-	}
-	else {
-		print "\n\t last_orientation = '$last_orientation'";
-	}
+	$gap = $extract_start - $last_end;		
+	print "\n\t #\t CALC: '$scaffold': '$extract_start'-'$last_end' = $gap";
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine
@@ -1691,8 +1681,9 @@ sub write_matrix {
 		push (@matrix, "$line\n");
 	}
 
-	my $file = 'matrix.txt';
-	$fileio->write_file($file, \@matrix);
+	my $file = 'reassign_matrix.txt';
+	my $file_path = $self->{tmp_path} . $file;
+	$fileio->write_file($file_path, \@matrix);
 	#$devtools->print_hash($matrix_ref);
 }
 
