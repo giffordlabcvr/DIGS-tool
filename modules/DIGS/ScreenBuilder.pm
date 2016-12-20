@@ -144,8 +144,6 @@ sub parse_control_file {
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
 	$self->{skipindexing_paths} = \@skipindex;
 	
-	
-
 	# Set parameters in pipeline object
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
@@ -169,6 +167,7 @@ sub parse_control_file {
 	
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
+	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	
 }
 
@@ -321,7 +320,9 @@ sub get_fasta_probes {
 		}
 	}
 	unless ($i) {
-		die "\n\t No Probes were loaded - check path is correct\n\n\n"; 
+		print "\n\t No Probes were loaded";
+		print "\n\t Check path is correct\n"; 
+		print "\n\t Check file is in unix text format (no mac linebreaks)\n\n\n"; 
 	}
 }
 
@@ -620,9 +621,13 @@ sub parse_screensets_block {
 	# Track based input
 	my $query_na_track         = $self->{query_na_track};
 	my $query_na_track_genome  = $self->{query_na_track_genome}; 
-	
+
+	# Screen parameters
+	my $extract_buffer         = $self->{extract_buffer};
 	my $redundancy_mode        = $self->{redundancy_mode};
 	my $defragment_range       = $self->{defragment_range};
+	
+	
 	if ($self->{threadhit_gap_buffer}) {
 		$defragment_range = $self->{threadhit_gap_buffer}; # Deprecated
 	}

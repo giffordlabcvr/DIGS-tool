@@ -1,7 +1,7 @@
 #!usr/bin/perl -w
 ############################################################################
 # Module:      DIGS.pm
-# Description: Systematic in silico genome screening using BLAST and a relational database
+# Description: Framework for exploring genomes using BLAST and a relational database
 # History:     December 2013: Created by Robert Gifford 
 ############################################################################
 package DIGS;
@@ -503,8 +503,8 @@ sub initialise {
 
 	my ($self, $ctl_file) = @_;
 
-	# Get minimal_initialise setting
-	my $minimal_initialise = $self->{minimal_initialise}; # A flag for parsing
+	# Get minimal_initialise setting (flag to do a minimal initialisation)
+	my $minimal_initialise = $self->{minimal_initialise}; 
 
 	# Try opening control file
 	my @ctl_file;
@@ -635,7 +635,7 @@ sub search {
 	unless ($cutoff) {die;}
 
 	# Do the BLAST search
-	print "\n\t  Screen: $num_queries (%$f_percent_prog done): '$organism' file '$target_name' with probe $probe_id";   
+	print "\n\t  $blast_alg screen: $num_queries (%$f_percent_prog done): '$organism' file '$target_name' with probe $probe_id";   
 	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
 	
 	# Parse out the alignment
@@ -742,6 +742,7 @@ sub select_blast_hits_for_consolidation {
 	my $probe_name  = $query_ref->{probe_name};
 	my $probe_gene  = $query_ref->{probe_gene};
 
+	# Build an SQL "where" statement to control what hits are selected
 	my $where  = " WHERE target_name = '$target_name'";
 
 	# Handle different modes
@@ -1058,6 +1059,7 @@ sub extract_unassigned_hits {
 	my $target_name = $query_ref->{target_name};
 	my $db_ref      = $self->{db};
 	my $blast_results_table = $db_ref->{blast_results_table};
+	my $buffer      = $self->{extract_buffer};
 
 	# Index extracted BLAST results 
 	my %extracted;
@@ -1087,8 +1089,30 @@ sub extract_unassigned_hits {
 			}
 			next;
 		 }
+		
+		# Add any buffer 
+		my $orientation   = $hit_ref->{orientation};
+		#$devtools->print_hash($hit_ref);
+		if ($buffer) {
+			if ($orientation eq '-') {
+				$hit_ref->{subject_start} = $hit_ref->{subject_start} + $buffer;
+				$hit_ref->{subject_end}   = $hit_ref->{subject_end} - $buffer;
+				if ($hit_ref->{subject_end} < 1) {
+					$hit_ref->{subject_end} = 1;
+				}	
+			}
+			else {
+				$hit_ref->{subject_start} = $hit_ref->{subject_start} - $buffer;
+				if ($hit_ref->{subject_start} < 1) {
+					$hit_ref->{subject_start} = 1;
+				}	
+				$hit_ref->{subject_end}   = $hit_ref->{subject_end} + $buffer;
+			}
+		}
+		#$devtools->print_hash($hit_ref);
+		
 		# Extract the sequence
-		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref, $buffer);
 		if ($sequence) {	
 			if ($verbose) {
 				print "\t ........extracting";
