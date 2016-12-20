@@ -161,6 +161,16 @@ sub load_blast_results_table {
 		query_start      => 'int',
 		query_end        => 'int',
 		hit_length       => 'int',
+		bit_score        => 'float',
+		identity         => 'varchar',
+		e_value_num      => 'float',
+		e_value_exp      => 'int',
+	  	subject_start    => 'int',
+	  	subject_end      => 'int',
+		query_start      => 'int',
+	  	query_end        => 'int',
+		gap_openings     => 'int',
+		mismatches       => 'int',
 	);
 	my $blast_table = MySQLtable->new('BLAST_results', $dbh, \%blast_fields);
 	$self->{blast_results_table} = $blast_table;
@@ -289,6 +299,13 @@ sub create_blast_results_table {
 	  `Query_start`   int(11) NOT NULL default '0',
 	  `Query_end`     int(11) NOT NULL default '0',
 	  `Hit_length`    int(11) NOT NULL default '0',
+
+	  `Bit_score`        float   NOT NULL default '0',
+	  `Identity`         float   NOT NULL default '0',
+	  `e_value_num`      float   NOT NULL default '0',
+	  `e_value_exp`      int(11) NOT NULL default '0',
+	  `Gap_openings`     int(11) NOT NULL default '0',
+	  `Mismatches`       int(11) NOT NULL default '0',
 
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
