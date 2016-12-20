@@ -6,8 +6,8 @@ Begin SCREENDB;
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-    query_aa_fasta=./screens/test/probe.fa;
-    reference_aa_fasta=./screens/test/probe.fa;
+    query_aa_fasta=./test/probes/Hepadna-Pol-probe.faa;
+    reference_aa_fasta=./test/probes/Hepadna-Pol-probe.faa;
     output_path=./screens/tmp/;
     bit_score_min_tblastn=60;
     seq_length_minimum=50;
