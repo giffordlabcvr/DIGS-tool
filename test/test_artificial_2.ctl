@@ -19,8 +19,5 @@ BEGIN SCREENSETS;
 ENDBLOCK;
 
 BEGIN TARGETS;
-	#test/fake/fake/fake/fake1.fa.fasta
-	test/fake/fake/fake/fake2.fa.fasta
-	#test/fake/fake/fake/fake3.fa.fasta
-	#test/fake/fake/fake/fake4.fa.fasta		
+	test/fake/fake/fake/fake4.fa.fasta
 ENDBLOCK;
