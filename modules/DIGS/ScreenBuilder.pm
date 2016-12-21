@@ -46,13 +46,20 @@ sub new {
 	my $self = {
 		# Member variables
 		process_id           => $parameter_ref->{process_id},
+		
 		# Flags
 		refresh_genomes      => $parameter_ref->{refresh_genomes},
+
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
 		blast_bin_path       => $parameter_ref->{blast_bin_path},
+		
 		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
+		blast_obj            => $parameter_ref->{blast_obj},
+		
+		# Data
+		previously_executed_searches => $parameter_ref->{previously_executed_searches},
+
 	};
 	bless ($self, $class);
 	return $self;
@@ -406,7 +413,6 @@ sub set_targets {
 	print "\n\t  Targets:           $unique_targets target files";
 }
 
-
 #***************************************************************************
 # Subroutine:  read genome files
 # Description: processes the top level (leaves) of the genome directory
@@ -480,8 +486,7 @@ sub set_queries {
 	unless ($num_targets) { die "\n\t No target databases found\n\n\n";	}
 
 	# Work out the current state with respect to searches performed
-	my %done;
-	$db->index_previously_executed_queries(\%done);
+	my $done_ref = $self->{previously_executed_searches};
 
 	# Get relevant member variables and objects
 	my $path;
@@ -530,7 +535,7 @@ sub set_queries {
 			my @key = ( $genome_id, $target_name, $probe_id );
 			my $key = join ('|', @key);
 
-			if ($done{$key}) { 
+			if ($done_ref->{$key}) { 
 				next; # Skip queries that have been issued
 			} 
 
