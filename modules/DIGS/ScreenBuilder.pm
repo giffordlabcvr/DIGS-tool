@@ -198,6 +198,7 @@ sub setup_reference_library {
 
 		print "\n\t  Reference library: $num_fasta $reference_type sequences";
 		my $i = 0;
+		my %refseq_ids; # Hash to check probe names are unique		
 		foreach my $seq_ref (@fasta) {
 			$i++;
 			my $header  = $seq_ref->{header};
@@ -207,7 +208,17 @@ sub setup_reference_library {
 			if ($valid) {
 				my $name      = $header_data{name};
 				my $gene_name = $header_data{gene_name};
+				my $refseq_id = $name . "_$gene_name";
 				my $seq    = $seq_ref->{sequence};
+				
+				if ($refseq_ids{$refseq_id}) {
+					print "\n\n\t  Error: non-unique sequence name '$refseq_id' in reference library\n\n";
+					exit;
+				}
+				else {
+					$refseq_ids{$refseq_id} = 1;
+				}
+
 				my $fasta = ">$name" . "_$gene_name" . "\n$seq\n\n";
 				push (@ref_fasta, $fasta);
 			}
@@ -279,6 +290,7 @@ sub get_fasta_probes {
 	print "\n\t  Probes:            $num_fasta $probe_type sequences";
 	my $i = 0;
 	my $type = $self->{probe_library_type};
+	my %probe_ids; # Hash to check probe names are unique
 	foreach my $seq_ref (@fasta) {
 		$i++;
 		my $header  = $seq_ref->{header};
@@ -287,13 +299,21 @@ sub get_fasta_probes {
 		if ($valid) {
 			my $name      = $header_data{name};
 			my $gene_name = $header_data{gene_name};
+			my $probe_id  = $name . "_$gene_name";
 			my $seq       = $seq_ref->{sequence};
 			
 			my %probe;
 			$probe{probe_name}      = $name;
 			$probe{probe_gene}      = $gene_name;
-			$probe{probe_id}        = $name . "_$gene_name";
+			$probe{probe_id}        = $probe_id;
 			$probe{sequence}        = $seq;
+			
+			if ($probe_ids{$probe_id}) {
+				print "\n\n\t  Error: non-unique probe name '$probe_id' in probe set\n\n";
+			}
+			else {
+				$probe_ids{$probe_id} = 1;
+			}
 			
 			if ($type eq 'aa') {
 				$probe{probe_type}  = 'ORF';

@@ -961,6 +961,8 @@ sub merge_hits {
 	my $probe_gene  = $query_ref->{probe_gene};
 
 	# Get the set of hits (rows in BLAST_results table) to look at
+	my $db_ref = $self->{db};
+	my $table = $db_ref->{blast_results_table};
 	my @hits;
 	$self->get_coordinate_sets($table, \@hits, $target_name, $probe_name, $probe_gene);
 	
@@ -970,7 +972,7 @@ sub merge_hits {
 	$self->do_consolidation($query_ref, \@hits, \%merged, \%retained);
 
 	# Update database
-	$self->update_db_loci(\@hits, \%merged, \%retained);
+	$self->update_db_loci($table, \@hits, \%merged, \%retained);
 	
 }
 
@@ -983,9 +985,9 @@ sub get_coordinate_sets {
 	my ($self, $hits_ref, $target_name, $probe_name, $probe_gene) = @_;
 	
 	# Get relevant member variables and objects
-	my $db_ref              = $self->{db};
+
 	my $redundancy_mode     = $self->{redundancy_mode};
-	my $blast_results_table = $db_ref->{blast_results_table};
+
 	unless ($redundancy_mode) { die; } 
 	
 	# Set the fields to get values for
@@ -1014,7 +1016,7 @@ sub get_coordinate_sets {
 	$where .= "ORDER BY scaffold, subject_start ";
 	
 	# Get the table rows for these hits
-	$blast_results_table->select_rows(\@fields, $hits_ref, $where);
+	#$blast_results_table->select_rows(\@fields, $hits_ref, $where);
 	
 }
 
@@ -1121,12 +1123,12 @@ sub inspect_adjacent_hits {
 	# Calculate the gap between these sequence hits
 	my $subject_gap = $subject_start - $last_subject_end;
 
-	#print "\n\n\t #### Checking whether to consolidate $last_record_id and $record_id on $scaffold";
-	#print "\n\t #### Q Last:  $last_query_start\t $last_query_end";
-	#print "\n\t #### S Last:  $last_subject_start\t $last_subject_end";
-	#print "\n\t #### Q This:  $query_start\t $query_end";
-	#print "\n\t #### S This:  $subject_start\t $subject_end";
-	#print "\t #### Gap:   $subject_gap\n";
+	print "\n\n\t #### Checking whether to consolidate $last_record_id and $record_id on $scaffold";
+	print "\n\t #### Q Last:  $last_query_start\t $last_query_end";
+	print "\n\t #### S Last:  $last_subject_start\t $last_subject_end";
+	print "\n\t #### Q This:  $query_start\t $query_end";
+	print "\n\t #### S This:  $subject_start\t $subject_end";
+	print "\t #### Gap:   $subject_gap\n";
 
 	# Calculate the gap between the query coordinates of the two matches
 	# Note - this may be a negative number if the queries overlap 
