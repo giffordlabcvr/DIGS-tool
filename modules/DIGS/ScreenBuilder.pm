@@ -90,7 +90,6 @@ sub set_up_screen  {
 	# Set target sequence files for screening
 	my %targets;
 	$self->set_targets(\%targets);
-	#die;
 	
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
@@ -107,37 +106,33 @@ sub set_up_screen  {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj, $minimal_initialise) = @_;
+	my ($self, $ctl_file, $pipeline_obj) = @_;
 	
 	# Read input file
 	my @ctl_file;
 	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
 
-	# Parse the 'SCREENDB' block
+	# Parse the 'SCREENDB' block (screening DB name and MySQL connection details)
 	$self->parse_screendb_block(\@ctl_file);
 
-	# Parse the 'SCREENSETS' block
-	unless ($minimal_initialise) { # Skip this block if this flag is set
-		$self->parse_screensets_block(\@ctl_file);
-	}
+	# Parse the 'SCREENSETS' block (input data and parameters for screening)
+	$self->parse_screensets_block(\@ctl_file);
 
-	# READ the 'TARGETS' and EXCLUDE blocks
-	unless ($minimal_initialise) { # Skip this block if this flag is set
+	# READ the 'TARGETS' block (files to be screened)	
+	my @targets;
+	my $start_token = 'BEGIN TARGETS';
+	my $stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@targets);
+	$self->{target_paths} = \@targets;
 
-		my @targets;
-		my $start_token = 'BEGIN TARGETS';
-		my $stop_token  = 'ENDBLOCK';
-		$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@targets);
-		$self->{target_paths} = \@targets;
-		
-		my @exclude;
-		$start_token = 'BEGIN EXCLUDE';
-		$stop_token  = 'ENDBLOCK';
-		$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
-		$self->{exclude_paths} = \@exclude;
-	}
+	# READ the 'EXCLUDE' block	(files in target path to be excluded from screen)	
+	my @exclude;
+	$start_token = 'BEGIN EXCLUDE';
+	$stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
+	$self->{exclude_paths} = \@exclude;
 
-	# READ the 'SKIPINDEX' block if present
+	# READ the 'SKIPINDEX' block if present (Targets to skip during indexing)
 	my @skipindex;
 	my $start_token = 'BEGIN SKIPINDEX';
 	my $stop_token  = 'ENDBLOCK';
@@ -145,26 +140,24 @@ sub parse_control_file {
 	$self->{skipindexing_paths} = \@skipindex;
 	
 	# Set parameters in pipeline object
+
+	# Screening DB name and MySQL connection details
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
 	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
 	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
-	
-	$pipeline_obj->{server}                 = $self->{mysql_server};
-	$pipeline_obj->{password}               = $self->{mysql_password};
-	$pipeline_obj->{username}               = $self->{mysql_username};
-	
+
+	# Input and output file paths 	
 	$pipeline_obj->{output_path}            = $self->{output_path};
 	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
 	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
-	
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
 	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 	
+	# Parameters for screening
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
-	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};
-	
+	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};	
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};

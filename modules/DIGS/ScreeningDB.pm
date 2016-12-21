@@ -62,7 +62,7 @@ sub new {
 		password              => $parameters->{mysql_password},
 		
 		# Screening database core tables
-		status_table          => 0,
+		searches_table          => 0,
 		blast_results_table   => 0,
 		extracted_table       => 0,
 	
@@ -105,7 +105,7 @@ sub load_screening_db {
 
 	# Main Screening DB tables
 	print   "\t  Connecting to DB:  $db_name";
-	$self->load_status_table($dbh);	
+	$self->load_searches_table($dbh);	
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
 }
@@ -115,15 +115,15 @@ sub load_screening_db {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  load_status_table
-# Description: load screening database table 'Status'
+# Subroutine:  load_searches_table
+# Description: load screening database table 'Searches_performed'
 #***************************************************************************
-sub load_status_table {
+sub load_searches_table {
 
 	my ($self, $dbh) = @_;
 
 	# Definition of the table
-	my %status_fields = (
+	my %searches_fields = (
 		probe_id       => 'varchar',
 		probe_name     => 'varchar',
 		probe_gene     => 'varchar',
@@ -133,8 +133,8 @@ sub load_status_table {
 		version        => 'varchar',
 		target_name    => 'varchar',
 	);
-	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
-	$self->{status_table} = $status_table;
+	my $searches_table = MySQLtable->new('Searches_performed', $dbh, \%searches_fields);
+	$self->{searches_table} = $searches_table;
 }
 
 #***************************************************************************
@@ -178,7 +178,7 @@ sub load_blast_results_table {
 
 #***************************************************************************
 # Subroutine:  load_extracted_table
-# Description: load screening database table 'Extracted'
+# Description: load screening database table 'Extracted_sequences'
 #***************************************************************************
 sub load_extracted_table {
 
@@ -212,7 +212,7 @@ sub load_extracted_table {
 		sequence_length  => 'int',
 		sequence         => 'text',
 	);
-	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
+	my $extract_table = MySQLtable->new('Extracted_sequences', $dbh, \%extract_fields);
 	$self->{extracted_table} = $extract_table;
 }
 
@@ -241,35 +241,35 @@ sub create_screening_db {
 	unless ($dbh) {
 		die "\n\t # Couldn't create screening database '$db_name'\n\n";
 	}	
-	$self->create_status_table($dbh);
+	$self->create_searches_table($dbh);
 	$self->create_blast_results_table($dbh);
 	$self->create_extracted_table($dbh);
 }
 
 #***************************************************************************
-# Subroutine:  create_status_table
-# Description: create MySQL 'Status' table
+# Subroutine:  create_searches_table
+# Description: create MySQL 'Searches_performed' table
 #***************************************************************************
-sub create_status_table {
+sub create_searches_table {
 
 	my ($self, $dbh) = @_;
 
-	# Status table (which BLAST queries have been executed)
-	my $status = "CREATE TABLE `Status` (
+	# Searches_performed table (which BLAST queries have been executed)
+	my $searches = "CREATE TABLE `Searches_performed` (
 	  `Record_ID`   int(11) NOT NULL auto_increment,
 	  `Probe_ID`    varchar(100) NOT NULL default '',
 	  `Probe_name`  varchar(100) NOT NULL default '',
 	  `Probe_gene`  varchar(100) NOT NULL default '',
 	  `Genome_ID`   varchar(100) NOT NULL default '',
 	  `Organism`    varchar(100) NOT NULL default '',
-	  `Data_type`  varchar(100) NOT NULL default '',
+	  `Data_type`   varchar(100) NOT NULL default '',
 	  `Version`     varchar(100) NOT NULL default '',
 	  `Target_name` varchar(100) NOT NULL default '',
 	  `Timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
-	my $sth = $dbh->prepare($status);
-	unless ($sth->execute()) { print "\n\t$status\n\n\n"; exit;}
+	my $sth = $dbh->prepare($searches);
+	unless ($sth->execute()) { print "\n\t$searches\n\n\n"; exit;}
 }
 
 #***************************************************************************
@@ -316,14 +316,14 @@ sub create_blast_results_table {
 
 #***************************************************************************
 # Subroutine:  create_extracted_table
-# Description: create MySQL 'Extracted' table
+# Description: create MySQL 'Extracted_sequences' table
 #***************************************************************************
 sub create_extracted_table {
 
 	my ($self, $dbh) = @_;
 
-	# Extracted sequences table 
-	my $extracted = "CREATE TABLE `Extracted` (
+	# Extracted_sequences sequences table 
+	my $extracted = "CREATE TABLE `Extracted_sequences` (
 	  `Record_ID`        int(11) NOT NULL auto_increment,
 
 	  `BLAST_ID`         int(11) NOT NULL default '0',
@@ -367,13 +367,13 @@ sub index_previously_executed_queries {
 	
 	my ($self, $done_ref) = @_;
 	
-	my $status_table = $self->{status_table};
-	unless ($status_table) { die "\n\t Status table not loaded\n\n"; }
+	my $searches_table = $self->{searches_table};
+	unless ($searches_table) { die "\n\t Searches_performed table not loaded\n\n"; }
 	my @data;
 	my @fields = qw [ record_id organism data_type version target_name
                       probe_name probe_gene ];
 	my $where = " ORDER BY Record_ID ";
-	$status_table->select_rows(\@fields, \@data, $where);
+	$searches_table->select_rows(\@fields, \@data, $where);
 	
 	# Index the executed searches
 	foreach my $data_ref (@data) {
@@ -455,15 +455,15 @@ sub flush_screening_db {
 		# get tables
 		my $blast_results_table  = $self->{blast_results_table};
 		my $extracted_table      = $self->{extracted_table};
-		my $status_table         = $self->{status_table};
+		my $searches_table         = $self->{searches_table};
 		
 		# Flush result tables
 		$blast_results_table->flush();
 		$blast_results_table->reset_primary_keys();
 		$extracted_table->flush();
 		$extracted_table->reset_primary_keys();
-		$status_table->flush();
-		$status_table->reset_primary_keys();
+		$searches_table->flush();
+		$searches_table->reset_primary_keys();
 	}
 }
 
@@ -495,7 +495,7 @@ sub index_BLAST_results_by_record_id {
 
 #***************************************************************************
 # Subroutine:  index extracted loci by BLAST id
-# Description: Index loci in Extracted table by the 'blast_id' field
+# Description: Index loci in Extracted_sequences table by the 'blast_id' field
 #***************************************************************************
 sub index_extracted_loci_by_blast_id {
 	
@@ -616,9 +616,9 @@ sub get_ancillary_table_names {
 		foreach my $item (@$row) {
 			chomp $item;
 			$i++;
-			if ($item eq 'Status')           { next; }
+			if ($item eq 'Searches_performed')           { next; }
 			elsif ($item eq 'BLAST_results') { next; }
-			elsif ($item eq 'Extracted')     { next; }
+			elsif ($item eq 'Extracted_sequences')     { next; }
 			else {
 				push (@$anc_tables_ref, $item)
 			}
