@@ -62,10 +62,10 @@ sub new {
 		password              => $parameters->{mysql_password},
 		
 		# Screening database core tables
-		searches_table          => 0,
+		searches_table        => 0,
 		blast_results_table   => 0,
 		extracted_table       => 0,
-	
+		blast_chains_table    => 0,	
 	};
 	
 	bless ($self, $class);
@@ -108,6 +108,8 @@ sub load_screening_db {
 	$self->load_searches_table($dbh);	
 	$self->load_blast_results_table($dbh);	
 	$self->load_extracted_table($dbh);	
+	$self->load_blast_chains_table($dbh);	
+
 }
 
 ############################################################################
@@ -186,7 +188,7 @@ sub load_extracted_table {
 
 	# Definition of the table
 	my %extract_fields = (
-		blast_id         => 'blast_id',
+		blast_id         => 'int',
 		organism         => 'varchar',
 		version          => 'varchar',
 		data_type        => 'varchar',
@@ -214,6 +216,23 @@ sub load_extracted_table {
 	);
 	my $extract_table = MySQLtable->new('Extracted_sequences', $dbh, \%extract_fields);
 	$self->{extracted_table} = $extract_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_blast_chains_table
+# Description: load screening database table 'Extracted_sequences'
+#***************************************************************************
+sub load_blast_chains_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %extract_fields = (
+		blast_id         => 'int',
+		extract_id       => 'int',
+	);
+	my $extract_table = MySQLtable->new('BLAST_chains', $dbh, \%extract_fields);
+	$self->{blast_chains_table} = $extract_table;
 }
 
 ############################################################################
@@ -244,6 +263,7 @@ sub create_screening_db {
 	$self->create_searches_table($dbh);
 	$self->create_blast_results_table($dbh);
 	$self->create_extracted_table($dbh);
+	$self->create_blast_chains_table($dbh);
 }
 
 #***************************************************************************
@@ -360,6 +380,27 @@ sub create_extracted_table {
 }
 
 #***************************************************************************
+# Subroutine:  create_blast_chains_table
+# Description: create MySQL 'BLAST_results' table
+#***************************************************************************
+sub create_blast_chains_table {
+
+	my ($self, $dbh) = @_;
+
+	# BLAST results table 
+	my $blast_chains = "CREATE TABLE `BLAST_chains` (
+	  `Record_ID`     int(11) NOT NULL auto_increment,
+	  `BLAST_ID`      int(11) NOT NULL default '0',
+	  `Extract_ID`    int(11) NOT NULL default '0',
+	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  PRIMARY KEY  (`Record_ID`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($blast_chains);
+	unless ($sth->execute()) { print "\n\t$blast_chains\n\n\n"; exit;}
+}
+
+
+#***************************************************************************
 # Subroutine:  index_previously_executed_queries 
 # Description: index BLAST searches that have previously been executed
 #***************************************************************************
@@ -455,7 +496,8 @@ sub flush_screening_db {
 		# get tables
 		my $blast_results_table  = $self->{blast_results_table};
 		my $extracted_table      = $self->{extracted_table};
-		my $searches_table         = $self->{searches_table};
+		my $searches_table       = $self->{searches_table};
+		my $blast_chains_table   = $self->{blast_chains_table};
 		
 		# Flush result tables
 		$blast_results_table->flush();
@@ -464,6 +506,9 @@ sub flush_screening_db {
 		$extracted_table->reset_primary_keys();
 		$searches_table->flush();
 		$searches_table->reset_primary_keys();
+		$blast_chains_table->flush();
+		$blast_chains_table->reset_primary_keys();
+
 	}
 }
 
@@ -640,6 +685,7 @@ sub drop_ancillary_table {
 	my $drop = "DROP TABLE IF EXISTS $table_name ";
 	my $sth = $dbh->prepare($drop);
    	unless ($sth->execute()) { print $drop; exit;}	
+
 }
 	
 ############################################################################

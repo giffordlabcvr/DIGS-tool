@@ -113,7 +113,9 @@ sub run_digs_process {
 		$self->screen();	
 	}
 	elsif ($option eq 3) { # Reassign data in Exracted table
-		$self->reassign();	
+		my @extracted_seqs;
+		$self->initialise_reassign(\@extracted_seqs); # Set up 
+		$self->reassign(\@extracted_seqs);	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table
 		$self->interactive_defragment();	
@@ -240,8 +242,8 @@ sub screen {
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
 
-	# Show cross matches at end
-	$self->show_cross_matching();
+	# Show cross matching at end if verbose output setting is on
+	if ($verbose) { $self->show_cross_matching(); }
 
 	# Print finished message
 	print "\n\n\t ### SCREEN COMPLETE ~ + ~ + ~";
@@ -254,11 +256,7 @@ sub screen {
 #***************************************************************************
 sub reassign {
 	
-	my ($self) = @_;
-
-	# Set up to perform the reassign process
-	my @assigned_seqs;
-	$self->initialise_reassign(\@assigned_seqs);
+	my ($self, $extracted_seqs_ref) = @_;
 
 	# Get data structures and variables from self
 	my $blast_obj       = $self->{blast_obj};
@@ -272,7 +270,7 @@ sub reassign {
 	my $count = 0;
 	my %reassign_matrix;
 	my %unique_keys;
-	foreach my $hit_ref (@assigned_seqs) {
+	foreach my $hit_ref (@$extracted_seqs_ref) {
 
 		# Set the linking to the BLAST result table
 		my $blast_id  = $hit_ref->{record_id};
@@ -527,7 +525,7 @@ sub initialise {
 #***************************************************************************
 sub initialise_reassign {
 
-	my ($self, $assigned_seqs_ref) = @_;
+	my ($self, $extracted_seqs_ref) = @_;
 
 	# Create a unique ID and report directory for this run
 	my $output_path = $self->{output_path};
@@ -544,7 +542,7 @@ sub initialise_reassign {
 	my $extracted_table = $db->{extracted_table};
 	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
 	                       extract_start extract_end sequence organism ];
-	$extracted_table->select_rows(\@fields, $assigned_seqs_ref);
+	$extracted_table->select_rows(\@fields, $extracted_seqs_ref);
 
 	# Set up the reference library
 	$loader_obj->setup_reference_library($self);
@@ -779,7 +777,8 @@ sub assign {
 	
 	# Get parameters from self
 	my $db_ref = $self->{db};
-	my $table  = $db_ref->{extracted_table}; 
+	my $extracted_table    = $db_ref->{extracted_table}; 
+	my $blast_chains_table = $db_ref->{blast_chains_table}; 
 
 	# Extract hits 
 	my @extracted;
@@ -809,7 +808,13 @@ sub assign {
 		}
 
 		# Insert the data to the Extracted_sequences table
-		my $extract_id = $table->insert_row(\%data);
+		my $extract_id = $extracted_table->insert_row(\%data);
+		#$devtools->print_hash(\%data); die;
+
+		# Insert the data to the BLAST_chains table
+		$data{extract_id} = $extract_id;
+		$blast_chains_table->insert_row(\%data);
+
 	}
 
 	print "\n\t\t # $new_sequences newly identified hits";
@@ -950,9 +955,14 @@ sub merge_hits {
 	
 	my ($self, $query_ref) = @_;
 
+	# Get the information for this query
+	my $target_name = $query_ref->{target_name};
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
+
 	# Get the set of hits (rows in BLAST_results table) to look at
 	my @hits;
-	$self->select_blast_hits_for_consolidation($query_ref, \@hits);
+	$self->get_coordinate_sets($table, \@hits, $target_name, $probe_name, $probe_gene);
 	
 	# Apply consolidation rules to overlapping and/or redundant hits
 	my %merged;
@@ -968,13 +978,13 @@ sub merge_hits {
 # Subroutine:  select_blast_hits_for_consolidation
 # Description: select BLAST hits according to 'redundancy_mode' setting
 #***************************************************************************
-sub select_blast_hits_for_consolidation {
+sub get_coordinate_sets {
 	
-	my ($self, $query_ref, $hits_ref) = @_;
+	my ($self, $hits_ref, $target_name, $probe_name, $probe_gene) = @_;
 	
 	# Get relevant member variables and objects
-	my $db_ref  = $self->{db};
-	my $redundancy_mode = $self->{redundancy_mode};
+	my $db_ref              = $self->{db};
+	my $redundancy_mode     = $self->{redundancy_mode};
 	my $blast_results_table = $db_ref->{blast_results_table};
 	unless ($redundancy_mode) { die; } 
 	
@@ -982,11 +992,6 @@ sub select_blast_hits_for_consolidation {
 	my @fields = qw [ record_id scaffold orientation
 	                  subject_start subject_end
                       query_start query_end ];
-
-	# Get the information for this query
-	my $target_name = $query_ref->{target_name};
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
 
 	# Build an SQL "where" statement to control what hits are selected
 	my $where  = " WHERE target_name = '$target_name'";
@@ -1249,10 +1254,12 @@ sub interactive_defragment {
 	# Display current settings
 	my $redundancy_mode= $self->{redundancy_mode};
 	my $defragment_range=$self->{defragment_range};
-
 	print "\n\n\t\t Current settings (based on control file)";
 	print "\n\t\t redundancy mode: $redundancy_mode";
 	print "\n\t\t defragment_range: $defragment_range";
+
+	# Get the ordered hits from the Extracted table
+	
 	my $extracted_table = $db->{extracted_table};
 	
 	# Set the fields to get values for
@@ -1269,6 +1276,7 @@ sub interactive_defragment {
 	$extracted_table->select_rows(\@fields, \@hits, $where);
 	my $numhits = scalar @hits;
 	print "\n\n\t # There are currently $numhits distinct records in the Extracted_sequences table";
+
 
 	my %defragmented;
 	my $choice;
@@ -1507,7 +1515,7 @@ sub compare_adjacent_hits {
 	
 	my $gap;
 	$gap = $extract_start - $last_end;		
-	print "\n\t #\t CALC: '$scaffold': '$extract_start'-'$last_end' = $gap";
+	#print "\n\t #\t CALC: '$scaffold': '$extract_start'-'$last_end' = $gap";
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine

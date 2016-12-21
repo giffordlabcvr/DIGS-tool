@@ -134,8 +134,8 @@ sub parse_control_file {
 
 	# READ the 'SKIPINDEX' block if present (Targets to skip during indexing)
 	my @skipindex;
-	my $start_token = 'BEGIN SKIPINDEX';
-	my $stop_token  = 'ENDBLOCK';
+	$start_token = 'BEGIN SKIPINDEX';
+	$stop_token  = 'ENDBLOCK';
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
 	$self->{skipindexing_paths} = \@skipindex;
 	
