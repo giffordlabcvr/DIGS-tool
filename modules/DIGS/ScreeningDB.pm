@@ -230,6 +230,7 @@ sub load_blast_chains_table {
 	my %extract_fields = (
 		blast_id         => 'int',
 		extract_id       => 'int',
+		target_name      => 'varchar',
 	);
 	my $extract_table = MySQLtable->new('BLAST_chains', $dbh, \%extract_fields);
 	$self->{blast_chains_table} = $extract_table;
@@ -392,57 +393,12 @@ sub create_blast_chains_table {
 	  `Record_ID`     int(11) NOT NULL auto_increment,
 	  `BLAST_ID`      int(11) NOT NULL default '0',
 	  `Extract_ID`    int(11) NOT NULL default '0',
+	  `Target_name`   varchar(100) NOT NULL default '0',
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($blast_chains);
 	unless ($sth->execute()) { print "\n\t$blast_chains\n\n\n"; exit;}
-}
-
-
-#***************************************************************************
-# Subroutine:  index_previously_executed_queries 
-# Description: index BLAST searches that have previously been executed
-#***************************************************************************
-sub index_previously_executed_queries {
-	
-	my ($self, $done_ref) = @_;
-	
-	my $searches_table = $self->{searches_table};
-	unless ($searches_table) { die "\n\t Searches_performed table not loaded\n\n"; }
-	my @data;
-	my @fields = qw [ record_id organism data_type version target_name
-                      probe_name probe_gene ];
-	my $where = " ORDER BY Record_ID ";
-	$searches_table->select_rows(\@fields, \@data, $where);
-	
-	# Index the executed searches
-	foreach my $data_ref (@data) {
-		
-		# Get the query parameters
-		my $organism    = $data_ref->{organism};
-		my $data_type   = $data_ref->{data_type};
-		my $version     = $data_ref->{version};
-		my $target_name = $data_ref->{target_name};
-		my $probe_name  = $data_ref->{probe_name};
-		my $probe_gene  = $data_ref->{probe_gene};
-	
-		# Sanity checking
-		unless ( $organism and $data_type and $version and $target_name 
-             and $probe_name and $probe_gene) { 
-			die; 
-		};
-		
-		# Create the unique key for this search
-		my @genome = ( $organism , $data_type, $version );
-		my $genome_id = join ('|', @genome);
-		my $probe_id  = $probe_name . '_' .  $probe_gene;
-		my @key = ( $genome_id, $target_name, $probe_id );
-		my $key = join ('|', @key);
-
-		# Store the query in a hash indexed by it's unique key
-		$done_ref->{$key} = $data_ref;		
-	}
 }
 
 ############################################################################
@@ -510,85 +466,6 @@ sub flush_screening_db {
 		$blast_chains_table->reset_primary_keys();
 
 	}
-}
-
-############################################################################
-# STANDARD SCREENING DB TABLE FUNCTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  index BLAST results by record id
-# Description: Index loci in BLAST_results table by the 'record_id' field
-#***************************************************************************
-sub index_BLAST_results_by_record_id {
-	
-	my ($self, $data_ref, $where) = @_;
-
-	# Get relevant variables and objects
-	my $blast_table = $self->{blast_results_table}; 
-	my @fields = qw [ record_id 
-	                  organism data_type version target_name 
-                      probe_name probe_gene ];
-	my @record_ids;
-	$blast_table->select_rows(\@fields, \@record_ids, $where);	
-	foreach my $hit_ref (@record_ids) {
-		my $record_id = $hit_ref->{record_id};
-		if ($data_ref->{$record_id}) { die; } # BLAST ID should be unique
-		$data_ref->{$record_id} = $hit_ref;	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  index extracted loci by BLAST id
-# Description: Index loci in Extracted_sequences table by the 'blast_id' field
-#***************************************************************************
-sub index_extracted_loci_by_blast_id {
-	
-	my ($self, $previously_extracted_ref, $where) = @_;
-
-	# Get relevant variables and objects
-	my $extracted_table = $self->{extracted_table}; 
-	my @fields = qw [ blast_id ];
-	my @blast_ids;
-	$extracted_table->select_rows(\@fields, \@blast_ids, $where);	
-	foreach my $hit_ref (@blast_ids) {
-		my $blast_id = $hit_ref->{blast_id};
-		#if ($previously_extracted_ref->{$blast_id}) { 
-		#	die;
-		#} # BLAST ID should be unique
-		$previously_extracted_ref->{$blast_id} = 1;	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get_blast_hits_to_extract
-# Description: Get a list of BLAST hits that have not been extracted yet
-#***************************************************************************
-sub get_blast_hits_to_extract {
-	
-	my ($self, $query_ref, $hits_ref) = @_;
-
-	# Get data structures and variables from self
-	my $blast_results_table = $self->{blast_results_table};
-
-	# Get parameters for this query
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-	my $target_name = $query_ref->{target_name}; # target file name
-
-	# Get all BLAST results from table (ordered by sequential targets)
-	my $where = " WHERE Target_name = '$target_name'
-                  AND probe_name = '$probe_name' 
-                  AND probe_gene = '$probe_gene'
-	              ORDER BY scaffold, subject_start";
-
-	my @fields = qw [ record_id 
-	               organism data_type version 
-                   probe_name probe_gene probe_type
-				   orientation scaffold target_name
-                   subject_start subject_end 
-		           query_start query_end ];
-	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
 }
 
 ############################################################################
@@ -661,9 +538,9 @@ sub get_ancillary_table_names {
 		foreach my $item (@$row) {
 			chomp $item;
 			$i++;
-			if ($item eq 'Searches_performed')           { next; }
-			elsif ($item eq 'BLAST_results') { next; }
-			elsif ($item eq 'Extracted_sequences')     { next; }
+			if ($item eq 'Searches_performed')      { next; }
+			elsif ($item eq 'BLAST_results')        { next; }
+			elsif ($item eq 'Extracted_sequences')  { next; }
 			else {
 				push (@$anc_tables_ref, $item)
 			}

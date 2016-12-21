@@ -108,7 +108,8 @@ sub run_digs_process {
 	if ($option eq 1)    { # Create a screening DB 
 		$self->create_screening_db($ctl_file);
 	}
-	elsif ($option eq 2) { # Screen
+	elsif ($option eq 2) { # Screenne;
+		$self->index_previously_executed_searches();
 		$self->set_up_screen();
 		$self->screen();	
 	}
@@ -173,6 +174,93 @@ sub run_utility_process {
 
 
 ############################################################################
+# INITIALISING FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise 
+# Description: initialise module for interacting with screening database
+#              and perform basic validation of options and input file 
+#***************************************************************************
+sub initialise {
+
+	my ($self, $ctl_file) = @_;
+
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+	}
+
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file}   = $ctl_file;
+	my $loader_obj = ScreenBuilder->new($self);
+	$loader_obj->parse_control_file($ctl_file, $self);
+
+	# Update numthreads setting in BLAST object
+	my $num_threads = $loader_obj->{num_threads};
+	unless ($num_threads) { $num_threads = 1; }  # Default setting
+	$self->{blast_obj}->{num_threads} = $num_threads;
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+	
+}
+
+#***************************************************************************
+# Subroutine:  initialise_reassign 
+# Description: set up for reassigning the sequences in the Extracted_sequences table
+#***************************************************************************
+sub initialise_reassign {
+
+	my ($self, $extracted_seqs_ref) = @_;
+
+	# Create a unique ID and report directory for this run
+	my $output_path = $self->{output_path};
+	my $process_id  = $self->{process_id};
+	my $db          = $self->{db};
+	my $db_name     = $db->{db_name};
+	unless ($db and $db_name and $process_id and $output_path) { die; }
+	
+	# Create report directory
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->create_output_directories($self);
+
+	# Get the assigned data
+	my $extracted_table = $db->{extracted_table};
+	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
+	                       extract_start extract_end sequence organism ];
+	$extracted_table->select_rows(\@fields, $extracted_seqs_ref);
+
+	# Set up the reference library
+	$loader_obj->setup_reference_library($self);
+
+}
+
+#***************************************************************************
+# Subroutine:  set_up_screen
+# Description: set up files and directories for screening
+#***************************************************************************
+sub set_up_screen {
+
+	my ($self) = @_;
+	
+	# Set up the screening queries
+	my %queries;
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
+	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
+	unless ($total_queries)  { 
+		print "\n\t  Exiting without screening.\n\n";	
+		exit;
+	}
+	$self->{queries}       = \%queries;
+	$self->{total_queries} = $total_queries;
+}
+
+
+############################################################################
 # MAIN FUNCTIONS - TOP LEVEL PROCESS FUNCTIONS
 ############################################################################
 
@@ -229,11 +317,17 @@ sub screen {
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);
 			
-			# Deal with overlapping, redundant & fragmented hits
-			$self->merge_hits($query_ref);
-		
+			# Update DB and extract sequences to assign
+			my @new_hits;
+			$self->update_db($query_ref, \@new_hits);
+
+			# Extract newly identified or extended sequences
+			my @extracted;
+			$self->extract($query_ref,\@extracted);	
+	
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$self->assign($query_ref);
+			$self->assign($query_ref, \@extracted);
+			die;	
 		}	
 	}
 	
@@ -485,93 +579,6 @@ sub extend_screening_db {
 
 
 ############################################################################
-# INITIALISING FUNCTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise 
-# Description: initialise module for interacting with screening database
-#              and perform basic validation of options and input file 
-#***************************************************************************
-sub initialise {
-
-	my ($self, $ctl_file) = @_;
-
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-	}
-
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file}   = $ctl_file;
-	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self);
-
-	# Update numthreads setting in BLAST object
-	my $num_threads = $loader_obj->{num_threads};
-	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$self->{blast_obj}->{num_threads} = $num_threads;
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-	
-}
-
-#***************************************************************************
-# Subroutine:  initialise_reassign 
-# Description: set up for reassigning the sequences in the Extracted_sequences table
-#***************************************************************************
-sub initialise_reassign {
-
-	my ($self, $extracted_seqs_ref) = @_;
-
-	# Create a unique ID and report directory for this run
-	my $output_path = $self->{output_path};
-	my $process_id  = $self->{process_id};
-	my $db          = $self->{db};
-	my $db_name     = $db->{db_name};
-	unless ($db and $db_name and $process_id and $output_path) { die; }
-	
-	# Create report directory
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->create_output_directories($self);
-
-	# Get the assigned data
-	my $extracted_table = $db->{extracted_table};
-	my @fields  = qw [ record_id probe_type assigned_name assigned_gene 
-	                       extract_start extract_end sequence organism ];
-	$extracted_table->select_rows(\@fields, $extracted_seqs_ref);
-
-	# Set up the reference library
-	$loader_obj->setup_reference_library($self);
-
-}
-
-#***************************************************************************
-# Subroutine:  set_up_screen
-# Description: set up files and directories for screening
-#***************************************************************************
-sub set_up_screen {
-
-	my ($self) = @_;
-	
-	# Set up the screening queries
-	my %queries;
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
-	unless ($total_queries)  { 
-		print "\n\t  Exiting without screening.\n\n";	
-		exit;
-	}
-	$self->{queries}       = \%queries;
-	$self->{total_queries} = $total_queries;
-}
-
-
-############################################################################
 # MAIN SCREENING LOOP
 ############################################################################
 
@@ -679,70 +686,144 @@ sub search {
 }
 
 #***************************************************************************
-# Subroutine:  extract_unassigned_hits
-# Description: extract sequences that are not in Extracted_sequences table
+# Subroutine:  update_db
+# Description: 
 #***************************************************************************
-sub extract_unassigned_hits {
+sub update_db {
 	
 	my ($self, $query_ref, $extracted_ref) = @_;
 
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-	my $target_path = $query_ref->{target_path};
+	# Get the information for this query
 	my $target_name = $query_ref->{target_name};
-	my $db_ref      = $self->{db};
-	my $blast_results_table = $db_ref->{blast_results_table};
-	my $buffer      = $self->{extract_buffer};
+	my $probe_name  = $query_ref->{probe_name};
+	my $probe_gene  = $query_ref->{probe_gene};
 
-	# Index extracted BLAST results 
+	# Get data structures and variables from self
+	my $db = $self->{db};
+	my $blast_results_table = $db->{blast_results_table};
+
+	# Index BLAST chains
 	my %extracted;
 	my $where = " WHERE target_name = '$target_name' ";
-	$db_ref->index_extracted_loci_by_blast_id(\%extracted, $where);
+	$self->index_blast_chains(\%extracted, $where);
 
-	# Get hits we are going to extract
+	# Get all BLAST results for this target file
 	my @hits;
-	$db_ref->get_blast_hits_to_extract($query_ref, \@hits);
+	my $where = " WHERE Target_name = '$target_name'
+                  AND probe_name = '$probe_name' 
+                  AND probe_gene = '$probe_gene'
+	              ORDER BY scaffold, subject_start";
+	my @fields = qw [ record_id 
+	               organism data_type version 
+                   probe_name probe_gene probe_type
+				   orientation scaffold target_name
+                   subject_start subject_end 
+		           query_start query_end ];
+	$blast_results_table->select_rows(\@fields, $hits_ref, $where); 
 	my $num_hits = scalar @hits;
-	if ($verbose) {
-		print "\n\t ### There are $num_hits hits to extract";
+	if ($verbose) { print "\n\t ### There are $num_hits hits to extract"; }
+
+	# Merge overlapping, redundant and fragmented BLAST hits
+	# Get the set of hits (rows in BLAST_results table) to look at
+	my @hits;
+
+	my ($self, $hits_ref, $target_name, $probe_name, $probe_gene) = @_;
+	
+	# Get relevant member variables and objects
+
+	my $redundancy_mode     = $self->{redundancy_mode};
+
+	unless ($redundancy_mode) { die; } 
+	
+	# Set the fields to get values for
+	my @fields = qw [ record_id scaffold orientation
+	                  subject_start subject_end
+                      query_start query_end ];
+
+	# Build an SQL "where" statement to control what hits are selected
+	my $where  = " WHERE target_name = '$target_name'";
+
+	# Handle different modes
+	if ($redundancy_mode eq 1) {
+		return; # Do nothing else
+	}
+	if ($self->{redundancy_mode} eq 2) {
+		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
+		$where .= " AND probe_gene = '$probe_gene' ";
+	}
+	elsif ($self->{redundancy_mode} eq 3) {
+		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
+		$where .= " AND probe_name = '$probe_name'
+                    AND probe_gene = '$probe_gene' ";
 	}
 
-	# Store all outstanding matches as sequential, target-ordered sets 
-	my $new_hits = scalar @hits;
-	foreach my $hit_ref (@hits) {
-		
+	# Order by ascending start coordinates within each scaffold in the target file
+	$where .= "ORDER BY scaffold, subject_start ";
+	
+	# Get the table rows for these hits
+	#$blast_results_table->select_rows(\@fields, $hits_ref, $where);
+
+
+
+	
+	# Apply consolidation rules to overlapping and/or redundant hits
+	my %merged;
+	my %retained;
+	$self->do_consolidation($query_ref, \@hits, \%merged, \%retained);
+
+
+
+	# Update database
+	$self->update_db_loci($table, \@hits, \%merged, \%retained);
+
 		# Skip previously extracted hits
-		my $record_id   = $hit_ref->{record_id};
-		if ($verbose) {
-			print "\n\t Checking $record_id in extracted table";
-		}
-		if ($extracted{$record_id}) { 
-			if ($verbose) {
-				print "\t ALREADY EXTRACTED";
-			}
-			next;
-		 }
-		
+		#my $record_id   = $hit_ref->{record_id};
+		#if ($verbose) {
+		#	print "\n\t Checking $record_id in extracted table";
+		#}
+		#if ($extracted{$record_id}) { 
+		#	if ($verbose) {
+		#		print "\t ALREADY EXTRACTED";
+		#	}
+		#	next;
+		#}	
+}
+
+#***************************************************************************
+# Subroutine:  extract_sequences
+# Description: extract sequences from target databases
+#***************************************************************************
+sub extract {
+
+	my ($self, $query_ref, $hits_ref, $extracted_ref) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+	my $buffer      = $self->{extract_buffer};
+	my $target_path = $query_ref->{target_path};
+
+	# Iterate through the list of sequences to extract
+	my $new_hits = scalar @$hits_ref;
+	foreach my $hit_ref (@$hits_ref) {
+				
 		# Add any buffer 
 		my $orientation   = $hit_ref->{orientation};
-		#$devtools->print_hash($hit_ref);
 		if ($buffer) {
 			if ($orientation eq '-') {
 				$hit_ref->{subject_start} = $hit_ref->{subject_start} + $buffer;
 				$hit_ref->{subject_end}   = $hit_ref->{subject_end} - $buffer;
-				if ($hit_ref->{subject_end} < 1) {
+				if ($hit_ref->{subject_end} < 1) { # Don't allow negative coordinates
 					$hit_ref->{subject_end} = 1;
 				}	
 			}
 			else {
 				$hit_ref->{subject_start} = $hit_ref->{subject_start} - $buffer;
-				if ($hit_ref->{subject_start} < 1) {
+				if ($hit_ref->{subject_start} < 1) { # Don't allow negative coordinates
 					$hit_ref->{subject_start} = 1;
 				}	
 				$hit_ref->{subject_end}   = $hit_ref->{subject_end} + $buffer;
 			}
 		}
-		#$devtools->print_hash($hit_ref);
 		
 		# Extract the sequence
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref, $buffer);
@@ -773,21 +854,18 @@ sub extract_unassigned_hits {
 #***************************************************************************
 sub assign {
 	
-	my ($self, $query_ref) = @_;
+	my ($self, $query_ref, $extracted_ref) = @_;
 	
 	# Get parameters from self
 	my $db_ref = $self->{db};
 	my $extracted_table    = $db_ref->{extracted_table}; 
 	my $blast_chains_table = $db_ref->{blast_chains_table}; 
-
-	# Extract hits 
-	my @extracted;
-	my $new_sequences = $self->extract_unassigned_hits($query_ref, \@extracted);	
 	
 	# Iterate through the matches
-	my $assigned_count = 0;
+	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
-	foreach my $hit_ref (@extracted) {
+	my $new_sequences    = 0;
+	foreach my $hit_ref (@$extracted_ref) {
 
 		# Set the linking to the BLAST result table
 		my $blast_id  = $hit_ref->{record_id};
@@ -816,7 +894,6 @@ sub assign {
 		$blast_chains_table->insert_row(\%data);
 
 	}
-
 	print "\n\t\t # $new_sequences newly identified hits";
 	
 	if ($new_sequences > 0) {
@@ -945,80 +1022,7 @@ sub do_reverse_blast {
 
 ############################################################################
 # DEFRAGMENTING - comparing and merging overlapping/adjacent hits
-###########################################################################
-
-#***************************************************************************
-# Subroutine:  merge_hits
-# Description: Merge overlapping, redundant and fragmented BLAST hits
-#***************************************************************************
-sub merge_hits {
-	
-	my ($self, $query_ref) = @_;
-
-	# Get the information for this query
-	my $target_name = $query_ref->{target_name};
-	my $probe_name  = $query_ref->{probe_name};
-	my $probe_gene  = $query_ref->{probe_gene};
-
-	# Get the set of hits (rows in BLAST_results table) to look at
-	my $db_ref = $self->{db};
-	my $table = $db_ref->{blast_results_table};
-	my @hits;
-	$self->get_coordinate_sets($table, \@hits, $target_name, $probe_name, $probe_gene);
-	
-	# Apply consolidation rules to overlapping and/or redundant hits
-	my %merged;
-	my %retained;
-	$self->do_consolidation($query_ref, \@hits, \%merged, \%retained);
-
-	# Update database
-	$self->update_db_loci($table, \@hits, \%merged, \%retained);
-	
-}
-
-#***************************************************************************
-# Subroutine:  select_blast_hits_for_consolidation
-# Description: select BLAST hits according to 'redundancy_mode' setting
-#***************************************************************************
-sub get_coordinate_sets {
-	
-	my ($self, $hits_ref, $target_name, $probe_name, $probe_gene) = @_;
-	
-	# Get relevant member variables and objects
-
-	my $redundancy_mode     = $self->{redundancy_mode};
-
-	unless ($redundancy_mode) { die; } 
-	
-	# Set the fields to get values for
-	my @fields = qw [ record_id scaffold orientation
-	                  subject_start subject_end
-                      query_start query_end ];
-
-	# Build an SQL "where" statement to control what hits are selected
-	my $where  = " WHERE target_name = '$target_name'";
-
-	# Handle different modes
-	if ($redundancy_mode eq 1) {
-		return; # Do nothing else
-	}
-	if ($self->{redundancy_mode} eq 2) {
-		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
-		$where .= " AND probe_gene = '$probe_gene' ";
-	}
-	elsif ($self->{redundancy_mode} eq 3) {
-		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
-		$where .= " AND probe_name = '$probe_name'
-                    AND probe_gene = '$probe_gene' ";
-	}
-
-	# Order by ascending start coordinates within each scaffold in the target file
-	$where .= "ORDER BY scaffold, subject_start ";
-	
-	# Get the table rows for these hits
-	#$blast_results_table->select_rows(\@fields, $hits_ref, $where);
-	
-}
+###########################################################################	
 
 #***************************************************************************
 # Subroutine:  do_consolidation
@@ -1699,6 +1703,80 @@ sub write_matrix {
 	#$devtools->print_hash($matrix_ref);
 }
 
+
+############################################################################
+# INDEXING DB TABLES
+############################################################################
+
+#***************************************************************************
+# Subroutine:  index BLAST results by record id
+# Description: Index loci in BLAST_results table by the 'record_id' field
+#***************************************************************************
+sub index_blast_chains {
+	
+	my ($self, $data_ref, $where) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	my $blast_chains_table = $db->{blast_chains_table}; 
+	my @fields = qw [ blast_id extract_id ];
+	my @blast_chain_rows;
+	$blast_chains_table->select_rows(\@fields, \@blast_chain_rows, $where);	
+	foreach my $hit_ref (@blast_chain_rows) {
+		my $blast_id   = $hit_ref->{blast_id};
+		my $extract_id = $hit_ref->{extract_id};
+		if ($data_ref->{$blast_id}) { die; } # BLAST ID should be unique
+		$data_ref->{$blast_id} = $extract_id;	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  index_previously_executed_searches 
+# Description: index BLAST searches that have previously been executed
+#***************************************************************************
+sub index_previously_executed_searches {
+	
+	my ($self) = @_;
+
+	my $db = $self->{db};	
+	my $searches_table = $db->{searches_table};
+	unless ($searches_table) { die "\n\t Searches_performed table not loaded\n\n"; }
+	my @data;
+	my @fields = qw [ record_id organism data_type version target_name
+                      probe_name probe_gene ];
+	my $where = " ORDER BY Record_ID ";
+	$searches_table->select_rows(\@fields, \@data, $where);
+	
+	# Index the executed searches
+	my %done;
+	foreach my $data_ref (@data) {
+		
+		# Get the query parameters
+		my $organism    = $data_ref->{organism};
+		my $data_type   = $data_ref->{data_type};
+		my $version     = $data_ref->{version};
+		my $target_name = $data_ref->{target_name};
+		my $probe_name  = $data_ref->{probe_name};
+		my $probe_gene  = $data_ref->{probe_gene};
+	
+		# Sanity checking
+		unless ( $organism and $data_type and $version and $target_name 
+             and $probe_name and $probe_gene) { 
+			die;
+		};
+		
+		# Create the unique key for this search
+		my @genome = ( $organism , $data_type, $version );
+		my $genome_id = join ('|', @genome);
+		my $probe_id  = $probe_name . '_' .  $probe_gene;
+		my @key = ( $genome_id, $target_name, $probe_id );
+		my $key = join ('|', @key);
+
+		# Store the query in a hash indexed by it's unique key
+		$done{$key} = $data_ref;		
+	}
+	$self->{previously_executed_searches} = \%done;
+}
 
 ############################################################################
 # SHOWING PROGRAM TITLE INFORMATION & HELP MENU
