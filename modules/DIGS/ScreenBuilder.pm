@@ -29,6 +29,7 @@ use DIGS::ScreeningDB;
 # Create base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
+my $devtools  = DevTools->new();
 1;
 
 ############################################################################
@@ -509,7 +510,7 @@ sub set_queries {
 		$probe_ref->{probe_path}   = $query_seq_file;
 		$probe_ref->{probe_length} = $probe_len;
 		$probe_ref->{result_path}  = $tmp_path;
-
+	
 		# Iterate through targets
 		foreach my $target_name (@target_names) {
 			
@@ -568,7 +569,7 @@ sub set_queries {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS
+# INPUT FILE PARSING FUNCTIONS
 ############################################################################
 
 #***************************************************************************
@@ -729,113 +730,6 @@ sub parse_target_block {
 }
 
 #***************************************************************************
-# Subroutine:  create output directories
-# Description: create a unique 'report' directory for this process
-#***************************************************************************
-sub create_output_directories {
-	
-	my ($self, $pipeline_obj) = @_;
-
-	# Create a unique ID and report directory for this run
-	my $process_id  = $self->{process_id};
-	my $output_path = $self->{output_path};
-	my $report_dir  = $output_path . 'result_set_' . $process_id;
-	$fileio->create_unique_directory($report_dir);
-	$self->{report_dir}  = $report_dir . '/';
-	
-	# Create print "\n\t Report dir $report_dir"; die;
-	my $tmp_path = $report_dir . '/tmp';
-	$fileio->create_unique_directory($tmp_path);
-	$self->{tmp_path}   = $tmp_path . '/';
-	$pipeline_obj->{tmp_path}   = $tmp_path;
-	$pipeline_obj->{report_dir} = $report_dir;
-}
-
-#***************************************************************************
-# Subroutine:  create_blast_lib
-# Description: create protein sequence library for reciprocal BLAST
-#***************************************************************************
-sub create_blast_lib {
-	
-	my ($self, $lib_ref, $type) = @_;
-
-	# Get params from self
-	my $report_dir   = $self->{report_dir};
-	unless ($report_dir) { die; }	
-	
-	# Copy file to the report directory
-	my $lib_path = $report_dir . "/reference_lib.fas";
-	$fileio->write_file($lib_path, $lib_ref); 
-	
-	# Set path to blast binary
-	my $blast_program = 'makeblastdb';
-	my $blast_bin_dir = $self->{blast_bin_path};
-	my $bin_path;
-	if ($blast_bin_dir) {
-		 $bin_path = $self->{blast_bin_path} . $blast_program;
-	}
-	else { $bin_path = $blast_program; }
-
-	# Execute command
-	my $makedb_cmd;
-	if ($type eq 'aa') {
-		$makedb_cmd = "$bin_path -in $lib_path -dbtype prot > /dev/null";
-		$self->{blast_orf_lib_path} = $lib_path; 
-	}
-	elsif ($type eq 'na') {
-		$makedb_cmd = "$bin_path -in $lib_path -dbtype nucl> /dev/null";
-		$self->{blast_utr_lib_path} = $lib_path;
-	}
-	my $result = system $makedb_cmd;
-	if ($result) {
-		print "\n\t Failed to format reference library for BLAST! \n\n";
-		print "\n\t $makedb_cmd \n\n"; exit;	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  parse_fasta_header_data
-# Description: parse elements out of a structured FASTA header
-#              (Header is split into two elements using underscore) 
-#***************************************************************************
-sub parse_fasta_header_data {
-	
-	my ($self, $header, $data_ref) = @_;
-
-	my $name;
-	my $gene_name;
-	my $valid = 1;
-
-	# Remove illegal characters from the header line: these include:
-	# / : * ? " < > |   because we need to write files using header elements
-	# '                 because quotes interfere with SQL statements
-	$header =~ s/\|//g;
-	$header =~ s/\///g;
-	$header =~ s/\*//g;
-	$header =~ s/\?//g;
-	$header =~ s/://g;
-	$header =~ s/"//g;
-	$header =~ s/<//g;
-	$header =~ s/>//g;
-	$header =~ s/'//g;
-	$header =~ s/\s+//g;
-
-	# Retrieve data from the header line
-	my @header = split (/_/, $header);
-	$gene_name  = pop   @header;
-	$name      = join('_', @header);
-	
-	unless ($name and $gene_name) { 
-		print "\n\t FASTA HEADER FORMAT ERROR";
-		print "\n\t HEADER = '$header'";
-		print "\n\t Headers should include two elements separated by an underscore\n\n";
-		die;
-	}
-	$data_ref->{name}     = $name;
-	$data_ref->{gene_name} = $gene_name;
-}
-
-#***************************************************************************
 # Subroutine:  read_fasta
 # Description: read a fasta file into an array of hashes. 
 # Arguments:   $file: the name of the file to read
@@ -907,6 +801,117 @@ sub read_fasta {
 		$seq_obj{header}      = $header;
 		$seq_obj{sequence_id} = $alias_id;
 		push(@$array_ref, \%seq_obj);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  parse_fasta_header_data
+# Description: parse elements out of a structured FASTA header
+#              (Header is split into two elements using underscore) 
+#***************************************************************************
+sub parse_fasta_header_data {
+	
+	my ($self, $header, $data_ref) = @_;
+
+	my $name;
+	my $gene_name;
+	my $valid = 1;
+
+	# Remove illegal characters from the header line: these include:
+	# / : * ? " < > |   because we need to write files using header elements
+	# '                 because quotes interfere with SQL statements
+	$header =~ s/\|//g;
+	$header =~ s/\///g;
+	$header =~ s/\*//g;
+	$header =~ s/\?//g;
+	$header =~ s/://g;
+	$header =~ s/"//g;
+	$header =~ s/<//g;
+	$header =~ s/>//g;
+	$header =~ s/'//g;
+	$header =~ s/\s+//g;
+
+	# Retrieve data from the header line
+	my @header = split (/_/, $header);
+	$gene_name  = pop   @header;
+	$name      = join('_', @header);
+	
+	unless ($name and $gene_name) { 
+		print "\n\t FASTA HEADER FORMAT ERROR";
+		print "\n\t HEADER = '$header'";
+		print "\n\t Headers should include two elements separated by an underscore\n\n";
+		die;
+	}
+	$data_ref->{name}     = $name;
+	$data_ref->{gene_name} = $gene_name;
+}
+
+############################################################################
+# UTILITY FUNCTIONS ASSOCIATED  WITH SETTING UP DIGS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  create output directories
+# Description: create a unique 'report' directory for this process
+#***************************************************************************
+sub create_output_directories {
+	
+	my ($self, $pipeline_obj) = @_;
+
+	# Create a unique ID and report directory for this run
+	my $process_id  = $self->{process_id};
+	my $output_path = $self->{output_path};
+	my $report_dir  = $output_path . 'result_set_' . $process_id;
+	$fileio->create_unique_directory($report_dir);
+	$self->{report_dir}  = $report_dir . '/';
+	
+	# Create print "\n\t Report dir $report_dir"; die;
+	my $tmp_path = $report_dir . '/tmp';
+	$fileio->create_unique_directory($tmp_path);
+	$self->{tmp_path}   = $tmp_path . '/';
+	$pipeline_obj->{tmp_path}   = $tmp_path;
+	$pipeline_obj->{report_dir} = $report_dir;
+}
+
+#***************************************************************************
+# Subroutine:  create_blast_lib
+# Description: create protein sequence library for reciprocal BLAST
+#***************************************************************************
+sub create_blast_lib {
+	
+	my ($self, $lib_ref, $type) = @_;
+
+	# Get params from self
+	my $report_dir   = $self->{report_dir};
+	unless ($report_dir) { die; }	
+	
+	# Copy file to the report directory
+	my $lib_path = $report_dir . "/reference_lib.fas";
+	$fileio->write_file($lib_path, $lib_ref); 
+	
+	# Set path to blast binary
+	my $blast_program = 'makeblastdb';
+	my $blast_bin_dir = $self->{blast_bin_path};
+	my $bin_path;
+	if ($blast_bin_dir) {
+		 $bin_path = $self->{blast_bin_path} . $blast_program;
+	}
+	else { $bin_path = $blast_program; }
+
+	# Execute command
+	my $makedb_cmd;
+	if ($type eq 'aa') {
+		$makedb_cmd = "$bin_path -in $lib_path -dbtype prot > /dev/null";
+		$self->{blast_orf_lib_path} = $lib_path; 
+	}
+	elsif ($type eq 'na') {
+		$makedb_cmd = "$bin_path -in $lib_path -dbtype nucl> /dev/null";
+		$self->{blast_utr_lib_path} = $lib_path;
+	}
+	my $result = system $makedb_cmd;
+	if ($result) {
+		print "\n\t Failed to format reference library for BLAST! \n\n";
+		print "\n\t $makedb_cmd \n\n"; exit;	
 	}
 }
 

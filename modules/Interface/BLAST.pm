@@ -122,16 +122,16 @@ sub blast {
 #***************************************************************************
 sub extract_sequence {
 
-	my ($self, $target_path, $hit_ref) = @_;
+	my ($self, $target_path, $data_ref) = @_;
 
 	# Get path to BLAST binary
 	my $blast_path  = $self->{blast_bin_path};
 	
 	# Get hit parameters
-	my $start       = $hit_ref->{subject_start};
-	my $end         = $hit_ref->{subject_end};
-	my $orientation = $hit_ref->{orientation};
-	my $scaffold    = $hit_ref->{scaffold};
+	my $start       = $data_ref->{start};
+	my $end         = $data_ref->{end};
+	my $orientation = $data_ref->{orientation};
+	my $scaffold    = $data_ref->{scaffold};
 	unless ($start and $end and $orientation and $scaffold and $target_path) { die; }
 
 	# Parsing for blastdbcmd

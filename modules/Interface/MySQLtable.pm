@@ -58,7 +58,6 @@ sub new {
 sub insert_row {
 
 	my ($self, $data_ref) = @_;
-
 	
 	my $dbh = $self->{dbh};
 	my $field_ref = $self->{fields};
@@ -85,6 +84,8 @@ sub insert_row {
 	
 	my $value_clause = " VALUES \($values\)";
 	my $insert = "$insert_clause $value_clause";
+	#print "\n\t INSERT: $insert_clause $value_clause\n\n\n";
+
 	my $sth = $dbh->prepare($insert);
 	unless ($sth->execute()) { print $insert; exit; }	
 	

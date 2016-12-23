@@ -188,7 +188,6 @@ sub load_extracted_table {
 
 	# Definition of the table
 	my %extract_fields = (
-		blast_id         => 'int',
 		organism         => 'varchar',
 		version          => 'varchar',
 		data_type        => 'varchar',
@@ -347,7 +346,6 @@ sub create_extracted_table {
 	my $extracted = "CREATE TABLE `Extracted_sequences` (
 	  `Record_ID`        int(11) NOT NULL auto_increment,
 
-	  `BLAST_ID`         int(11) NOT NULL default '0',
 	  `Organism`         varchar(100) NOT NULL default '0',
 	  `Data_type`        varchar(100) NOT NULL default '0',
 	  `Version`          varchar(100) NOT NULL default '0',
