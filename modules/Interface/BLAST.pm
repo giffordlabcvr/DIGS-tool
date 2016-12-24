@@ -173,7 +173,7 @@ sub extract_sequence {
 #***************************************************************************
 sub parse_tab_format_results {
 
-	my ($self, $file, $result_ref, $bitscore_cutoff) = @_;
+	my ($self, $file, $result_ref) = @_;
 
 	# Read the file into an array
 	my $fileio = FileIO->new();
@@ -207,14 +207,6 @@ sub parse_tab_format_results {
 		my $bit_score         = $data[11];
 		chomp $bit_score;
 		
-		# APPLY CONDITIONS
-		if ($bitscore_cutoff) {
-			if ($bit_score < $bitscore_cutoff) {
-				# Skip matches with bitscores below threshold
-				next;
-			}
-		}
-
 		# Convert e value
 		$self->convert_evalue($e_value, \%match);
 		
