@@ -162,13 +162,22 @@ sub parse_control_file {
 	$pipeline_obj->{target_paths}           = $self->{target_paths};
 	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 	
-	# Parameters for screening
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
-	$pipeline_obj->{bit_score_min_tblastn}  = $self->{bit_score_min_tblastn};
-	$pipeline_obj->{bit_score_min_blastn}   = $self->{bit_score_min_blastn};	
+	# Set parameters for screening
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+
+	# Set the bit score minimum
+	if    ($self->{bit_score_min_tblastn}) {
+		$pipeline_obj->{bit_score_minimum} = $self->{bit_score_min_tblastn};
+	}
+	elsif ($self->{bit_score_min_blastn}) {
+		$pipeline_obj->{bit_score_minimum}   = $self->{bit_score_min_blastn};	
+	}
+	else {
+		die;
+	}
 	
 }
 
@@ -326,12 +335,10 @@ sub get_fasta_probes {
 			if ($type eq 'aa') {
 				$probe{probe_type}  = 'ORF';
 				$probe{blast_alg}   = 'tblastn';
-				$probe{bitscore_cutoff} = $self->{bit_score_min_tblastn};
 			}
 			if ($type eq 'na') {
 				$probe{probe_type}  = 'UTR';
 				$probe{blast_alg}   = 'blastn';
-				$probe{bitscore_cutoff} = $self->{bit_score_min_blastn};
 			}
 			push(@$probes_ref, \%probe);	
 
@@ -497,7 +504,6 @@ sub set_queries {
 	my $outstanding;
 	foreach my $probe_ref (@$probes_ref) {
 		my $blast_alg       = $probe_ref->{blast_alg};
-		my $bitscore_cutoff = $probe_ref->{bitscore_cutoff};
 		my $probe_type      = $probe_ref->{probe_type};
 		my $probe_name      = $probe_ref->{probe_name};
 		my $probe_gene      = $probe_ref->{probe_gene};
@@ -992,7 +998,6 @@ sub extract_track_sequences {
 			$probe{sequence}        = $sequence;
 			$probe{probe_type}      = 'UTR';
 			$probe{blast_alg}       = 'blastn';
-			$probe{bitscore_cutoff} = $self->{bit_score_min_blastn};		
 			
 			push(@$extracted_ref, \%probe);
 			

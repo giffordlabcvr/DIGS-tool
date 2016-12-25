@@ -149,6 +149,7 @@ sub load_blast_results_table {
 	
 	# Definition of the table
 	my %blast_fields = (
+		extract_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
@@ -227,9 +228,32 @@ sub load_blast_chains_table {
 
 	# Definition of the table
 	my %extract_fields = (
-		blast_id         => 'int',
 		extract_id       => 'int',
+		probe_name       => 'varchar',
+		probe_gene       => 'varchar',
+		probe_type       => 'varchar',
+		organism         => 'varchar',
+		data_type        => 'varchar',
+		version          => 'varchar',
 		target_name      => 'varchar',
+		scaffold         => 'varchar',
+		orientation      => 'varchar',
+		subject_start    => 'int',
+		subject_end      => 'int',
+		query_start      => 'int',
+		query_end        => 'int',
+		hit_length       => 'int',
+		bit_score        => 'float',
+		identity         => 'varchar',
+		e_value_num      => 'float',
+		e_value_exp      => 'int',
+	  	subject_start    => 'int',
+	  	subject_end      => 'int',
+		query_start      => 'int',
+	  	query_end        => 'int',
+		gap_openings     => 'int',
+		mismatches       => 'int',
+
 	);
 	my $extract_table = MySQLtable->new('BLAST_chains', $dbh, \%extract_fields);
 	$self->{blast_chains_table} = $extract_table;
@@ -303,6 +327,7 @@ sub create_blast_results_table {
 	# BLAST results table 
 	my $blast_results = "CREATE TABLE `BLAST_results` (
 	  `Record_ID`     int(11) NOT NULL auto_increment,
+	  `Extract_ID`    int(11) default '0',
 
 	  `Probe_name`    varchar(100) NOT NULL default '0',
 	  `Probe_gene`    varchar(100) NOT NULL default '0',
@@ -312,7 +337,7 @@ sub create_blast_results_table {
 	  `Version`       varchar(100) NOT NULL default '0',
 	  `Target_name`   varchar(100) NOT NULL default '0',
 
-	  `Scaffold`      varchar(100) default 'NULL',
+	  `Scaffold`      varchar(100) NOT NULL default '0',
 	  `Orientation`   varchar(100) NOT NULL default '0',
 	  `Subject_start` int(11) NOT NULL default '0',
 	  `Subject_end`   int(11) NOT NULL default '0',
@@ -389,9 +414,31 @@ sub create_blast_chains_table {
 	# BLAST results table 
 	my $blast_chains = "CREATE TABLE `BLAST_chains` (
 	  `Record_ID`     int(11) NOT NULL auto_increment,
-	  `BLAST_ID`      int(11) NOT NULL default '0',
 	  `Extract_ID`    int(11) NOT NULL default '0',
+
+	  `Probe_name`    varchar(100) NOT NULL default '0',
+	  `Probe_gene`    varchar(100) NOT NULL default '0',
+	  `Probe_type`    varchar(100) NOT NULL default '0',
+	  `Organism`      varchar(100) NOT NULL default '0',
+	  `Data_type`     varchar(100) NOT NULL default '0',
+	  `Version`       varchar(100) NOT NULL default '0',
 	  `Target_name`   varchar(100) NOT NULL default '0',
+
+	  `Scaffold`      varchar(100) default 'NULL',
+	  `Orientation`   varchar(100) NOT NULL default '0',
+	  `Subject_start` int(11) NOT NULL default '0',
+	  `Subject_end`   int(11) NOT NULL default '0',
+	  `Query_start`   int(11) NOT NULL default '0',
+	  `Query_end`     int(11) NOT NULL default '0',
+	  `Hit_length`    int(11) NOT NULL default '0',
+
+	  `Bit_score`        float   NOT NULL default '0',
+	  `Identity`         float   NOT NULL default '0',
+	  `e_value_num`      float   NOT NULL default '0',
+	  `e_value_exp`      int(11) NOT NULL default '0',
+	  `Gap_openings`     int(11) NOT NULL default '0',
+	  `Mismatches`       int(11) NOT NULL default '0',
+
 	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";

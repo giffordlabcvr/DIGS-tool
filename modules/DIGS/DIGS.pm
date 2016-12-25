@@ -300,16 +300,15 @@ sub do_digs {
 	my ($self, $mode) = @_;
 
 	# Get relevant member variables and objects
-	my $db_ref      = $self->{db};
 	my $queries_ref = $self->{queries};
 	my $loader_obj  = $self->{loader_obj};
-	unless ($db_ref and $queries_ref and $loader_obj) { die; }  # Sanity checking
+	unless ($queries_ref and $loader_obj) { die; }  # Sanity checking
 
 	# Iterate through and excute screens
 	print "\n\t  Starting database-integrated genome screening\n";
 	my @probes = keys %$queries_ref;
 
-	my $num_queries = 0;
+	my $completed = 0;
 	my %crossmatching;
 	$self->{crossmatching} = \%crossmatching;
 	foreach my $probe_name (@probes) {
@@ -319,8 +318,8 @@ sub do_digs {
 		foreach my $query_ref (@$probe_queries) {  
 	
 			# Increment query count
-			$num_queries++;		
-			$self->{num_queries} = $num_queries;
+			$completed++;		
+			$self->{completed} = $completed;
 
 			# Do the 1st BLAST (probe vs target)
 			$self->search($query_ref);
@@ -339,8 +338,13 @@ sub do_digs {
 			# Update DB
 			$self->update_db($query_ref, \@extracted);
 
+			# Show progress
+			$self->show_progress();
+
 		}	
 	}
+	
+
 	
 	# Cleanup
 	my $output_dir = $loader_obj->{report_dir};
@@ -651,27 +655,26 @@ sub search {
 	my ($self, $query_ref) = @_;
 
 	# Get relevant member variables and objects
-	my $db_ref          = $self->{db};
-	my $blast_obj       = $self->{blast_obj};
-	my $tmp_path        = $self->{tmp_path};
-	my $min_length      = $self->{seq_length_minimum};
-
-	# Show screening process
-	my $total_queries   = $self->{total_queries};
-	my $num_queries     = $self->{num_queries};	
-	unless ($num_queries and $total_queries) { die; }
-	my $percent_prog    = ($num_queries / $total_queries) * 100;
-	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	my $blast_obj    = $self->{blast_obj};
+	my $tmp_path     = $self->{tmp_path};
+	my $min_length   = $self->{seq_length_minimum};
+	my $min_score    = $self->{bit_score_minimum};
 
 	# Sanity checking
 	unless ($blast_obj)       { die; } 
 	unless ($tmp_path)        { die; } 
+
+	# Get screening database table objects
+	my $db_ref              = $self->{db};
+	my $searches_table      = $db_ref->{searches_table};
+	my $blast_results_table = $db_ref->{blast_results_table};
 	unless ($db_ref)          { die; } 
 
 	# Get query details
 	my $probe_id     = $query_ref->{probe_id};
 	my $probe_name   = $query_ref->{probe_name};
 	my $probe_gene   = $query_ref->{probe_gene};
+	my $probe_type   = $query_ref->{probe_type};
 	my $probe_path   = $query_ref->{probe_path};
 	my $organism     = $query_ref->{organism};
 	my $version      = $query_ref->{version};
@@ -679,70 +682,85 @@ sub search {
 	my $target_name  = $query_ref->{target_name};
 	my $target_path  = $query_ref->{target_path};
 	my $blast_alg    = $query_ref->{blast_alg};
-	my $cutoff       = $query_ref->{bitscore_cutoff};
 	my $result_file  = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
-	unless ($cutoff) {die;}
+	#unless ($probe_id, $probe_type) { die; }
 
-	# Do the BLAST search
-	print "\n\t  $blast_alg screen: $num_queries (%$f_percent_prog done): '$organism' file '$target_name' with probe $probe_id";   
+	# Do BLAST similarity search
+	my $completed = $self->{completed};	
+	print "\n\t  $blast_alg screen # $completed: '$organism' file '$target_name' with probe $probe_id";   
 	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
 	
-	# Parse out the alignment
+	# Extract the results from tabular format BLAST output
 	my @hits;
-	$blast_obj->parse_tab_format_results($result_file, \@hits, $cutoff);
+	$blast_obj->parse_tab_format_results($result_file, \@hits);
+	my $rm_command = "rm $result_file";
+	system $rm_command; # Remove the result file
 	# TODO: catch error from BLAST and don't update "Searches_performed" table	
 
-	# Clean up - remove the result file
-	my $rm_command = "rm $result_file";
-	system $rm_command;
-
-	# Store new new BLAST hits that meet conditions
-	my $blast_results_table = $db_ref->{blast_results_table};
+	# Summarise raw results of BLAST search
 	my $num_hits = scalar @hits;
 	if ($num_hits > 0) {
 		print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
 	}
+	
+	# Apply filters & store results
+	my $num_retained_hits = 0;
+	my $score_exclude_count = '0';
+	my $length_exclude_count = '0';
 	foreach my $hit_ref (@hits) {
-		
-		#$devtools->print_hash($hit_ref ); die;
-		
+
+		my $skip = undef;
+
+		# Apply length cutoff
 		if ($min_length) { # Skip sequences that are too short
 			my $start  = $hit_ref->{aln_start};
 			my $end    = $hit_ref->{aln_stop};
 			if ($end - $start < $min_length) {  
-				next;
+				$skip = 'true';
+				$length_exclude_count++; 				
 			}
 		}
-	}
-	
-	foreach my $hit_ref (@hits) {
-		
-		if ($min_length) { # Skip sequences that are too short
-			my $start  = $hit_ref->{aln_start};
-			my $end    = $hit_ref->{aln_stop};
-			if ($end - $start < $min_length) {  next; }
-		}
-			
-		# Record hit in BLAST results table
-		$hit_ref->{organism}      = $organism;
-		$hit_ref->{version}       = $version;
-		$hit_ref->{data_type}     = $data_type;
-		$hit_ref->{target_name}   = $target_name;
-		$hit_ref->{probe_id}      = $probe_id;
-		$hit_ref->{probe_name}    = $probe_name;
-		$hit_ref->{probe_gene}    = $probe_gene;
-		$hit_ref->{probe_type}    = $query_ref->{probe_type};
-		$hit_ref->{hit_length}    = $hit_ref->{align_len};
-		$hit_ref->{subject_start} = $hit_ref->{aln_start}; 	# Rename coordinate fields to match DB
-		$hit_ref->{subject_end}   = $hit_ref->{aln_stop}; 	# Rename coordinate fields to match DB
-		$hit_ref->{query_end}     = $hit_ref->{query_stop}; # Rename coordinate fields to match DB
 
-		$blast_results_table->insert_row($hit_ref);
+		# Apply bit_score cutoff
+		if ($min_score) { # Skip sequences that have too low bit scores
+			my $query_score = $hit_ref->{bit_score};
+			if ($query_score < $min_score) {  
+				$skip = 'true';
+				$score_exclude_count++;
+			}
+		}
+	
+		unless ($skip) {		
+			# Insert values into BLAST results table
+			$hit_ref->{extract_id}    = 0;
+			$hit_ref->{organism}      = $organism;
+			$hit_ref->{version}       = $version;
+			$hit_ref->{data_type}     = $data_type;
+			$hit_ref->{target_name}   = $target_name;
+			$hit_ref->{probe_id}      = $probe_id;
+			$hit_ref->{probe_name}    = $probe_name;
+			$hit_ref->{probe_gene}    = $probe_gene;
+			$hit_ref->{probe_type}    = $probe_type;
+			$hit_ref->{hit_length}    = $hit_ref->{align_len};
+			$hit_ref->{subject_start} = $hit_ref->{aln_start}; 	# Rename to match DB
+			$hit_ref->{subject_end}   = $hit_ref->{aln_stop}; 	# Rename to match DB
+			$hit_ref->{query_end}     = $hit_ref->{query_stop}; # Rename to match DB
+			#print "\n\t # DUCK $hit_ref->{organism}";
+			$blast_results_table->insert_row($hit_ref);
+			$num_retained_hits++;			
+		}
 	} 
 
-	# Update the searches table
-	my $searches_table = $db_ref->{searches_table};
+	# Show summary of BLAST results after filtering
+	if ($score_exclude_count or $length_exclude_count) {
+		print "\n\t\t # $num_retained_hits matches above threshold ";
+		print "(excluded $length_exclude_count < length; $score_exclude_count < bitscore)";
+	}
+
+	# Update the searches table, to indicate this search has been performed
 	$searches_table->insert_row($query_ref);
+	
+	return $num_hits;
 }
 
 #***************************************************************************
@@ -753,35 +771,173 @@ sub compress_db {
 	
 	my ($self, $query_ref, $extracted_ref) = @_;
 
-	# Get the information for this query
-	my $target_name = $query_ref->{target_name};
+	# Create the relevant set of sorted loci for this target file
+	my @loci;
+	$self->get_sorted_loci(\@loci, $query_ref);	
+	my $total_hits = scalar @loci;
+	if ($total_hits > 0) {
+		print "\n\t\t # $total_hits new hits & previously extracted loci ";
+	}
+	#$devtools->print_array(\@loci); exit;
 
-	# Get data structures and variables from self
-	my $db              = $self->{db};
-
-	# Index BLAST chains
-	my %blast_chains;
-	my $where = " WHERE target_name = '$target_name' ";
-	$self->index_blast_chains(\%blast_chains, $where);
-
-	# Get all BLAST results for this target file
-	my @target_hits;
-	$self->get_sorted_BLAST_results(\@target_hits, $where, $query_ref);	
-
-	# Compose clusters of overlapping/adjacent BLAST hits
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	my %defragmented;
 	my %settings;
-	my $range = $self->{defragment_range};
-	$settings{range} = $range;
+	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@target_hits, \%settings);
-	#$devtools->print_hash(\%defragmented); exit;
+	$self->compose_clusters(\%defragmented, \@loci, \%settings);
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @cluster_ids;
+	if ($total_hits > $num_clusters) {
+		print "...compressed to $num_clusters overlapping/contiguous clusters";
+	}
 
-	# Determine what to extract
-	$self->get_extract_sequences(\%blast_chains, \%defragmented, $extracted_ref);
+	# Show clusters
+	#$self->show_clusters(\%defragmented);
+		
+	# Determine what to extract and extract it
+	$self->get_extract_sequences(\%defragmented, $extracted_ref);
 	my $num_new = scalar @$extracted_ref;
-	print "\n\t\t # $num_new newly identified hits";
+	print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+		
+}
+
+#***************************************************************************
+# Subroutine:  get_extract_sequences
+# Description: decompose clusters to a single locus to extract
+#***************************************************************************
+sub get_extract_sequences {
+	
+	my ($self, $defragmented_ref, $extracted_ref) = @_;
+
+	# Get screening database table objects
+	my $db_ref              = $self->{db};
+	unless ($db_ref)          { die; } 
+	my $searches_table      = $db_ref->{searches_table};
+	my $blast_results_table = $db_ref->{blast_results_table};	
+
+	my $extend_count = '0';
+	my @cluster_ids = keys %$defragmented_ref;
+	foreach my $cluster_id (@cluster_ids) {
+
+		# Get data for this cluster
+		my $cluster_ref = $defragmented_ref->{$cluster_id};
+		unless ($cluster_ref) { die; }
+
+		# Determine what to extract for this cluster
+		#my %new_chains;
+		my %new_blast_chains;
+		my %previous_extract_ids;
+		my $highest_end   = undef;
+		my $lowest_start  = undef;
+		my $previous_extract_id = undef;
+		my $target_name;		
+		my $version;		
+		my $data_type;		
+		my $scaffold;			
+		my $orientation;
+		my $organism;
+		my $probe_type;
+		foreach my $hit_ref (@$cluster_ref) {
+					
+			my $record_id  = $hit_ref->{record_id};					
+			my $extract_id = $hit_ref->{extract_id};					
+			my $start      = $hit_ref->{subject_start};			
+			my $end        = $hit_ref->{subject_end};
+			$target_name   = $hit_ref->{target_name};					
+			$data_type     = $hit_ref->{data_type};			
+			$version       = $hit_ref->{version};
+			$scaffold      = $hit_ref->{scaffold};			
+			$orientation   = $hit_ref->{orientation};
+			$organism      = $hit_ref->{organism};
+			$probe_type    = $hit_ref->{probe_type};
+						
+			# Check if this is a a previously extracted locus
+			if ($extract_id) {							
+				if ($previous_extract_id) { # If this represents a merge of multiple extracted loci, record the ids
+					unless ($extract_id eq $previous_extract_id) {
+					}
+				}
+				$previous_extract_ids{$extract_id} = $hit_ref;
+				$previous_extract_id = $extract_id;		
+			}
+			# Store this BLAST result as part of a chain if it is new
+			else {
+				my %data = %$hit_ref;
+				$new_blast_chains{$record_id} = \%data; 				
+			}
+			
+			#print "\n\t\t RECORD ID:\t $scaffold $extract_start-$extract_end";
+			if ($lowest_start and $highest_end ) {		
+				if ($start > $lowest_start) { $lowest_start = $start; }
+				if ($end > $highest_end)    { $highest_end  = $end;   }
+			}
+			else {
+				$highest_end  = $end;
+				$lowest_start = $start;
+			}									
+		}
+
+		# Determine whether or not to extract
+		my $extract = undef;		
+
+		# Is this cluster composed entirely of new loci?
+		unless ($previous_extract_id) {
+			$extract = 'true';				
+		}
+		# Is this a merge of multiple previously extracted loci?
+		my @previous_extract_ids = keys %previous_extract_ids;
+		my $num_previously_extracted_loci_in_cluster = scalar @previous_extract_ids;
+		if ($num_previously_extracted_loci_in_cluster > 1) {
+			my $combined = join (',', @previous_extract_ids);
+			print "\n\t\t # Merging previously extracted loci: ($combined) ";
+			#$self->show_cluster($cluster_ref, $cluster_id); die;
+			$extract = 'true';							
+		}
+		# If it includes a single extracted locus, does this locus need to be extended?
+		elsif ($previous_extract_id) {
+		
+			# get the indexed query 
+			#$self->show_cluster($cluster_ref, $cluster_id);
+			my $data_ref = $previous_extract_ids{$previous_extract_id};
+			my $extract_start = $data_ref->{subject_start};
+			my $extract_end   = $data_ref->{subject_end};
+			unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
+				$extend_count++;
+				$extract = 'true';							
+				#print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+				#$devtools->print_hash($data_ref);
+				#die;
+			}			
+		}
+		if ($extract) {
+		
+			# Set the extract params for this cluster
+			my %extract;
+			$extract{extract_id}    = $previous_extract_id;
+			$extract{target_name}   = $target_name;
+			$extract{data_type}     = $data_type;
+			$extract{version}       = $version;
+			$extract{organism}      = $organism;
+			$extract{probe_type}    = $probe_type;
+			$extract{extract_id}    = $previous_extract_id;
+			$extract{target_name}   = $target_name;
+			$extract{scaffold}      = $scaffold;
+			$extract{start}         = $lowest_start;	
+			$extract{end}           = $highest_end;
+			$extract{orientation}   = $orientation;
+			$extract{extract_ids}   = \@previous_extract_ids;
+			my $num_chains = scalar keys %new_blast_chains;
+			if ($num_chains) {
+				$extract{blast_chains} = \%new_blast_chains;
+			}
+			push (@$extracted_ref, \%extract);
+	
+		}
+	}
+
+	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
 
 }
 
@@ -828,10 +984,10 @@ sub extract {
 				print "\t ........extracting";
 			}
 			my $seq_length = length $sequence; # Set sequence length
-			$hit_ref->{extract_start} = $hit_ref->{start};
-			$hit_ref->{extract_end}   = $hit_ref->{end};
+			$hit_ref->{extract_start}   = $hit_ref->{start};
+			$hit_ref->{extract_end}     = $hit_ref->{end};
+			$hit_ref->{sequence}        = $sequence;
 			$hit_ref->{sequence_length} = $seq_length;
-			$hit_ref->{sequence} = $sequence;
 			#print "\n\t Sequence $sequence\n\n";	die;
 			push (@$extracted_ref, $hit_ref);
 		}
@@ -840,8 +996,7 @@ sub extract {
 				print "\n\t Sequence extraction failed";
 			}
 		}
-	}
-	
+	}	
 	return $new_hits;
 }
 
@@ -856,10 +1011,10 @@ sub assign {
 	# Iterate through the matches
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
-	my $new_sequences    = 0;
 	foreach my $hit_ref (@$extracted_ref) {
 
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
+		
 		my $assigned = $self->do_reverse_blast($hit_ref);
 		if ($assigned) { $assigned_count++; }
 
@@ -875,7 +1030,7 @@ sub assign {
 		}
 	}
 	
-	if ($new_sequences > 0) {
+	if ($assigned_count > 0) {
 		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
 		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
 	}
@@ -894,12 +1049,6 @@ sub do_reverse_blast {
 	my $blast_obj     = $self->{blast_obj};
 	unless ($result_path and $blast_obj) { die; }
 	
-	if ($hit_ref->{subject_start} and $hit_ref->{subject_end}) { 
-		# If we are coming direct from the 1st BLAST, do this translation
-		$hit_ref->{extract_start} = $hit_ref->{subject_start};
-		$hit_ref->{extract_end}   = $hit_ref->{subject_end};
-	}
-
 	# Get required data about the hit, prior to performing reverse BLAST
 	my $sequence      = $hit_ref->{sequence};
 	my $organism      = $hit_ref->{organism};
@@ -1008,25 +1157,73 @@ sub update_db {
 		
 	# Get parameters from self
 	my $db_ref = $self->{db};
-	my $extracted_table    = $db_ref->{extracted_table}; 
-	my $blast_chains_table = $db_ref->{blast_chains_table}; 
+	my $extracted_table     = $db_ref->{extracted_table}; 
+	my $blast_results_table = $db_ref->{blast_results_table}; 
+	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
+	# Flush the BLAST table
+	print "\n\t\t # Flushing BLAST results table";
+	$blast_results_table->flush();
+
+	# Iterate through the 
 	foreach my $hit_ref (@$extracted_ref) {
 
 		# Insert the data to the Extracted_sequences table
 		#$devtools->print_hash($hit_ref);
 		my $extract_id = $extracted_table->insert_row($hit_ref);
-
+		
 		# Insert the data to the BLAST_chains table
-		my $blast_ids_ref = $hit_ref->{blast_hit_ids};
-		foreach my $blast_id (@$blast_ids_ref) {
-			my %data;
-			$data{extract_id}  = $extract_id;
-			$data{blast_id}    = $blast_id;
-			$data{target_name} = $hit_ref->{target_name};
-			$blast_chains_table->insert_row(\%data);
+		my $blast_chains = $hit_ref->{blast_chains};
+		#$devtools->print_hash($blast_chains);
+
+		if ($blast_chains) {
+			
+			my @blast_ids = keys %$blast_chains;
+			#$devtools->print_array(\@blast_ids);exit;
+			foreach my $blast_id (@blast_ids) {			
+				
+				my $data_ref = $blast_chains->{$blast_id};
+				$data_ref->{extract_id} = $extract_id;	
+				#$devtools->print_hash($data_ref); exit;
+				$blast_chains_table->insert_row($data_ref);
+			}
+		}
+
+		# Delete superfluous data from the
+		my $extract_ids_ref = $hit_ref->{extract_ids};
+		foreach my $old_extract_id (@$extract_ids_ref) {			
+			
+			# Delete superfluous extract rows
+			my $extracted_where = " WHERE Record_ID = $old_extract_id ";	
+			$extracted_table->delete_rows($extracted_where);
+			
+			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
+			my %new_id;
+			$new_id{extract_id} = $extract_id;	
+			$blast_chains_table->update(\%new_id, $chains_where);
+			#$devtools->print_hash($data_ref); exit;
+		
 		}
 	}
+}
+
+#***************************************************************************
+# Subroutine:  show_progress
+# Description: show progress in DIGS screening
+#***************************************************************************
+sub show_progress {
+
+	my ($self) = @_;
+
+	# Get the counts
+	my $total_queries   = $self->{total_queries};
+	my $completed       = $self->{completed};	
+	unless ($completed and $total_queries) { die; } # Sanity checking
+	
+	# Calculate percentage progress
+	my $percent_prog    = ($completed / $total_queries) * 100;
+	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	print "\n\t\t  %$f_percent_prog completed";
 }
 
 ############################################################################
@@ -1052,7 +1249,6 @@ sub compose_clusters {
 	my %last_hit;
 	my %name_counts;
 	my $initialised = undef;
-	my $hit_count = 0;
 	foreach my $hit_ref (@$hits_ref)  {
 
 		# Get hit values
@@ -1072,9 +1268,11 @@ sub compose_clusters {
 		my $last_end           = $last_hit{$end_token};		
 		my $gap;
 
-		$hit_count++;
 		#print "\n\t Extracted_sequences count $extracted_count";
 	    if ($initialised) {
+
+			# Sanity checking - are sequences in order?
+			unless ($start >= $last_start) { die; }
 
             my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
             if ($new) {
@@ -1105,14 +1303,9 @@ sub compose_clusters {
 		$last_hit{scaffold}      = $scaffold;
 		$last_hit{orientation}   = $orientation;
 		$last_hit{$start_token}  = $start;
-		$last_hit{$end_token}   = $end;
+		$last_hit{$end_token}    = $end;
 	}
 	
-	my @cluster_ids = keys %$defragmented_ref;
-	my $num_clusters = scalar @cluster_ids;
-	if ($hit_count > $num_clusters) {
-		print "\n\t\t # compressed to $num_clusters clustered hits";
-	}	
 }
 
 #***************************************************************************
@@ -1155,6 +1348,7 @@ sub compare_adjacent_hits {
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine
+		#print "\n\t #\t COMBINE";
         return 0;
 	
 	}
@@ -1189,6 +1383,7 @@ sub extend_cluster {
 
     # Get the current hit values
 	#print "\n\t Extending record ($count) ";
+    #$devtools->print_hash($hit_ref); die;
     my $array_ref = $defragmented_ref->{$count};
     push (@$array_ref, $hit_ref);
 
@@ -1209,110 +1404,37 @@ sub show_clusters {
 		my $hits_ref = $defragmented_ref->{$id};
 		my $cluster_size = scalar @$hits_ref;
 		if ($cluster_size > 1) {
-			print "\n";
-			foreach my $hit_ref (@$hits_ref) {
-				my $organism      = $hit_ref->{organism};			
-				my $assigned_name = $hit_ref->{assigned_name};			
-				my $assigned_gene = $hit_ref->{assigned_gene};			
-				my $scaffold      = $hit_ref->{scaffold};			
-				my $extract_start = $hit_ref->{extract_start};			
-				my $extract_end   = $hit_ref->{extract_end};
-				print "\n\t\t CLUSTER $cluster_count $organism: ";
-				print "$assigned_name: $assigned_gene: $scaffold $extract_start-$extract_end";
-			}			
-		}
+			$self->show_cluster($hits_ref, $cluster_count);
+		}	
 	}
 }
 
-
-############################################################################
-# UPDATING DATABASE
-############################################################################
-
 #***************************************************************************
-# Subroutine:  get_extract_sequences
-# Description: decompose cluster to a single locus to extract
+# Subroutine:  show_cluster
+# Description: 
 #***************************************************************************
-sub get_extract_sequences {
-	
-	my ($self, $blast_chains_ref, $defragmented_ref, $extracted_ref) = @_;
+sub show_cluster {
 
-	my @cluster_ids = keys %$defragmented_ref;
-	foreach my $cluster_id (@cluster_ids) {
+	my ($self, $hits_ref, $cluster_id) = @_;
 
-		# Get data for this cluster
-		my $cluster_ref = $defragmented_ref->{$cluster_id};
-		unless ($cluster_ref) { die; }
+	print "\n";
+	foreach my $hit_ref (@$hits_ref) {
+   		
+   		#$devtools->print_hash($hit_ref); die;	
+		my $organism      = $hit_ref->{organism};			
+		my $assigned_name = $hit_ref->{probe_name};			
+		my $assigned_gene = $hit_ref->{probe_gene};			
+		my $scaffold      = $hit_ref->{scaffold};			
+		my $start         = $hit_ref->{subject_start};			
+		my $end           = $hit_ref->{subject_end};
+		my $extract_id    = $hit_ref->{extract_id};
 
-		# Determine what to extract for this cluster
-		my @hit_ids;
-		my $highest_end   = undef;
-		my $lowest_start  = undef;
-		my $previous_extract_id = undef;
-		my $target_name;		
-		my $version;		
-		my $data_type;		
-		my $scaffold;			
-		my $orientation;
-		my $organism;
-		my $probe_type;
-		
-		foreach my $hit_ref (@$cluster_ref) {
-			
-			my $record_id  = $hit_ref->{record_id};					
-			my $start      = $hit_ref->{subject_start};			
-			my $end        = $hit_ref->{subject_end};
-			$target_name   = $hit_ref->{target_name};					
-			$data_type     = $hit_ref->{data_type};			
-			$version       = $hit_ref->{version};
-			$scaffold      = $hit_ref->{scaffold};			
-			$orientation   = $hit_ref->{orientation};
-			$organism      = $hit_ref->{organism};
-			$probe_type    = $hit_ref->{probe_type};
-			
-			# Store this BLAST result as part of a chain if it is new
-			unless ($blast_chains_ref->{$record_id}) {		
-				push (@hit_ids, $record_id);
-			}
-			# otherwise get the row ID of the previously extracted sequence
-			else {
-				my $extract_id = $blast_chains_ref->{$record_id};
-				if ($previous_extract_id) {
-					unless ($extract_id eq $previous_extract_id) {
-						die; # TODO: check - is this impossible?
-					}
-				}
-			}
-			
-			#print "\n\t\t RECORD ID:\t $scaffold $extract_start-$extract_end";
-			if ($lowest_start and $highest_end ) {		
-				if ($start > $lowest_start) { $lowest_start = $start; }
-				if ($end > $highest_end)    { $highest_end  = $end;   }
-			}
-			else {
-				$highest_end  = $end;
-				$lowest_start = $start;
-			}									
+		print "\n\t\t CLUSTER $cluster_id $organism: ";
+		print "$assigned_name: $assigned_gene: $scaffold $start-$end";
+		if ($extract_id) {
+			print " (extract ID: $extract_id)";				
 		}
-		
-		# Set the extract params for this cluster
-		my %extract;
-		$extract{extract_id}    = $previous_extract_id;
-		$extract{target_name}   = $target_name;
-		$extract{data_type}   = $data_type;
-		$extract{version}   = $version;
-
-		$extract{organism}      = $organism;
-		$extract{probe_type}    = $probe_type;
-		$extract{extract_id}    = $previous_extract_id;
-		$extract{target_name}   = $target_name;
-		$extract{scaffold}      = $scaffold;
-		$extract{start}         = $lowest_start;	
-		$extract{end}           = $highest_end;
-		$extract{orientation}   = $orientation;
-		$extract{blast_hit_ids} = \@hit_ids;
-		push (@$extracted_ref, \%extract);
-	}
+	}			
 }
 
 ############################################################################
@@ -1428,28 +1550,6 @@ sub write_matrix {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  index BLAST results by record id
-# Description: Index BLAST_chains_table
-#***************************************************************************
-sub index_blast_chains {
-	
-	my ($self, $data_ref, $where) = @_;
-
-	# Get relevant variables and objects
-	my $db = $self->{db};
-	my $blast_chains_table = $db->{blast_chains_table}; 
-	my @fields = qw [ blast_id extract_id ];
-	my @blast_chain_rows;
-	$blast_chains_table->select_rows(\@fields, \@blast_chain_rows, $where);	
-	foreach my $hit_ref (@blast_chain_rows) {
-		my $blast_id   = $hit_ref->{blast_id};
-		my $extract_id = $hit_ref->{extract_id};
-		if ($data_ref->{$blast_id}) { die; } # BLAST ID should be unique
-		$data_ref->{$blast_id} = $extract_id;	
-	}
-}
-
-#***************************************************************************
 # Subroutine:  index_previously_executed_searches 
 # Description: index BLAST searches that have previously been executed
 #***************************************************************************
@@ -1498,73 +1598,124 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted BLAST results 
-# Description: get rows from the BLAST results table in scaffold, position order
+# Subroutine:  index BLAST results by record id
+# Description: Index BLAST_chains_table
 #***************************************************************************
-sub get_sorted_BLAST_results {
+sub index_blast_chains {
 	
-	my ($self, $data_ref, $where, $query_ref) = @_;
+	my ($self, $data_ref, $where) = @_;
 
-	my $redundancy_mode = $self->{redundancy_mode};
-	unless ($redundancy_mode) { die; } 
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	my $blast_chains_table = $db->{blast_chains_table}; 
+	my @fields = qw [ blast_id extract_id ];
+	my @blast_chain_rows;
+	$blast_chains_table->select_rows(\@fields, \@blast_chain_rows, $where);	
+	foreach my $hit_ref (@blast_chain_rows) {
+		my $blast_id   = $hit_ref->{blast_id};
+		my $extract_id = $hit_ref->{extract_id};
+		if ($data_ref->{$blast_id}) { die; } # BLAST ID should be unique
+		$data_ref->{$blast_id} = $extract_id;	
+	}
+}
 
+#***************************************************************************
+# Subroutine:  get sorted loci 
+# Description: Get the ordered hits from the Extracted table
+#***************************************************************************
+sub get_sorted_loci {
+	
+	my ($self, $data_ref, $query_ref) = @_;
+
+	# Get query details
 	my $probe_name  = $query_ref->{probe_name};
 	my $probe_gene  = $query_ref->{probe_gene};
+	my $probe_type  = $query_ref->{probe_type};
+	my $target_name = $query_ref->{target_name};
+	my $organism    = $query_ref->{organism};
+	my $data_type   = $query_ref->{data_type};
+	my $version     = $query_ref->{version};
 
-
-	my @target_hits;
-	if ($redundancy_mode eq 2) {
-		# In mode 2, we select all BLAST table rows with the same value for 'probe_gene'
-		$where .= " AND probe_gene = '$probe_gene' ";
+	# Compose the WHERE statement based on redundancy settings
+	my $redundancy_mode = $self->{redundancy_mode};
+	unless ($redundancy_mode) { die; } 
+	my $extract_where  = " WHERE Organism = '$organism' ";
+	   $extract_where .= " AND target_name = '$target_name' "; # Always limit by target
+	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
+		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
+		$extract_where .= " AND assigned_gene = '$probe_gene' ";
 	}
-	elsif ($redundancy_mode eq 3) {
-		# In mode 3, we select all BLAST table rows with the same value for both 'probe_gene' and 'probe_gene'
-		$where .= " AND probe_name = '$probe_name'
-                    AND probe_gene = '$probe_gene' ";
+	if ($redundancy_mode eq 3) {
+		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
+		$extract_where .= " AND assigned_name = '$probe_name' ";
 	}
-	$where .= "ORDER BY scaffold, subject_start ";
 
+	# Get database tables
 	my $db = $self->{db};
-	my $blast_results_table = $db->{blast_results_table}; 
-	my @fields = qw [ record_id 
-	               organism data_type version 
-                   probe_name probe_gene probe_type
-				   orientation scaffold target_name
-                   subject_start subject_end 
-		           query_start query_end ];	           
-	$blast_results_table->select_rows(\@fields, $data_ref, $where);
+	my $extracted_table     = $db->{extracted_table};
+	my $blast_results_table = $db->{blast_results_table};
 
-	my $num_hits = scalar @target_hits;
-	if ($verbose) { print "\n\t ### There are $num_hits hits to extract"; }
-
-}
-
-#***************************************************************************
-# Subroutine:  get sorted extracted sequences 
-# Description: get rows from the extracted table in scaffold, position order
-#***************************************************************************
-sub get_sorted_extracted_sequences {
-	
-	my ($self, $hits_ref) = @_;
-	
 	# Set the fields to get values for
-	my @fields = qw [ record_id organism assigned_name assigned_gene
-	                  scaffold orientation
-	                  subject_start subject_end
-                      extract_start extract_end sequence_length ];
+	my @extract_fields = qw [ record_id organism assigned_name assigned_gene
+	                          scaffold orientation
+	                          subject_end
+	                          bit_score gap_openings
+	                          data_type query_start mismatches
+	                          query_end version align_len
+                              e_value_num e_value_exp identity 
+                              extract_start extract_end sequence_length ];
+	my @loci;
+	$extracted_table->select_rows(\@extract_fields, \@loci, $extract_where);
+	#$devtools->print_array(\@loci); exit;
 
-	# Order by ascending start coordinates within each scaffold in the target file
-	my $where = "ORDER BY organism, target_name, scaffold, extract_start ";
+	# Enter all relevant extracted loci into BLAST results table 
+	# NOTE - temporary, for sorting
+	my $num_loci = scalar @loci;
+	print "\n\t\t # $num_loci previously extracted loci";
+	foreach my $locus_ref (@loci) {
+
+		#$devtools->print_hash($locus_ref);
+		my $extract_id = $locus_ref->{record_id};
+		#print "\n\t\t # inserting extract ID $extract_id";
+		
+		# Translations
+		$locus_ref->{extract_id}    = $extract_id;
+		$locus_ref->{probe_name}    = $locus_ref->{assigned_name};
+		$locus_ref->{probe_gene}    = $locus_ref->{assigned_gene};
+		$locus_ref->{subject_start} = $locus_ref->{extract_start};
+		$locus_ref->{subject_end}   = $locus_ref->{extract_end};
+		$locus_ref->{hit_length}    = $locus_ref->{align_len};
+
+		$locus_ref->{probe_type}    = $probe_type;
+		$locus_ref->{target_name}   = $query_ref->{target_name};
+		$locus_ref->{organism}      = $query_ref->{organism};
+
+		$blast_results_table->insert_row($locus_ref);
+
+	}
 	
-	# Get the ordered hits from the Extracted table
-	my $db = $self->{db};
-	my $extracted_table = $db->{extracted_table};
-	$extracted_table->select_rows(\@fields, $hits_ref, $where);
+	# Get sorted, combined extracted loci and new blast results	
+	my @blast_fields = qw [ record_id 
+	                        extract_id organism data_type version 
+	                        probe_name probe_gene probe_type
+	                          bit_score gap_openings
+	                          data_type query_start query_end 
+	                          hit_length mismatches
+                              e_value_num e_value_exp identity 
+	                        target_name scaffold orientation
+	                        subject_start subject_end ];
+	my $blast_where  = " WHERE target_name = '$target_name' ";
+	   $blast_where .= " ORDER BY scaffold, subject_start ";
+	$blast_results_table->select_rows(\@blast_fields, $data_ref, $blast_where);
+	my $i = 0;;
+	#$devtools->print_array($data_ref);
+	foreach my $array_ref (@$data_ref) {
 	
-	#my $numhits = scalar @$hits_ref;
-	#print "\n\n\t # There are currently $numhits distinct records in the Extracted_sequences table";
+		my $extract_id = $array_ref->{extract_id};
+		#print "\n\t\t # Extract ID $extract_id";
+	}
+	#exit;
 }
-
 
 ############################################################################
 # SHOWING PROGRAM TITLE INFORMATION & HELP MENU

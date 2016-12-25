@@ -141,6 +141,7 @@ sub select_rows {
 	$fields =~ s/"//g;
 	my $query = "SELECT $fields FROM $self->{name}";
 	if ($where) { $query .= " $where"; }
+	#print "\n\n\t QUERY: $query \n\n\n";
 	my $sth = $dbh->prepare($query);
 	unless ($sth->execute()) { print $query; exit; }
 	my $row_count = 0;
