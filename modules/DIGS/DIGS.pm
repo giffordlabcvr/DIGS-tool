@@ -1445,7 +1445,6 @@ sub show_cluster {
 	}			
 }
 
-
 ############################################################################
 # FUNCTIONS FOR RECORDING CROSS-MATCHING
 ###########################################################################
@@ -1604,28 +1603,6 @@ sub index_previously_executed_searches {
 	}
 
 	#$devtools->print_hash($done_ref);
-}
-
-#***************************************************************************
-# Subroutine:  index BLAST results by record id
-# Description: Index BLAST_chains_table
-#***************************************************************************
-sub index_blast_chains {
-	
-	my ($self, $data_ref, $where) = @_;
-
-	# Get relevant variables and objects
-	my $db = $self->{db};
-	my $blast_chains_table = $db->{blast_chains_table}; 
-	my @fields = qw [ blast_id extract_id ];
-	my @blast_chain_rows;
-	$blast_chains_table->select_rows(\@fields, \@blast_chain_rows, $where);	
-	foreach my $hit_ref (@blast_chain_rows) {
-		my $blast_id   = $hit_ref->{blast_id};
-		my $extract_id = $hit_ref->{extract_id};
-		if ($data_ref->{$blast_id}) { die; } # BLAST ID should be unique
-		$data_ref->{$blast_id} = $extract_id;	
-	}
 }
 
 #***************************************************************************
