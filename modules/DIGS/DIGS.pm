@@ -36,6 +36,7 @@ my $devtools   = DevTools->new();
 my $verbose      = undef;
 1;
 
+
 ############################################################################
 # LIFECYCLE & TOP LEVEL HANDLER FUNCTIONS
 ############################################################################
@@ -792,14 +793,14 @@ sub compress_db {
 	if ($total_hits > $num_clusters) {
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
+	#$self->show_clusters(\%defragmented);  # Show clusters
 
-	# Show clusters
-	#$self->show_clusters(\%defragmented);
-		
 	# Determine what to extract and extract it
 	$self->get_extract_sequences(\%defragmented, $extracted_ref);
 	my $num_new = scalar @$extracted_ref;
-	print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+	if ($num_new){
+		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+	}
 		
 }
 
@@ -1226,6 +1227,7 @@ sub show_progress {
 	print "\n\t\t  %$f_percent_prog completed";
 }
 
+
 ############################################################################
 # DEFRAGMENTING - comparing and merging overlapping/adjacent hits
 ###########################################################################	
@@ -1272,8 +1274,14 @@ sub compose_clusters {
 	    if ($initialised) {
 
 			# Sanity checking - are sequences in order?
-			unless ($start >= $last_start) { die; }
-
+			if ($scaffold eq $last_scaffold) {
+				unless ($start >= $last_start) { 
+					print "\n\t\t $start is less than $last_start";
+					print " (end $end , last end $last_end)";
+					die;
+				}
+			}
+			
             my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
             if ($new) {
                 
@@ -1436,6 +1444,7 @@ sub show_cluster {
 		}
 	}			
 }
+
 
 ############################################################################
 # FUNCTIONS FOR RECORDING CROSS-MATCHING
@@ -1669,7 +1678,6 @@ sub get_sorted_loci {
 	#$devtools->print_array(\@loci); exit;
 
 	# Enter all relevant extracted loci into BLAST results table 
-	# NOTE - temporary, for sorting
 	my $num_loci = scalar @loci;
 	print "\n\t\t # $num_loci previously extracted loci";
 	foreach my $locus_ref (@loci) {
@@ -1707,19 +1715,13 @@ sub get_sorted_loci {
 	my $blast_where  = " WHERE target_name = '$target_name' ";
 	   $blast_where .= " ORDER BY scaffold, subject_start ";
 	$blast_results_table->select_rows(\@blast_fields, $data_ref, $blast_where);
-	my $i = 0;;
-	#$devtools->print_array($data_ref);
-	foreach my $array_ref (@$data_ref) {
-	
-		my $extract_id = $array_ref->{extract_id};
-		#print "\n\t\t # Extract ID $extract_id";
-	}
-	#exit;
+
 }
+
 
 ############################################################################
 # SHOWING PROGRAM TITLE INFORMATION & HELP MENU
-###########################################################################
+############################################################################
 
 #***************************************************************************
 # Subroutine:  show_title
@@ -1766,7 +1768,6 @@ sub show_help_page {
 		$HELP  .= "\n\t -u=3  Extract sequences using track\n\n";
 	print $HELP;
 }
-
 
 ############################################################################
 # EOF
