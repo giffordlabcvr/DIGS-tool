@@ -119,7 +119,7 @@ sub run_digs_process {
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table	
 		my @extracted;
-		$self->get_sorted_digs_results(\@extracted); # Get sorted table rows
+		$self->get_sorted_extracted_loci(\@extracted); # Get sorted table rows
 		$self->interactive_defragment(\@extracted);	
 	}
 	elsif ($option eq 5) { # Flush screening DB
@@ -250,6 +250,12 @@ sub initialise_reassign {
 sub set_up_digs {
 
 	my ($self) = @_;
+
+	# Flush active set
+	my $db  = $self->{db};
+	my $active_set_table = $db->{active_set_table};
+	print "\n\t\t # Flushing 'active_set' table";
+	$active_set_table->flush();
 	
 	# Index previously executed searches
 	my %done;
@@ -267,7 +273,7 @@ sub set_up_digs {
 		print "\n\t  Exiting without screening.\n\n";	
 		exit;
 	}
-	
+		
 	# Record queries 
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
@@ -375,7 +381,6 @@ sub reassign {
 	my $db              = $self->{db};
 	my $digs_results_table = $db->{digs_results_table};
 	unless ($digs_results_table) { die; }
-	die;
 	
 	# Iterate through the matches
 	print "\n\n\t  Reassigning Extracted_sequences table\n";
@@ -385,15 +390,16 @@ sub reassign {
 	foreach my $hit_ref (@$extracted_seqs_ref) {
 
 		# Set the linking to the BLAST result table
-		my $blast_id  = $hit_ref->{record_id};
-		$hit_ref->{blast_id} = $blast_id;
-		delete $hit_ref->{record_id};
+		my $record_id  = $hit_ref->{record_id};
+		
 		my $extract_start   = $hit_ref->{extract_start};
 		my $extract_end     = $hit_ref->{extract_end};
 		$hit_ref->{subject_start} = $extract_start;
 		$hit_ref->{subject_end}   = $extract_end;
 		delete $hit_ref->{extract_start};
 		delete $hit_ref->{extract_end};
+	
+		$hit_ref->{target_organism} = $hit_ref->{organism} ;
 	
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $hit_ref->{assigned_name};
@@ -412,9 +418,9 @@ sub reassign {
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 			
 			# Show the results
-			print "\n\t ##### Reassigned $blast_id from $previous_assign ($previous_gene)";
+			print "\n\t ##### Reassigned $record_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
-			my $where = " WHERE Record_id = $blast_id ";
+			my $where = " WHERE Record_id = $record_id ";
 			
 			# Update the matrix
 			my $previous_key = $previous_assign . '_' . $previous_gene;
@@ -436,6 +442,8 @@ sub reassign {
 				$reassign_matrix{$previous_key} = \%hash; 
 			}
 			# Insert the data
+			delete $hit_ref->{record_id}; 
+			delete $hit_ref->{target_organism}; 
 			$digs_results_table->update($hit_ref, $where);
 		}
 	}
@@ -472,12 +480,27 @@ sub interactive_defragment {
 		my $max = 100000;
 		my $question1 = "\n\n\t # Set the range for merging hits";
 		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);		
+
+		# Create the relevant set of previously extracted loci
+		my @loci;
+		$self->get_sorted_extracted_loci(\@loci);
+		my $total_hits = scalar @loci;
 		
-		# Calculate what will be changed		
-		$self->compose_clusters(\%defragmented, $extracted_ref, $t_range);
+		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+		my %settings;
+		my %defragmented;
+		$settings{range} = $t_range;
+		$settings{start} = 'extract_start';
+		$settings{end}   = 'extract_end';
+		$self->compose_clusters(\%defragmented, \@loci, \%settings);
 
 		# Show clusters
 		$self->show_clusters(\%defragmented);
+		my @cluster_ids  = keys %defragmented;
+		my $num_clusters = scalar @cluster_ids;
+		if ($total_hits > $num_clusters) {
+			print "...will be compressed to $num_clusters overlapping/contiguous clusters";
+		}
 		
 		# Prompt for what to do next
 		print "\n\n\t\t Option 1: preview new parameters";
@@ -830,22 +853,30 @@ sub compress_db {
 	
 	my ($self, $query_ref, $extracted_ref) = @_;
 
-	# Create the relevant set of sorted loci for this target file
+	# Create the relevant set of previously extracted loci
 	my @loci;
-	$self->get_sorted_loci(\@loci, $query_ref);	
+	my $where = $self->set_redundancy($query_ref);
+	$self->get_sorted_extracted_loci(\@loci, $where);
+	
+	# Add relevant set of  previously extracted loci to the active set of BLAST results
+	$self->create_combined_active_set(\@loci);
+
+	# Get new BLAST results & previously extracted loci in a sorted list
+	my @combined;
+	$self->get_sorted_active_set(\@combined);
 	my $total_hits = scalar @loci;
 	if ($total_hits > 0) {
 		print "\n\t\t # $total_hits new hits & previously extracted loci ";
 	}
-	# DEBUG $devtools->print_array(\@loci); exit;
+	# DEBUG $devtools->print_array(\@combined); exit;
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	my %defragmented;
 	my %settings;
+	my %defragmented;
 	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@loci, \%settings);
+	$self->compose_clusters(\%defragmented, \@combined, \%settings);
 	my @cluster_ids  = keys %defragmented;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_hits > $num_clusters) {
@@ -859,6 +890,39 @@ sub compress_db {
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
 	}	
+}
+
+#***************************************************************************
+# Subroutine:  
+# Description: compose SQL WHERE statement based on redundancy settings
+#***************************************************************************
+sub set_redundancy {
+	
+	my ($self, $query_ref) = @_;
+	
+	# Get query details
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{target_organism};
+	my $target_datatype = $query_ref->{target_datatype};
+
+	# Compose the WHERE statement based on redundancy settings
+	my $redundancy_mode = $self->{redundancy_mode};
+	unless ($redundancy_mode) { die; } 
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
+		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
+		$where .= " AND assigned_gene = '$probe_gene' ";
+	}
+	if ($redundancy_mode eq 3) {
+		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
+		$where .= " AND assigned_name = '$probe_name' ";
+	}
+
+	return $where;
 }
 
 #***************************************************************************
@@ -912,7 +976,7 @@ sub update_db {
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
 	# Flush the BLAST table
-	print "\n\t\t # Flushing 'active_set' table";
+	#print "\n # Flushing 'active_set' table";
 	$active_set_table->flush();
 
 	# Iterate through the 
@@ -1250,6 +1314,7 @@ sub compose_clusters {
 		# Get hit values
 		my $record_id     = $hit_ref->{record_id};
 		my $scaffold      = $hit_ref->{scaffold};
+		my $target_name   = $hit_ref->{target_name};
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $orientation   = $hit_ref->{orientation};
 		my $start         = $hit_ref->{$start_token};
@@ -1258,17 +1323,17 @@ sub compose_clusters {
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
 		my $last_scaffold      = $last_hit{scaffold};
+		my $last_target_name   = $last_hit{target_name};
 		my $last_assigned_name = $last_hit{assigned_name};
 		my $last_orientation   = $last_hit{orientation};
 		my $last_start         = $last_hit{$start_token};
 		my $last_end           = $last_hit{$end_token};		
 		my $gap;
 
-		#print "\n\t Extracted_sequences count $extracted_count";
 	    if ($initialised) {
 
 			# Sanity checking - are sequences in order?
-			if ($scaffold eq $last_scaffold) {
+			if ( $scaffold eq $last_scaffold) {
 				unless ($start >= $last_start) { 
 					print "\n\t\t $start is less than $last_start";
 					print " (end $end , last end $last_end)";
@@ -1601,45 +1666,25 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted loci 
-# Description: Get the ordered hits from the Extracted table
+# Subroutine:  get sorted extracted loci 
+# Description: 
 #***************************************************************************
-sub get_sorted_loci {
-	
-	my ($self, $data_ref, $query_ref) = @_;
+sub get_sorted_extracted_loci {
 
-	# Get query details
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{target_organism};
-	my $target_datatype = $query_ref->{target_datatype};
-	my $version         = $query_ref->{target_version};
+	my ($self, $data_ref, $where) = @_;;
 
-	# Compose the WHERE statement based on redundancy settings
-	my $redundancy_mode = $self->{redundancy_mode};
-	unless ($redundancy_mode) { die; } 
-	my $extract_where  = " WHERE organism = '$organism' ";
-	   $extract_where .= " AND target_name = '$target_name' "; # Always limit by target
-	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
-		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
-		$extract_where .= " AND assigned_gene = '$probe_gene' ";
-	}
-	if ($redundancy_mode eq 3) {
-		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
-		$extract_where .= " AND assigned_name = '$probe_name' ";
-	}
+	# Set statement to sort loci
+	if ($where) { $where .= " ORDER BY scaffold, subject_start "; }
+	else        { $where  = " ORDER BY scaffold, subject_start "; }
 
 	# Get database tables
 	my $db = $self->{db};
-	my $digs_results_table     = $db->{digs_results_table};
-	my $active_set_table = $db->{active_set_table};
-	
+	my $digs_results_table  = $db->{digs_results_table};
+		
 	# Set the fields to get values for
 	my @extract_fields = qw [ record_id 
 	                          organism target_version target_datatype
-	                          assigned_name assigned_gene
+	                          assigned_name assigned_gene probe_type
 	                          scaffold orientation
 	                          bitscore gap_openings
 	                          query_start query_end 
@@ -1647,17 +1692,30 @@ sub get_sorted_loci {
                               evalue_num evalue_exp identity 
                               extract_start extract_end sequence_length ];
 	my @loci;
-	$digs_results_table->select_rows(\@extract_fields, \@loci, $extract_where);
-	#$devtools->print_array(\@loci); exit;
+	$digs_results_table->select_rows(\@extract_fields, $data_ref, $where);
+}
+
+#***************************************************************************
+# Subroutine:  create_combined_active_set 
+# Description: get all extracted loci for this target file (& probe)
+# Description: get all extracted loci for this target file (& probe)
+#***************************************************************************
+sub create_combined_active_set {
+	
+	my ($self, $data_ref) = @_;;
+
+	# Get database tables
+	my $db = $self->{db};
+	my $active_set_table  = $db->{active_set_table};
 
 	# Enter all relevant extracted loci into 'active_set' table 
-	my $num_loci = scalar @loci;
+	my $num_loci = scalar @$data_ref;
 	print "\n\t\t # $num_loci previously extracted loci";
-	foreach my $locus_ref (@loci) {
+	foreach my $locus_ref (@$data_ref) {
 
+		#print "\n\t\t # inserting extract ID $extract_id";
 		#$devtools->print_hash($locus_ref);
 		my $extract_id = $locus_ref->{record_id};
-		#print "\n\t\t # inserting extract ID $extract_id";
 		
 		# Translations
 		$locus_ref->{extract_id}       = $extract_id;
@@ -1665,15 +1723,27 @@ sub get_sorted_loci {
 		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
 		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
 		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
-		$locus_ref->{align_len}        = $locus_ref->{align_len};
-		$locus_ref->{probe_type}       = $probe_type;
-		$locus_ref->{target_name}      = $locus_ref->{target_name};
 		$locus_ref->{target_organism}  = $locus_ref->{organism};
-
 		$active_set_table->insert_row($locus_ref);
-
 	}
+}
 
+#***************************************************************************
+# Subroutine:  get sorted active set 
+# Description: 
+#***************************************************************************
+sub get_sorted_active_set {
+	
+	my ($self, $data_ref, $where) = @_;;
+
+	# Set statement to sort loci
+	if ($where) { $where .= " ORDER BY scaffold, subject_start "; }
+	else        { $where  = " ORDER BY scaffold, subject_start "; }
+
+	# Get database tables
+	my $db = $self->{db};
+	my $active_set_table    = $db->{active_set_table};
+	
 	# Get sorted, combined extracted loci and new blast results	
 	my @blast_fields = qw [ record_id extract_id  
 	                        target_organism target_datatype target_version target_name
@@ -1684,9 +1754,8 @@ sub get_sorted_loci {
                             evalue_num evalue_exp identity 
 	                        scaffold orientation
 	                        subject_start subject_end ];
-	my $blast_where  = " WHERE target_name = '$target_name' ";
-	   $blast_where .= " ORDER BY scaffold, subject_start ";
-	$active_set_table->select_rows(\@blast_fields, $data_ref, $blast_where);
+
+	$active_set_table->select_rows(\@blast_fields, $data_ref, $where);
 
 }
 
