@@ -662,7 +662,7 @@ sub search {
 	my $blast_obj    = $self->{blast_obj};
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
-	my $min_score    = $self->{bit_score_minimum};
+	my $min_score    = $self->{bitscore_minimum};
 
 	# Sanity checking
 	unless ($blast_obj)       { die; } 
@@ -725,9 +725,9 @@ sub search {
 			}
 		}
 
-		# Apply bit_score cutoff
+		# Apply bitscore cutoff
 		if ($min_score) { # Skip sequences that have too low bit scores
-			my $query_score = $hit_ref->{bit_score};
+			my $query_score = $hit_ref->{bitscore};
 			if ($query_score < $min_score) {  
 				$skip = 'true';
 				$score_exclude_count++;
@@ -1107,7 +1107,7 @@ sub do_reverse_blast {
 		$hit_ref->{assigned_name}    = 'Unassigned';
 		$hit_ref->{assigned_gene}    = 'Unassigned';
 		$hit_ref->{identity}         = 0;
-		$hit_ref->{bit_score}        = 0;
+		$hit_ref->{bitscore}        = 0;
 		$hit_ref->{e_value_exp}      = 0;
 		$hit_ref->{e_value_num}      = 0;
 		$hit_ref->{mismatches}       = 0;
@@ -1128,7 +1128,7 @@ sub do_reverse_blast {
 		$hit_ref->{assigned_name}    = $assigned_name;
 		$hit_ref->{assigned_gene}    = $assigned_gene;
 		$hit_ref->{identity}         = $top_match->{identity};
-		$hit_ref->{bit_score}        = $top_match->{bit_score};
+		$hit_ref->{bitscore}        = $top_match->{bitscore};
 		$hit_ref->{e_value_exp}      = $top_match->{e_value_exp};
 		$hit_ref->{e_value_num}      = $top_match->{e_value_num};
 		$hit_ref->{mismatches}       = $top_match->{mismatches};
@@ -1631,7 +1631,7 @@ sub show_blast_chains {
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
 		my @chain_fields = qw [ record_id probe_name probe_gene 
-		                        bit_score identity hit_length
+		                        bitscore identity hit_length
 		                        organism target_name scaffold 
 		                        subject_start subject_end ];
 		my $blast_where  = " WHERE Extract_ID = $extract_id ";
@@ -1646,12 +1646,12 @@ sub show_blast_chains {
 			my $identity    = $hit_ref->{identity};
 			my $f_identity  = sprintf("%.2f", $identity);
 			my $hit_length  = $hit_ref->{hit_length};
-			my $bit_score   = $hit_ref->{bit_score};
+			my $bitscore   = $hit_ref->{bitscore};
 			my $organism    = $hit_ref->{organism};
 			my $scaffold    = $hit_ref->{scaffold};
 			my $start       = $hit_ref->{subject_start};
 			my $end         = $hit_ref->{subject_end};
-			print "\n\t\t $blast_id:\t Score: $bit_score, \%$f_identity identity ";
+			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
 			print "across $hit_length aa ($start-$end) to:\t $probe_name ($probe_gene) ";
 		}
 	}
@@ -1697,7 +1697,7 @@ sub get_sorted_loci {
 	my @extract_fields = qw [ record_id organism assigned_name assigned_gene
 	                          scaffold orientation
 	                          subject_end
-	                          bit_score gap_openings
+	                          bitscore gap_openings
 	                          data_type query_start mismatches
 	                          query_end version align_len
                               e_value_num e_value_exp identity 
@@ -1735,7 +1735,7 @@ sub get_sorted_loci {
 	my @blast_fields = qw [ record_id 
 	                        extract_id organism data_type version 
 	                        probe_name probe_gene probe_type
-	                          bit_score gap_openings
+	                          bitscore gap_openings
 	                          data_type query_start query_end 
 	                          hit_length mismatches
                               e_value_num e_value_exp identity 

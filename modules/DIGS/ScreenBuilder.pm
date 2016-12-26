@@ -169,11 +169,11 @@ sub parse_control_file {
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
 	# Set the bit score minimum
-	if    ($self->{bit_score_min_tblastn}) {
-		$pipeline_obj->{bit_score_minimum} = $self->{bit_score_min_tblastn};
+	if    ($self->{bitscore_min_tblastn}) {
+		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
 	}
-	elsif ($self->{bit_score_min_blastn}) {
-		$pipeline_obj->{bit_score_minimum}   = $self->{bit_score_min_blastn};	
+	elsif ($self->{bitscore_min_blastn}) {
+		$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
 	}
 	else {
 		die;
@@ -636,12 +636,12 @@ sub parse_screensets_block {
 	# Nucleic acid FASTA input	
 	my $query_na_fasta         = $self->{query_na_fasta};
 	my $reference_na_fasta     = $self->{reference_na_fasta};
-	my $blastn_min             = $self->{bit_score_min_blastn};
+	my $blastn_min             = $self->{bitscore_min_blastn};
 
 	# Amino acid FASTA input
 	my $query_aa_fasta         = $self->{query_aa_fasta};
 	my $reference_aa_fasta     = $self->{reference_aa_fasta};
-	my $tblastn_min            = $self->{bit_score_min_tblastn};
+	my $tblastn_min            = $self->{bitscore_min_tblastn};
 
 	# Track based input
 	my $query_na_track         = $self->{query_na_track};

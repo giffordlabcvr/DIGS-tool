@@ -204,8 +204,8 @@ sub parse_tab_format_results {
 		my $aln_start         = $data[8];
 		my $aln_stop          = $data[9];
 		my $e_value           = $data[10];
-		my $bit_score         = $data[11];
-		chomp $bit_score;
+		my $bitscore         = $data[11];
+		chomp $bitscore;
 		
 		# Convert e value
 		$self->convert_evalue($e_value, \%match);
@@ -228,7 +228,7 @@ sub parse_tab_format_results {
 		}
 		
 		$match{orientation}   = $orientation; 
-		$match{bit_score}     = $bit_score;
+		$match{bitscore}     = $bitscore;
 		push(@$result_ref, \%match);
 	}		
 }

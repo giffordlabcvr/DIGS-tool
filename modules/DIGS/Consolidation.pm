@@ -77,7 +77,7 @@ sub new {
 		# Consolidation Variables
 		group					=> $parameter_ref->{group},
 		length_threshold		=> $parameter_ref->{length_threshold},
-		bit_score_min_tblastn	=> $parameter_ref->{bit_score_min_tblastn},
+		bitscore_min_tblastn	=> $parameter_ref->{bitscore_min_tblastn},
 		genome_structure		=> $parameter_ref->{genome_structure}
 	};
 
@@ -97,11 +97,11 @@ sub consolidate {
 	# get parameters for consolidation that were set in the control file
 	my $db_name   		 = $self->{db_name};
 	my $length_threshold = $self->{length_threshold};
-	my $bit_score 		 = $self->{bit_score_min_tblastn};
+	my $bitscore 		 = $self->{bitscore_min_tblastn};
 	my $genome_struc 	 = $self->{genome_structure};
 	unless ($db_name)          { die; }
 	unless ($length_threshold) { die; }
-	unless ($bit_score)        { die; }
+	unless ($bitscore)        { die; }
 	unless ($genome_struc)     { die; }
 
 	my $e_value_exp = 4;
@@ -110,7 +110,7 @@ sub consolidate {
 	#$devtools->print_hash(\%feature_structure); #die;
 
 	my @data_ref;
-	$self->load_extract_data($e_value_exp, $bit_score, $db_name, \@data_ref, $scaffold, $orientation, $fam);
+	$self->load_extract_data($e_value_exp, $bitscore, $db_name, \@data_ref, $scaffold, $orientation, $fam);
 	my @organism_array = split(/\//,$scaffold);
 	my @scaffold_array = split(/\^/,$organism_array[3]);
 	my $head_scaff	=	$scaffold_array[1];
@@ -274,7 +274,7 @@ sub make_feature_structure_hash {
 #***************************************************************************
 sub load_extract_data {
 	
-	my ($self, $e_value_exp, $bit_score, $db_name, $data_ref, $scaffold, $orientation, $fam) = @_;
+	my ($self, $e_value_exp, $bitscore, $db_name, $data_ref, $scaffold, $orientation, $fam) = @_;
 
 	# Connect to DB
 	my $data_source = '';
@@ -298,7 +298,7 @@ sub load_extract_data {
 				FROM Extracted 
 				WHERE Orientation = '$orientation'  
 				AND Scaffold = '$scaffold_array[1]'
-				AND Bit_score > $bit_score 
+				AND Bit_score > $bitscore 
 				AND Organism = '$organism_array[0]'
 				AND Data_type = '$organism_array[1]'
 				AND Version = '$organism_array[2]'
@@ -310,7 +310,7 @@ sub load_extract_data {
 	#AND (e_value_exp >= 100 OR e_value_exp = 1)
 	#AND Assigned_name = '$fam'
 	#AND (e_value_exp >= $e_value_exp OR e_value_exp = 1)" ;
-	#AND Bit_score > $bit_score
+	#AND Bit_score > $bitscore
 	# INCORPRATE PARAMETERS FOR THIS SEARCH INTO QUERY
 	if ($orientation eq '+') {
 			$query .= " ORDER BY extract_start";
