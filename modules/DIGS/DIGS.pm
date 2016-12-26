@@ -30,15 +30,14 @@ use DIGS::ScreenBuilder; # Functions to set up screen
 # Base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
-my $devtools   = DevTools->new();
+my $devtools  = DevTools->new();
 
 # Flags
-my $verbose      = undef;
+my $verbose   = undef;
 1;
 
-
 ############################################################################
-# LIFECYCLE & TOP LEVEL HANDLER FUNCTIONS
+# LIFECYCLE & TOP LEVEL HANDLERS
 ############################################################################
 
 #***************************************************************************
@@ -177,7 +176,6 @@ sub run_utility_process {
 	}
 }
 
-
 ############################################################################
 # INITIALISING FUNCTIONS
 ############################################################################
@@ -267,10 +265,11 @@ sub set_up_digs {
 		print "\n\t  Exiting without screening.\n\n";	
 		exit;
 	}
+	
+	# Record queries 
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
 }
-
 
 ############################################################################
 # MAIN FUNCTIONS - TOP LEVEL PROCESS FUNCTIONS
@@ -344,11 +343,8 @@ sub do_digs {
 
 			# Show progress
 			$self->show_progress();
-
 		}	
 	}
-	
-
 	
 	# Cleanup
 	my $output_dir = $loader_obj->{report_dir};
@@ -402,7 +398,7 @@ sub reassign {
 		my $previous_gene   = $hit_ref->{assigned_gene};
 		#print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
 		#print "\n\t coordinates: $extract_start-$extract_end";
-		$self->do_reverse_blast($hit_ref);
+		$self->do_blast_genotyping($hit_ref);
 		
 		$count++;
 		if (($count % 100) eq 0) {
@@ -645,14 +641,13 @@ sub extend_screening_db {
 	}
 }
 
-
 ############################################################################
 # MAIN SCREENING LOOP
 ############################################################################
 
 #***************************************************************************
 # Subroutine:  search
-# Description: execute a search (i.e. run a BLAST query)
+# Description: execute a similarity search and parse the results
 #***************************************************************************
 sub search {
 	
@@ -768,8 +763,67 @@ sub search {
 }
 
 #***************************************************************************
+# Subroutine:  extract_sequences
+# Description: extract sequences from target databases
+#***************************************************************************
+sub extract {
+
+	my ($self, $query_ref, $hits_ref, $extracted_ref) = @_;
+
+	# Get paths, objects, data structures and variables from self
+	my $blast_obj   = $self->{blast_obj};
+	my $buffer      = $self->{extract_buffer};
+	my $target_path = $query_ref->{target_path};
+
+	# Iterate through the list of sequences to extract
+	my $new_hits = scalar @$hits_ref;
+	foreach my $hit_ref (@$hits_ref) {
+				
+		# Add any buffer 
+		my $orientation   = $hit_ref->{orientation};
+		if ($buffer) {
+			if ($orientation eq '-') {
+				$hit_ref->{start} = $hit_ref->{start} + $buffer;
+				$hit_ref->{end}   = $hit_ref->{end} - $buffer;
+				if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
+					$hit_ref->{end} = 1;
+				}	
+			}
+			else {
+				$hit_ref->{start} = $hit_ref->{start} - $buffer;
+				if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
+					$hit_ref->{start} = 1;
+				}	
+				$hit_ref->{end}   = $hit_ref->{end} + $buffer;
+			}
+		}
+		
+		# Extract the sequence
+		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		if ($sequence) {	
+			if ($verbose) {
+				print "\t ........extracting";
+			}
+			my $seq_length = length $sequence; # Set sequence length
+			$hit_ref->{extract_start}   = $hit_ref->{start};
+			$hit_ref->{extract_end}     = $hit_ref->{end};
+			$hit_ref->{sequence}        = $sequence;
+			$hit_ref->{sequence_length} = $seq_length;
+			#print "\n\t Sequence $sequence\n\n";	die;
+			push (@$extracted_ref, $hit_ref);
+		}
+		else {
+			if ($verbose) {
+				print "\n\t Sequence extraction failed";
+			}
+		}
+	}	
+	return $new_hits;
+}
+
+#***************************************************************************
 # Subroutine:  compress_db
-# Description: 
+# Description: determine what to extract based on current results
 #***************************************************************************
 sub compress_db {
 	
@@ -799,25 +853,142 @@ sub compress_db {
 	#$self->show_clusters(\%defragmented);  # Show clusters
 
 	# Determine what to extract and extract it
-	$self->get_extract_sequences(\%defragmented, $extracted_ref);
+	$self->extract_locus_sequences(\%defragmented, $extracted_ref);
 	my $num_new = scalar @$extracted_ref;
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
-	}
-		
+	}	
 }
 
 #***************************************************************************
-# Subroutine:  get_extract_sequences
-# Description: decompose clusters to a single locus to extract
+# Subroutine:  assign
+# Description: assign sequences using BLAST 
 #***************************************************************************
-sub get_extract_sequences {
+sub assign {
+	
+	my ($self, $query_ref, $extracted_ref) = @_;
+		
+	# Iterate through the matches
+	my $assigned_count   = 0;
+	my $crossmatch_count = 0;
+	foreach my $hit_ref (@$extracted_ref) {
+
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
+		
+		my $assigned = $self->do_blast_genotyping($hit_ref);
+		if ($assigned) { $assigned_count++; }
+
+		# Get the unique key for this probe
+		my $probe_name  = $query_ref->{probe_name};
+		my $probe_gene  = $query_ref->{probe_gene};
+		my $probe_key = $probe_name . '_' . $probe_gene; 
+				
+		# Record cross-matching
+		if ($probe_key ne $assigned) {
+			$crossmatch_count++;
+			$self->update_cross_matching($probe_key, $assigned);
+		}
+	}
+	
+	if ($assigned_count > 0) {
+		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
+		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+	}
+}
+
+#***************************************************************************
+# Subroutine:  update_db
+# Description: 
+#***************************************************************************
+sub update_db {
+
+	my ($self, $query_ref, $extracted_ref) = @_;
+		
+	# Get parameters from self
+	my $db_ref = $self->{db};
+	my $extracted_table     = $db_ref->{extracted_table}; 
+	my $blast_results_table = $db_ref->{blast_results_table}; 
+	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
+
+	# Flush the BLAST table
+	print "\n\t\t # Flushing BLAST results table";
+	$blast_results_table->flush();
+
+	# Iterate through the 
+	foreach my $hit_ref (@$extracted_ref) {
+
+		# Insert the data to the Extracted_sequences table
+		#$devtools->print_hash($hit_ref);
+		my $extract_id = $extracted_table->insert_row($hit_ref);
+		
+		# Insert the data to the BLAST_chains table
+		my $blast_chains = $hit_ref->{blast_chains};
+		#$devtools->print_hash($blast_chains);
+
+		if ($blast_chains) {
+			
+			my @blast_ids = keys %$blast_chains;
+			#$devtools->print_array(\@blast_ids);exit;
+			foreach my $blast_id (@blast_ids) {			
+				
+				my $data_ref = $blast_chains->{$blast_id};
+				$data_ref->{extract_id} = $extract_id;	
+				#$devtools->print_hash($data_ref); exit;
+				$blast_chains_table->insert_row($data_ref);
+			}
+		}
+
+		# Delete superfluous data from the
+		my $extract_ids_ref = $hit_ref->{extract_ids};
+		foreach my $old_extract_id (@$extract_ids_ref) {			
+			
+			# Delete superfluous extract rows
+			my $extracted_where = " WHERE Record_ID = $old_extract_id ";	
+			$extracted_table->delete_rows($extracted_where);
+			
+			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
+			my %new_id;
+			$new_id{extract_id} = $extract_id;	
+			$blast_chains_table->update(\%new_id, $chains_where);
+			#$devtools->print_hash($data_ref); exit;
+		
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_progress
+# Description: show progress in DIGS screening
+#***************************************************************************
+sub show_progress {
+
+	my ($self) = @_;
+
+	# Get the counts
+	my $total_queries   = $self->{total_queries};
+	my $completed       = $self->{completed};	
+	unless ($completed and $total_queries) { die; } # Sanity checking
+	
+	# Calculate percentage progress
+	my $percent_prog    = ($completed / $total_queries) * 100;
+	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	print "\n\t\t  %$f_percent_prog completed";
+}
+
+############################################################################
+# INTERNAL
+###########################################################################	
+
+#***************************************************************************
+# Subroutine:  extract_locus_sequences
+# Description: for clustered hits extract locus sequences
+#***************************************************************************
+sub extract_locus_sequences {
 	
 	my ($self, $defragmented_ref, $extracted_ref) = @_;
 
 	# Get screening database table objects
 	my $db_ref              = $self->{db};
-	unless ($db_ref)          { die; } 
 	my $searches_table      = $db_ref->{searches_table};
 	my $blast_results_table = $db_ref->{blast_results_table};	
 
@@ -830,7 +1001,6 @@ sub get_extract_sequences {
 		unless ($cluster_ref) { die; }
 
 		# Determine what to extract for this cluster
-		#my %new_chains;
 		my %new_blast_chains;
 		my %previous_extract_ids;
 		my $highest_end   = undef;
@@ -911,8 +1081,6 @@ sub get_extract_sequences {
 				$extend_count++;
 				$extract = 'true';							
 				#print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
-				#$devtools->print_hash($data_ref);
-				#die;
 			}			
 		}
 		if ($extract) {
@@ -936,115 +1104,18 @@ sub get_extract_sequences {
 			if ($num_chains) {
 				$extract{blast_chains} = \%new_blast_chains;
 			}
-			push (@$extracted_ref, \%extract);
-	
+			push (@$extracted_ref, \%extract);	
 		}
 	}
-
 	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
-
-}
-
-#***************************************************************************
-# Subroutine:  extract_sequences
-# Description: extract sequences from target databases
-#***************************************************************************
-sub extract {
-
-	my ($self, $query_ref, $hits_ref, $extracted_ref) = @_;
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-	my $buffer      = $self->{extract_buffer};
-	my $target_path = $query_ref->{target_path};
-
-	# Iterate through the list of sequences to extract
-	my $new_hits = scalar @$hits_ref;
-	foreach my $hit_ref (@$hits_ref) {
-				
-		# Add any buffer 
-		my $orientation   = $hit_ref->{orientation};
-		if ($buffer) {
-			if ($orientation eq '-') {
-				$hit_ref->{start} = $hit_ref->{start} + $buffer;
-				$hit_ref->{end}   = $hit_ref->{end} - $buffer;
-				if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
-					$hit_ref->{end} = 1;
-				}	
-			}
-			else {
-				$hit_ref->{start} = $hit_ref->{start} - $buffer;
-				if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
-					$hit_ref->{start} = 1;
-				}	
-				$hit_ref->{end}   = $hit_ref->{end} + $buffer;
-			}
-		}
-		
-		# Extract the sequence
-		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
-		if ($sequence) {	
-			if ($verbose) {
-				print "\t ........extracting";
-			}
-			my $seq_length = length $sequence; # Set sequence length
-			$hit_ref->{extract_start}   = $hit_ref->{start};
-			$hit_ref->{extract_end}     = $hit_ref->{end};
-			$hit_ref->{sequence}        = $sequence;
-			$hit_ref->{sequence_length} = $seq_length;
-			#print "\n\t Sequence $sequence\n\n";	die;
-			push (@$extracted_ref, $hit_ref);
-		}
-		else {
-			if ($verbose) {
-				print "\n\t Sequence extraction failed";
-			}
-		}
-	}	
-	return $new_hits;
-}
-
-#***************************************************************************
-# Subroutine:  assign
-# Description: assign sequences using BLAST 
-#***************************************************************************
-sub assign {
 	
-	my ($self, $query_ref, $extracted_ref) = @_;
-		
-	# Iterate through the matches
-	my $assigned_count   = 0;
-	my $crossmatch_count = 0;
-	foreach my $hit_ref (@$extracted_ref) {
-
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
-		
-		my $assigned = $self->do_reverse_blast($hit_ref);
-		if ($assigned) { $assigned_count++; }
-
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key = $probe_name . '_' . $probe_gene; 
-				
-		# Record cross-matching
-		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
-			$self->update_cross_matching($probe_key, $assigned);
-		}
-	}
-	
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-	}
 }
 
 #***************************************************************************
-# Subroutine:  do_reverse_blast
+# Subroutine:  do_blast_genotyping
 # Description: Execute the 2nd BLAST in a round of paired BLAST
 #***************************************************************************
-sub do_reverse_blast {
+sub do_blast_genotyping {
 
 	my ($self, $hit_ref) = @_;
 	
@@ -1150,86 +1221,6 @@ sub do_reverse_blast {
 	unless ($assigned) { $assigned = 'Unassigned'; }
 	return $assigned;
 }
-
-#***************************************************************************
-# Subroutine:  update_db
-# Description: 
-#***************************************************************************
-sub update_db {
-
-	my ($self, $query_ref, $extracted_ref) = @_;
-		
-	# Get parameters from self
-	my $db_ref = $self->{db};
-	my $extracted_table     = $db_ref->{extracted_table}; 
-	my $blast_results_table = $db_ref->{blast_results_table}; 
-	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
-
-	# Flush the BLAST table
-	print "\n\t\t # Flushing BLAST results table";
-	$blast_results_table->flush();
-
-	# Iterate through the 
-	foreach my $hit_ref (@$extracted_ref) {
-
-		# Insert the data to the Extracted_sequences table
-		#$devtools->print_hash($hit_ref);
-		my $extract_id = $extracted_table->insert_row($hit_ref);
-		
-		# Insert the data to the BLAST_chains table
-		my $blast_chains = $hit_ref->{blast_chains};
-		#$devtools->print_hash($blast_chains);
-
-		if ($blast_chains) {
-			
-			my @blast_ids = keys %$blast_chains;
-			#$devtools->print_array(\@blast_ids);exit;
-			foreach my $blast_id (@blast_ids) {			
-				
-				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{extract_id} = $extract_id;	
-				#$devtools->print_hash($data_ref); exit;
-				$blast_chains_table->insert_row($data_ref);
-			}
-		}
-
-		# Delete superfluous data from the
-		my $extract_ids_ref = $hit_ref->{extract_ids};
-		foreach my $old_extract_id (@$extract_ids_ref) {			
-			
-			# Delete superfluous extract rows
-			my $extracted_where = " WHERE Record_ID = $old_extract_id ";	
-			$extracted_table->delete_rows($extracted_where);
-			
-			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
-			my %new_id;
-			$new_id{extract_id} = $extract_id;	
-			$blast_chains_table->update(\%new_id, $chains_where);
-			#$devtools->print_hash($data_ref); exit;
-		
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_progress
-# Description: show progress in DIGS screening
-#***************************************************************************
-sub show_progress {
-
-	my ($self) = @_;
-
-	# Get the counts
-	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{completed};	
-	unless ($completed and $total_queries) { die; } # Sanity checking
-	
-	# Calculate percentage progress
-	my $percent_prog    = ($completed / $total_queries) * 100;
-	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
-	print "\n\t\t  %$f_percent_prog completed";
-}
-
 
 ############################################################################
 # DEFRAGMENTING - comparing and merging overlapping/adjacent hits
@@ -1555,7 +1546,6 @@ sub write_matrix {
 	#$devtools->print_hash($matrix_ref);
 }
 
-
 ############################################################################
 # INTERACTING WITH SCREENING DB TABLES
 ############################################################################
@@ -1746,7 +1736,6 @@ sub get_sorted_loci {
 	$blast_results_table->select_rows(\@blast_fields, $data_ref, $blast_where);
 
 }
-
 
 ############################################################################
 # SHOWING PROGRAM TITLE INFORMATION & HELP MENU
