@@ -97,7 +97,7 @@ sub run_digs_process {
 	}
 	
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 8) {
+	if ( $option > 1 and $option < 9 ) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -106,7 +106,7 @@ sub run_digs_process {
 	}
 	
 	# Hand off to functions 
-	if ($option eq 1)    { # Create a screening DB 
+	if ($option eq 1)    { # Create a screening DB
 		$self->create_screening_db($ctl_file);
 	}
 	elsif ($option eq 2) { # Screen;
@@ -135,6 +135,9 @@ sub run_digs_process {
 		$self->extend_screening_db();
 	}
 	elsif ($option eq 8) { # Add a table of data to the screening database
+		$self->show_blast_chains();
+	}
+	elsif ($option eq 9) { # Add a table of data to the screening database
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
@@ -1606,6 +1609,55 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
+# Subroutine:  show_blast_chains
+# Description: Show BLAST chains for all extracted sequences
+#***************************************************************************
+sub show_blast_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	unless ($db) { die; } # Sanity checking
+	my $extracted_table    = $db->{extracted_table}; 
+	my $blast_chains_table = $db->{blast_chains_table};
+	my $extract_where = " ORDER BY Record_ID ";
+	my @extracted_ids;
+	my @fields = qw [ record_id assigned_name assigned_gene ];
+	$extracted_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
+	foreach my $hit_ref (@extracted_ids) {
+		my $extract_id = $hit_ref->{record_id};
+		my @chain;
+		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
+		my @chain_fields = qw [ record_id probe_name probe_gene 
+		                        bit_score identity hit_length
+		                        organism target_name scaffold 
+		                        subject_start subject_end ];
+		my $blast_where  = " WHERE Extract_ID = $extract_id ";
+		   $blast_where .= " ORDER BY subject_start";
+		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
+		print "\n\t ### BLAST hit chain for extracted locus $extract_id";
+		print " ($assigned_name, $assigned_gene):";
+		foreach my $hit_ref (@chain) {
+			my $blast_id    = $hit_ref->{record_id};
+			my $probe_name  = $hit_ref->{probe_name};
+			my $probe_gene  = $hit_ref->{probe_gene};
+			my $identity    = $hit_ref->{identity};
+			my $f_identity  = sprintf("%.2f", $identity);
+			my $hit_length  = $hit_ref->{hit_length};
+			my $bit_score   = $hit_ref->{bit_score};
+			my $organism    = $hit_ref->{organism};
+			my $scaffold    = $hit_ref->{scaffold};
+			my $start       = $hit_ref->{subject_start};
+			my $end         = $hit_ref->{subject_end};
+			print "\n\t\t $blast_id:\t Score: $bit_score, \%$f_identity identity ";
+			print "across $hit_length aa ($start-$end) to:\t $probe_name ($probe_gene) ";
+		}
+	}
+}
+
+#***************************************************************************
 # Subroutine:  get sorted loci 
 # Description: Get the ordered hits from the Extracted table
 #***************************************************************************
@@ -1738,7 +1790,8 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=5  Flush screening DB"; 
 		$HELP  .= "\n\t -m=6  Drop screening DB"; 
 		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
-		$HELP  .= "\n\t -m=8  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=8  Show BLAST chains"; 
+		$HELP  .= "\n\t -m=9  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)";
