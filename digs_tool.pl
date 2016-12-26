@@ -116,7 +116,6 @@ sub main {
 	# Options that don't require a value
 	my $help     = undef;
 	my $version  = undef;
-	my $test     = undef;
 	my $analysis = undef;
 
 	# Read in options using GetOpt::Long
@@ -125,7 +124,6 @@ sub main {
 			    
 			    'infile|i=s'      => \$infile,
 			    
-			    'test'            => \$test,
 			    'analysis=i'      => \$analysis,
 
 			    'help'            => \$help,
@@ -146,9 +144,6 @@ sub main {
 	}
 	elsif ($utility) { # Utility functions
 		$digs_tool_obj->run_utility_process($utility, $infile); 
-	}
-	elsif ($test) { # Tests
-		#$digs_tool_obj->run_digs_test($test, $infile); 
 	}
 	elsif ($analysis) { # Analysis
 		my $digs_analyser = Deeper->new(\%params);
