@@ -68,7 +68,12 @@ sub insert_row {
 	foreach my $field (@fields) {
 
 		my $value = $data_ref->{$field};
+		unless ($value) {
+			#print "\n\t WARNING: NO VALUE FOR FIELD '$field' in table $self->{name}";
+			$value = '0';
+		}
 		chomp $value;        # remove newline
+		
 		$value =~ s/\s+$//;  # remove trailing whitespace
 		my $type  = $field_ref->{$field};
 		

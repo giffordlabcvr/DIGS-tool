@@ -241,19 +241,19 @@ sub convert_evalue {
 
 	my ($self, $e_value, $data_ref) = @_;
 	
-	my $e_value_num = 0;
-	my $e_value_exp = 0;
+	my $evalue_num = 0;
+	my $evalue_exp = 0;
 	if ($e_value =~ /e/) {
-		my @e_value_bits = split ("e-", $e_value);
-		$e_value_num = $e_value_bits[0];
-		$e_value_exp = $e_value_bits[1];
+		my @evalue_bits = split ("e-", $e_value);
+		$evalue_num = $evalue_bits[0];
+		$evalue_exp = $evalue_bits[1];
 	}
 	else {
-		$e_value_num = $e_value;
-		$e_value_exp = 1;
+		$evalue_num = $e_value;
+		$evalue_exp = 1;
 	}
-	$data_ref->{e_value_num} = $e_value_num;
-	$data_ref->{e_value_exp} = $e_value_exp;
+	$data_ref->{evalue_num} = $evalue_num;
+	$data_ref->{evalue_exp} = $evalue_exp;
 }	
 
 ############################################################################

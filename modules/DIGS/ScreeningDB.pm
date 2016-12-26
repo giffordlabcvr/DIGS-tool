@@ -63,8 +63,8 @@ sub new {
 		
 		# Screening database core tables
 		searches_table        => 0,
-		blast_results_table   => 0,
-		extracted_table       => 0,
+		active_set_table   => 0,
+		digs_results_table       => 0,
 		blast_chains_table    => 0,	
 	};
 	
@@ -106,8 +106,8 @@ sub load_screening_db {
 	# Main Screening DB tables
 	print   "\t  Connecting to DB:  $db_name";
 	$self->load_searches_table($dbh);	
-	$self->load_blast_results_table($dbh);	
-	$self->load_extracted_table($dbh);	
+	$self->load_active_set_table($dbh);	
+	$self->load_digs_results_table($dbh);	
 	$self->load_blast_chains_table($dbh);	
 
 }
@@ -118,7 +118,7 @@ sub load_screening_db {
 
 #***************************************************************************
 # Subroutine:  load_searches_table
-# Description: load screening database table 'Searches_performed'
+# Description: load screening database table 'searches_performed'
 #***************************************************************************
 sub load_searches_table {
 
@@ -126,36 +126,36 @@ sub load_searches_table {
 
 	# Definition of the table
 	my %searches_fields = (
-		probe_id       => 'varchar',
-		probe_name     => 'varchar',
-		probe_gene     => 'varchar',
-		genome_id      => 'varchar',
-		organism       => 'varchar',
-		data_type      => 'varchar',
-		version        => 'varchar',
-		target_name    => 'varchar',
+		probe_id         => 'varchar',
+		probe_name       => 'varchar',
+		probe_gene       => 'varchar',
+		genome_id        => 'varchar',
+		target_organism  => 'varchar',
+		target_datatype  => 'varchar',
+		target_version   => 'varchar',
+		target_name      => 'varchar',
 	);
-	my $searches_table = MySQLtable->new('Searches_performed', $dbh, \%searches_fields);
+	my $searches_table = MySQLtable->new('searches_performed', $dbh, \%searches_fields);
 	$self->{searches_table} = $searches_table;
 }
 
 #***************************************************************************
-# Subroutine:  load_blast_results_table
-# Description: load screening database table 'BLAST_results'
+# Subroutine:  load_active_set_table
+# Description: load screening database table 'active_set'
 #***************************************************************************
-sub load_blast_results_table {
+sub load_active_set_table {
 
 	my ($self, $dbh) = @_;
 	
 	# Definition of the table
-	my %blast_fields = (
+	my %active_set_fields = (
 		extract_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
-		organism         => 'varchar',
-		data_type        => 'varchar',
-		version          => 'varchar',
+		target_organism  => 'varchar',
+		target_datatype  => 'varchar',
+		target_version   => 'varchar',
 		target_name      => 'varchar',
 		scaffold         => 'varchar',
 		orientation      => 'varchar',
@@ -163,11 +163,11 @@ sub load_blast_results_table {
 		subject_end      => 'int',
 		query_start      => 'int',
 		query_end        => 'int',
-		hit_length       => 'int',
+		align_len        => 'int',
 		bitscore         => 'float',
 		identity         => 'varchar',
-		e_value_num      => 'float',
-		e_value_exp      => 'int',
+		evalue_num       => 'float',
+		evalue_exp       => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
 		query_start      => 'int',
@@ -175,23 +175,23 @@ sub load_blast_results_table {
 		gap_openings     => 'int',
 		mismatches       => 'int',
 	);
-	my $blast_table = MySQLtable->new('BLAST_results', $dbh, \%blast_fields);
-	$self->{blast_results_table} = $blast_table;
+	my $blast_table = MySQLtable->new('active_set', $dbh, \%active_set_fields);
+	$self->{active_set_table} = $blast_table;
 }
 
 #***************************************************************************
-# Subroutine:  load_extracted_table
-# Description: load screening database table 'Extracted_sequences'
+# Subroutine:  load_digs_results_table
+# Description: load screening database table 'digs_results'
 #***************************************************************************
-sub load_extracted_table {
+sub load_digs_results_table {
 
 	my ($self, $dbh) = @_;
 
 	# Definition of the table
-	my %extract_fields = (
+	my %digs_fields = (
 		organism         => 'varchar',
-		version          => 'varchar',
-		data_type        => 'varchar',
+		target_version   => 'varchar',
+		target_datatype  => 'varchar',
 		target_name      => 'varchar',
 		probe_type       => 'varchar',
 		assigned_name    => 'varchar',
@@ -202,8 +202,8 @@ sub load_extracted_table {
 		orientation      => 'varchar',
 		bitscore         => 'float',
 		identity         => 'varchar',
-		e_value_num      => 'float',
-		e_value_exp      => 'int',
+		evalue_num       => 'float',
+		evalue_exp       => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
 		query_start      => 'int',
@@ -214,13 +214,13 @@ sub load_extracted_table {
 		sequence_length  => 'int',
 		sequence         => 'text',
 	);
-	my $extract_table = MySQLtable->new('Extracted_sequences', $dbh, \%extract_fields);
-	$self->{extracted_table} = $extract_table;
+	my $digs_table = MySQLtable->new('digs_results', $dbh, \%digs_fields);
+	$self->{digs_results_table} = $digs_table;
 }
 
 #***************************************************************************
 # Subroutine:  load_blast_chains_table
-# Description: load screening database table 'Extracted_sequences'
+# Description: load screening database table 'digs_results'
 #***************************************************************************
 sub load_blast_chains_table {
 
@@ -232,9 +232,9 @@ sub load_blast_chains_table {
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
-		organism         => 'varchar',
-		data_type        => 'varchar',
-		version          => 'varchar',
+		target_organism  => 'varchar',
+		target_datatype  => 'varchar',
+		target_version   => 'varchar',
 		target_name      => 'varchar',
 		scaffold         => 'varchar',
 		orientation      => 'varchar',
@@ -242,11 +242,11 @@ sub load_blast_chains_table {
 		subject_end      => 'int',
 		query_start      => 'int',
 		query_end        => 'int',
-		hit_length       => 'int',
+		align_len       => 'int',
 		bitscore         => 'float',
 		identity         => 'varchar',
-		e_value_num      => 'float',
-		e_value_exp      => 'int',
+		evalue_num      => 'float',
+		evalue_exp      => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
 		query_start      => 'int',
@@ -255,7 +255,7 @@ sub load_blast_chains_table {
 		mismatches       => 'int',
 
 	);
-	my $extract_table = MySQLtable->new('BLAST_chains', $dbh, \%extract_fields);
+	my $extract_table = MySQLtable->new('blast_chains', $dbh, \%extract_fields);
 	$self->{blast_chains_table} = $extract_table;
 }
 
@@ -285,31 +285,32 @@ sub create_screening_db {
 		die "\n\t # Couldn't create screening database '$db_name'\n\n";
 	}	
 	$self->create_searches_table($dbh);
-	$self->create_blast_results_table($dbh);
-	$self->create_extracted_table($dbh);
+	$self->create_active_set_table($dbh);
+	$self->create_digs_results_table($dbh);
 	$self->create_blast_chains_table($dbh);
 }
 
 #***************************************************************************
 # Subroutine:  create_searches_table
-# Description: create MySQL 'Searches_performed' table
+# Description: create MySQL 'searches_performed' table
 #***************************************************************************
 sub create_searches_table {
 
 	my ($self, $dbh) = @_;
 
-	# Searches_performed table (which BLAST queries have been executed)
-	my $searches = "CREATE TABLE `Searches_performed` (
-	  `Record_ID`   int(11) NOT NULL auto_increment,
-	  `Probe_ID`    varchar(100) NOT NULL default '',
-	  `Probe_name`  varchar(100) NOT NULL default '',
-	  `Probe_gene`  varchar(100) NOT NULL default '',
-	  `Genome_ID`   varchar(100) NOT NULL default '',
-	  `Organism`    varchar(100) NOT NULL default '',
-	  `Data_type`   varchar(100) NOT NULL default '',
-	  `Version`     varchar(100) NOT NULL default '',
-	  `Target_name` varchar(100) NOT NULL default '',
-	  `Timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	# searches_performed table (which BLAST queries have been executed)
+	my $searches = "CREATE TABLE `searches_performed` (
+	  `record_ID`        int(11) NOT NULL auto_increment,
+	  `probe_ID`         varchar(100) NOT NULL default '',
+	  `probe_name`       varchar(100) NOT NULL default '',
+	  `probe_gene`       varchar(100) NOT NULL default '',
+	  `genome_ID`        varchar(100) NOT NULL default '',
+	  `target_organism`  varchar(100) NOT NULL default '0',
+	  `target_datatype`  varchar(100) NOT NULL default '0',
+	  `target_version`   varchar(100) NOT NULL default '0',
+	  `target_name`      varchar(100) NOT NULL default '0',
+	  `timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP 
+	                on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
 	my $sth = $dbh->prepare($searches);
@@ -317,86 +318,85 @@ sub create_searches_table {
 }
 
 #***************************************************************************
-# Subroutine:  create_blast_results_table
-# Description: create MySQL 'BLAST_results' table
+# Subroutine:  create_active_set_table
+# Description: create MySQL 'active_set' table
 #***************************************************************************
-sub create_blast_results_table {
+sub create_active_set_table {
 
 	my ($self, $dbh) = @_;
 
-	# BLAST results table 
-	my $blast_results = "CREATE TABLE `BLAST_results` (
-	  `Record_ID`     int(11) NOT NULL auto_increment,
-	  `Extract_ID`    int(11) default '0',
+	# Active result set table 
+	my $active_set = "CREATE TABLE `active_set` (
+	  `record_ID`       int(11) NOT NULL auto_increment,
+	  `extract_ID`      int(11) default '0',
 
-	  `Probe_name`    varchar(100) NOT NULL default '0',
-	  `Probe_gene`    varchar(100) NOT NULL default '0',
-	  `Probe_type`    varchar(100) NOT NULL default '0',
-	  `Organism`      varchar(100) NOT NULL default '0',
-	  `Data_type`     varchar(100) NOT NULL default '0',
-	  `Version`       varchar(100) NOT NULL default '0',
-	  `Target_name`   varchar(100) NOT NULL default '0',
+	  `probe_name`       varchar(100) NOT NULL default '0',
+	  `probe_gene`       varchar(100) NOT NULL default '0',
+	  `probe_type`       varchar(100) NOT NULL default '0',
+	  `target_organism`  varchar(100) NOT NULL default '0',
+	  `target_datatype`  varchar(100) NOT NULL default '0',
+	  `target_version`   varchar(100) NOT NULL default '0',
+	  `target_name`      varchar(100) NOT NULL default '0',
 
-	  `Scaffold`      varchar(100) NOT NULL default '0',
-	  `Orientation`   varchar(100) NOT NULL default '0',
-	  `Subject_start` int(11) NOT NULL default '0',
-	  `Subject_end`   int(11) NOT NULL default '0',
-	  `Query_start`   int(11) NOT NULL default '0',
-	  `Query_end`     int(11) NOT NULL default '0',
-	  `Hit_length`    int(11) NOT NULL default '0',
+	  `scaffold`         varchar(100) NOT NULL default '0',
+	  `orientation`      varchar(100) NOT NULL default '0',
+	  `subject_start`    int(11) NOT NULL default '0',
+	  `subject_end`      int(11) NOT NULL default '0',
+	  `query_start`      int(11) NOT NULL default '0',
+	  `query_end`        int(11) NOT NULL default '0',
+	  `align_len`       int(11) NOT NULL default '0',
 
-	  `Bitscore`         float   NOT NULL default '0',
-	  `Identity`         float   NOT NULL default '0',
-	  `e_value_num`      float   NOT NULL default '0',
-	  `e_value_exp`      int(11) NOT NULL default '0',
-	  `Gap_openings`     int(11) NOT NULL default '0',
-	  `Mismatches`       int(11) NOT NULL default '0',
+	  `bitscore`         float   NOT NULL default '0',
+	  `identity`         float   NOT NULL default '0',
+	  `evalue_num`       float   NOT NULL default '0',
+	  `evalue_exp`       int(11) NOT NULL default '0',
+	  `gap_openings`     int(11) NOT NULL default '0',
+	  `mismatches`       int(11) NOT NULL default '0',
 
-	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
-	my $sth = $dbh->prepare($blast_results);
-	unless ($sth->execute()) { print "\n\t$blast_results\n\n\n"; exit;}
+	my $sth = $dbh->prepare($active_set);
+	unless ($sth->execute()) { print "\n\t$active_set\n\n\n"; exit;}
 }
 
 #***************************************************************************
-# Subroutine:  create_extracted_table
-# Description: create MySQL 'Extracted_sequences' table
+# Subroutine:  create_digs_results_table
+# Description: create MySQL 'digs_results' table
 #***************************************************************************
-sub create_extracted_table {
+sub create_digs_results_table {
 
 	my ($self, $dbh) = @_;
 
-	# Extracted_sequences sequences table 
-	my $extracted = "CREATE TABLE `Extracted_sequences` (
-	  `Record_ID`        int(11) NOT NULL auto_increment,
+	# digs_results table 
+	my $extracted = "CREATE TABLE `digs_results` (
+	  `record_ID`        int(11) NOT NULL auto_increment,
+	  `organism`         varchar(100) NOT NULL default '0',
+	  `target_datatype`  varchar(100) NOT NULL default '0',
+	  `target_version`   varchar(100) NOT NULL default '0',
+	  `target_name`      varchar(100) NOT NULL default '0',
+	  `probe_type`       varchar(100) NOT NULL default '0',
+	  `scaffold`         varchar(100) NOT NULL default '0',
+	  `extract_start`    int(11) NOT NULL default '0',
+	  `extract_end`      int(11) NOT NULL default '0',
+	  `sequence_length`  int(11) NOT NULL default '0',
+	  `sequence`         text NOT NULL,
+	  `assigned_name`    varchar(100) NOT NULL default '0',
+	  `assigned_gene`    varchar(100) NOT NULL default '0',
+	  `orientation`      varchar(100) NOT NULL default '0',
+	  `bitscore`         float   NOT NULL default '0',
+	  `identity`         float   NOT NULL default '0',
+	  `evalue_num`       float   NOT NULL default '0',
+	  `evalue_exp`       int(11) NOT NULL default '0',
+	  `subject_start`    int(11) NOT NULL default '0',
+	  `subject_end`      int(11) NOT NULL default '0',
+	  `query_start`      int(11) NOT NULL default '0',
+	  `query_end`        int(11) NOT NULL default '0',
+	  `align_len`        int(11) NOT NULL default '0',
+	  `gap_openings`     int(11) NOT NULL default '0',
+	  `mismatches`       int(11) NOT NULL default '0',
 
-	  `Organism`         varchar(100) NOT NULL default '0',
-	  `Data_type`        varchar(100) NOT NULL default '0',
-	  `Version`          varchar(100) NOT NULL default '0',
-	  `Target_name`      varchar(100) NOT NULL default '0',
-	  `Probe_type`       varchar(100) NOT NULL default '0',
-	  `Scaffold`         varchar(100) NOT NULL default '0',
-	  `Extract_start`    int(11) NOT NULL default '0',
-	  `Extract_end`      int(11) NOT NULL default '0',
-	  `Sequence_length`  int(11) NOT NULL default '0',
-	  `Sequence`         text NOT NULL,
-	  `Assigned_name`    varchar(100) NOT NULL default '0',
-	  `Assigned_gene`    varchar(100) NOT NULL default '0',
-	  `Orientation`      varchar(100) NOT NULL default '0',
-	  `Bitscore`        float   NOT NULL default '0',
-	  `Identity`         float   NOT NULL default '0',
-	  `e_value_num`      float   NOT NULL default '0',
-	  `e_value_exp`      int(11) NOT NULL default '0',
-	  `Subject_start`    int(11) NOT NULL default '0',
-	  `Subject_end`      int(11) NOT NULL default '0',
-	  `Query_start`      int(11) NOT NULL default '0',
-	  `Query_end`        int(11) NOT NULL default '0',
-	  `Align_len`        int(11) NOT NULL default '0',
-	  `Gap_openings`     int(11) NOT NULL default '0',
-	  `Mismatches`       int(11) NOT NULL default '0',
-
-	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($extracted);
@@ -405,41 +405,41 @@ sub create_extracted_table {
 
 #***************************************************************************
 # Subroutine:  create_blast_chains_table
-# Description: create MySQL 'BLAST_results' table
+# Description: create MySQL 'active_set' table
 #***************************************************************************
 sub create_blast_chains_table {
 
 	my ($self, $dbh) = @_;
 
-	# BLAST results table 
-	my $blast_chains = "CREATE TABLE `BLAST_chains` (
-	  `Record_ID`     int(11) NOT NULL auto_increment,
-	  `Extract_ID`    int(11) NOT NULL default '0',
+	# Active result set table 
+	my $blast_chains = "CREATE TABLE `blast_chains` (
+	  `record_ID`       int(11) NOT NULL auto_increment,
+	  `extract_ID`      int(11) NOT NULL default '0',
 
-	  `Probe_name`    varchar(100) NOT NULL default '0',
-	  `Probe_gene`    varchar(100) NOT NULL default '0',
-	  `Probe_type`    varchar(100) NOT NULL default '0',
-	  `Organism`      varchar(100) NOT NULL default '0',
-	  `Data_type`     varchar(100) NOT NULL default '0',
-	  `Version`       varchar(100) NOT NULL default '0',
-	  `Target_name`   varchar(100) NOT NULL default '0',
+	  `probe_name`      varchar(100) NOT NULL default '0',
+	  `probe_gene`      varchar(100) NOT NULL default '0',
+	  `probe_type`      varchar(100) NOT NULL default '0',
+	  `target_organism` varchar(100) NOT NULL default '0',
+	  `target_datatype` varchar(100) NOT NULL default '0',
+	  `target_version`  varchar(100) NOT NULL default '0',
+	  `target_name`     varchar(100) NOT NULL default '0',
 
-	  `Scaffold`      varchar(100) default 'NULL',
-	  `Orientation`   varchar(100) NOT NULL default '0',
-	  `Subject_start` int(11) NOT NULL default '0',
-	  `Subject_end`   int(11) NOT NULL default '0',
-	  `Query_start`   int(11) NOT NULL default '0',
-	  `Query_end`     int(11) NOT NULL default '0',
-	  `Hit_length`    int(11) NOT NULL default '0',
+	  `scaffold`        varchar(100) default 'NULL',
+	  `orientation`     varchar(100) NOT NULL default '0',
+	  `subject_start`   int(11) NOT NULL default '0',
+	  `subject_end`     int(11) NOT NULL default '0',
+	  `query_start`     int(11) NOT NULL default '0',
+	  `query_end`       int(11) NOT NULL default '0',
+	  `align_len`      int(11) NOT NULL default '0',
 
-	  `Bitscore`        float   NOT NULL default '0',
-	  `Identity`         float   NOT NULL default '0',
-	  `e_value_num`      float   NOT NULL default '0',
-	  `e_value_exp`      int(11) NOT NULL default '0',
-	  `Gap_openings`     int(11) NOT NULL default '0',
-	  `Mismatches`       int(11) NOT NULL default '0',
+	  `bitscore`        float   NOT NULL default '0',
+	  `identity`        float   NOT NULL default '0',
+	  `evalue_num`      float   NOT NULL default '0',
+	  `evalue_exp`      int(11) NOT NULL default '0',
+	  `gap_openings`    int(11) NOT NULL default '0',
+	  `mismatches`      int(11) NOT NULL default '0',
 
-	  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($blast_chains);
@@ -495,16 +495,16 @@ sub flush_screening_db {
 		#sleep 3;
 
 		# get tables
-		my $blast_results_table  = $self->{blast_results_table};
-		my $extracted_table      = $self->{extracted_table};
+		my $active_set_table  = $self->{active_set_table};
+		my $digs_results_table      = $self->{digs_results_table};
 		my $searches_table       = $self->{searches_table};
 		my $blast_chains_table   = $self->{blast_chains_table};
 		
 		# Flush result tables
-		$blast_results_table->flush();
-		$blast_results_table->reset_primary_keys();
-		$extracted_table->flush();
-		$extracted_table->reset_primary_keys();
+		$active_set_table->flush();
+		$active_set_table->reset_primary_keys();
+		$digs_results_table->flush();
+		$digs_results_table->reset_primary_keys();
 		$searches_table->flush();
 		$searches_table->reset_primary_keys();
 		$blast_chains_table->flush();
@@ -552,7 +552,7 @@ sub create_ancillary_table {
 		$create_middle .= " `$field` $type, ";
 	}
 
-	my $create_tail = "`Timestamp` timestamp NOT NULL default
+	my $create_tail = "`timestamp` timestamp NOT NULL default
       CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
       PRIMARY KEY  (`Record_ID`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -572,6 +572,7 @@ sub get_ancillary_table_names {
 
 	my ($self, $anc_tables_ref) = @_;
 	
+	# Get DB object
 	my $dbh = $self->{dbh};
 	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
 	my $show = "SHOW TABLES ";
@@ -583,9 +584,9 @@ sub get_ancillary_table_names {
 		foreach my $item (@$row) {
 			chomp $item;
 			$i++;
-			if ($item eq 'Searches_performed')      { next; }
-			elsif ($item eq 'BLAST_results')        { next; }
-			elsif ($item eq 'Extracted_sequences')  { next; }
+			if ($item eq 'searches_performed')      { next; }
+			elsif ($item eq 'active_set')        { next; }
+			elsif ($item eq 'digs_results')  { next; }
 			else {
 				push (@$anc_tables_ref, $item)
 			}

@@ -465,7 +465,7 @@ sub read_genome_files {
 			$data{path}      = $path;
 			$data{organism}  = $organism;
 			$data{version}   = $version;
-			$data{data_type} = $type;
+			$data{datatype} = $type;
 			$data{group}     = $group;
 			$targets_ref->{$target_id} = \%data;	
 		}
@@ -503,6 +503,7 @@ sub set_queries {
 
 	my $outstanding;
 	foreach my $probe_ref (@$probes_ref) {
+	
 		my $blast_alg       = $probe_ref->{blast_alg};
 		my $probe_type      = $probe_ref->{probe_type};
 		my $probe_name      = $probe_ref->{probe_name};
@@ -523,19 +524,19 @@ sub set_queries {
 			# Get target data
 			my $target_ref   = $targets_ref->{$target_name};
 			my $organism     = $target_ref->{organism};
-			my $data_type    = $target_ref->{data_type};
+			my $datatype    = $target_ref->{datatype};
 			my $version      = $target_ref->{version};
 			my $target_path  = $target_ref->{path};
 			my $target_name  = $target_ref->{file};		
 		
 			# Sanity checking	
-			unless ( $organism and  $version and $data_type and
+			unless ( $organism and  $version and $datatype and
                      $target_name and $probe_name and $probe_gene ) {
 			 		die;
 			}
 			
 			# Create a unique key for this genome
-			my @genome = ( $organism , $data_type, $version );
+			my @genome = ( $organism , $datatype, $version );
 			my $genome_id = join ('|', @genome);
 
 			# Create a unique key for this query
@@ -548,15 +549,14 @@ sub set_queries {
 
 			# Else store the query
 			$outstanding++;
-			$probe_ref->{genome_id}   = $genome_id;		
-			$probe_ref->{organism}    = $organism;		
-			$probe_ref->{version}     = $version;
-			$probe_ref->{data_type}   = $data_type;		
-			$probe_ref->{target_name} = $target_name;		
-			$probe_ref->{target_path} = $target_ref->{path};;		
-
-			# Important - create a copy
 			my %query = %$probe_ref;
+			$query{genome_id}       = $genome_id;		
+			$query{target_organism} = $organism;		
+			$query{target_version}  = $version;
+			$query{target_datatype} = $datatype;		
+			$query{target_name}     = $target_name;		
+			$query{target_path}     = $target_ref->{path};;		
+
 			if ($queries_ref->{$probe_name}) {
 				my $probe_query_ref = $queries_ref->{$probe_name};
 				push(@$probe_query_ref, \%query);

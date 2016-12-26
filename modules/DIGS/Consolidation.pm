@@ -101,16 +101,16 @@ sub consolidate {
 	my $genome_struc 	 = $self->{genome_structure};
 	unless ($db_name)          { die; }
 	unless ($length_threshold) { die; }
-	unless ($bitscore)        { die; }
+	unless ($bitscore)         { die; }
 	unless ($genome_struc)     { die; }
 
-	my $e_value_exp = 4;
+	my $evalue_exp = 4;
 	my %feature_structure;
 	$self->make_feature_structure_hash($genome_struc, \%feature_structure);
 	#$devtools->print_hash(\%feature_structure); #die;
 
 	my @data_ref;
-	$self->load_extract_data($e_value_exp, $bitscore, $db_name, \@data_ref, $scaffold, $orientation, $fam);
+	$self->load_extract_data($evalue_exp, $bitscore, $db_name, \@data_ref, $scaffold, $orientation, $fam);
 	my @organism_array = split(/\//,$scaffold);
 	my @scaffold_array = split(/\^/,$organism_array[3]);
 	my $head_scaff	=	$scaffold_array[1];
@@ -274,7 +274,7 @@ sub make_feature_structure_hash {
 #***************************************************************************
 sub load_extract_data {
 	
-	my ($self, $e_value_exp, $bitscore, $db_name, $data_ref, $scaffold, $orientation, $fam) = @_;
+	my ($self, $evalue_exp, $bitscore, $db_name, $data_ref, $scaffold, $orientation, $fam) = @_;
 
 	# Connect to DB
 	my $data_source = '';
@@ -307,9 +307,9 @@ sub load_extract_data {
 	if($fam){
 		$query .= " AND Assigned_name = '$fam'";
 	}
-	#AND (e_value_exp >= 100 OR e_value_exp = 1)
+	#AND (evalue_exp >= 100 OR evalue_exp = 1)
 	#AND Assigned_name = '$fam'
-	#AND (e_value_exp >= $e_value_exp OR e_value_exp = 1)" ;
+	#AND (evalue_exp >= $evalue_exp OR evalue_exp = 1)" ;
 	#AND Bit_score > $bitscore
 	# INCORPRATE PARAMETERS FOR THIS SEARCH INTO QUERY
 	if ($orientation eq '+') {
