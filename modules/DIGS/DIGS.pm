@@ -257,7 +257,7 @@ sub set_up_digs {
 	# Flush active set
 	my $db  = $self->{db};
 	my $active_set_table = $db->{active_set_table};
-	print "\n\t\t # Flushing 'active_set' table";
+	print "\n\t  Flushing 'active_set' table\n";
 	$active_set_table->flush();
 	
 	# Index previously executed searches
