@@ -133,12 +133,15 @@ sub run_digs_process {
 	elsif ($option eq 7) { # Add a table of data to the screening database
 		$self->extend_screening_db();
 	}
-	elsif ($option eq 8) { # Add a table of data to the screening database
+	elsif ($option eq 8) { # Show the BLAST chains for each extracted locus
 		$self->show_blast_chains();
 	}
-	elsif ($option eq 9) { # Add a table of data to the screening database
+	elsif ($option eq 9) { # Check the target genomes are formatted for BLAST
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
+	}
+	elsif ($option eq 8) { # Consolidate DIGS results into higher level loci 
+		$self->consolidate_loci();
 	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
@@ -664,6 +667,17 @@ sub extend_screening_db {
 		}
 		$anc_table->insert_row(\%insert);
 	}
+}
+
+#***************************************************************************
+# Subroutine:  consolidate_loci
+# Description: 
+#***************************************************************************
+sub consolidate_loci {
+
+	my ($self) = @_;
+
+
 }
 
 ############################################################################
