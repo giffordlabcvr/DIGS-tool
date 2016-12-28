@@ -1100,8 +1100,8 @@ sub extract_locus_sequences {
 	my ($self, $defragmented_ref, $extracted_ref) = @_;
 
 	# Get screening database table objects
-	my $db_ref              = $self->{db};
-	my $searches_table      = $db_ref->{searches_table};
+	my $db_ref           = $self->{db};
+	my $searches_table   = $db_ref->{searches_table};
 	my $active_set_table = $db_ref->{active_set_table};	
 
 	my $extend_count = '0';
@@ -1127,17 +1127,17 @@ sub extract_locus_sequences {
 		my $probe_type;
 		foreach my $hit_ref (@$cluster_ref) {
 					
-			my $record_id  = $hit_ref->{record_id};					
-			my $extract_id = $hit_ref->{extract_id};					
-			my $start      = $hit_ref->{subject_start};			
-			my $end        = $hit_ref->{subject_end};
-			$target_name   = $hit_ref->{target_name};					
+			my $record_id    = $hit_ref->{record_id};					
+			my $extract_id   = $hit_ref->{extract_id};					
+			my $start        = $hit_ref->{subject_start};			
+			my $end          = $hit_ref->{subject_end};
+			$target_name     = $hit_ref->{target_name};					
 			$target_datatype = $hit_ref->{target_datatype};			
-			$version       = $hit_ref->{target_version};
-			$scaffold      = $hit_ref->{scaffold};			
-			$orientation   = $hit_ref->{orientation};
-			$organism      = $hit_ref->{target_organism};
-			$probe_type    = $hit_ref->{probe_type};
+			$version         = $hit_ref->{target_version};
+			$scaffold        = $hit_ref->{scaffold};			
+			$orientation     = $hit_ref->{orientation};
+			$organism        = $hit_ref->{target_organism};
+			$probe_type      = $hit_ref->{probe_type};
 						
 			# Check if this is a a previously extracted locus
 			if ($extract_id) {							

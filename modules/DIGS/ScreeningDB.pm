@@ -34,6 +34,7 @@ use Interface::MySQLtable;
 # Create base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
+my $devtools  = DevTools->new();
 1;
 
 ############################################################################
@@ -619,8 +620,6 @@ sub translate_schema {
 
 	my ($self) = @_;
 
-	my ($self) = @_;
-
 	# Get connection variables from self
 	my $server   = $self->{server};
 	my $username = $self->{username};
@@ -630,27 +629,51 @@ sub translate_schema {
 	# Get database handle
 	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
 	unless ($dbh) {	die "\n\t # Couldn't connect to $db_name database\n\n"; }
-	die;
 
 	# Create new tables
-	$self->create_searches_table($dbh);
-	$self->create_active_set_table($dbh);
-	$self->create_digs_results_table($dbh);
-	$self->create_blast_chains_table($dbh);
-
-	# Drop 'BLAST_results'
-	my $drop = "DROP table 'BLAST_results' ";
-	my $sth = $dbh->prepare($drop);
-    #unless ($sth->execute()) { print $drop; exit;}	
+	#$self->create_searches_table($dbh);
+	#$self->create_active_set_table($dbh);
+	#$self->create_digs_results_table($dbh);
+	#$self->create_blast_chains_table($dbh);
 	
 	# Translate 'Extracted' to 'digs_results'
 	$self->load_extracted_table($dbh);
+	my $extracted_table    = $self->{extracted_table};
+	my $digs_results_table = $self->{digs_results_table};
+	$digs_results_table->flush();
+	my @extracted_rows;
+	my @fields = qw [ organism version data_type target_name probe_type 
+	                  assigned_name assigned_gene scaffold 
+	                  extract_start extract_end orientation 
+	                  bit_score e_value_num e_value_exp align_len 
+	                  gap_openings mismatches sequence_length sequence ];
+	$extracted_table->select_rows(\@fields, \@extracted_rows);
+
+	foreach my $row_ref (@extracted_rows) {	
+		$row_ref->{target_version}  = $row_ref->{version};
+		$row_ref->{target_datatype} = $row_ref->{data_type};
+		$row_ref->{bitscore}        = $row_ref->{bit_score};
+		$row_ref->{evalue_num}      = $row_ref->{e_value_num};
+		$row_ref->{evalue_exp}      = $row_ref->{e_value_exp};
+		$digs_results_table->insert_row($row_ref);
+	}
 
 	# Translate 'Status' to 'searches_performed'
-
-
+	$self->load_status_table($dbh);
+	my $status_table   = $self->{status_table};
+	my $searches_table = $self->{searches_table};
+	$searches_table->flush();
+	my @status_rows;
+	my @fields = qw [ probe_id probe_name probe_gene 
+	                  genome_id organism data_type version target_name ];
+	$status_table->select_rows(\@fields, \@status_rows);
+	foreach my $row_ref (@status_rows) {
+	
+		$row_ref->{target_version}  = $row_ref->{version};
+		$row_ref->{target_datatype} = $row_ref->{data_type};
+		$searches_table->insert_row($row_ref);
+	}
 }
-
 
 #***************************************************************************
 # Subroutine:  load_extracted_table
@@ -692,6 +715,28 @@ sub load_extracted_table {
 	$self->{extracted_table} = $extract_table;
 }
 
+#***************************************************************************
+# Subroutine:  load_status_table
+# Description: load screening database table 'Status'
+#***************************************************************************
+sub load_status_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %status_fields = (
+		probe_id       => 'varchar',
+		probe_name     => 'varchar',
+		probe_gene     => 'varchar',
+		genome_id      => 'varchar',
+		organism       => 'varchar',
+		data_type      => 'varchar',
+		version        => 'varchar',
+		target_name    => 'varchar',
+	);
+	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
+	$self->{status_table} = $status_table;
+}
 
 ############################################################################
 # EOF
