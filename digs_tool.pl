@@ -1,8 +1,9 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Script:      digs_tool.pl 
-# Description: control script for database-integrated genome screening (DIGS)
-# History:     Version 1.1
+# Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
+# Description: A tool for exploring genomes 'in silico' using BLAST and 
+#              a relational database
+# History:     Version 1.12 December 2016
 ############################################################################
 
 # Check the required environment variable are defined
