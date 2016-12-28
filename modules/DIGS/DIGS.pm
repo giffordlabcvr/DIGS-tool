@@ -361,15 +361,16 @@ sub interactive_defragment {
 
 		my $question1 = "\n\n\t # Set the range for merging hits";
 		#my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
-		my $t_range = 500;
-		my $total_hits;
-		my $total_clusters;
+		my $t_range = 100;
+		my $total_hits = '0';
+		my $total_clusters = '0';
 		foreach my $target_ref (@targets) {
 
 			my $organism        = $target_ref->{organism};
 			my $target_name     = $target_ref->{target_name};
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
+			#$devtools->print_hash($target_ref);
 				
 			# Create the relevant set of previously extracted loci
 			my @loci;
@@ -384,29 +385,30 @@ sub interactive_defragment {
 		
 			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 			my %settings;
-			my %defragmented;
+			my %target_defragmented;
 			$settings{range} = $t_range;
 			$settings{start} = 'extract_start';
 			$settings{end}   = 'extract_end';
-			$self->compose_clusters(\%defragmented, \@loci, \%settings);
+			$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
 			
 			# Show clusters
-			my @cluster_ids  = keys %defragmented;
+			my @cluster_ids  = keys %target_defragmented;
 			my $num_clusters = scalar @cluster_ids;
-			print "\n\n\t\t $num_hits hits in target $target_name";
-			if ($num_hits > $num_clusters) {
-				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-				$self->show_clusters(\%defragmented);
+			if ($verbose) {
+				print "\n\n\t\t $num_hits hits in target $target_name";
+				if ($num_hits > $num_clusters) {
+					print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
+					$self->show_clusters(\%target_defragmented);
+				}
 			}
 			$total_hits = $total_hits + $num_hits;
 			$total_clusters = $total_clusters + $num_clusters;
-
 		}
 		
 		# Prompt for what to do next
-		print "\n\n\t";
-		print "\n\t\t TOTAL HITS:     $total_hits";
-		print "\n\t\t TOTAL CLUSTERS: $total_clusters ";
+		print "\n";
+		print "\n\t\t\t TOTAL HITS:     $total_hits";
+		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
 
 		print "\n\n\t\t Option 1: preview new parameters";
 		print "\n\t\t Option 2: apply these parameters";
@@ -416,9 +418,12 @@ sub interactive_defragment {
 
 	} until ($choice > 1);
 
-	if ($choice eq 2) {
-		# Apply the changes
-		$self->defragment(\%defragmented, 1);
+	if ($choice eq 2) { # Apply the changes
+		my @merged;
+		#$devtools->print_hash(\%defragmented); die;	
+		$self->merge_clustered_loci(\%defragmented, \@merged);
+		#$devtools->print_array(\@merged); die;	
+		$self->update_db(\@merged);
 	}
 	elsif ($choice eq 3) {
 		exit;
@@ -587,26 +592,26 @@ sub consolidate_loci {
 	my $total_hits = scalar @sorted;
 	#$devtools->print_array(\@sorted); #die; # Show clusters 	
 
-	# Set up for defragment
+	# Set up for consolidate
 	my %settings;
-	my %defragmented;
+	my %consolidated;
 	my $range = $self->{consolidate_range};
 	unless ($range) { die; }
 	$settings{range} = $range;
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	my @loci;
-	$self->compose_clusters(\%defragmented, \@loci, \%settings);
-	my @cluster_ids  = keys %defragmented;
+	$self->compose_clusters(\%consolidated, \@loci, \%settings);
+	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_hits > $num_clusters) {
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 	
 	# DEBUG 
-	$self->show_clusters(\%defragmented);  die; # Show clusters 	
+	$self->show_clusters(\%consolidated);  die; # Show clusters 	
 }
 
 ############################################################################
@@ -906,11 +911,11 @@ sub assign {
 
 #***************************************************************************
 # Subroutine:  update_db
-# Description: 
+# Description: update the screening DB based on a completed round of DIGS
 #***************************************************************************
 sub update_db {
 
-	my ($self, $query_ref, $extracted_ref) = @_;
+	my ($self, $extracted_ref) = @_;
 		
 	# Get parameters from self
 	my $db_ref = $self->{db};
@@ -918,7 +923,7 @@ sub update_db {
 	my $active_set_table = $db_ref->{active_set_table}; 
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
-	# Flush the BLAST table
+	# Flush the active set table
 	#print "\n # Flushing 'active_set' table";
 	$active_set_table->flush();
 
@@ -926,20 +931,17 @@ sub update_db {
 	foreach my $hit_ref (@$extracted_ref) {
 
 		# Insert the data to the Extracted_sequences table
-		#$devtools->print_hash($hit_ref); die;
 		$hit_ref->{organism} = $hit_ref->{target_organism}; # Translate field name
 		my $extract_id = $digs_results_table->insert_row($hit_ref);
+		#$devtools->print_hash($hit_ref); die;
 		
 		# Insert the data to the BLAST_chains table
 		my $blast_chains = $hit_ref->{blast_chains};
 		#$devtools->print_hash($blast_chains);
 
-		if ($blast_chains) {
-			
+		if ($blast_chains) {		
 			my @blast_ids = keys %$blast_chains;
-			#$devtools->print_array(\@blast_ids);exit;
-			foreach my $blast_id (@blast_ids) {			
-				
+			foreach my $blast_id (@blast_ids) {							
 				my $data_ref = $blast_chains->{$blast_id};
 				$data_ref->{extract_id} = $extract_id;	
 				#$devtools->print_hash($data_ref); exit;
@@ -954,13 +956,12 @@ sub update_db {
 			# Delete superfluous extract rows
 			my $extracted_where = " WHERE Record_ID = $old_extract_id ";	
 			$digs_results_table->delete_rows($extracted_where);
-			
+			# Update extract IDs			
 			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
 			my %new_id;
 			$new_id{extract_id} = $extract_id;	
 			$blast_chains_table->update(\%new_id, $chains_where);
-			#$devtools->print_hash($data_ref); exit;
-		
+			#$devtools->print_hash($data_ref); exit;	
 		}
 	}
 }
@@ -1100,7 +1101,7 @@ sub do_blast_genotyping {
 ###########################################################################	
 
 #***************************************************************************
-# Subroutine:  preview_defragment 
+# Subroutine:  compose_clusters 
 # Description:
 #***************************************************************************
 sub compose_clusters {
@@ -1113,7 +1114,6 @@ sub compose_clusters {
 	my $end_token   = $settings_ref->{end};
 	
 	# Iterate through consolidating as we go
-	my $i = 0;
 	my $j = 1;
 	my %last_hit;
 	my %name_counts;
@@ -1153,10 +1153,8 @@ sub compose_clusters {
 			
             my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
             if ($new) {
-                
                  # Increment the count
-                $j++;
-            
+                $j++;       
                 # Initialise record
                 $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
             }
@@ -1167,8 +1165,7 @@ sub compose_clusters {
         }
 		else {
 			#print "\n\t\t First record ($j)";
-            $initialised = 'true';
-            
+            $initialised = 'true';      
             # Initialise new Missillac record
             $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
 			#$devtools->print_hash($defragmented_ref); die;
@@ -1181,8 +1178,7 @@ sub compose_clusters {
 		$last_hit{orientation}   = $orientation;
 		$last_hit{$start_token}  = $start;
 		$last_hit{$end_token}    = $end;
-	}
-	
+	}	
 }
 
 #***************************************************************************
@@ -1294,6 +1290,8 @@ sub merge_clustered_loci {
 	
 	my ($self, $defragmented_ref, $to_extract_ref) = @_;
 
+	#$devtools->print_hash($defragmented_ref); die;
+
 	# Get screening database table objects
 	my $db_ref           = $self->{db};
 	my $searches_table   = $db_ref->{searches_table};
@@ -1306,7 +1304,7 @@ sub merge_clustered_loci {
 		# Get data for this cluster
 		my $cluster_ref = $defragmented_ref->{$cluster_id};
 		unless ($cluster_ref) { die; }
-
+		
 		# Determine what to extract for this cluster
 		my %new_blast_chains;
 		my %previous_extract_ids;
@@ -1314,7 +1312,7 @@ sub merge_clustered_loci {
 		my $lowest_start  = undef;
 		my $previous_extract_id = undef;
 		my $target_name;		
-		my $version;		
+		my $version;
 		my $target_datatype;		
 		my $scaffold;			
 		my $orientation;
@@ -1324,18 +1322,32 @@ sub merge_clustered_loci {
 					
 			my $record_id    = $hit_ref->{record_id};					
 			my $extract_id   = $hit_ref->{extract_id};					
-			my $start        = $hit_ref->{subject_start};			
-			my $end          = $hit_ref->{subject_end};
+			my $start        = $hit_ref->{extract_start};			
+			my $end          = $hit_ref->{extract_end};
+			unless ($start) {
+		        $start = $hit_ref->{subject_start};
+		    }
+			unless ($end) {
+		        $end   = $hit_ref->{subject_end};
+		    }
+
 			$target_name     = $hit_ref->{target_name};					
 			$target_datatype = $hit_ref->{target_datatype};			
 			$version         = $hit_ref->{target_version};
 			$scaffold        = $hit_ref->{scaffold};			
 			$orientation     = $hit_ref->{orientation};
 			$organism        = $hit_ref->{target_organism};
+			unless ($organism) {
+		        $organism = $hit_ref->{organism};
+		    }
 			$probe_type      = $hit_ref->{probe_type};
-						
+			#print "\n\t\t : $organism $target_name $scaffold $orientation $start";
+			unless ($target_name) {
+				$devtools->print_hash($hit_ref); die;
+			}
+							
 			# Check if this is a a previously extracted locus
-			if ($extract_id) {							
+			if ($extract_id) {
 				if ($previous_extract_id) { # If this represents a merge of multiple extracted loci, record the ids
 					unless ($extract_id eq $previous_extract_id) {
 					}
@@ -1424,7 +1436,7 @@ sub show_cluster {
 
 	my ($self, $hits_ref, $cluster_id) = @_;
 
-	print "\n";
+	#print "\n";
 	foreach my $hit_ref (@$hits_ref) {
    		
    		#$devtools->print_hash($hit_ref); die;	
@@ -1451,10 +1463,13 @@ sub show_cluster {
 
 		my $extract_id    = $hit_ref->{extract_id};
 
-		print "\n\t\t CLUSTER $cluster_id $organism: ";
-		print "$assigned_name: $assigned_gene: $scaffold $start-$end";
-		if ($extract_id) {
-			print " (extract ID: $extract_id)";				
+		# Show output if verbose flag is set
+		if ($verbose) {
+			print "\n\t\t CLUSTER $cluster_id $organism: ";
+			print "$assigned_name: $assigned_gene: $scaffold $start-$end";
+			if ($extract_id) {
+				print " (extract ID: $extract_id)";				
+			}
 		}
 	}			
 }
