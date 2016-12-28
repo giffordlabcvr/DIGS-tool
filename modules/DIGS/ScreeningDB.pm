@@ -644,23 +644,54 @@ sub translate_schema {
     #unless ($sth->execute()) { print $drop; exit;}	
 	
 	# Translate 'Extracted' to 'digs_results'
-	$self->create_searches_table($dbh);
-
-	
+	$self->load_extracted_table($dbh);
 
 	# Translate 'Status' to 'searches_performed'
-	
-
-
-
-
-
-
-
-
 
 
 }
+
+
+#***************************************************************************
+# Subroutine:  load_extracted_table
+# Description: load screening database table 'Extracted'
+#***************************************************************************
+sub load_extracted_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %extract_fields = (
+		blast_id         => 'blast_id',
+		organism         => 'varchar',
+		version          => 'varchar',
+		data_type        => 'varchar',
+		target_name      => 'varchar',
+		probe_type       => 'varchar',
+		assigned_name    => 'varchar',
+		assigned_gene    => 'varchar',
+		scaffold         => 'varchar',
+		extract_start    => 'varchar',
+		extract_end      => 'varchar',
+		orientation      => 'varchar',
+		bit_score        => 'float',
+		identity         => 'varchar',
+		e_value_num      => 'float',
+		e_value_exp      => 'int',
+	  	subject_start    => 'int',
+	  	subject_end      => 'int',
+		query_start      => 'int',
+	  	query_end        => 'int',
+		align_len        => 'int',
+		gap_openings     => 'int',
+		mismatches       => 'int',
+		sequence_length  => 'int',
+		sequence         => 'text',
+	);
+	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
+	$self->{extracted_table} = $extract_table;
+}
+
 
 ############################################################################
 # EOF
