@@ -642,13 +642,12 @@ sub translate_schema {
 	my $digs_results_table = $self->{digs_results_table};
 	$digs_results_table->flush();
 	my @extracted_rows;
-	my @fields = qw [ organism version data_type target_name probe_type 
-	                  assigned_name assigned_gene scaffold 
-	                  extract_start extract_end orientation 
-	                  bit_score e_value_num e_value_exp align_len 
-	                  gap_openings mismatches sequence_length sequence ];
-	$extracted_table->select_rows(\@fields, \@extracted_rows);
-
+	my @extracted_fields = qw [ organism version data_type target_name probe_type 
+	                            assigned_name assigned_gene scaffold 
+	                            extract_start extract_end orientation 
+	                            bit_score e_value_num e_value_exp align_len 
+	                            gap_openings mismatches sequence_length sequence ];
+	$extracted_table->select_rows(\@extracted_fields, \@extracted_rows);
 	foreach my $row_ref (@extracted_rows) {	
 		$row_ref->{target_version}  = $row_ref->{version};
 		$row_ref->{target_datatype} = $row_ref->{data_type};
@@ -664,11 +663,11 @@ sub translate_schema {
 	my $searches_table = $self->{searches_table};
 	$searches_table->flush();
 	my @status_rows;
-	my @fields = qw [ probe_id probe_name probe_gene 
-	                  genome_id organism data_type version target_name ];
-	$status_table->select_rows(\@fields, \@status_rows);
+	my @status_fields = qw [ probe_id probe_name probe_gene 
+	                         genome_id organism data_type version target_name ];
+	$status_table->select_rows(\@status_fields, \@status_rows);
 	foreach my $row_ref (@status_rows) {
-	
+		
 		$row_ref->{target_version}  = $row_ref->{version};
 		$row_ref->{target_datatype} = $row_ref->{data_type};
 		$searches_table->insert_row($row_ref);
