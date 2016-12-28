@@ -1,8 +1,8 @@
 #!usr/bin/perl -w
 ############################################################################
-# Module:      DIGS.pm
-# Description: Exploring genomes using BLAST and a relational database
-# History:     December 2013: Created by Robert Gifford 
+# Module:      DIGS.pm   database-integrated genome screening (DIGS)
+# Description: Functions for implementing DIGS
+# History:     December  2013: Created by Robert Gifford 
 ############################################################################
 package DIGS;
 
@@ -31,6 +31,9 @@ use DIGS::ScreenBuilder; # Functions to set up screen
 my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
+
+# Maximum range for defragment
+my $maximum = 100000000;
 
 # Flags
 my $verbose   = undef;
@@ -118,9 +121,7 @@ sub run_digs_process {
 		$self->reassign(\@extracted_seqs);	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table	
-		my @extracted;
-		$self->get_sorted_extracted_loci(\@extracted); # Get sorted table rows
-		$self->interactive_defragment(\@extracted);	
+		$self->interactive_defragment();	
 	}
 	elsif ($option eq 5) { # Flush screening DB
 		my $db = $self->{db};
@@ -152,142 +153,8 @@ sub run_digs_process {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  run_utility_process
-# Description: handler for DIGS tool utility functions 
-#***************************************************************************
-sub run_utility_process {
-
-	my ($self, $option, $infile) = @_;
-
- 	# Show title
-	$self->show_title();  
-
-	# Hand off to functions 
-	if ($option eq 1)    { # Summarise target genome directory (short)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_short();
-	}
-	elsif ($option eq 2) { # Summarise target genome directory (long)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_long();
-	}
-	elsif ($option eq 3) {
-		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
-		my $loader_obj = ScreenBuilder->new($self);
-		my @extracted;
-		$loader_obj->extract_track_sequences(\@extracted, $infile);
-	}
-	else {
-		print "\n\t  Unrecognized option '-u=$option'\n";
-	}
-}
-
 ############################################################################
-# INITIALISING FUNCTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise 
-# Description: initialise module for interacting with screening database
-#              and perform basic validation of options and input file 
-#***************************************************************************
-sub initialise {
-
-	my ($self, $ctl_file) = @_;
-
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-	}
-
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file}   = $ctl_file;
-	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self);
-
-	# Update numthreads setting in BLAST object
-	my $num_threads = $loader_obj->{num_threads};
-	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$self->{blast_obj}->{num_threads} = $num_threads;
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-	
-}
-
-#***************************************************************************
-# Subroutine:  initialise_reassign 
-# Description: set up for reassign process
-#***************************************************************************
-sub initialise_reassign {
-
-	my ($self, $extracted_seqs_ref) = @_;
-
-	# Create a unique ID and report directory for this run
-	my $output_path = $self->{output_path};
-	my $process_id  = $self->{process_id};
-	my $db          = $self->{db};
-	my $db_name     = $db->{db_name};
-	unless ($db and $db_name and $process_id and $output_path) { die; }
-	
-	# Create report directory
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->create_output_directories($self);
-
-	# Get the assigned data
-	my $digs_results_table = $db->{digs_results_table};
-	my @fields  = qw [ record_id probe_type 
-	                   assigned_name assigned_gene
-	                   organism 
-	                   extract_start extract_end sequence  ];
-	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref);
-
-	# Set up the reference library
-	$loader_obj->setup_reference_library($self);
-
-}
-
-#***************************************************************************
-# Subroutine:  set_up_digs
-# Description: prepare DIGS queries
-#***************************************************************************
-sub set_up_digs {
-
-	my ($self) = @_;
-
-	# Flush active set
-	my $db  = $self->{db};
-	my $active_set_table = $db->{active_set_table};
-	print "\n\t  Flushing 'active_set' table\n";
-	$active_set_table->flush();
-	
-	# Index previously executed searches
-	my %done;
-	$self->index_previously_executed_searches(\%done);
-	
-	# Set up the screening queries
-	my %queries;
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	#$devtools->print_hash(\%done);
-	$loader_obj->{previously_executed_searches} = \%done;
-
-	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
-	unless ($total_queries)  { 
-		print "\n\t  Exiting without screening.\n\n";	
-		exit;
-	}
-		
-	# Record queries 
-	$self->{queries}       = \%queries;
-	$self->{total_queries} = $total_queries;
-}
-
-############################################################################
-# MAIN FUNCTIONS - TOP LEVEL PROCESS FUNCTIONS
+# PRIMARY FUNCTIONALITY, TOP-LEVEL
 ############################################################################
 
 #***************************************************************************
@@ -357,7 +224,7 @@ sub do_digs {
 			$self->update_db($query_ref, \@extracted);
 			
 			# Show progress
-			$self->show_progress();
+			$self->show_digs_progress();
 		}	
 	}
 	
@@ -455,8 +322,8 @@ sub reassign {
 		}
 	}
 	
-	# Write out the matrix
-	$self->write_matrix(\%reassign_matrix, \%unique_keys);
+	# Write out the cross-matching matrix
+	$self->write_crossmatching_data_to_file(\%reassign_matrix, \%unique_keys);
 
 	# Cleanup
 	my $output_dir = $self->{report_dir};
@@ -470,7 +337,7 @@ sub reassign {
 #***************************************************************************
 sub interactive_defragment {
 
-	my ($self, $extracted_ref) = @_;
+	my ($self) = @_;
 
 	# Display current settings
 	my $redundancy_mode= $self->{redundancy_mode};
@@ -480,36 +347,67 @@ sub interactive_defragment {
 	print "\n\t\t redundancy mode: $redundancy_mode";
 	print "\n\t\t defragment_range: $defragment_range";
 
+	# Get a list of all the target files from the screening DB
+	my $db_ref = $self->{db};
+	my $digs_results_table = $db_ref->{digs_results_table};
+	my @fields = qw [ organism target_datatype target_version target_name ];
+	my @targets;
+	$digs_results_table->select_distinct(\@fields, \@targets);
+
 	my $db = $self->{db};
 	my %defragmented;
 	my $choice;
 	do {
-		my $max = 100000;
+
 		my $question1 = "\n\n\t # Set the range for merging hits";
-		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $max);		
+		#my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+		my $t_range = 500;
+		my $total_hits;
+		my $total_clusters;
+		foreach my $target_ref (@targets) {
 
-		# Create the relevant set of previously extracted loci
-		my @loci;
-		$self->get_sorted_extracted_loci(\@loci);
-		my $total_hits = scalar @loci;
+			my $organism        = $target_ref->{organism};
+			my $target_name     = $target_ref->{target_name};
+			my $target_datatype = $target_ref->{target_datatype};
+			my $target_version  = $target_ref->{target_version};
+				
+			# Create the relevant set of previously extracted loci
+			my @loci;
+			my $where  = " WHERE organism      = '$organism' ";
+		   	$where    .= " AND target_datatype = '$target_datatype' ";
+		   	$where    .= " AND target_version  = '$target_version' ";
+		   	$where    .= " AND target_name     = '$target_name' "; 
+
+			$self->get_sorted_extracted_loci(\@loci, $where);
+			my $num_hits = scalar @loci;
+			#$devtools->print_array(\@loci); die;
 		
-		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-		my %settings;
-		my %defragmented;
-		$settings{range} = $t_range;
-		$settings{start} = 'extract_start';
-		$settings{end}   = 'extract_end';
-		$self->compose_clusters(\%defragmented, \@loci, \%settings);
+			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+			my %settings;
+			my %defragmented;
+			$settings{range} = $t_range;
+			$settings{start} = 'extract_start';
+			$settings{end}   = 'extract_end';
+			$self->compose_clusters(\%defragmented, \@loci, \%settings);
+			
+			# Show clusters
+			my @cluster_ids  = keys %defragmented;
+			my $num_clusters = scalar @cluster_ids;
+			print "\n\n\t\t $num_hits hits in target $target_name";
+			if ($num_hits > $num_clusters) {
+				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
+				$self->show_clusters(\%defragmented);
+			}
+			$total_hits = $total_hits + $num_hits;
+			$total_clusters = $total_clusters + $num_clusters;
 
-		# Show clusters
-		$self->show_clusters(\%defragmented);
-		my @cluster_ids  = keys %defragmented;
-		my $num_clusters = scalar @cluster_ids;
-		if ($total_hits > $num_clusters) {
-			print "...will be compressed to $num_clusters overlapping/contiguous clusters";
 		}
 		
 		# Prompt for what to do next
+		print "\n\n\t";
+		print "\n\t\t TOTAL HITS:     $total_hits";
+		print "\n\t\t TOTAL CLUSTERS: $total_clusters ";
+
 		print "\n\n\t\t Option 1: preview new parameters";
 		print "\n\t\t Option 2: apply these parameters";
 		print "\n\t\t Option 3: exit";
@@ -711,9 +609,8 @@ sub consolidate_loci {
 	$self->show_clusters(\%defragmented);  die; # Show clusters 	
 }
 
-
 ############################################################################
-# MAIN SCREENING LOOP
+# INTERNAL FUNCTIONS: MAIN DIGS SCREENING LOOP
 ############################################################################
 
 #***************************************************************************
@@ -931,7 +828,7 @@ sub compress_db {
 	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
 
 	# Determine what to extract, and extract it
-	$self->extract_locus_sequences(\%defragmented, $extracted_ref);
+	$self->merge_clustered_loci(\%defragmented, $extracted_ref);
 	my $num_new = scalar @$extracted_ref;
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
@@ -939,7 +836,7 @@ sub compress_db {
 }
 
 #***************************************************************************
-# Subroutine:  
+# Subroutine:  set_redundancy
 # Description: compose SQL WHERE statement based on redundancy settings
 #***************************************************************************
 sub set_redundancy {
@@ -1069,10 +966,10 @@ sub update_db {
 }
 
 #***************************************************************************
-# Subroutine:  show_progress
+# Subroutine:  show_digs_progress
 # Description: show progress in DIGS screening
 #***************************************************************************
-sub show_progress {
+sub show_digs_progress {
 
 	my ($self) = @_;
 
@@ -1085,140 +982,6 @@ sub show_progress {
 	my $percent_prog    = ($completed / $total_queries) * 100;
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
 	print "\n\t\t  %$f_percent_prog completed";
-}
-
-############################################################################
-# INTERNAL FUNCTIONS
-###########################################################################	
-
-#***************************************************************************
-# Subroutine:  extract_locus_sequences
-# Description: for clustered hits extract locus sequences
-#***************************************************************************
-sub extract_locus_sequences {
-	
-	my ($self, $defragmented_ref, $extracted_ref) = @_;
-
-	# Get screening database table objects
-	my $db_ref           = $self->{db};
-	my $searches_table   = $db_ref->{searches_table};
-	my $active_set_table = $db_ref->{active_set_table};	
-
-	my $extend_count = '0';
-	my @cluster_ids = keys %$defragmented_ref;
-	foreach my $cluster_id (@cluster_ids) {
-
-		# Get data for this cluster
-		my $cluster_ref = $defragmented_ref->{$cluster_id};
-		unless ($cluster_ref) { die; }
-
-		# Determine what to extract for this cluster
-		my %new_blast_chains;
-		my %previous_extract_ids;
-		my $highest_end   = undef;
-		my $lowest_start  = undef;
-		my $previous_extract_id = undef;
-		my $target_name;		
-		my $version;		
-		my $target_datatype;		
-		my $scaffold;			
-		my $orientation;
-		my $organism;
-		my $probe_type;
-		foreach my $hit_ref (@$cluster_ref) {
-					
-			my $record_id    = $hit_ref->{record_id};					
-			my $extract_id   = $hit_ref->{extract_id};					
-			my $start        = $hit_ref->{subject_start};			
-			my $end          = $hit_ref->{subject_end};
-			$target_name     = $hit_ref->{target_name};					
-			$target_datatype = $hit_ref->{target_datatype};			
-			$version         = $hit_ref->{target_version};
-			$scaffold        = $hit_ref->{scaffold};			
-			$orientation     = $hit_ref->{orientation};
-			$organism        = $hit_ref->{target_organism};
-			$probe_type      = $hit_ref->{probe_type};
-						
-			# Check if this is a a previously extracted locus
-			if ($extract_id) {							
-				if ($previous_extract_id) { # If this represents a merge of multiple extracted loci, record the ids
-					unless ($extract_id eq $previous_extract_id) {
-					}
-				}
-				$previous_extract_ids{$extract_id} = $hit_ref;
-				$previous_extract_id = $extract_id;		
-			}
-			# Store this BLAST result as part of a chain if it is new
-			else {
-				my %data = %$hit_ref;
-				$new_blast_chains{$record_id} = \%data; 				
-			}
-			
-			#print "\n\t\t RECORD ID:\t $scaffold $extract_start-$extract_end";
-			if ($lowest_start and $highest_end ) {		
-				if ($start > $lowest_start) { $lowest_start = $start; }
-				if ($end > $highest_end)    { $highest_end  = $end;   }
-			}
-			else {
-				$highest_end  = $end;
-				$lowest_start = $start;
-			}									
-		}
-
-		# Determine whether or not to extract
-		my $extract = undef;		
-
-		# Is this cluster composed entirely of new loci?
-		unless ($previous_extract_id) {
-			$extract = 'true';				
-		}
-		# Is this a merge of multiple previously extracted loci?
-		my @previous_extract_ids = keys %previous_extract_ids;
-		my $num_previously_extracted_loci_in_cluster = scalar @previous_extract_ids;
-		if ($num_previously_extracted_loci_in_cluster > 1) {
-			my $combined = join (',', @previous_extract_ids);
-			print "\n\t\t # Merging previously extracted loci: ($combined) ";
-			$extract = 'true';							
-		}
-		# If it includes a single extracted locus, does this locus need to be extended?
-		elsif ($previous_extract_id) {
-		
-			# get the indexed query 
-			my $data_ref = $previous_extract_ids{$previous_extract_id};
-			my $extract_start = $data_ref->{subject_start};
-			my $extract_end   = $data_ref->{subject_end};
-			unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
-				$extend_count++;
-				$extract = 'true';							
-				#print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
-			}			
-		}
-		if ($extract) {
-		
-			# Set the extract params for this cluster
-			my %extract;
-			$extract{extract_id}      = $previous_extract_id;
-			$extract{target_name}     = $target_name;
-			$extract{target_datatype} = $target_datatype;
-			$extract{target_version}  = $version;
-			$extract{target_organism} = $organism;
-			$extract{probe_type}      = $probe_type;
-			$extract{extract_id}      = $previous_extract_id;
-			$extract{target_name}     = $target_name;
-			$extract{scaffold}        = $scaffold;
-			$extract{start}           = $lowest_start;	
-			$extract{end}             = $highest_end;
-			$extract{orientation}     = $orientation;
-			$extract{extract_ids}   = \@previous_extract_ids;
-			my $num_chains = scalar keys %new_blast_chains;
-			if ($num_chains) {
-				$extract{blast_chains} = \%new_blast_chains;
-			}
-			push (@$extracted_ref, \%extract);	
-		}
-	}
-	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
-	
 }
 
 #***************************************************************************
@@ -1333,7 +1096,7 @@ sub do_blast_genotyping {
 }
 
 ############################################################################
-# DEFRAGMENTING - comparing and merging overlapping/adjacent hits
+# INTERNAL FUNCTIONS: comparing and merging overlapping/adjacent hits
 ###########################################################################	
 
 #***************************************************************************
@@ -1365,6 +1128,7 @@ sub compose_clusters {
 		my $orientation   = $hit_ref->{orientation};
 		my $start         = $hit_ref->{$start_token};
 		my $end           = $hit_ref->{$end_token};
+		#print "\n\t\t Range $start-$end on scaffold $scaffold";
 		
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
@@ -1382,7 +1146,7 @@ sub compose_clusters {
 			if ( $scaffold eq $last_scaffold) {
 				unless ($start >= $last_start) { 
 					print "\n\t\t $start is less than $last_start";
-					print " (end $end , last end $last_end)";
+					print " (end $end , last end $last_end) on scaffold $scaffold";
 					die;
 				}
 			}
@@ -1523,6 +1287,136 @@ sub show_clusters {
 }
 
 #***************************************************************************
+# Subroutine:  merge_clustered_loci
+# Description: 
+#***************************************************************************
+sub merge_clustered_loci {
+	
+	my ($self, $defragmented_ref, $to_extract_ref) = @_;
+
+	# Get screening database table objects
+	my $db_ref           = $self->{db};
+	my $searches_table   = $db_ref->{searches_table};
+	my $active_set_table = $db_ref->{active_set_table};	
+
+	my $extend_count = '0';
+	my @cluster_ids = keys %$defragmented_ref;
+	foreach my $cluster_id (@cluster_ids) {
+
+		# Get data for this cluster
+		my $cluster_ref = $defragmented_ref->{$cluster_id};
+		unless ($cluster_ref) { die; }
+
+		# Determine what to extract for this cluster
+		my %new_blast_chains;
+		my %previous_extract_ids;
+		my $highest_end   = undef;
+		my $lowest_start  = undef;
+		my $previous_extract_id = undef;
+		my $target_name;		
+		my $version;		
+		my $target_datatype;		
+		my $scaffold;			
+		my $orientation;
+		my $organism;
+		my $probe_type;
+		foreach my $hit_ref (@$cluster_ref) {
+					
+			my $record_id    = $hit_ref->{record_id};					
+			my $extract_id   = $hit_ref->{extract_id};					
+			my $start        = $hit_ref->{subject_start};			
+			my $end          = $hit_ref->{subject_end};
+			$target_name     = $hit_ref->{target_name};					
+			$target_datatype = $hit_ref->{target_datatype};			
+			$version         = $hit_ref->{target_version};
+			$scaffold        = $hit_ref->{scaffold};			
+			$orientation     = $hit_ref->{orientation};
+			$organism        = $hit_ref->{target_organism};
+			$probe_type      = $hit_ref->{probe_type};
+						
+			# Check if this is a a previously extracted locus
+			if ($extract_id) {							
+				if ($previous_extract_id) { # If this represents a merge of multiple extracted loci, record the ids
+					unless ($extract_id eq $previous_extract_id) {
+					}
+				}
+				$previous_extract_ids{$extract_id} = $hit_ref;
+				$previous_extract_id = $extract_id;		
+			}
+			# Store this BLAST result as part of a chain if it is new
+			else {
+				my %data = %$hit_ref;
+				$new_blast_chains{$record_id} = \%data; 				
+			}
+			
+			#print "\n\t\t RECORD ID:\t $scaffold $extract_start-$extract_end";
+			if ($lowest_start and $highest_end ) {		
+				if ($start > $lowest_start) { $lowest_start = $start; }
+				if ($end > $highest_end)    { $highest_end  = $end;   }
+			}
+			else {
+				$highest_end  = $end;
+				$lowest_start = $start;
+			}									
+		}
+
+		# Determine whether or not to extract
+		my $extract = undef;		
+
+		# Is this cluster composed entirely of new loci?
+		unless ($previous_extract_id) {
+			$extract = 'true';				
+		}
+		# Is this a merge of multiple previously extracted loci?
+		my @previous_extract_ids = keys %previous_extract_ids;
+		my $num_previously_extracted_loci_in_cluster = scalar @previous_extract_ids;
+		if ($num_previously_extracted_loci_in_cluster > 1) {
+			my $combined = join (',', @previous_extract_ids);
+			print "\n\t\t # Merging previously extracted loci: ($combined) ";
+			$extract = 'true';							
+		}
+		# If it includes a single extracted locus, does this locus need to be extended?
+		elsif ($previous_extract_id) {
+		
+			# get the indexed query 
+			my $data_ref = $previous_extract_ids{$previous_extract_id};
+			my $extract_start = $data_ref->{subject_start};
+			my $extract_end   = $data_ref->{subject_end};
+			unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
+				$extend_count++;
+				$extract = 'true';							
+				#print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+			}			
+		}
+		if ($extract) {
+		
+			# Set the extract params for this cluster
+			my %extract;
+			$extract{extract_id}      = $previous_extract_id;
+			$extract{target_name}     = $target_name;
+			$extract{target_datatype} = $target_datatype;
+			$extract{target_version}  = $version;
+			$extract{target_organism} = $organism;
+			$extract{probe_type}      = $probe_type;
+			$extract{extract_id}      = $previous_extract_id;
+			$extract{target_name}     = $target_name;
+			$extract{scaffold}        = $scaffold;
+			$extract{start}           = $lowest_start;	
+			$extract{end}             = $highest_end;
+			$extract{orientation}     = $orientation;
+			$extract{extract_ids}   = \@previous_extract_ids;
+			my $num_chains = scalar keys %new_blast_chains;
+			if ($num_chains) {
+				$extract{blast_chains} = \%new_blast_chains;
+			}
+			push (@$to_extract_ref, \%extract);	
+		}
+	}
+	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
+	
+}
+
+#***************************************************************************
 # Subroutine:  show_cluster
 # Description: 
 #***************************************************************************
@@ -1537,9 +1431,24 @@ sub show_cluster {
 		my $organism      = $hit_ref->{organism};			
 		my $assigned_name = $hit_ref->{probe_name};			
 		my $assigned_gene = $hit_ref->{probe_gene};			
+
+		unless ($assigned_name) {
+			$assigned_name = $hit_ref->{assigned_name};			
+		}
+		unless ($assigned_gene) {
+			$assigned_gene = $hit_ref->{assigned_gene};			
+		}
+
 		my $scaffold      = $hit_ref->{scaffold};			
-		my $start         = $hit_ref->{subject_start};			
-		my $end           = $hit_ref->{subject_end};
+		my $start         = $hit_ref->{extract_start};			
+		my $end           = $hit_ref->{extract_end};
+		unless ($start) {
+			$assigned_name = $hit_ref->{subject_start};			
+		}
+		unless ($end) {
+			$end = $hit_ref->{subject_end};			
+		}
+
 		my $extract_id    = $hit_ref->{extract_id};
 
 		print "\n\t\t CLUSTER $cluster_id $organism: ";
@@ -1551,7 +1460,7 @@ sub show_cluster {
 }
 
 ############################################################################
-# FUNCTIONS FOR RECORDING CROSS-MATCHING
+# INTERNAL FUNCTIONS: recording cross-matching during DIGS
 ###########################################################################
 
 #***************************************************************************
@@ -1603,10 +1512,10 @@ sub show_cross_matching {
 }
 
 #***************************************************************************
-# Subroutine:  write matrix 
+# Subroutine:  write_crossmatching_data_to_file 
 # Description: write cross-matching results as a matrix
 #***************************************************************************
-sub write_matrix {
+sub write_crossmatching_data_to_file {
 
     my ($self, $matrix_ref, $keys_ref) = @_;
 
@@ -1658,7 +1567,7 @@ sub write_matrix {
 }
 
 ############################################################################
-# INTERACTING WITH SCREENING DB TABLES
+# INTERNAL FUNCTIONS: interacting with screening DB (indexing, sorting)
 ############################################################################
 
 #***************************************************************************
@@ -1720,7 +1629,7 @@ sub get_sorted_extracted_loci {
 	my ($self, $data_ref, $where) = @_;;
 
 	# Set statement to sort loci
-	my $sort = " ORDER BY organism, target_name, scaffold, subject_start ";
+	my $sort  = " ORDER BY scaffold, extract_start ";
 	if ($where) { $where .= $sort; }
 	else        { $where  = $sort; }
 
@@ -1856,7 +1765,110 @@ sub show_blast_chains {
 }
 
 ############################################################################
-# SHOWING PROGRAM TITLE INFORMATION & HELP MENU
+# INTERNAL FUNCTIONS: initialisation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise 
+# Description: initialise module for interacting with screening database
+#              and perform basic validation of options and input file 
+#***************************************************************************
+sub initialise {
+
+	my ($self, $ctl_file) = @_;
+
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+	}
+
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file}   = $ctl_file;
+	my $loader_obj = ScreenBuilder->new($self);
+	$loader_obj->parse_control_file($ctl_file, $self);
+
+	# Update numthreads setting in BLAST object
+	my $num_threads = $loader_obj->{num_threads};
+	unless ($num_threads) { $num_threads = 1; }  # Default setting
+	$self->{blast_obj}->{num_threads} = $num_threads;
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+	
+}
+
+#***************************************************************************
+# Subroutine:  initialise_reassign 
+# Description: set up for reassign process
+#***************************************************************************
+sub initialise_reassign {
+
+	my ($self, $extracted_seqs_ref) = @_;
+
+	# Create a unique ID and report directory for this run
+	my $output_path = $self->{output_path};
+	my $process_id  = $self->{process_id};
+	my $db          = $self->{db};
+	my $db_name     = $db->{db_name};
+	unless ($db and $db_name and $process_id and $output_path) { die; }
+	
+	# Create report directory
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->create_output_directories($self);
+
+	# Get the assigned data
+	my $digs_results_table = $db->{digs_results_table};
+	my @fields  = qw [ record_id probe_type 
+	                   assigned_name assigned_gene
+	                   organism 
+	                   extract_start extract_end sequence  ];
+	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref);
+
+	# Set up the reference library
+	$loader_obj->setup_reference_library($self);
+
+}
+
+#***************************************************************************
+# Subroutine:  set_up_digs
+# Description: prepare DIGS queries
+#***************************************************************************
+sub set_up_digs {
+
+	my ($self) = @_;
+
+	# Flush active set
+	my $db  = $self->{db};
+	my $active_set_table = $db->{active_set_table};
+	print "\n\t  Flushing 'active_set' table\n";
+	$active_set_table->flush();
+	
+	# Index previously executed searches
+	my %done;
+	$self->index_previously_executed_searches(\%done);
+	
+	# Set up the screening queries
+	my %queries;
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
+	#$devtools->print_hash(\%done);
+	$loader_obj->{previously_executed_searches} = \%done;
+
+	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
+	unless ($total_queries)  { 
+		print "\n\t  Exiting without screening.\n\n";	
+		exit;
+	}
+		
+	# Record queries 
+	$self->{queries}       = \%queries;
+	$self->{total_queries} = $total_queries;
+}
+
+############################################################################
+# INTERNAL FUNCTIONS: title and help display
 ############################################################################
 
 #***************************************************************************
@@ -1898,12 +1910,49 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=6  Drop screening DB"; 
 		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
 		$HELP  .= "\n\t -m=8  Show BLAST chains"; 
-		$HELP  .= "\n\t -m=9  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=9  Consolidate"; 
+		$HELP  .= "\n\t -m=10 Translate DB schema"; 
+		$HELP  .= "\n\t -m=11 Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)";
 		$HELP  .= "\n\t -u=3  Extract sequences using track\n\n";
 	print $HELP;
+}
+
+############################################################################
+# UTILITY FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  run_utility_process
+# Description: handler for DIGS tool utility functions 
+#***************************************************************************
+sub run_utility_process {
+
+	my ($self, $option, $infile) = @_;
+
+ 	# Show title
+	$self->show_title();  
+
+	# Hand off to functions 
+	if ($option eq 1)    { # Summarise target genome directory (short)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_short();
+	}
+	elsif ($option eq 2) { # Summarise target genome directory (long)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_long();
+	}
+	elsif ($option eq 3) {
+		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
+		my $loader_obj = ScreenBuilder->new($self);
+		my @extracted;
+		$loader_obj->extract_track_sequences(\@extracted, $infile);
+	}
+	else {
+		print "\n\t  Unrecognized option '-u=$option'\n";
+	}
 }
 
 ############################################################################
