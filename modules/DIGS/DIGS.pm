@@ -32,7 +32,7 @@ my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
 
-# Flags2
+# Flags
 my $verbose   = undef;
 1;
 
@@ -96,7 +96,7 @@ sub run_digs_process {
 	}
 	
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 9 ) {
+	if ( $option > 1 and $option < 11 ) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -136,12 +136,16 @@ sub run_digs_process {
 	elsif ($option eq 8) { # Show the BLAST chains for each extracted locus
 		$self->show_blast_chains();
 	}
-	elsif ($option eq 9) { # Check the target genomes are formatted for BLAST
+	elsif ($option eq 9) { # Consolidate DIGS results into higher level loci 
+		$self->consolidate_loci();
+	}
+	elsif ($option eq 10) { # DB schema translation
+		my $db_obj = $self->{db};
+		$db_obj->translate_schema();
+	}
+	elsif ($option eq 11) { # Check the target genomes are formatted for BLAST
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
-	}
-	elsif ($option eq 8) { # Consolidate DIGS results into higher level loci 
-		$self->consolidate_loci();
 	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
@@ -676,9 +680,37 @@ sub extend_screening_db {
 sub consolidate_loci {
 
 	my ($self) = @_;
+   print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
 
+    # Set up for consolidation
+	my @sorted;
+	my $where = " WHERE orientation = '+'";
+	$self->get_sorted_extracted_loci(\@sorted, $where);
+	my $total_hits = scalar @sorted;
+	#$devtools->print_array(\@sorted); #die; # Show clusters 	
 
+	# Set up for defragment
+	my %settings;
+	my %defragmented;
+	my $range = $self->{consolidate_range};
+	unless ($range) { die; }
+	$settings{range} = $range;
+	$settings{start} = 'subject_start';
+	$settings{end}   = 'subject_end';
+
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my @loci;
+	$self->compose_clusters(\%defragmented, \@loci, \%settings);
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @cluster_ids;
+	if ($total_hits > $num_clusters) {
+		print "...compressed to $num_clusters overlapping/contiguous clusters";
+	}
+	
+	# DEBUG 
+	$self->show_clusters(\%defragmented);  die; # Show clusters 	
 }
+
 
 ############################################################################
 # MAIN SCREENING LOOP
@@ -1346,7 +1378,7 @@ sub compose_clusters {
 
 	    if ($initialised) {
 
-			# Sanity checking - are sequences in order?
+			# Sanity checking - are sequences in sorted order for this scaffold?
 			if ( $scaffold eq $last_scaffold) {
 				unless ($start >= $last_start) { 
 					print "\n\t\t $start is less than $last_start";
@@ -1688,16 +1720,17 @@ sub get_sorted_extracted_loci {
 	my ($self, $data_ref, $where) = @_;;
 
 	# Set statement to sort loci
-	if ($where) { $where .= " ORDER BY scaffold, subject_start "; }
-	else        { $where  = " ORDER BY scaffold, subject_start "; }
+	my $sort = " ORDER BY organism, target_name, scaffold, subject_start ";
+	if ($where) { $where .= $sort; }
+	else        { $where  = $sort; }
 
 	# Get database tables
 	my $db = $self->{db};
 	my $digs_results_table  = $db->{digs_results_table};
 		
 	# Set the fields to get values for
-	my @extract_fields = qw [ record_id 
-	                          organism target_version target_datatype
+	my @extract_fields = qw [ record_id organism 
+	                          target_name target_version target_datatype
 	                          assigned_name assigned_gene probe_type
 	                          scaffold orientation
 	                          bitscore gap_openings
@@ -1705,7 +1738,6 @@ sub get_sorted_extracted_loci {
 	                          mismatches align_len
                               evalue_num evalue_exp identity 
                               extract_start extract_end sequence_length ];
-	my @loci;
 	$digs_results_table->select_rows(\@extract_fields, $data_ref, $where);
 }
 

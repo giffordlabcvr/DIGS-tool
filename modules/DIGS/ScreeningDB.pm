@@ -63,8 +63,8 @@ sub new {
 		
 		# Screening database core tables
 		searches_table        => 0,
-		active_set_table   => 0,
-		digs_results_table       => 0,
+		active_set_table      => 0,
+		digs_results_table    => 0,
 		blast_chains_table    => 0,	
 	};
 	
@@ -610,7 +610,58 @@ sub drop_ancillary_table {
    	unless ($sth->execute()) { print $drop; exit;}	
 
 }
+
+#***************************************************************************
+# Subroutine:  translate_schema
+# Description: 
+#***************************************************************************
+sub translate_schema {
+
+	my ($self) = @_;
+
+	my ($self) = @_;
+
+	# Get connection variables from self
+	my $server   = $self->{server};
+	my $username = $self->{username};
+	my $password = $self->{password};
+	my $db_name  = $self->{db_name};
+
+	# Get database handle
+	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
+	unless ($dbh) {	die "\n\t # Couldn't connect to $db_name database\n\n"; }
+	die;
+
+	# Create new tables
+	$self->create_searches_table($dbh);
+	$self->create_active_set_table($dbh);
+	$self->create_digs_results_table($dbh);
+	$self->create_blast_chains_table($dbh);
+
+	# Drop 'BLAST_results'
+	my $drop = "DROP table 'BLAST_results' ";
+	my $sth = $dbh->prepare($drop);
+    #unless ($sth->execute()) { print $drop; exit;}	
 	
+	# Translate 'Extracted' to 'digs_results'
+	$self->create_searches_table($dbh);
+
+	
+
+	# Translate 'Status' to 'searches_performed'
+	
+
+
+
+
+
+
+
+
+
+
+}
+
 ############################################################################
 # EOF
 ############################################################################
