@@ -165,11 +165,12 @@ sub parse_control_file {
 	# Set parameters for screening
 	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
+	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
 	# Set the bit score minimum
-	if    ($self->{bitscore_min_tblastn}) {
+	if ($self->{bitscore_min_tblastn}) {
 		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
 	}
 	elsif ($self->{bitscore_min_blastn}) {
@@ -178,7 +179,6 @@ sub parse_control_file {
 	else {
 		die;
 	}
-	
 }
 
 #***************************************************************************

@@ -67,11 +67,15 @@ sub new {
 		active_set_table      => 0,
 		digs_results_table    => 0,
 		blast_chains_table    => 0,	
+		loci_table            => 0,	
+		loci_chains_table     => 0,
+		
 	};
 	
 	bless ($self, $class);
 	return $self;
 }
+
 
 ############################################################################
 # LOAD DATABASE & DATABASE TABLES
@@ -113,10 +117,6 @@ sub load_screening_db {
 
 }
 
-############################################################################
-# LOAD SCREENING DATABASE TABLES
-############################################################################
-
 #***************************************************************************
 # Subroutine:  load_searches_table
 # Description: load screening database table 'searches_performed'
@@ -150,6 +150,7 @@ sub load_active_set_table {
 	
 	# Definition of the table
 	my %active_set_fields = (
+	
 		extract_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
@@ -190,6 +191,7 @@ sub load_digs_results_table {
 
 	# Definition of the table
 	my %digs_fields = (
+	
 		organism         => 'varchar',
 		target_version   => 'varchar',
 		target_datatype  => 'varchar',
@@ -214,6 +216,7 @@ sub load_digs_results_table {
 		mismatches       => 'int',
 		sequence_length  => 'int',
 		sequence         => 'text',
+		
 	);
 	my $digs_table = MySQLtable->new('digs_results', $dbh, \%digs_fields);
 	$self->{digs_results_table} = $digs_table;
@@ -229,6 +232,7 @@ sub load_blast_chains_table {
 
 	# Definition of the table
 	my %extract_fields = (
+	
 		extract_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
@@ -243,11 +247,11 @@ sub load_blast_chains_table {
 		subject_end      => 'int',
 		query_start      => 'int',
 		query_end        => 'int',
-		align_len       => 'int',
+		align_len        => 'int',
 		bitscore         => 'float',
 		identity         => 'varchar',
-		evalue_num      => 'float',
-		evalue_exp      => 'int',
+		evalue_num       => 'float',
+		evalue_exp       => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
 		query_start      => 'int',
@@ -258,6 +262,49 @@ sub load_blast_chains_table {
 	);
 	my $extract_table = MySQLtable->new('blast_chains', $dbh, \%extract_fields);
 	$self->{blast_chains_table} = $extract_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_loci_table
+# Description: load screening database table 'Loci'
+#***************************************************************************
+sub load_loci_table {
+
+    my ($self, $dbh) = @_;
+
+    # Definition of the loci table
+    my %loci_fields = (
+        organism         => 'varchar',
+        version          => 'varchar',
+        data_type        => 'varchar',
+        target_name      => 'varchar',
+        scaffold         => 'varchar',
+        orientation      => 'varchar',
+        assigned_name    => 'varchar',
+        extract_start    => 'int',
+        extract_end      => 'int',
+        genome_structure => 'text',
+
+    );   
+    my $loci_table = MySQLtable->new('Loci', $dbh, \%loci_fields);
+    $self->{loci_table} = $loci_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_loci_chains_table
+# Description: load screening database table 'Loci'
+#***************************************************************************
+sub load_loci_chains_table {
+
+    my ($self, $dbh) = @_;
+
+    # Definition of the loci table
+    my %loci_fields = (
+        locus_id       => 'int',
+        extracted_id   => 'int',
+    );   
+    my $loci_table = MySQLtable->new('Loci_link', $dbh, \%loci_fields);
+    $self->{loci_chains_table} = $loci_table;
 }
 
 ############################################################################
@@ -312,7 +359,7 @@ sub create_searches_table {
 	  `target_name`      varchar(100) NOT NULL default '0',
 	  `timestamp`   timestamp NOT NULL default CURRENT_TIMESTAMP 
 	                on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`Record_ID`)
+	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1";
 	my $sth = $dbh->prepare($searches);
 	unless ($sth->execute()) { print "\n\t$searches\n\n\n"; exit;}
@@ -355,7 +402,7 @@ sub create_active_set_table {
 	  `mismatches`       int(11) NOT NULL default '0',
 
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`Record_ID`)
+	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($active_set);
 	unless ($sth->execute()) { print "\n\t$active_set\n\n\n"; exit;}
@@ -398,7 +445,7 @@ sub create_digs_results_table {
 	  `mismatches`       int(11) NOT NULL default '0',
 
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`Record_ID`)
+	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($extracted);
 	unless ($sth->execute()) { print "\n\t$extracted\n\n\n"; exit;}
@@ -431,7 +478,7 @@ sub create_blast_chains_table {
 	  `subject_end`     int(11) NOT NULL default '0',
 	  `query_start`     int(11) NOT NULL default '0',
 	  `query_end`       int(11) NOT NULL default '0',
-	  `align_len`      int(11) NOT NULL default '0',
+	  `align_len`       int(11) NOT NULL default '0',
 
 	  `bitscore`        float   NOT NULL default '0',
 	  `identity`        float   NOT NULL default '0',
@@ -441,10 +488,64 @@ sub create_blast_chains_table {
 	  `mismatches`      int(11) NOT NULL default '0',
 
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`Record_ID`)
+	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($blast_chains);
 	unless ($sth->execute()) { print "\n\t$blast_chains\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_loci_table
+# Description: create MySQL 'loci' table
+#***************************************************************************
+sub create_loci_table {
+
+    my ($self, $dbh) = @_;
+
+    # consolidated loci table 
+    my $loci = "CREATE TABLE `loci` (
+    
+        `record_id`         int(11) NOT NULL auto_increment,
+        `organism`          varchar(100) NOT NULL default '0',
+        `target_datatype`   varchar(100) NOT NULL default '0',
+        `target_version`    varchar(100) NOT NULL default '0',
+        `target_name`       varchar(100) NOT NULL default '0',
+
+        `scaffold`          varchar(100) default 'NULL',
+        `orientation`       varchar(100) NOT NULL default '0',
+
+        `assigned_name`     varchar(100) NOT NULL default '0',
+        `extract_start`     int(11) NOT NULL default '0',
+        `extract_end`       int(11) NOT NULL default '0',
+        `genome_structure`  text NOT NULL,
+      
+        `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`record_id`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+    my $sth = $dbh->prepare($loci);
+    unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_loci_chains_table
+# Description: create MySQL 'loci_chains' table
+#***************************************************************************
+sub create_loci_chains_table {
+
+    my ($self, $dbh) = @_;
+
+    # consolidated loci table 
+    my $loci = "CREATE TABLE `loci_chains` (
+    
+        `record_id`       int(11) NOT NULL auto_increment,
+        `locus_id`        int(11) NOT NULL default '0',
+        `digs_result_id`  int(11) NOT NULL default '0',
+     
+        `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`record_id`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+    my $sth = $dbh->prepare($loci);
+    unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
 }
 
 ############################################################################
@@ -513,6 +614,7 @@ sub flush_screening_db {
 
 	}
 }
+
 
 ############################################################################
 # EXTEND SCREENING DB FUNCTIONS
@@ -675,67 +777,19 @@ sub translate_schema {
 }
 
 #***************************************************************************
-# Subroutine:  load_extracted_table
-# Description: load screening database table 'Extracted'
+# Subroutine:  check if table exists
+# Description: 
 #***************************************************************************
-sub load_extracted_table {
+sub does_table_exist {
 
-	my ($self, $dbh) = @_;
+    my ($self, $table_name) = @_;
 
-	# Definition of the table
-	my %extract_fields = (
-		blast_id         => 'blast_id',
-		organism         => 'varchar',
-		version          => 'varchar',
-		data_type        => 'varchar',
-		target_name      => 'varchar',
-		probe_type       => 'varchar',
-		assigned_name    => 'varchar',
-		assigned_gene    => 'varchar',
-		scaffold         => 'varchar',
-		extract_start    => 'varchar',
-		extract_end      => 'varchar',
-		orientation      => 'varchar',
-		bit_score        => 'float',
-		identity         => 'varchar',
-		e_value_num      => 'float',
-		e_value_exp      => 'int',
-	  	subject_start    => 'int',
-	  	subject_end      => 'int',
-		query_start      => 'int',
-	  	query_end        => 'int',
-		align_len        => 'int',
-		gap_openings     => 'int',
-		mismatches       => 'int',
-		sequence_length  => 'int',
-		sequence         => 'text',
-	);
-	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
-	$self->{extracted_table} = $extract_table;
+	my $dbh = $self->{dbh};
+    my $query_handle = $dbh->prepare("DESC $table_name");
+    eval { $query_handle->execute(); };
+    return ! $@;
 }
 
-#***************************************************************************
-# Subroutine:  load_status_table
-# Description: load screening database table 'Status'
-#***************************************************************************
-sub load_status_table {
-
-	my ($self, $dbh) = @_;
-
-	# Definition of the table
-	my %status_fields = (
-		probe_id       => 'varchar',
-		probe_name     => 'varchar',
-		probe_gene     => 'varchar',
-		genome_id      => 'varchar',
-		organism       => 'varchar',
-		data_type      => 'varchar',
-		version        => 'varchar',
-		target_name    => 'varchar',
-	);
-	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
-	$self->{status_table} = $status_table;
-}
 
 ############################################################################
 # EOF

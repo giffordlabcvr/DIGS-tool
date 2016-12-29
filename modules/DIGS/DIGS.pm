@@ -583,14 +583,34 @@ sub extend_screening_db {
 sub consolidate_loci {
 
 	my ($self) = @_;
-   print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
+	print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
 
     # Set up for consolidation
 	my @sorted;
-	my $where = " WHERE orientation = '+'";
-	$self->get_sorted_extracted_loci(\@sorted, $where);
+	#my $where = " WHERE orientation = '+'";
+	#$self->get_sorted_extracted_loci(\@sorted, $where);
+	$self->get_sorted_extracted_loci(\@sorted);
 	my $total_hits = scalar @sorted;
-	#$devtools->print_array(\@sorted); #die; # Show clusters 	
+	print "\n\t...$total_hits individual hits";
+	#$devtools->print_array(\@sorted); die; # Show loci 	
+
+	# Tables 
+	my $db_ref = $self->{db};
+	my $dbh = $db_ref->{dbh};
+	my $loci_exists = $db_ref->does_table_exist('loci');
+	unless ($loci_exists) {
+		$db_ref->create_loci_table($dbh);
+		$db_ref->load_loci_table($dbh);
+	}
+	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
+	unless ($loci_exists) {
+		$db_ref->create_loci_table($dbh);
+		$db_ref->load_loci_table($dbh);
+	}
+
+
+	$db_ref->create_loci_chains_table($dbh);
+	$db_ref->load_loci_chains_table($dbh);	
 
 	# Set up for consolidate
 	my %settings;
@@ -602,12 +622,11 @@ sub consolidate_loci {
 	$settings{end}   = 'extract_end';
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	my @loci;
-	$self->compose_clusters(\%consolidated, \@loci, \%settings);
+	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_hits > $num_clusters) {
-		print "...compressed to $num_clusters overlapping/contiguous clusters";
+		print "\n\t...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 	
 	# DEBUG 
@@ -1138,10 +1157,8 @@ sub compose_clusters {
 		my $last_orientation   = $last_hit{orientation};
 		my $last_start         = $last_hit{$start_token};
 		my $last_end           = $last_hit{$end_token};		
-		my $gap;
 
 	    if ($initialised) {
-
 			# Sanity checking - are sequences in sorted order for this scaffold?
 			if ( $scaffold eq $last_scaffold) {
 				unless ($start >= $last_start) { 
@@ -1149,9 +1166,11 @@ sub compose_clusters {
 					print " (end $end , last end $last_end) on scaffold $scaffold";
 					die;
 				}
-			}
-			
+			}			
+            
+            # Work out wether to merge this hit with the last
             my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
+            
             if ($new) {
                  # Increment the count
                 $j++;       
@@ -1164,11 +1183,8 @@ sub compose_clusters {
             }
         }
 		else {
-			#print "\n\t\t First record ($j)";
-            $initialised = 'true';      
-            # Initialise new Missillac record
+            $initialised = 'true'; # Set flag - we have seen at least one   
             $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
-			#$devtools->print_hash($defragmented_ref); die;
 		}
 
 		# Update last hit data
@@ -1260,26 +1276,6 @@ sub extend_cluster {
     my $array_ref = $defragmented_ref->{$count};
     push (@$array_ref, $hit_ref);
 
-}
-
-#***************************************************************************
-# Subroutine:  show_clusters
-# Description: 
-#***************************************************************************
-sub show_clusters {
-
-	my ($self, $defragmented_ref) = @_;
-	
-	my @cluster_ids = keys %$defragmented_ref;
-	my $cluster_count;
-	foreach my $id (@cluster_ids) {
-		$cluster_count++;
-		my $hits_ref = $defragmented_ref->{$id};
-		my $cluster_size = scalar @$hits_ref;
-		if ($cluster_size > 1) {
-			$self->show_cluster($hits_ref, $cluster_count);
-		}	
-	}
 }
 
 #***************************************************************************
@@ -1429,6 +1425,28 @@ sub merge_clustered_loci {
 }
 
 #***************************************************************************
+# Subroutine:  show_clusters
+# Description: 
+#***************************************************************************
+sub show_clusters {
+
+	my ($self, $defragmented_ref) = @_;
+
+	#$devtools->print_hash($defragmented_ref); die;
+
+	my @cluster_ids = keys %$defragmented_ref;
+	my $cluster_count;
+	foreach my $id (@cluster_ids) {
+		$cluster_count++;
+		my $hits_ref = $defragmented_ref->{$id};
+		my $cluster_size = scalar @$hits_ref;
+		if ($cluster_size > 1) {
+			$self->show_cluster($hits_ref, $cluster_count);
+		}	
+	}
+}
+
+#***************************************************************************
 # Subroutine:  show_cluster
 # Description: 
 #***************************************************************************
@@ -1436,13 +1454,16 @@ sub show_cluster {
 
 	my ($self, $hits_ref, $cluster_id) = @_;
 
+ 	#$devtools->print_array($hits_ref); die;	
 	#print "\n";
+	
 	foreach my $hit_ref (@$hits_ref) {
    		
    		#$devtools->print_hash($hit_ref); die;	
 		my $organism      = $hit_ref->{organism};			
 		my $assigned_name = $hit_ref->{probe_name};			
 		my $assigned_gene = $hit_ref->{probe_gene};			
+		my $orientation   = $hit_ref->{orientation};			
 
 		unless ($assigned_name) {
 			$assigned_name = $hit_ref->{assigned_name};			
@@ -1463,13 +1484,10 @@ sub show_cluster {
 
 		my $extract_id    = $hit_ref->{extract_id};
 
-		# Show output if verbose flag is set
-		if ($verbose) {
-			print "\n\t\t CLUSTER $cluster_id $organism: ";
-			print "$assigned_name: $assigned_gene: $scaffold $start-$end";
-			if ($extract_id) {
-				print " (extract ID: $extract_id)";				
-			}
+		print "\n\t\t CLUSTER $cluster_id $organism: ";
+		print "$assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
+		if ($extract_id) {
+			print " (extract ID: $extract_id)";				
 		}
 	}			
 }
@@ -1667,7 +1685,6 @@ sub get_sorted_extracted_loci {
 
 #***************************************************************************
 # Subroutine:  create_combined_active_set 
-# Description: get all extracted loci for this target file (& probe)
 # Description: get all extracted loci for this target file (& probe)
 #***************************************************************************
 sub create_combined_active_set {
