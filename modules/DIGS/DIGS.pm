@@ -221,7 +221,7 @@ sub do_digs {
 			$self->assign($query_ref, \@extracted);
 			
 			# Update DB
-			$self->update_db($query_ref, \@extracted);
+			$self->update_db(\@extracted);
 			
 			# Show progress
 			$self->show_digs_progress();
@@ -422,7 +422,7 @@ sub interactive_defragment {
 		my @merged;
 		#$devtools->print_hash(\%defragmented); die;	
 		$self->merge_clustered_loci(\%defragmented, \@merged);
-		#$devtools->print_array(\@merged); die;	
+		$devtools->print_array(\@merged); die;	
 		$self->update_db(\@merged);
 	}
 	elsif ($choice eq 3) {
@@ -927,7 +927,7 @@ sub update_db {
 	#print "\n # Flushing 'active_set' table";
 	$active_set_table->flush();
 
-	# Iterate through the 
+	# Iterate through the extracted sequences
 	foreach my $hit_ref (@$extracted_ref) {
 
 		# Insert the data to the Extracted_sequences table
