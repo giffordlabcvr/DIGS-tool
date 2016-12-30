@@ -603,7 +603,7 @@ sub consolidate_loci {
 		$db_ref->load_loci_table($dbh);
 	}
 	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
-	unless ($loci_exists) {
+	unless ($loci_chains_exists) {
 		$db_ref->create_loci_table($dbh);
 		$db_ref->load_loci_table($dbh);
 	}
