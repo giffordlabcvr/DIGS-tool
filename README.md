@@ -3,13 +3,15 @@
 
 ### **Database-integrated genome-screening (DIGS)**
 
-Much of the content of genomes consists of poorly characterised '**dark matter**', such as [transposons](https://www.broadinstitute.org/education/glossary/transposable-elements), [pseudogenes](http://pseudogene.org/background.php), [endogenous viral elements (EVEs)](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1001191) and obscure [non-coding DNA elements](http://www.pbs.org/newshour/rundown/junk-dna/). These sequences, even when non-functional, contain a wealth of **useful biological information** that can be explored by using [sequence similarity searches](http://www.ebi.ac.uk/Tools/sss/) in combination with strategically chosen reference sequence datasets.
+Molecular sequence data are highly information rich, and are now being generated much faster than they can be analysed. Consequently, the immense quantities of genome, transcriptome, and metagenome data accumulating in public databases contain multitudes of gene, pseudogene, transposon, virus, and non-coding element sequences that have not been yet been identified, or are only poorly described.
 
-In **database-integrated genome-screening (DIGS)**, the output of sequence similarity search-based genome 'screens' is captured in a [relational database](https://docs.oracle.com/javase/tutorial/jdbc/overview/database.html). This facilitates the implementation of automated screens that can be performed on a large scale. In addition, it allows for the interrogation and manipulation of output data using [structured query language (SQL)](http://www.w3schools.com/sql/sql_intro.asp), and provides all the benefits of a relational database management system (RDBMS) with respect to features such as data recoverability, multi-user support and network access.
+Database-integrated genome screening (DIGS) is an approach for exploring sequence data without relying on previous annotations. DIGS can be used to systematically search for sequences of interest, and to support investigations of their distribution, diversity and evolution.
+
+In DIGS, the output of sequence similarity-based searches is captured in a relational database. This allows for the interrogation and manipulation of output data using structured query language (SQL). In addition, it provides all the benefits of a relational database management system (RDBMS) with respect to features such as data recoverability, multi-user support and network access. 
 
 ### **The DIGS tool**
 
-The DIGS tool provides a computational framework for implementing DIGS. The tool is written in [PERL](https://www.perl.org/). It uses the [Basic Local Alignment Search Tool (BLAST)](http://blast.ncbi.nlm.nih.gov/Blast.cgi) to perform sequence similarity searches, and the [MySQL](https://www.mysql.com/) RDBMS to capture results and track progress.
+The DIGS tool is a PERL program for implementing DIGS with assembled sequence data (not short read data). It uses the [Basic Local Alignment Search Tool (BLAST)](http://blast.ncbi.nlm.nih.gov/Blast.cgi) to perform sequence similarity searches, and the [MySQL](https://www.mysql.com/) RDBMS to capture their output. 
 
 Instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
 
