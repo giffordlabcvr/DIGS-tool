@@ -33,18 +33,18 @@ You can then start exploring genomes using the DIGS tool. Execute the pipeline.p
 To see options for screening: 
 
 ```
-./pipeline.pl -h
+./digs_tool.pl -h
 ```
 
 To initially create your screening database:
 ```
-./pipeline.pl -m=1 -i=[path to your control file]
+./digs_tool.pl -m=1 -i=[path to your control file]
 ```
 
 To initiate DIGS:
 
 ```
-./pipeline.pl -m=2 -i=[path to your control file]
+./digs_tool.pl -m=2 -i=[path to your control file]
 ```
 
 
