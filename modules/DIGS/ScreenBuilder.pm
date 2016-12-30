@@ -202,6 +202,7 @@ sub setup_reference_library {
 		$ref_fasta = $self->{reference_na_fasta};
 		$reference_type = 'nucleic acid';
 	}
+	else { die; }
 	unless ($ref_fasta)  {die; }
 	
 	my @ref_fasta;

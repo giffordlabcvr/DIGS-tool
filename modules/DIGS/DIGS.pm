@@ -60,7 +60,6 @@ sub new {
 		program_version        => $parameter_ref->{program_version},
 		
 		# Paths and member variables
-		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
 
@@ -116,9 +115,9 @@ sub run_digs_process {
 		$self->do_digs();	
 	}
 	elsif ($option eq 3) { # Reassign data in Exracted table
-		my @extracted_seqs;
-		$self->initialise_reassign(\@extracted_seqs); # Set up 
-		$self->reassign(\@extracted_seqs);	
+		my @digs_results;
+		$self->initialise_reassign(\@digs_results); # Set up 
+		$self->reassign(\@digs_results);	
 	}
 	elsif ($option eq 4) { # Reassign data in Exracted table	
 		$self->interactive_defragment();	
@@ -257,7 +256,7 @@ sub reassign {
 	unless ($digs_results_table) { die; }
 	
 	# Iterate through the matches
-	print "\n\n\t  Reassigning Extracted_sequences table\n";
+	print "\n\n\t  Reassigning hits in the digs_results table\n";
 	my $count = 0;
 	my %reassign_matrix;
 	my %unique_keys;
@@ -1846,21 +1845,29 @@ sub initialise_reassign {
 	my $db          = $self->{db};
 	my $db_name     = $db->{db_name};
 	unless ($db and $db_name and $process_id and $output_path) { die; }
+	#$devtools->print_hash($self); die;
 	
 	# Create report directory
 	my $loader_obj = $self->{loader_obj};
 	$loader_obj->create_output_directories($self);
+
+	# Set up the reference library
+	$loader_obj->setup_reference_library($self);
+	my $where;
+	if ($self->{blast_utr_lib_path}) {
+		$where = " WHERE probe_type = 'UTR'";
+	}
+	elsif ($self->{blast_orf_lib_path}) {
+		$where = " WHERE probe_type = 'ORF'";
+	}
 
 	# Get the assigned data
 	my $digs_results_table = $db->{digs_results_table};
 	my @fields  = qw [ record_id probe_type 
 	                   assigned_name assigned_gene
 	                   organism 
-	                   extract_start extract_end sequence  ];
-	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref);
-
-	# Set up the reference library
-	$loader_obj->setup_reference_library($self);
+	                   extract_start extract_end sequence ];
+	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref, $where);
 
 }
 
