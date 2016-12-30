@@ -824,14 +824,16 @@ sub compress_db {
 	my @loci;
 	my $where = $self->set_redundancy($query_ref);
 	$self->get_sorted_extracted_loci(\@loci, $where);
-	
+	my $num_loci = scalar @loci;
+	print "\n\t\t # $num_loci previously extracted loci";
+		
 	# Add relevant set of  previously extracted loci to the active set of BLAST results
 	$self->create_combined_active_set(\@loci);
 
 	# Get new BLAST results & previously extracted loci in a sorted list
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
-	my $total_hits = scalar @loci;
+	my $total_hits = scalar @combined;
 	if ($total_hits > 0) {
 		print "\n\t\t # $total_hits new hits & previously extracted loci ";
 	}
@@ -1697,7 +1699,6 @@ sub create_combined_active_set {
 
 	# Enter all relevant extracted loci into 'active_set' table 
 	my $num_loci = scalar @$data_ref;
-	print "\n\t\t # $num_loci previously extracted loci";
 	foreach my $locus_ref (@$data_ref) {
 
 		#print "\n\t\t # inserting extract ID $extract_id";
