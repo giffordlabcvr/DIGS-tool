@@ -735,13 +735,13 @@ sub translate_schema {
 	unless ($dbh) {	die "\n\t # Couldn't connect to $db_name database\n\n"; }
 
 	# Create new tables
-	#$self->create_searches_table($dbh);
-	#$self->create_active_set_table($dbh);
-	#$self->create_digs_results_table($dbh);
-	#$self->create_blast_chains_table($dbh);
+	$self->create_searches_table($dbh);
+	$self->create_active_set_table($dbh);
+	$self->create_digs_results_table($dbh);
+	$self->create_blast_chains_table($dbh);
 	
 	# Translate 'Extracted' to 'digs_results'
-	$self->load_digs_results_table($dbh);
+	$self->load_extracted_table($dbh);
 	my $extracted_table    = $self->{extracted_table};
 	my $digs_results_table = $self->{digs_results_table};
 	$digs_results_table->flush();
@@ -776,6 +776,71 @@ sub translate_schema {
 		$row_ref->{target_datatype} = $row_ref->{data_type};
 		$searches_table->insert_row($row_ref);
 	}
+}
+
+#***************************************************************************
+# Subroutine:  load_status_table
+# Description: load screening database table 'Status'
+# Note: Deprecated table - this function required for schema translate 
+#***************************************************************************
+sub load_status_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %status_fields = (
+		probe_id       => 'varchar',
+		probe_name     => 'varchar',
+		probe_gene     => 'varchar',
+		genome_id      => 'varchar',
+		organism       => 'varchar',
+		data_type      => 'varchar',
+		version        => 'varchar',
+		target_name    => 'varchar',
+	);
+	my $status_table = MySQLtable->new('Status', $dbh, \%status_fields);
+	$self->{status_table} = $status_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_extracted_table
+# Description: load screening database table 'Extracted'
+# Note: Deprecated table - this function required for schema translate 
+#***************************************************************************
+sub load_extracted_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %extract_fields = (
+		blast_id         => 'blast_id',
+		organism         => 'varchar',
+		version          => 'varchar',
+		data_type        => 'varchar',
+		target_name      => 'varchar',
+		probe_type       => 'varchar',
+		assigned_name    => 'varchar',
+		assigned_gene    => 'varchar',
+		scaffold         => 'varchar',
+		extract_start    => 'varchar',
+		extract_end      => 'varchar',
+		orientation      => 'varchar',
+		bit_score        => 'float',
+		identity         => 'varchar',
+		e_value_num      => 'float',
+		e_value_exp      => 'int',
+	  	subject_start    => 'int',
+	  	subject_end      => 'int',
+		query_start      => 'int',
+	  	query_end        => 'int',
+		align_len        => 'int',
+		gap_openings     => 'int',
+		mismatches       => 'int',
+		sequence_length  => 'int',
+		sequence         => 'text',
+	);
+	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
+	$self->{extracted_table} = $extract_table;
 }
 
 #***************************************************************************
