@@ -362,8 +362,8 @@ sub interactive_defragment {
 	do {
 
 		my $question1 = "\n\n\t # Set the range for merging hits";
-		#my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
-		my $t_range = 100;
+		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+		#my $t_range = 100;
 		my $total_hits = '0';
 		my $total_clusters = '0';
 		foreach my $target_ref (@targets) {
@@ -589,10 +589,13 @@ sub consolidate_loci {
 
     # Set up for consolidation
 	my @sorted;
+
+	# DEBUG OPTIONS
 	#my $where = " WHERE orientation = '+'";
-	my $where = " WHERE assigned_name = 'HERV-E'";
-	$self->get_sorted_extracted_loci(\@sorted, $where);
-	#$self->get_sorted_extracted_loci(\@sorted);
+	#my $where = " WHERE assigned_name = 'HERV-E'";
+	#$self->get_sorted_extracted_loci(\@sorted, $where);
+
+	$self->get_sorted_extracted_loci(\@sorted);
 	my $total_hits = scalar @sorted;
 	print "\n\t...$total_hits individual hits";
 	#$devtools->print_array(\@sorted); die; # Show loci 	
@@ -600,7 +603,6 @@ sub consolidate_loci {
 	# Create tables if they don't exist already
 	my $db_ref = $self->{db};
 	my $dbh = $db_ref->{dbh};
-
 	my $loci_exists = $db_ref->does_table_exist('loci');
 	unless ($loci_exists) {
 		$db_ref->create_loci_table($dbh);
@@ -609,10 +611,6 @@ sub consolidate_loci {
 	unless ($loci_chains_exists) {
 		$db_ref->create_loci_chains_table($dbh);
 	}
-
-
-	#$db_ref->create_loci_table($dbh);
-	#$db_ref->create_loci_chains_table($dbh);
 	
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
@@ -621,7 +619,11 @@ sub consolidate_loci {
 	my %settings;
 	my %consolidated;
 	my $range = $self->{consolidate_range};
-	unless ($range) { die; }
+	my $d_range = $self->{defragment_range};
+	unless ($range) { 
+		my $question1 = "\n\n\t # Set the range for consolidating digs results";
+		$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
+	}
 	
 	# Settings
 	$settings{range} = $range;

@@ -844,17 +844,43 @@ sub load_extracted_table {
 }
 
 #***************************************************************************
-# Subroutine:  check if table exists
-# Description: 
+# Subroutine:  does_table_exist
+# Description: check if a table exists in the screening DB
 #***************************************************************************
 sub does_table_exist {
 
     my ($self, $table_name) = @_;
 
-	my $dbh = $self->{dbh};
-    my $query_handle = $dbh->prepare("DESC $table_name");
-    eval { $query_handle->execute(); };
-    return ! $@;
+	# Get connection variables from self
+	my $server   = $self->{server};
+	my $username = $self->{username};
+	my $password = $self->{password};
+	my $db_name  = $self->{db_name};
+
+	unless ($server)   { die; }
+	unless ($username) { die; }
+	unless ($password) { die; }
+
+	# Set name
+	my $info_db_name = 'information_schema';
+   
+	# Load tables from the screening result DB we've been given
+	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
+	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
+
+	my $query = "SELECT * FROM information_schema.tables
+                 WHERE table_schema = '$db_name' 
+  			     AND table_name = '$table_name'
+		         LIMIT 1;";
+	my $sth = $dbh->prepare($query);
+	unless ($sth->execute()) { print $query; exit; }
+	my $row_count = 0;
+	my $exists = undef;
+	while (my $row = $sth->fetchrow_arrayref) {
+		$exists = 'TRUE';		
+	}
+
+	return $exists;	
 }
 
 
