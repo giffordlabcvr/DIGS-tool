@@ -587,35 +587,40 @@ sub consolidate_loci {
     # Set up for consolidation
 	my @sorted;
 	#my $where = " WHERE orientation = '+'";
-	#$self->get_sorted_extracted_loci(\@sorted, $where);
-	$self->get_sorted_extracted_loci(\@sorted);
+	my $where = " WHERE assigned_name = 'HERV-E'";
+	$self->get_sorted_extracted_loci(\@sorted, $where);
+	#$self->get_sorted_extracted_loci(\@sorted);
 	my $total_hits = scalar @sorted;
 	print "\n\t...$total_hits individual hits";
 	#$devtools->print_array(\@sorted); die; # Show loci 	
 
-	# Tables 
+	# Create tables if they don't exist already
 	my $db_ref = $self->{db};
 	my $dbh = $db_ref->{dbh};
+
 	my $loci_exists = $db_ref->does_table_exist('loci');
 	unless ($loci_exists) {
 		$db_ref->create_loci_table($dbh);
-		$db_ref->load_loci_table($dbh);
 	}
 	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
 	unless ($loci_chains_exists) {
-		$db_ref->create_loci_table($dbh);
-		$db_ref->load_loci_table($dbh);
+		$db_ref->create_loci_chains_table($dbh);
 	}
 
 
-	$db_ref->create_loci_chains_table($dbh);
-	$db_ref->load_loci_chains_table($dbh);	
+	#$db_ref->create_loci_table($dbh);
+	#$db_ref->create_loci_chains_table($dbh);
+	
+	$db_ref->load_loci_table($dbh);
+	$db_ref->load_loci_chains_table($dbh);
 
 	# Set up for consolidate
 	my %settings;
 	my %consolidated;
 	my $range = $self->{consolidate_range};
 	unless ($range) { die; }
+	
+	# Settings
 	$settings{range} = $range;
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
@@ -628,8 +633,86 @@ sub consolidate_loci {
 		print "\n\t...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 	
-	# DEBUG 
-	$self->show_clusters(\%consolidated);  die; # Show clusters 	
+	#$self->show_clusters(\%consolidated);  die; # DEBUG- Show clusters 	
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+	foreach my $cluster_id (@cluster_ids) {
+	
+		my $hits_ref = $consolidated{$cluster_id};
+		my $cluster_size = scalar @$hits_ref;
+		if ($cluster_size > 1) {
+			#$self->show_cluster($hits_ref, $cluster_id);
+		}	
+		
+		my @locus_structure;
+		my $initialised = undef;
+		my $lowest;
+		my $highest;
+		my $scaffold;
+		my $version;
+		my $orientation;
+		my $datatype;
+		my $organism;
+		my $target_name;
+		my $assigned_name;
+
+		foreach my $hit_ref (@$hits_ref) {
+			
+			my $feature     = $hit_ref->{assigned_gene};
+			my $start       = $hit_ref->{extract_start};
+			my $end         = $hit_ref->{extract_end};
+			$version        = $hit_ref->{target_version};
+			$datatype       = $hit_ref->{target_datatype};
+			$orientation    = $hit_ref->{orientation};
+			$scaffold       = $hit_ref->{scaffold};
+			$organism       = $hit_ref->{organism};
+			$target_name    = $hit_ref->{target_name};
+
+			unless ($feature and $orientation) { die; }
+			if ($orientation eq '+') {
+				push(@locus_structure, $feature);
+			}
+			elsif ($orientation eq '-') {
+				unshift(@locus_structure, $feature);			
+			}
+
+			if ($initialised) {
+				if ($end > $highest) {
+					$highest = $end;
+				}
+				if ($start < $lowest) {
+					$lowest = $start;					
+				}
+			}
+			else {
+				$highest = $end;
+				$lowest = $start;
+				$initialised = 'true';								
+			}
+		}
+		
+		my $locus_structure = join('-', @locus_structure);
+		my %locus;
+		$locus{organism}        = $organism;
+		$locus{target_version}  = $version;
+		$locus{target_name}     = $target_name;
+		$locus{target_datatype} = $datatype;
+		$locus{scaffold}        = $scaffold;
+		$locus{orientation}     = $orientation;
+		$locus{extract_start}   = $lowest;
+		$locus{extract_end}     = $highest;
+		$locus{assigned_name}   = $assigned_name;
+		$locus{locus_structure} = $locus_structure;
+		my $locus_id  = $loci_table->insert_row(\%locus);
+		
+		foreach my $hit_ref (@$hits_ref) {
+			my $digs_result_id = $hit_ref->{record_id};
+			my %chain_data;
+			$chain_data{digs_result_id} = $digs_result_id;
+			$chain_data{locus_id}       = $locus_id;
+			$loci_chains_table->insert_row(\%chain_data);
+		}		
+	}
 }
 
 ############################################################################

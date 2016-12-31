@@ -274,20 +274,22 @@ sub load_loci_table {
 
     # Definition of the loci table
     my %loci_fields = (
+
         organism         => 'varchar',
-        version          => 'varchar',
-        data_type        => 'varchar',
+        target_version   => 'varchar',
+        target_datatype  => 'varchar',
         target_name      => 'varchar',
         scaffold         => 'varchar',
         orientation      => 'varchar',
         assigned_name    => 'varchar',
         extract_start    => 'int',
         extract_end      => 'int',
-        genome_structure => 'text',
+        locus_structure  => 'text',
 
     );   
-    my $loci_table = MySQLtable->new('Loci', $dbh, \%loci_fields);
+    my $loci_table = MySQLtable->new('loci', $dbh, \%loci_fields);
     $self->{loci_table} = $loci_table;
+
 }
 
 #***************************************************************************
@@ -301,9 +303,9 @@ sub load_loci_chains_table {
     # Definition of the loci table
     my %loci_fields = (
         locus_id       => 'int',
-        extracted_id   => 'int',
+        digs_result_id => 'int',
     );   
-    my $loci_table = MySQLtable->new('Loci_link', $dbh, \%loci_fields);
+    my $loci_table = MySQLtable->new('loci_chains', $dbh, \%loci_fields);
     $self->{loci_chains_table} = $loci_table;
 }
 
@@ -517,7 +519,7 @@ sub create_loci_table {
         `assigned_name`     varchar(100) NOT NULL default '0',
         `extract_start`     int(11) NOT NULL default '0',
         `extract_end`       int(11) NOT NULL default '0',
-        `genome_structure`  text NOT NULL,
+        `locus_structure`   text NOT NULL,
       
         `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
       PRIMARY KEY  (`record_id`)
@@ -535,7 +537,7 @@ sub create_loci_chains_table {
     my ($self, $dbh) = @_;
 
     # consolidated loci table 
-    my $loci = "CREATE TABLE `loci_chains` (
+    my $loci = "CREATE TABLE `loci_chains`  (
     
         `record_id`       int(11) NOT NULL auto_increment,
         `locus_id`        int(11) NOT NULL default '0',
