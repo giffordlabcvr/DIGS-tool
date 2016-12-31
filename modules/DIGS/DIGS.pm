@@ -381,7 +381,7 @@ sub interactive_defragment {
 		   	$where    .= " AND target_version  = '$target_version' ";
 		   	$where    .= " AND target_name     = '$target_name' "; 
 
-			$self->get_sorted_extracted_loci(\@loci, $where);
+			$self->get_sorted_digs_results(\@loci, $where);
 			my $num_hits = scalar @loci;
 			#$devtools->print_array(\@loci); die;
 		
@@ -593,9 +593,10 @@ sub consolidate_loci {
 	# DEBUG OPTIONS
 	#my $where = " WHERE orientation = '+'";
 	#my $where = " WHERE assigned_name = 'HERV-E'";
-	#$self->get_sorted_extracted_loci(\@sorted, $where);
+	#$self->get_sorted_digs_results(\@sorted, $where);
 
-	$self->get_sorted_extracted_loci(\@sorted);
+	# Get the 
+	$self->get_sorted_digs_results(\@sorted);
 	my $total_hits = scalar @sorted;
 	print "\n\t...$total_hits individual hits";
 	#$devtools->print_array(\@sorted); die; # Show loci 	
@@ -910,7 +911,7 @@ sub compress_db {
 	# Create the relevant set of previously extracted loci
 	my @loci;
 	my $where = $self->set_redundancy($query_ref);
-	$self->get_sorted_extracted_loci(\@loci, $where);
+	$self->get_sorted_digs_results(\@loci, $where);
 	my $num_loci = scalar @loci;
 	print "\n\t\t # $num_loci previously extracted loci";
 		
@@ -1743,10 +1744,10 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted extracted loci 
+# Subroutine:  get sorted digs results
 # Description: 
 #***************************************************************************
-sub get_sorted_extracted_loci {
+sub get_sorted_digs_results {
 
 	my ($self, $data_ref, $where) = @_;;
 
