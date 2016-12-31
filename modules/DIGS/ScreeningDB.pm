@@ -741,7 +741,7 @@ sub translate_schema {
 	#$self->create_blast_chains_table($dbh);
 	
 	# Translate 'Extracted' to 'digs_results'
-	$self->load_extracted_table($dbh);
+	$self->load_digs_results_table($dbh);
 	my $extracted_table    = $self->{extracted_table};
 	my $digs_results_table = $self->{digs_results_table};
 	$digs_results_table->flush();

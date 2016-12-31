@@ -98,7 +98,7 @@ sub run_digs_process {
 	}
 	
 	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 11 ) {
+	if ( $option > 1 and $option < 12 ) {
 		my $db_name = $self->{db_name};
 		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 		my $db_obj = ScreeningDB->new($self);
@@ -139,11 +139,14 @@ sub run_digs_process {
 	elsif ($option eq 9) { # Consolidate DIGS results into higher level loci 
 		$self->consolidate_loci();
 	}
-	elsif ($option eq 10) { # DB schema translation
+	elsif ($option eq 10) { # Consolidate DIGS results into higher level loci 
+		$self->show_locus_chains();
+	}
+	elsif ($option eq 11) { # DB schema translation
 		my $db_obj = $self->{db};
 		$db_obj->translate_schema();
 	}
-	elsif ($option eq 11) { # Check the target genomes are formatted for BLAST
+	elsif ($option eq 12) { # Check the target genomes are formatted for BLAST
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
@@ -293,7 +296,7 @@ sub reassign {
 			# Show the results
 			print "\n\t ##### Reassigned $record_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
-			my $where = " WHERE Record_id = $record_id ";
+			my $where = " WHERE record_id = $record_id ";
 			
 			# Update the matrix
 			my $previous_key = $previous_assign . '_' . $previous_gene;
@@ -1057,7 +1060,7 @@ sub update_db {
 		foreach my $old_extract_id (@$extract_ids_ref) {			
 			
 			# Delete superfluous extract rows
-			my $extracted_where = " WHERE Record_ID = $old_extract_id ";	
+			my $extracted_where = " WHERE record_id = $old_extract_id ";	
 			$digs_results_table->delete_rows($extracted_where);
 			# Update extract IDs			
 			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
@@ -1702,7 +1705,7 @@ sub index_previously_executed_searches {
 	my @fields = qw [ record_id probe_name probe_gene 
 	                  target_organism target_datatype
 	                  target_version target_name ];
-	my $where = " ORDER BY Record_ID ";
+	my $where = " ORDER BY record_id ";
 	$searches_table->select_rows(\@fields, \@data, $where);
 	
 	# Index the executed searches
@@ -1840,9 +1843,9 @@ sub show_blast_chains {
 	# Get relevant variables and objects
 	my $db = $self->{db};
 	unless ($db) { die; } # Sanity checking
-	my $digs_results_table    = $db->{digs_results_table}; 
+	my $digs_results_table = $db->{digs_results_table}; 
 	my $blast_chains_table = $db->{blast_chains_table};
-	my $extract_where = " ORDER BY Record_ID ";
+	my $extract_where = " ORDER BY record_id ";
 	my @extracted_ids;
 	my @fields = qw [ record_id assigned_name assigned_gene ];
 	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
@@ -1875,6 +1878,77 @@ sub show_blast_chains {
 			my $align_len   = $hit_ref->{align_len};
 			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
 			print "across $align_len aa ($start-$end) to:\t $probe_name ($probe_gene) ";
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_locus_chains
+# Description: Show digs_result chains for all consolidated loci
+#***************************************************************************
+sub show_locus_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	unless ($db) { die; } # Sanity checking
+	my $dbh = $db->{dbh};
+	$db->load_loci_table($dbh);
+	$db->load_loci_chains_table($dbh);
+	#$devtools->print_hash($db); die;
+
+	my $digs_results_table = $db->{digs_results_table}; 
+	my $loci_table         = $db->{loci_table};
+	my $loci_chains_table  = $db->{loci_chains_table};
+	unless ($digs_results_table and $loci_chains_table) {
+		print "\n\t # Locus tables not found - run consolidate first\n\n\n";
+		exit;
+	}
+
+	# Get all loci
+	my $loci_where = " ORDER BY record_id ";
+	my @loci;
+	my @fields = qw [ record_id locus_structure ];
+	$loci_table->select_rows(\@fields, \@loci, $loci_where);	 
+	
+	# Iterate through loci
+	foreach my $locus_ref (@loci) {
+
+		my $locus_id = $locus_ref->{record_id};
+		print "\n\t ### Chain $locus_id ";	
+		my $chain_where = " WHERE locus_id = $locus_id ";
+		my @results;
+		my @fields = qw [ record_id locus_id digs_result_id ];
+		$loci_chains_table->select_rows(\@fields, \@results, $chain_where);	 
+		
+		foreach my $result_ref (@results) {
+
+			my @digs_results;
+			my $digs_result_id = $result_ref->{digs_result_id};
+			my @result_fields = qw [ assigned_name assigned_gene 
+			                         organism target_name 
+			                         scaffold extract_start extract_end
+			                         bitscore identity align_len ];
+			my $where  = " WHERE record_id = $digs_result_id ";
+			$digs_results_table->select_rows(\@result_fields, \@digs_results, $where);			
+
+			foreach my $result_ref (@digs_results) {
+		
+				my $assigned_name = $result_ref->{assigned_name};
+				my $assigned_gene = $result_ref->{assigned_gene};
+				my $organism      = $result_ref->{organism};	
+				my $scaffold      = $result_ref->{scaffold};
+				my $start         = $result_ref->{extract_start};
+				my $end           = $result_ref->{extract_end};
+				my $bitscore      = $result_ref->{bitscore};
+				my $identity      = $result_ref->{identity};
+				my $align_len     = $result_ref->{align_len};
+				my $f_identity    = sprintf("%.2f", $identity);
+				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
+				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
+	
+			}
 		}
 	}
 }
@@ -2034,14 +2108,16 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
 		$HELP  .= "\n\t -m=8  Show BLAST chains"; 
 		$HELP  .= "\n\t -m=9  Consolidate"; 
-		$HELP  .= "\n\t -m=10 Translate DB schema"; 
-		$HELP  .= "\n\t -m=11 Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=10 Show locus chains"; 
+		$HELP  .= "\n\t -m=11 Translate DB schema"; 
+		$HELP  .= "\n\t -m=12 Format genome directory ($ENV{DIGS_GENOMES})\n"; 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)";
 		$HELP  .= "\n\t -u=3  Extract sequences using track\n\n";
 	print $HELP;
 }
+
 
 ############################################################################
 # UTILITY FUNCTIONS
