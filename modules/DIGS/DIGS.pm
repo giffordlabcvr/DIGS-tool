@@ -150,6 +150,10 @@ sub run_digs_process {
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
+	elsif ($option eq 13) { # Apply Missillac nomenclature
+		
+
+	}
 	else {
 		print "\n\t  Unrecognized option '-m=$option'\n";
 	}
