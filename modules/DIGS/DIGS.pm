@@ -217,10 +217,17 @@ sub do_digs {
 
 			# Extract newly identified or extended sequences
 			my @extracted;
+			my $target_path = $query_ref->{target_path};
+			unless ($target_path) { die; }
 			$self->extract($query_ref, \@new_hits, \@extracted);	
 	
+			# Get the unique key for this probe
+			my $probe_name  = $query_ref->{probe_name};
+			my $probe_gene  = $query_ref->{probe_gene};
+			my $probe_key = $probe_name . '_' . $probe_gene; 
+				
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$self->assign($query_ref, \@extracted);
+			$self->assign($probe_key, \@extracted);
 			
 			# Update DB
 			$self->update_db(\@extracted);
@@ -403,8 +410,17 @@ sub interactive_defragment {
 					$self->show_clusters(\%target_defragmented);
 				}
 			}
+			
+			foreach my $cluster_id (@cluster_ids) {
+				
+				my $cluster_ref = $target_defragmented{$cluster_id};
+				my $num_hits = scalar @$cluster_ref; 
+				$total_clusters++;
+				$defragmented{$total_clusters} = $cluster_ref;				
+				print "\n\t\t\t CLUSTER $total_clusters: formed from $cluster_id ($num_hits hits) in $target_name";
+
+			}
 			$total_hits = $total_hits + $num_hits;
-			$total_clusters = $total_clusters + $num_clusters;
 		}
 		
 		# Prompt for what to do next
@@ -421,11 +437,33 @@ sub interactive_defragment {
 	} until ($choice > 1);
 
 	if ($choice eq 2) { # Apply the changes
-		my @merged;
+		
+		#$digs_results_table->flush();
 		#$devtools->print_hash(\%defragmented); die;	
-		$self->merge_clustered_loci(\%defragmented, \@merged);
-		$devtools->print_array(\@merged); die;	
-		$self->update_db(\@merged);
+		
+		my @merged;
+		$self->merge_clusters(\%defragmented, \@merged);
+		#$devtools->print_array(\@merged); die;	
+		#$self->update_db(\@merged);
+		#die;
+
+		# Extract newly identified or extended sequences	
+		my @extracted;
+		#$self->extract($target_path, \@merged, \@extracted);	
+		$devtools->print_array(\@extracted); die;	
+		
+		foreach my $cluster_ref (@extracted) {			
+
+			#$devtools->print_hash($cluster_ref); die;	
+			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+			$self->assign($cluster_ref, \@extracted);
+			
+			# Update DB
+			$self->update_db(\@extracted);
+			$self->do_blast_genotyping($cluster_ref);
+			$digs_results_table->insert_row($cluster_ref);
+		}
+		
 	}
 	elsif ($choice eq 3) {
 		exit;
@@ -612,9 +650,6 @@ sub consolidate_loci {
 	unless ($loci_chains_exists) {
 		$db_ref->create_loci_chains_table($dbh);
 	}
-	
-	$db_ref->load_loci_table($dbh);
-	$db_ref->load_loci_chains_table($dbh);
 
 	# Set up for consolidate
 	my %settings;
@@ -847,12 +882,11 @@ sub search {
 #***************************************************************************
 sub extract {
 
-	my ($self, $query_ref, $hits_ref, $extracted_ref) = @_;
+	my ($self, $target_path, $hits_ref, $extracted_ref) = @_;
 
 	# Get paths, objects, data structures and variables from self
 	my $blast_obj   = $self->{blast_obj};
 	my $buffer      = $self->{extract_buffer};
-	my $target_path = $query_ref->{target_path};
 
 	# Iterate through the list of sequences to extract
 	my $new_hits = scalar @$hits_ref;
@@ -906,7 +940,7 @@ sub extract {
 #***************************************************************************
 sub compress_db {
 	
-	my ($self, $query_ref, $extracted_ref) = @_;
+	my ($self, $query_ref, $to_extract_ref) = @_;
 
 	# Create the relevant set of previously extracted loci
 	my @loci;
@@ -942,8 +976,8 @@ sub compress_db {
 	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
 
 	# Determine what to extract, and extract it
-	$self->merge_clustered_loci(\%defragmented, $extracted_ref);
-	my $num_new = scalar @$extracted_ref;
+	$self->merge_clusters(\%defragmented, $to_extract_ref);
+	my $num_new = scalar @$to_extract_ref;
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
 	}	
@@ -988,7 +1022,7 @@ sub set_redundancy {
 #***************************************************************************
 sub assign {
 	
-	my ($self, $query_ref, $extracted_ref) = @_;
+	my ($self, $probe_key, $extracted_ref) = @_;
 		
 	# Iterate through the matches
 	my $assigned_count   = 0;
@@ -1000,11 +1034,6 @@ sub assign {
 		my $assigned = $self->do_blast_genotyping($hit_ref);
 		if ($assigned) { $assigned_count++; }
 
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key = $probe_name . '_' . $probe_gene; 
-				
 		# Record cross-matching
 		if ($probe_key ne $assigned) {
 			$crossmatch_count++;
@@ -1042,15 +1071,15 @@ sub update_db {
 		# Insert the data to the Extracted_sequences table
 		$hit_ref->{organism} = $hit_ref->{target_organism}; # Translate field name
 		my $extract_id = $digs_results_table->insert_row($hit_ref);
-		#$devtools->print_hash($hit_ref); die;
+		#$devtools->print_hash($hit_ref); die; # DEBUG
 		
 		# Insert the data to the BLAST_chains table
 		my $blast_chains = $hit_ref->{blast_chains};
-		#$devtools->print_hash($blast_chains);
-
-		if ($blast_chains) {		
+		if ($blast_chains) {
+		
 			my @blast_ids = keys %$blast_chains;
 			foreach my $blast_id (@blast_ids) {							
+
 				my $data_ref = $blast_chains->{$blast_id};
 				$data_ref->{extract_id} = $extract_id;	
 				#$devtools->print_hash($data_ref); exit;
@@ -1058,19 +1087,19 @@ sub update_db {
 			}
 		}
 
-		# Delete superfluous data from the
+		# Delete superfluous data (due to multiple digs_results table rows being merged)
 		my $extract_ids_ref = $hit_ref->{extract_ids};
 		foreach my $old_extract_id (@$extract_ids_ref) {			
 			
-			# Delete superfluous extract rows
-			my $extracted_where = " WHERE record_id = $old_extract_id ";	
-			$digs_results_table->delete_rows($extracted_where);
-			# Update extract IDs			
-			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
+			# Delete superfluous rows in digs_results table
+			my $digs_results_where = " WHERE record_id = $old_extract_id ";	# SQL
+			$digs_results_table->delete_rows($digs_results_where);
+			
+			# Update extract IDs in blast_chains table		
+			my $chains_where = " WHERE Extract_ID = $old_extract_id "; 	# SQL
 			my %new_id;
 			$new_id{extract_id} = $extract_id;	
 			$blast_chains_table->update(\%new_id, $chains_where);
-			#$devtools->print_hash($data_ref); exit;	
 		}
 	}
 }
@@ -1369,10 +1398,10 @@ sub extend_cluster {
 }
 
 #***************************************************************************
-# Subroutine:  merge_clustered_loci
+# Subroutine:  merge_clusters
 # Description: 
 #***************************************************************************
-sub merge_clustered_loci {
+sub merge_clusters {
 	
 	my ($self, $defragmented_ref, $to_extract_ref) = @_;
 

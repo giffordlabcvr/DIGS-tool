@@ -749,7 +749,7 @@ sub translate_schema {
 	}
 	my $blast_chains_exists = $self->does_table_exist('blast_chains');
 	unless ($blast_chains_exists) {
-		$self->create_digs_results_table($dbh);
+		$self->create_blast_chains_table($dbh);
 	}
 	
 	# Translate 'Extracted' to 'digs_results'
@@ -761,7 +761,9 @@ sub translate_schema {
 	my @extracted_fields = qw [ organism version data_type target_name probe_type 
 	                            assigned_name assigned_gene scaffold 
 	                            extract_start extract_end orientation 
-	                            bit_score e_value_num e_value_exp align_len 
+	                            bit_score e_value_num e_value_exp align_len
+	                            subject_start subject_end query_start query_end
+	                            identity gap_openings mismatches 
 	                            gap_openings mismatches sequence_length sequence ];
 	$extracted_table->select_rows(\@extracted_fields, \@extracted_rows);
 	foreach my $row_ref (@extracted_rows) {	
@@ -770,6 +772,7 @@ sub translate_schema {
 		$row_ref->{bitscore}        = $row_ref->{bit_score};
 		$row_ref->{evalue_num}      = $row_ref->{e_value_num};
 		$row_ref->{evalue_exp}      = $row_ref->{e_value_exp};
+		#$devtools->print_hash($row_ref); exit;
 		$digs_results_table->insert_row($row_ref);
 	}
 
