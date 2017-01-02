@@ -538,10 +538,10 @@ sub set_queries {
 			
 			# Create a unique key for this genome
 			my @genome = ( $organism , $datatype, $version );
-			my $genome_id = join ('|', @genome);
+			my $target_id = join ('|', @genome);
 
 			# Create a unique key for this query
-			my @key = ( $genome_id, $target_name, $probe_id );
+			my @key = ( $target_id, $target_name, $probe_id );
 			my $key = join ('|', @key);
 
 			if ($done_ref->{$key}) { 
@@ -551,7 +551,7 @@ sub set_queries {
 			# Else store the query
 			$outstanding++;
 			my %query = %$probe_ref;
-			$query{genome_id}       = $genome_id;		
+			$query{target_id}       = $target_id;		
 			$query{target_organism} = $organism;		
 			$query{target_version}  = $version;
 			$query{target_datatype} = $datatype;		

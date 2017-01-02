@@ -1735,9 +1735,9 @@ sub index_previously_executed_searches {
 		
 		# Create the unique key for this search
 		my @genome = ( $organism , $target_datatype, $version );
-		my $genome_id = join ('|', @genome);
+		my $target_id = join ('|', @genome);
 		my $probe_id  = $probe_name . '_' .  $probe_gene;
-		my @key = ( $genome_id, $target_name, $probe_id );
+		my @key = ( $target_id, $target_name, $probe_id );
 		my $key = join ('|', @key);
 
 		# Record the query, indexed by it's unique key
