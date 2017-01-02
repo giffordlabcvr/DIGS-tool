@@ -87,7 +87,7 @@ my $digs_tool_obj = DIGS->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
+my ($USAGE) = "\n\t  usage: $0 -i=[control file] m=[option] -h=[help]\n\n";
 
 ############################################################################
 # Main program
