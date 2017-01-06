@@ -130,7 +130,7 @@ sub load_searches_table {
 		probe_id         => 'varchar',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
-		genome_id        => 'varchar',
+		target_id        => 'varchar',
 		target_organism  => 'varchar',
 		target_datatype  => 'varchar',
 		target_version   => 'varchar',
@@ -787,6 +787,7 @@ sub translate_schema {
 	$status_table->select_rows(\@status_fields, \@status_rows);
 	foreach my $row_ref (@status_rows) {
 		
+		$row_ref->{target_id}       = $row_ref->{genome_id};
 		$row_ref->{target_version}  = $row_ref->{version};
 		$row_ref->{target_datatype} = $row_ref->{data_type};
 		$searches_table->insert_row($row_ref);
@@ -807,7 +808,7 @@ sub load_status_table {
 		probe_id       => 'varchar',
 		probe_name     => 'varchar',
 		probe_gene     => 'varchar',
-		genome_id      => 'varchar',
+		target_id      => 'varchar',
 		organism       => 'varchar',
 		data_type      => 'varchar',
 		version        => 'varchar',
