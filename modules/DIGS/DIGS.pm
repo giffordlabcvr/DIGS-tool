@@ -40,7 +40,7 @@ my $verbose   = undef;
 1;
 
 ############################################################################
-# LIFECYCLE & TOP LEVEL HANDLERS
+# LIFECYCLE
 ############################################################################
 
 #***************************************************************************
@@ -77,6 +77,10 @@ sub new {
 	return $self;
 }
 
+############################################################################
+# MAIN LOOP
+############################################################################
+
 #***************************************************************************
 # Subroutine:  run_digs_process
 # Description: handler for main DIGS functions 
@@ -97,70 +101,42 @@ sub run_digs_process {
 		$self->initialise($ctl_file);
 	}
 	
-	# If it exists, load the screening database specified in the control file
-	if ( $option > 1 and $option < 12 ) {
-		my $db_name = $self->{db_name};
-		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-		my $db_obj = ScreeningDB->new($self);
-		$db_obj->load_screening_db($db_name);	
-		$self->{db} = $db_obj; # Store the database object reference 
-	}
-	
 	# Hand off to functions 
-	if ($option eq 1)    { # Create a screening DB
-		$self->create_screening_db($ctl_file);
-	}
-	elsif ($option eq 2) { # Screen;
-		$self->set_up_digs();
-		$self->do_digs();	
-	}
-	elsif ($option eq 3) { # Reassign data in Exracted table
-		my @digs_results;
-		$self->initialise_reassign(\@digs_results); # Set up 
-		$self->reassign(\@digs_results);	
-	}
-	elsif ($option eq 4) { # Reassign data in Exracted table	
-		$self->interactive_defragment();	
-	}
-	elsif ($option eq 5) { # Flush screening DB
-		my $db = $self->{db};
-		$db->flush_screening_db();
-	}
-	elsif ($option eq 6) { # Drop screening DB 
-		my $db = $self->{db};
-		$db->drop_screening_db();    
-	}
-	elsif ($option eq 7) { # Add a table of data to the screening database
-		$self->extend_screening_db();
-	}
-	elsif ($option eq 8) { # Show the BLAST chains for each extracted locus
-		$self->show_blast_chains();
-	}
-	elsif ($option eq 9) { # Consolidate DIGS results into higher level loci 
-		$self->consolidate_loci();
-	}
-	elsif ($option eq 10) { # Consolidate DIGS results into higher level loci 
-		$self->show_locus_chains();
-	}
-	elsif ($option eq 11) { # DB schema translation
-		my $db_obj = $self->{db};
-		$db_obj->translate_schema();
-	}
-	elsif ($option eq 12) { # Check the target genomes are formatted for BLAST
+	if ($option eq 1) { # Check the target genomes are formatted for BLAST
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->refresh_genomes();
 	}
-	elsif ($option eq 13) { # Apply Missillac nomenclature
-		
-
-	}
 	else {
-		print "\n\t  Unrecognized option '-m=$option'\n";
+	
+
+		if ($option eq 2) { # Screen;
+			$self->set_up_digs();
+			$self->do_digs();	
+		}
+		elsif ($option eq 3) { # Reassign data in Exracted table
+			my @digs_results;
+			$self->initialise_reassign(\@digs_results); # Set up 
+			$self->reassign(\@digs_results);	
+		}
+		elsif ($option eq 4) { # Reassign data in Exracted table	
+			$self->interactive_defragment();	
+		}
+		elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
+			$self->consolidate_loci();
+		}
+		elsif ($option eq 13) { # Standardised locus naming
+			$self->create_standard_locus_ids();
+		}
+		else {
+			print "\n\t  Unrecognized option '-m=$option'\n";
+		}
 	}
 }
 
+
+
 ############################################################################
-# PRIMARY FUNCTIONALITY, TOP-LEVEL
+# PRIMARY FUNCTIONS
 ############################################################################
 
 #***************************************************************************
@@ -171,7 +147,13 @@ sub create_screening_db {
 
 	my ($self, $ctl_file) = @_;
 
-	# Get parameters
+	my ($self, $ctl_file) = @_;
+		if ($option eq 1)    { # Create a screening DB
+			$self->create_screening_db($ctl_file);
+		}
+
+
+	# Create DB if it doesnt exist
 	my $loader_obj = $self->{loader_obj};
 	unless ($loader_obj) { die; }  # Sanity checking
 	my $db_name = $loader_obj->{db_name};
@@ -180,6 +162,16 @@ sub create_screening_db {
 	my $db_obj = ScreeningDB->new($loader_obj);
 	$db_obj->create_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
+
+		# If it exists, load the screening database specified in the control file
+		my $db_name = $self->{db_name};
+		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+		my $db_obj = ScreeningDB->new($self);
+		$db_obj->load_screening_db($db_name);	
+		$self->{db} = $db_obj; # Store the database object reference 
+
+
+
 }
 
 #***************************************************************************
@@ -584,11 +576,12 @@ sub extend_screening_db {
 
 #***************************************************************************
 # Subroutine:  consolidate_loci
-# Description: 
+# Description: assemble digs_results rows into higher-order loci 
 #***************************************************************************
 sub consolidate_loci {
 
 	my ($self) = @_;
+
 	print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
 
     # Set up for consolidation
@@ -723,6 +716,18 @@ sub consolidate_loci {
 			$loci_chains_table->insert_row(\%chain_data);
 		}		
 	}
+}
+
+#***************************************************************************
+# Subroutine:  create_standard_locus_ids
+# Description: apply standard ids to a set of loci from one or more genomes
+#***************************************************************************
+sub create_standard_locus_ids {
+
+	my ($self) = @_;
+
+	die;
+
 }
 
 ############################################################################
@@ -2106,22 +2111,23 @@ sub show_help_page {
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
         $HELP  .= "\n\t ### Main functions"; 
-        $HELP  .= "\n\t -m=1  Create screening DB"; 
-		$HELP  .= "\n\t -m=2  Screen"; 
-		$HELP  .= "\n\t -m=3  Reassign"; 
-		$HELP  .= "\n\t -m=4  Defragment"; 
-		$HELP  .= "\n\t -m=5  Flush screening DB"; 
-		$HELP  .= "\n\t -m=6  Drop screening DB"; 
-		$HELP  .= "\n\t -m=7  Manage ancillary tables"; 
-		$HELP  .= "\n\t -m=8  Show BLAST chains"; 
-		$HELP  .= "\n\t -m=9  Consolidate"; 
-		$HELP  .= "\n\t -m=10 Show locus chains"; 
-		$HELP  .= "\n\t -m=11 Translate DB schema"; 
-		$HELP  .= "\n\t -m=12 Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+		$HELP  .= "\n\t -m=1  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
+        $HELP  .= "\n\t -m=2  Create screening DB"; 
+		$HELP  .= "\n\t -m=3  Screen"; 
+		$HELP  .= "\n\t -m=4  Reassign"; 
+		$HELP  .= "\n\t -m=5  Defragment"; 
+		$HELP  .= "\n\t -m=6  Consolidate"; 
+		$HELP  .= "\n\t -m=7  Create standard locus IDs"; 
         $HELP  .= "\n\t ### Utility functions"; 
-		$HELP  .= "\n\t -u=1  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=2  Summarise genomes (long, by target file)";
-		$HELP  .= "\n\t -u=3  Extract sequences using track\n\n";
+		$HELP  .= "\n\t -u=1  Manage ancillary tables"; 
+		$HELP  .= "\n\t -u=2  Flush screening DB"; 
+		$HELP  .= "\n\t -u=3  Drop screening DB"; 
+		$HELP  .= "\n\t -u=4  Show BLAST chains"; 
+		$HELP  .= "\n\t -u=5  Show locus chains"; 
+		$HELP  .= "\n\t -u=6  Extract sequences using track\n\n";
+		$HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
+		$HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
+		$HELP  .= "\n\t -u=9 Translate DB schema"; 
 	print $HELP;
 }
 
@@ -2142,20 +2148,43 @@ sub run_utility_process {
 	$self->show_title();  
 
 	# Hand off to functions 
-	if ($option eq 1)    { # Summarise target genome directory (short)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_short();
+
+	if ($option eq 1) { # Add a table of data to the screening database
+		$self->extend_screening_db();
 	}
-	elsif ($option eq 2) { # Summarise target genome directory (long)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_long();
+	elsif ($option eq 2) { # Flush screening DB
+		my $db = $self->{db};
+		$db->flush_screening_db();
 	}
-	elsif ($option eq 3) {
+	elsif ($option eq 3) { # Drop screening DB 
+		my $db = $self->{db};
+		$db->drop_screening_db();    
+	}
+	elsif ($option eq 4) { # Show the BLAST chains for each extracted locus
+		$self->show_blast_chains();
+	}
+	elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
+		$self->show_locus_chains();
+	}
+	elsif ($option eq 6) {
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		my $loader_obj = ScreenBuilder->new($self);
 		my @extracted;
 		$loader_obj->extract_track_sequences(\@extracted, $infile);
 	}
+	elsif ($option eq 7)    { # Summarise target genome directory (short)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_short();
+	}
+	elsif ($option eq 8) { # Summarise target genome directory (long)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_long();
+	}
+	elsif ($option eq 9) { # DB schema translation
+		my $db_obj = $self->{db};
+		$db_obj->translate_schema();
+	}
+
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
 	}

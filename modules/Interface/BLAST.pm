@@ -110,7 +110,7 @@ sub blast {
 	$command .= "-outfmt $outfmt";
 
 	# Execute the command 
-	print "\n\t COMMAND $command"; sleep 1; exit;
+	#print "\n\t COMMAND $command"; sleep 1; exit;
 	system $command;
 	#die;		
 }
