@@ -92,24 +92,21 @@ sub run_digs_process {
  	# Show title
 	$self->show_title();  
 
-	# Do initial set up and sanity checking for options that require it
-	# An infile must be defined
-	unless ($ctl_file) {
-		unless ($option eq 8) {  die "\n\t Option '$option' requires an infile\n\n"; }
-	}
-	else {
-		$self->initialise($ctl_file);
-	}
-	
 	# Hand off to functions 
-	if ($option eq 1) { # Check the target genomes are formatted for BLAST
+	if ($option eq 1) { # Format targets files for BLAST searching
 		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->refresh_genomes();
+		$target_db_obj->format_targets_for_blast();
 	}
 	else {
+	
+		# Initialise (an infile must be defined)
+		unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
+		$self->initialise($ctl_file);
 	
 		# Load/create the screening
+		$self->load_screening_db($ctl_file);
 
+		# Hand off to DIGS functions
 		if ($option eq 2) { # Screen;
 			$self->set_up_digs();
 			$self->do_digs();	
@@ -125,7 +122,7 @@ sub run_digs_process {
 		elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
 			$self->consolidate_loci();
 		}
-		elsif ($option eq 13) { # Standardised locus naming
+		elsif ($option eq 6) { # Standardised locus naming
 			$self->create_standard_locus_ids();
 		}
 		else {
@@ -134,40 +131,9 @@ sub run_digs_process {
 	}
 }
 
-
-
 ############################################################################
 # PRIMARY FUNCTIONS
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  create_screening_db
-# Description: create a screening datbase 
-#***************************************************************************
-sub create_screening_db {
-
-	my ($self, $ctl_file) = @_;
-
-	die;
-	# Create a screening DB
-	$self->create_screening_db($ctl_file);
-
-	# Create DB if it doesnt exist
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name)  { die; } 
-		
-	my $db_obj = ScreeningDB->new($loader_obj);
-	$db_obj->create_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
-
-	# If it exists, load the screening database specified in the control file
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
-
-}
 
 #***************************************************************************
 # Subroutine:  do_digs
@@ -2045,8 +2011,10 @@ sub set_up_digs {
 
 	# Flush active set
 	my $db  = $self->{db};
+	unless ($db) { die "\n\t Error: no DB defined \n\n\n"; }
+
 	my $active_set_table = $db->{active_set_table};
-	print "\n\t  Flushing 'active_set' table\n";
+	#print "\n\t  Flushing 'active_set' table\n";
 	$active_set_table->flush();
 	
 	# Index previously executed searches
@@ -2069,6 +2037,34 @@ sub set_up_digs {
 	# Record queries 
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
+}
+
+#***************************************************************************
+# Subroutine:  load_screening_db
+# Description: load a DIGS screening database, create if doesn't exist 
+#***************************************************************************
+sub load_screening_db {
+
+	my ($self, $ctl_file) = @_;
+
+	# Get required objects and info from self, check everything looks OK
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; } 
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+
+	# Create the screening DB object
+	my $db_obj = ScreeningDB->new($loader_obj);
+
+	# Check if this screening DB exists, if not then create it
+	my $db_exists = $db_obj->does_db_exist($db_name);
+	unless ($db_exists) {
+		$db_obj->create_screening_db($db_name);	
+	}
+	
+	# Load the table handles into screening database object
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # Store the database object reference 
 }
 
 ############################################################################
@@ -2105,27 +2101,28 @@ sub show_help_page {
 
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
+
         $HELP  .= "\n\t ### Main functions"; 
-		$HELP  .= "\n\t -m=1  Format genome directory ($ENV{DIGS_GENOMES})\n"; 
-        $HELP  .= "\n\t -m=2  Create screening DB"; 
-		$HELP  .= "\n\t -m=3  Screen"; 
-		$HELP  .= "\n\t -m=4  Reassign"; 
-		$HELP  .= "\n\t -m=5  Defragment"; 
-		$HELP  .= "\n\t -m=6  Consolidate"; 
-		$HELP  .= "\n\t -m=7  Create standard locus IDs"; 
+		$HELP  .= "\n\t -m=1  Index target files under path '$ENV{DIGS_GENOMES}'"; 
+		$HELP  .= "\n\t -m=2  Screen"; 
+		$HELP  .= "\n\t -m=3  Reassign"; 
+		$HELP  .= "\n\t -m=4  Defragment"; 
+		$HELP  .= "\n\t -m=5  Consolidate"; 
+		$HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
+
         $HELP  .= "\n\t ### Utility functions"; 
-		$HELP  .= "\n\t -u=1  Manage ancillary tables"; 
+		$HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
 		$HELP  .= "\n\t -u=2  Flush screening DB"; 
 		$HELP  .= "\n\t -u=3  Drop screening DB"; 
 		$HELP  .= "\n\t -u=4  Show BLAST chains"; 
 		$HELP  .= "\n\t -u=5  Show locus chains"; 
-		$HELP  .= "\n\t -u=6  Extract sequences using track\n\n";
-		$HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
-		$HELP  .= "\n\t -u=9 Translate DB schema"; 
+		$HELP  .= "\n\t -u=6  Summarise genomes (short, by species)";
+		$HELP  .= "\n\t -u=7  Summarise genomes (long, by target file)";
+		$HELP  .= "\n\t -u=8  Translate DB schema\n\n"; 
+		#$HELP  .= "\n\t -u=6  Extract sequences using track";
+
 	print $HELP;
 }
-
 
 ############################################################################
 # UTILITY FUNCTIONS
@@ -2142,8 +2139,14 @@ sub run_utility_process {
  	# Show title
 	$self->show_title();  
 
-	# Hand off to functions 
+	# Initialise (an infile must be defined)
+	unless ($infile) { die "\n\t Option '$option' requires an infile\n\n"; }
+	$self->initialise($infile);
+	
+	# Load/create the screening
+	$self->load_screening_db($infile);
 
+	# Hand off to functions 
 	if ($option eq 1) { # Add a table of data to the screening database
 		$self->extend_screening_db();
 	}
@@ -2161,25 +2164,25 @@ sub run_utility_process {
 	elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
 		$self->show_locus_chains();
 	}
-	elsif ($option eq 6) {
+
+	elsif ($option eq 6)    { # Summarise target genome directory (short)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_short();
+	}
+	elsif ($option eq 7) { # Summarise target genome directory (long)
+		my $target_db_obj = TargetDB->new($self);
+		$target_db_obj->summarise_genomes_long();
+	}
+	elsif ($option eq 8) { # DB schema translation
+		my $db_obj = $self->{db};
+		$db_obj->translate_schema();
+	}
+	elsif ($option eq 9) {
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		my $loader_obj = ScreenBuilder->new($self);
 		my @extracted;
 		$loader_obj->extract_track_sequences(\@extracted, $infile);
 	}
-	elsif ($option eq 7)    { # Summarise target genome directory (short)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_short();
-	}
-	elsif ($option eq 8) { # Summarise target genome directory (long)
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->summarise_genomes_long();
-	}
-	elsif ($option eq 9) { # DB schema translation
-		my $db_obj = $self->{db};
-		$db_obj->translate_schema();
-	}
-
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
 	}

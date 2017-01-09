@@ -354,7 +354,7 @@ sub create_searches_table {
 	  `probe_ID`         varchar(100) NOT NULL default '',
 	  `probe_name`       varchar(100) NOT NULL default '',
 	  `probe_gene`       varchar(100) NOT NULL default '',
-	  `genome_ID`        varchar(100) NOT NULL default '',
+	  `target_id`        varchar(100) NOT NULL default '',
 	  `target_organism`  varchar(100) NOT NULL default '0',
 	  `target_datatype`  varchar(100) NOT NULL default '0',
 	  `target_version`   varchar(100) NOT NULL default '0',
@@ -569,6 +569,7 @@ sub drop_screening_db {
 
 	# Get database name	
 	my $db_name = $self->{db_name};
+	unless ($db_name) { die; }
 	
 	# Confirm
 	my $question = "\n\n\t Are you sure you want to DROP the $db_name database?";
@@ -768,11 +769,11 @@ sub translate_schema {
 	$searches_table->flush();
 	my @status_rows;
 	my @status_fields = qw [ probe_id probe_name probe_gene 
-	                         genome_id organism data_type version target_name ];
+	                         target_id organism data_type version target_name ];
 	$status_table->select_rows(\@status_fields, \@status_rows);
 	foreach my $row_ref (@status_rows) {
 		
-		$row_ref->{target_id}       = $row_ref->{genome_id};
+		$row_ref->{target_id}       = $row_ref->{target_id};
 		$row_ref->{target_version}  = $row_ref->{version};
 		$row_ref->{target_datatype} = $row_ref->{data_type};
 		$searches_table->insert_row($row_ref);
@@ -883,6 +884,47 @@ sub does_table_exist {
 
 	return $exists;	
 }
+
+
+#***************************************************************************
+# Subroutine:  does_db_exist
+# Description: check if a screening database exists
+#***************************************************************************
+sub does_db_exist {
+
+    my ($self, $db_name) = @_;
+
+	unless ($db_name)  { die; }
+
+	# Get connection variables from self
+	my $server   = $self->{server};
+	my $username = $self->{username};
+	my $password = $self->{password};
+
+	unless ($server)   { die; }
+	unless ($username) { die; }
+	unless ($password) { die; }
+
+	# Set name
+	my $info_db_name = 'information_schema';
+   
+	# Load tables from the screening result DB we've been given
+	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
+	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
+	my $query = "SELECT * FROM information_schema.tables
+                 WHERE table_schema = '$db_name' 
+		         LIMIT 1;";
+	my $sth = $dbh->prepare($query);
+	unless ($sth->execute()) { print $query; exit; }
+	my $row_count = 0;
+	my $exists = undef;
+	while (my $row = $sth->fetchrow_arrayref) {
+		$exists = 'TRUE';		
+	}
+
+	return $exists;	
+}
+
 
 
 ############################################################################
