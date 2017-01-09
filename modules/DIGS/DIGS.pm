@@ -108,6 +108,7 @@ sub run_digs_process {
 	}
 	else {
 	
+		# Load/create the screening
 
 		if ($option eq 2) { # Screen;
 			$self->set_up_digs();
@@ -147,11 +148,9 @@ sub create_screening_db {
 
 	my ($self, $ctl_file) = @_;
 
-	my ($self, $ctl_file) = @_;
-		if ($option eq 1)    { # Create a screening DB
-			$self->create_screening_db($ctl_file);
-		}
-
+	die;
+	# Create a screening DB
+	$self->create_screening_db($ctl_file);
 
 	# Create DB if it doesnt exist
 	my $loader_obj = $self->{loader_obj};
@@ -163,14 +162,10 @@ sub create_screening_db {
 	$db_obj->create_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
 
-		# If it exists, load the screening database specified in the control file
-		my $db_name = $self->{db_name};
-		unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-		my $db_obj = ScreeningDB->new($self);
-		$db_obj->load_screening_db($db_name);	
-		$self->{db} = $db_obj; # Store the database object reference 
-
-
+	# If it exists, load the screening database specified in the control file
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # Store the database object reference 
 
 }
 
