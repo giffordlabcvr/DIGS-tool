@@ -73,34 +73,33 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  refresh_genomes
-# Description: refresh the 'target genomes' directory
+# Subroutine:  format_targets_for_blast
+# Description: index unformatted FASTA files for BLAST searching
 #***************************************************************************
-sub refresh_genomes {
+sub format_targets_for_blast {
 
 	my ($self) = @_;
 	
 	# Get variables from self
 	my $genome_path = $self->{genome_use_path};
-	unless ($genome_path) { die "\n\t Path to genomes is not set\n\n\n"; }
+	unless ($genome_path) { die "\n\t Path to target files is not set\n\n\n"; }
 
 	# Show warning
-	print "\n\t ### WARNING: This is utility function that relies on regular file formatting.\n";
-	print "\n\t ### It requires that target FASTA files are named in the expected way  ";
-	print "\n\t ### i.e. using one of the following file extensions: '.fas', '.fa', '.fasta', '.faa', '.fna'\n";
-	print "\n\t ### Note: large FASTA files may generate split index files (01.nin, 02.nin ... etc)";
-	print "\n\t ### When this happens this utility will prompt for formatting, even";
-	print "\n\t ### if index files already exist.\n";
+	print "\n\t ### WARNING: This function requires standard file extensions for target FASTA files.\n";
+	print "\n\t ### i.e. '.fas', '.fa', '.fasta', '.faa', '.fna'\n";
+	print "\n\t ### Note: large files may generate split index files (01.nin, 02.nin ... etc)";
+	print "\n\t ### When this happens this utility will prompt for formatting, even ";
+	print "if index files already exist.\n";
 
 	# Ask user how to handle the process
-	my $question = "\n\t Prompt before formatting each genome? ";
+	my $question = "\n\t Prompt before formatting each target file? ";
 	my $prompt = $console->ask_yes_no_question($question);
 	if ($prompt eq 'n') { $prompt = undef; }
 
 	# Index genomes by key ( organism | type | version )
 	my %server_data;	
-	print "\n\n\t Refreshing genome data under path '$genome_path'\n";
-	$self->read_genome_directory(\%server_data);
+	print "\n\n\t Refreshing target data under path '$genome_path'\n";
+	$self->read_target_directory(\%server_data);
 
 	my %skip;
 	my $skip_ref = $self->{skipindexing_paths};
@@ -110,7 +109,7 @@ sub refresh_genomes {
 	}
 		
 	# Iterate through and check formatting in each genome
-	print "\n\t #~#~# Loading target genome data\n";
+	print "\n\t #~#~# Loading target data\n";
 	my $skipped = '0';
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
@@ -135,7 +134,7 @@ sub refresh_genomes {
 		my $num_unformatted = scalar @$unformatted_ref;
 		
 		if ($num_unformatted) {  # Do formatting
-			print "\n\n\t #~#~# Format genome: $organism, $type, $version";
+			print "\n\n\t #~#~# Format target file: $organism, $type, $version";
 			foreach my $file (@$unformatted_ref) {
 				print "\n\t file '$file'";
 			}
@@ -143,10 +142,10 @@ sub refresh_genomes {
 				my $question = "\n\n\t Do you want to format the above files?";
 				my $answer   = $console->ask_yes_no_question($question);
 				if ($answer eq 'y') {
-					$self->format_genome($genome_ref);
+					$self->format_target_for_blast($genome_ref);
 				}	
 			}
-			else { $self->format_genome($genome_ref); }
+			else { $self->format_target_for_blast($genome_ref); }
 		}
 	}
 	print "\n\n\t #~#~# Skipped '$skipped' files";
@@ -154,10 +153,10 @@ sub refresh_genomes {
 }
 
 #***************************************************************************
-# Subroutine:  read_genome_directory
+# Subroutine:  read_target_directory
 # Description: read in the contents of a structured directory containing genome data files
 #***************************************************************************
-sub read_genome_directory { 
+sub read_target_directory { 
 
 	my ($self, $data_ref) = @_;
 	
@@ -168,7 +167,7 @@ sub read_genome_directory {
 	unless ($levels_ref)  { die  "\n\t Levels not set\n\n\n"; }
 	my @levels = sort by_number keys %$levels_ref;
 
-	# Index current, locally-held genome data 
+	# Index current, locally-held target data 
 	my @genome_files;
 	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
 
@@ -324,10 +323,10 @@ sub check_filetype {
 }
 
 #***************************************************************************
-# Subroutine:  format_genome
+# Subroutine:  format_target_for_blast
 # Description: format sequence files in a directory for BLAST 
 #***************************************************************************
-sub format_genome {
+sub format_target_for_blast {
 
 	my ($self, $genome_ref) = @_;
 
@@ -358,7 +357,7 @@ sub format_genome {
 		my $chunk_path = $path . "/$file";
 		my %data;
 		#print "\n\t FILE $file: $chunk_path";
-		$self->get_genome_chunk_stats(\%data, $chunk_path);
+		$self->get_target_chunk_stats(\%data, $chunk_path);
 		my $total_bases    = $data{total_bases};
 		my $line_count     = $data{total_lines};
 		my $num_scaffolds  = $data{number_scaffolds};
@@ -414,10 +413,10 @@ sub format_genome {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  get_genome_chunk_stats
+# Subroutine:  get_target_chunk_stats
 # Description: get metrics on a target genome sequence file 
 #***************************************************************************
-sub get_genome_chunk_stats {
+sub get_target_chunk_stats {
 
 	my ($self, $data_ref, $chunk_path) = @_;
 
@@ -592,10 +591,10 @@ sub split_longline_contig {
 }
 
 #***************************************************************************
-# Subroutine:  summarise_genomes_long
+# Subroutine:  summarise_targets_long
 # Description: summarise data in the 'target genomes' directory
 #***************************************************************************
-sub summarise_genomes_long {
+sub summarise_targets_long {
 
 	my ($self) = @_;
 	
@@ -605,7 +604,7 @@ sub summarise_genomes_long {
 	
 	# Index genomes by key ( organism | type | version )
 	my %server_data;
-	$self->read_genome_directory(\%server_data);
+	$self->read_target_directory(\%server_data);
 
 	# add header row
 	my @summary;
@@ -615,8 +614,8 @@ sub summarise_genomes_long {
 	$header .= "\n";
 	push (@summary, $header);
 
-	# Iterate through and check formatting in each genome
-	print "\n\n\t ### Summarising genomes\n";
+	# Iterate through, summarising target files
+	print "\n\n\t ### Summarising target files\n";
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
@@ -646,7 +645,7 @@ sub summarise_genomes_long {
 			# Get path to file
 			my $chunk_path = $genome_path . "/$path/$file";
 			my %data;
-			$self->get_genome_chunk_stats(\%data, $chunk_path);
+			$self->get_target_chunk_stats(\%data, $chunk_path);
 			my $total_bases    = $data{total_bases};
 			my $line_count     = $data{total_lines};
 			my $num_scaffolds  = $data{number_scaffolds};
@@ -672,10 +671,10 @@ sub summarise_genomes_long {
 }
 
 #***************************************************************************
-# Subroutine:  summarise_genomes_short
-# Description: summarise data in the 'target genomes' directory
+# Subroutine:  summarise_targets_short
+# Description: summarise data in the 'targets' directory
 #***************************************************************************
-sub summarise_genomes_short {
+sub summarise_targets_short {
 
 	my ($self) = @_;
 	
@@ -691,7 +690,7 @@ sub summarise_genomes_short {
 	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
 
 	# Iterate through the files
-	my %genome_keys;
+	my %target_keys;
 	foreach my $file_ref (@genome_files) {
 		
 		my $grouping = $file_ref->{grouping};
@@ -699,7 +698,7 @@ sub summarise_genomes_short {
 		my $type     = $file_ref->{source_type};
 		my $version  = $file_ref->{version};
 		my $key = $grouping . '|' .$organism . '|' . $type . '|' . $version;
-		$genome_keys{$key} = 1;
+		$target_keys{$key} = 1;
 	}
 	
 	# add header row
@@ -707,12 +706,12 @@ sub summarise_genomes_short {
 	my @header = ('Grouping', 'Organism', 'Data type', 'Version');
 	my $header = join("\t", @header);
 	push (@summary, "$header\n");
-	my @keys = sort keys %genome_keys;
+	my @keys = sort keys %target_keys;
 	foreach my $key (@keys) {
 		$key =~ s/\|/\t/g;
 		push (@summary, "$key\n");
 	}
-	$fileio->write_file('target_genome_keys.txt', \@summary);
+	$fileio->write_file('target_target_keys.txt', \@summary);
 
 }
 
