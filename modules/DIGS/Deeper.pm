@@ -50,7 +50,6 @@ sub new {
 		program_version        => $parameter_ref->{program_version},
 		
 		# Paths and member variables
-		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
 
@@ -60,8 +59,6 @@ sub new {
 		username               => '',   # Obtained from control file
 		password               => '',   # Obtained from control file
 	
-		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
 	};
 	
 	bless ($self, $class);
@@ -243,7 +240,7 @@ sub summarise_db_counts {
 		foreach my $genome_version (@$target_genomes) {
 		
 			my $organism = $genome_version->{organism};
-			my $version  = $genome_version->{version};
+			my $version  = $genome_version->{target_version};
 			#print "\n\t ORGANISM '$organism', VERSION = '$version'";
 				
 			unless ($organism and $version) { die; }
@@ -251,12 +248,12 @@ sub summarise_db_counts {
 			
 			my @gene_count;
 			my $sql_command;
-			$sql_command = "SELECT DISTINCT Organism, Version, Assigned_name, Assigned_gene, COUNT(*) AS Number ";
-			$sql_command .= "FROM Extracted ";
-			$sql_command .= "WHERE Organism = '$organism' ";
-			$sql_command .= "AND Version = '$version' ";
-			$sql_command .= "AND Assigned_gene = '$select_gene' ";
-			$sql_command .= "GROUP BY Organism, Version, Assigned_name, Assigned_gene";
+			$sql_command = "SELECT DISTINCT organism,target_version, assigned_name, assigned_gene, COUNT(*) AS Number ";
+			$sql_command .= "FROM digs_results ";
+			$sql_command .= "WHERE organism = '$organism' ";
+			$sql_command .= "AND target_version = '$version' ";
+			$sql_command .= "AND assigned_gene = '$select_gene' ";
+			$sql_command .= "GROUP BY organism,target_version, assigned_name, assigned_gene";
 			#print "\n\t$sql_command\n";
 			#exit;
 			
@@ -321,7 +318,7 @@ sub write_db_counts {
 		
 		my $organism = $genome_version->{organism};
 		$organism =~ s/ /_/g;
-		my $version  = $genome_version->{version};
+		my $version  = $genome_version->{target_version};
 		my $row = "$organism\t$version\t";
 
 		foreach my $db_params_ref (@$screening_dbs) {
@@ -348,11 +345,6 @@ sub write_db_counts {
 	$fileio->write_file('output.txt', \@output);
 
 }
-
-
-
-
-
 
 
 ############################################################################
