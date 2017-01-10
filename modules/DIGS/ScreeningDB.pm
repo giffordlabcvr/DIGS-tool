@@ -735,12 +735,24 @@ sub translate_schema {
 	my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
 	unless ($dbh) {	die "\n\t # Couldn't connect to $db_name database\n\n"; }
 
-	# Create new tables
-	$self->create_searches_table($dbh);
-	$self->create_active_set_table($dbh);
-	$self->create_digs_results_table($dbh);
-	$self->create_blast_chains_table($dbh);
-	
+	# Create new tables if they don't already exist
+	my $searches_exists = $self->does_table_exist('searches_performed');
+	unless ($searches_exists) {
+		$self->create_searches_table($dbh);
+	}
+	my $active_set_exists = $self->does_table_exist('active_set');
+	unless ($active_set_exists) {
+		$self->create_active_set_table($dbh);
+	}
+	my $digs_results_exists = $self->does_table_exist('digs_results');
+	unless ($digs_results_exists) {
+		$self->create_digs_results_table($dbh);
+	}
+	my $blast_chains_exists = $self->does_table_exist('blast_chains');
+	unless ($blast_chains_exists) {
+		$self->create_blast_chains_table($dbh);
+	}
+
 	# Translate 'Extracted' to 'digs_results'
 	$self->load_extracted_table($dbh);
 	my $extracted_table    = $self->{extracted_table};
@@ -769,15 +781,15 @@ sub translate_schema {
 	$searches_table->flush();
 	my @status_rows;
 	my @status_fields = qw [ probe_id probe_name probe_gene 
-	                         target_id organism data_type version target_name ];
+	                         genome_id organism data_type version target_name ];
 	$status_table->select_rows(\@status_fields, \@status_rows);
-	foreach my $row_ref (@status_rows) {
-		
+	foreach my $row_ref (@status_rows) {		
 		$row_ref->{target_id}       = $row_ref->{target_id};
 		$row_ref->{target_version}  = $row_ref->{version};
 		$row_ref->{target_datatype} = $row_ref->{data_type};
 		$searches_table->insert_row($row_ref);
 	}
+
 }
 
 #***************************************************************************
@@ -924,8 +936,6 @@ sub does_db_exist {
 
 	return $exists;	
 }
-
-
 
 ############################################################################
 # EOF
