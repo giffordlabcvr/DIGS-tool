@@ -151,7 +151,7 @@ sub load_active_set_table {
 	# Definition of the table
 	my %active_set_fields = (
 	
-		extract_id       => 'int',
+		digs_result_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
@@ -233,7 +233,7 @@ sub load_blast_chains_table {
 	# Definition of the table
 	my %extract_fields = (
 	
-		extract_id       => 'int',
+		digs_result_id       => 'int',
 		probe_name       => 'varchar',
 		probe_gene       => 'varchar',
 		probe_type       => 'varchar',
@@ -378,7 +378,7 @@ sub create_active_set_table {
 	# Active result set table 
 	my $active_set = "CREATE TABLE `active_set` (
 	  `record_ID`       int(11) NOT NULL auto_increment,
-	  `extract_ID`      int(11) default '0',
+	  `digs_result_id`      int(11) default '0',
 
 	  `probe_name`       varchar(100) NOT NULL default '0',
 	  `probe_gene`       varchar(100) NOT NULL default '0',
@@ -464,7 +464,7 @@ sub create_blast_chains_table {
 	# Active result set table 
 	my $blast_chains = "CREATE TABLE `blast_chains` (
 	  `record_ID`       int(11) NOT NULL auto_increment,
-	  `extract_ID`      int(11) NOT NULL default '0',
+	  `digs_result_id`      int(11) NOT NULL default '0',
 
 	  `probe_name`      varchar(100) NOT NULL default '0',
 	  `probe_gene`      varchar(100) NOT NULL default '0',
