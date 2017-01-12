@@ -419,7 +419,7 @@ sub create_digs_results_table {
 	my ($self, $dbh) = @_;
 
 	# digs_results table 
-	my $extracted = "CREATE TABLE `digs_results` (
+	my $digs_results = "CREATE TABLE `digs_results` (
 	  `record_ID`        int(11) NOT NULL auto_increment,
 	  `organism`         varchar(100) NOT NULL default '0',
 	  `target_datatype`  varchar(100) NOT NULL default '0',
@@ -449,8 +449,8 @@ sub create_digs_results_table {
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
-	my $sth = $dbh->prepare($extracted);
-	unless ($sth->execute()) { print "\n\t$extracted\n\n\n"; exit;}
+	my $sth = $dbh->prepare($digs_results);
+	unless ($sth->execute()) { print "\n\t$digs_results\n\n\n"; exit;}
 }
 
 #***************************************************************************
