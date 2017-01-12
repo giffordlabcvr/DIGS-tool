@@ -781,7 +781,7 @@ sub search {
 	
 		unless ($skip) {		
 			# Insert values into 'active_set' table
-			$hit_ref->{extract_id}      = 0;
+			$hit_ref->{digs_result_id}  = 0;
 			$hit_ref->{target_organism} = $organism;
 			$hit_ref->{target_version}  = $version;
 			$hit_ref->{target_datatype} = $target_datatype;
@@ -998,8 +998,8 @@ sub update_db {
 		
 	# Get parameters from self
 	my $db_ref = $self->{db};
-	my $digs_results_table     = $db_ref->{digs_results_table}; 
-	my $active_set_table = $db_ref->{active_set_table}; 
+	my $digs_results_table  = $db_ref->{digs_results_table}; 
+	my $active_set_table    = $db_ref->{active_set_table}; 
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
 	# Flush the active set table
@@ -1011,7 +1011,7 @@ sub update_db {
 
 		# Insert the data to the Extracted_sequences table
 		$hit_ref->{organism} = $hit_ref->{target_organism}; # Translate field name
-		my $extract_id = $digs_results_table->insert_row($hit_ref);
+		my $digs_result_id = $digs_results_table->insert_row($hit_ref);
 		#$devtools->print_hash($hit_ref); die;
 		
 		# Insert the data to the BLAST_chains table
@@ -1022,23 +1022,23 @@ sub update_db {
 			my @blast_ids = keys %$blast_chains;
 			foreach my $blast_id (@blast_ids) {							
 				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{extract_id} = $extract_id;	
+				$data_ref->{digs_result_id} = $digs_result_id;	
 				#$devtools->print_hash($data_ref); exit;
 				$blast_chains_table->insert_row($data_ref);
 			}
 		}
 
 		# Delete superfluous data from the
-		my $extract_ids_ref = $hit_ref->{extract_ids};
-		foreach my $old_extract_id (@$extract_ids_ref) {			
+		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
+		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
 			
 			# Delete superfluous extract rows
-			my $extracted_where = " WHERE record_id = $old_extract_id ";	
+			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
 			$digs_results_table->delete_rows($extracted_where);
 			# Update extract IDs			
-			my $chains_where = " WHERE Extract_ID = $old_extract_id ";
+			my $chains_where = " WHERE Extract_ID = $old_digs_result_id ";
 			my %new_id;
-			$new_id{extract_id} = $extract_id;	
+			$new_id{digs_result_id} = $digs_result_id;	
 			$blast_chains_table->update(\%new_id, $chains_where);
 			#$devtools->print_hash($data_ref); exit;	
 		}
@@ -1363,10 +1363,10 @@ sub merge_clustered_loci {
 		
 		# Determine what to extract for this cluster
 		my %new_blast_chains;
-		my %previous_extract_ids;
+		my %previous_digs_result_ids;
 		my $highest_end   = undef;
 		my $lowest_start  = undef;
-		my $previous_extract_id = undef;
+		my $previous_digs_result_id = undef;
 		my $target_name;		
 		my $version;
 		my $target_datatype;		
@@ -1377,7 +1377,7 @@ sub merge_clustered_loci {
 		foreach my $hit_ref (@$cluster_ref) {
 					
 			my $record_id    = $hit_ref->{record_id};					
-			my $extract_id   = $hit_ref->{extract_id};					
+			my $digs_result_id   = $hit_ref->{digs_result_id};					
 			my $start        = $hit_ref->{extract_start};			
 			my $end          = $hit_ref->{extract_end};
 			unless ($start) {
@@ -1403,13 +1403,13 @@ sub merge_clustered_loci {
 			}
 							
 			# Check if this is a a previously extracted locus
-			if ($extract_id) {
-				if ($previous_extract_id) { # If this represents a merge of multiple extracted loci, record the ids
-					unless ($extract_id eq $previous_extract_id) {
+			if ($digs_result_id) {
+				if ($previous_digs_result_id) { # If this represents a merge of multiple extracted loci, record the ids
+					unless ($digs_result_id eq $previous_digs_result_id) {
 					}
 				}
-				$previous_extract_ids{$extract_id} = $hit_ref;
-				$previous_extract_id = $extract_id;		
+				$previous_digs_result_ids{$digs_result_id} = $hit_ref;
+				$previous_digs_result_id = $digs_result_id;		
 			}
 			# Store this BLAST result as part of a chain if it is new
 			else {
@@ -1432,22 +1432,22 @@ sub merge_clustered_loci {
 		my $extract = undef;		
 
 		# Is this cluster composed entirely of new loci?
-		unless ($previous_extract_id) {
+		unless ($previous_digs_result_id) {
 			$extract = 'true';				
 		}
 		# Is this a merge of multiple previously extracted loci?
-		my @previous_extract_ids = keys %previous_extract_ids;
-		my $num_previously_extracted_loci_in_cluster = scalar @previous_extract_ids;
+		my @previous_digs_result_ids = keys %previous_digs_result_ids;
+		my $num_previously_extracted_loci_in_cluster = scalar @previous_digs_result_ids;
 		if ($num_previously_extracted_loci_in_cluster > 1) {
-			my $combined = join (',', @previous_extract_ids);
+			my $combined = join (',', @previous_digs_result_ids);
 			print "\n\t\t # Merging previously extracted loci: ($combined) ";
 			$extract = 'true';							
 		}
 		# If it includes a single extracted locus, does this locus need to be extended?
-		elsif ($previous_extract_id) {
+		elsif ($previous_digs_result_id) {
 		
 			# get the indexed query 
-			my $data_ref = $previous_extract_ids{$previous_extract_id};
+			my $data_ref = $previous_digs_result_ids{$previous_digs_result_id};
 			my $extract_start = $data_ref->{subject_start};
 			my $extract_end   = $data_ref->{subject_end};
 			unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
@@ -1460,19 +1460,19 @@ sub merge_clustered_loci {
 		
 			# Set the extract params for this cluster
 			my %extract;
-			$extract{extract_id}      = $previous_extract_id;
+			$extract{digs_result_id}      = $previous_digs_result_id;
 			$extract{target_name}     = $target_name;
 			$extract{target_datatype} = $target_datatype;
 			$extract{target_version}  = $version;
 			$extract{target_organism} = $organism;
 			$extract{probe_type}      = $probe_type;
-			$extract{extract_id}      = $previous_extract_id;
+			$extract{digs_result_id}      = $previous_digs_result_id;
 			$extract{target_name}     = $target_name;
 			$extract{scaffold}        = $scaffold;
 			$extract{start}           = $lowest_start;	
 			$extract{end}             = $highest_end;
 			$extract{orientation}     = $orientation;
-			$extract{extract_ids}   = \@previous_extract_ids;
+			$extract{digs_result_ids}   = \@previous_digs_result_ids;
 			my $num_chains = scalar keys %new_blast_chains;
 			if ($num_chains) {
 				$extract{blast_chains} = \%new_blast_chains;
@@ -1542,12 +1542,12 @@ sub show_cluster {
 			$end = $hit_ref->{subject_end};			
 		}
 
-		my $extract_id    = $hit_ref->{extract_id};
+		my $digs_result_id    = $hit_ref->{digs_result_id};
 
 		print "\n\t\t CLUSTER $cluster_id $organism: ";
 		print "$assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
-		if ($extract_id) {
-			print " (extract ID: $extract_id)";				
+		if ($digs_result_id) {
+			print " (extract ID: $digs_result_id)";				
 		}
 	}			
 }
@@ -1759,12 +1759,12 @@ sub create_combined_active_set {
 	my $num_loci = scalar @$data_ref;
 	foreach my $locus_ref (@$data_ref) {
 
-		#print "\n\t\t # inserting extract ID $extract_id";
+		#print "\n\t\t # inserting extract ID $digs_result_id";
 		#$devtools->print_hash($locus_ref);
-		my $extract_id = $locus_ref->{record_id};
+		my $digs_result_id = $locus_ref->{record_id};
 		
 		# Translations
-		$locus_ref->{extract_id}       = $extract_id;
+		$locus_ref->{digs_result_id}       = $digs_result_id;
 		$locus_ref->{probe_name}       = $locus_ref->{assigned_name};
 		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
 		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
@@ -1791,7 +1791,7 @@ sub get_sorted_active_set {
 	my $active_set_table    = $db->{active_set_table};
 	
 	# Get sorted, combined extracted loci and new blast results	
-	my @blast_fields = qw [ record_id extract_id  
+	my @blast_fields = qw [ record_id digs_result_id  
 	                        target_organism target_datatype target_version target_name
 	                        probe_name probe_gene probe_type
 	                        bitscore gap_openings
@@ -1824,7 +1824,7 @@ sub show_blast_chains {
 	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
 	
 	foreach my $hit_ref (@extracted_ids) {
-		my $extract_id = $hit_ref->{record_id};
+		my $digs_result_id = $hit_ref->{record_id};
 		my @chain;
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
@@ -1832,10 +1832,10 @@ sub show_blast_chains {
 		                        target_organism target_name 
 		                        scaffold subject_start subject_end
 		                        bitscore identity align_len ];
-		my $blast_where  = " WHERE Extract_ID = $extract_id ";
+		my $blast_where  = " WHERE Extract_ID = $digs_result_id ";
 		   $blast_where .= " ORDER BY subject_start";
 		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
-		print "\n\t ### BLAST hit chain for extracted locus $extract_id";
+		print "\n\t ### BLAST hit chain for extracted locus $digs_result_id";
 		print " ($assigned_name, $assigned_gene):";
 		foreach my $hit_ref (@chain) {
 			my $blast_id    = $hit_ref->{record_id};
