@@ -2109,6 +2109,25 @@ sub show_help_page {
 		$HELP  .= "\n\t -m=4  Defragment"; 
 		$HELP  .= "\n\t -m=5  Consolidate"; 
 		$HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
+		$HELP  .= "\n\t Run  $0 -e to see information on utility functions \n\n"; 
+
+	print $HELP;
+}
+
+############################################################################
+# UTILITY FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  show_utility_help_page
+# Description: show help page information for utility functions
+#***************************************************************************
+sub show_utility_help_page {
+
+	my ($self) = @_;
+
+	# Initialise usage statement to print if usage is incorrect
+	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
@@ -2123,10 +2142,6 @@ sub show_help_page {
 
 	print $HELP;
 }
-
-############################################################################
-# UTILITY FUNCTIONS
-############################################################################
 
 #***************************************************************************
 # Subroutine:  run_utility_process

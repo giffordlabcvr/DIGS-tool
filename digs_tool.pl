@@ -115,9 +115,10 @@ sub main {
 	my $utility  = undef;
 	
 	# Options that don't require a value
-	my $help     = undef;
-	my $version  = undef;
-	my $analysis = undef;
+	my $help         = undef;
+	my $version      = undef;
+	my $extra_help = undef;
+	my $analysis     = undef;
 
 	# Read in options using GetOpt::Long
 	GetOptions ('mode|m=i'        => \$mode, 
@@ -125,9 +126,10 @@ sub main {
 			    
 			    'infile|i=s'      => \$infile,
 			    
-			    'analysis=i'      => \$analysis,
+			    'analysis|a=i'    => \$analysis,
 
 			    'help'            => \$help,
+			    'extra_help'      => \$extra_help,
 			    'version'         => \$version,
 			    			    
 	) or die $USAGE;
@@ -136,15 +138,19 @@ sub main {
 	if ($version) { 
 		print "\n\t DIGS tool version $program_version\n\n"
 	}
+	elsif ($utility) { # Utility functions
+		$digs_tool_obj->run_utility_process($utility, $infile); 
+	}
 	elsif ($help) { # Show help page
 		$digs_tool_obj->show_help_page();
 		exit;
 	}
+	elsif ($extra_help) {
+		$digs_tool_obj->show_utility_help_page();
+		exit;
+	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($mode, $infile); 
-	}
-	elsif ($utility) { # Utility functions
-		$digs_tool_obj->run_utility_process($utility, $infile); 
 	}
 	elsif ($analysis) { # Analysis
 		my $digs_analyser = Deeper->new(\%params);
