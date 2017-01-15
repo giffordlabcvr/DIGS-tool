@@ -146,9 +146,14 @@ sub parse_control_file {
 	$stop_token  = 'ENDBLOCK';
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
 	$self->{skipindexing_paths} = \@skipindex;
+
+	# READ the 'NOMENCLATURE' block
+	$start_token  = 'BEGIN NOMENCLATURE';
+	$stop_token   = 'ENDBLOCK';
+	my %params;
+	$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token, \%params);
 	
 	# Set parameters in pipeline object
-
 	# Screening DB name and MySQL connection details
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
@@ -168,6 +173,13 @@ sub parse_control_file {
 	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+
+	# Check that required parameters are set	
+	$pipeline_obj->{new_track_path}   = $self->{new_track_path};
+	$pipeline_obj->{namespace_path}   = $self->{namespace_path};
+	$pipeline_obj->{translation_path} = $self->{translation_path};
+	$pipeline_obj->{tax_level}        = $self->{tax_level};
+
 
 	# Set the bit score minimum
 	if ($self->{bitscore_min_tblastn}) {
@@ -735,6 +747,33 @@ sub parse_target_block {
 		$targets++;
 	}
 }
+
+#***************************************************************************
+# Subroutine:  parse_nomenclature_block
+# Description: read nomenclature block
+# Path to file with new track(s) sorted by scaffold/chromosome & start position
+# Path to file with the master (current namespace) track
+# Path to translation table
+# Translation system to use
+#***************************************************************************
+sub parse_nomenclature_block {
+
+	my ($self, $file_ref, $start, $stop, $params) = @_;
+
+	# Extract the block	
+	$fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
+
+	# Check that required parameters are set	
+	my $new_track_path   = $self->{new_track_path};
+	my $namespace_path   = $self->{namespace_path};
+	my $translation_path = $self->{translation_path};
+	my $tax_level        = $self->{tax_level};
+
+}
+
+#######################################################################
+# READ FASTA
+############################################################################
 
 #***************************************************************************
 # Subroutine:  read_fasta

@@ -123,6 +123,7 @@ sub run_digs_process {
 			$self->consolidate_loci();
 		}
 		elsif ($option eq 6) { # Standardised locus naming
+			# Initialise (an infile must be defined)
 			$self->create_standard_locus_ids();
 		}
 		else {
@@ -685,10 +686,32 @@ sub consolidate_loci {
 #***************************************************************************
 sub create_standard_locus_ids {
 
-	my ($self) = @_;
+	my ($self, $infile) = @_;
 
+	# Create nomenclature tables if they don't exist already
+	my $db_ref = $self->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	# Load nomenclature table
+	$db_ref->load_nomenclature_table($dbh);
+
+	# Load tracks into table
+	$self->load_nomenclature_tracks();
+	
+	# Load translation table
+	my %translations;
+	$self->load_translations(\%translations);
+
+	# Cluster annotations
+	#$self->create_annotation_clusters(\%params, \%output, \@new_track, \%translations);
 	die;
 
+	# Create the report
+	#$self->write_report(\%params, \%output);
+	
 }
 
 ############################################################################
@@ -1925,6 +1948,117 @@ sub show_locus_chains {
 		}
 	}
 }
+
+############################################################################
+# INTERNAL FUNCTIONS: nomenclature
+############################################################################
+
+#***************************************************************************
+# Subroutine:  extract_values_from_track_line  
+# Description: 
+#***************************************************************************
+sub extract_values_from_track_line {
+
+    my ($self, $line, $hit_ref) = @_;
+
+    # Chomp and split the line on tabs
+    chomp $line;
+	my @line = split("\t", $line);
+    
+    # Get values
+    my $track     = shift @line;
+    my $name      = shift @line;
+    my $scaffold  = shift @line;
+    my $start     = shift @line;
+    my $end       = shift @line;
+    my $gene      = shift @line;
+    my $master_id = shift @line;
+    my $orientation = get_orientation($start, $end);
+
+    unless ($track) { die; }
+    unless ($name)  { die; }
+    unless ($start) { 
+    	if ($start eq '0') {
+    		$start = 1;
+    	}
+    	else { print "\n\n$line\n\n"; die; } 
+    
+    }
+    unless ($end)   { die; }
+    unless ($gene)  { print "\n\n$line\n\n"; die; }
+    unless ($orientation)  { die; }
+
+    # Extract line
+    $hit_ref->{track}       = $track;
+    $hit_ref->{name}        = $name;
+    $hit_ref->{scaffold}    = $scaffold;
+    $hit_ref->{start}       = $start;
+    $hit_ref->{end}         = $end;
+    $hit_ref->{orientation} = $orientation;
+    $hit_ref->{gene}        = $gene;
+    $hit_ref->{master_id}   = $master_id;
+    $hit_ref->{hit_id}      = $track . '_' . $name;
+    $hit_ref->{line}        = $line;
+
+}
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_tracks  
+# Description: 
+#***************************************************************************
+sub load_nomenclature_tracks {
+
+    my ($self) = @_;
+    
+	# Get new track(s) into table
+	my @new_track;
+	my $new_track_path = $self->{new_track_path};
+	unless ($new_track_path) { die; }
+	$fileio->read_file($new_track_path, \@new_track);
+	
+}
+
+#***************************************************************************
+# Subroutine:  load_translations
+# Description: load translation tables
+#***************************************************************************
+sub load_translations {
+
+	my ($self, $translations_ref) = @_;
+
+	# Read translation from file
+	my $translations_path = $self->{translations_path};
+	unless ($translations_path) { die; }
+	my @file;
+	read_file($translations_path, \@file);
+	my $header = shift @file;
+	chomp $header;
+	my @header = split("\t", $header); 
+	my %levels;
+	my $i = 0;
+	foreach my $element (@header) {
+		$i++;
+		$levels{$i} = $element;
+	}
+
+	# Set up the translations
+	foreach my $line (@file) {
+
+		chomp $line;
+		my @line  = split("\t", $line);
+		my $j = 0;
+		my %taxonomy;
+		foreach my $value (@line) {
+			$j++;
+			my $level = $levels{$j};
+			unless ($level) { die; }		
+			$taxonomy{$level} = $value;			
+		}
+		my $id = shift @line;
+		$translations_ref->{$id} = \%taxonomy;		
+	}
+}
+
 
 ############################################################################
 # INTERNAL FUNCTIONS: initialisation

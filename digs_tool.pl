@@ -130,8 +130,7 @@ sub main {
 
 			    'help'            => \$help,
 			    'extra_help'      => \$extra_help,
-			    'version'         => \$version,
-			    			    
+			    'version'         => \$version,	    			    
 	) or die $USAGE;
 	
 	# Hand off to functions
