@@ -33,7 +33,7 @@ my $console   = Console->new();
 my $devtools  = DevTools->new();
 
 # Maximum range for defragment
-my $maximum = 100000000;
+my $maximum   = 100000000;
 
 # Flags
 my $verbose   = undef;
@@ -171,7 +171,7 @@ sub do_digs {
 		
 			# Compress DB
 			my @new_hits;
-			$self->compress_db($query_ref, \@new_hits);
+			$self->compress_results($query_ref, \@new_hits);
 
 			# Extract newly identified or extended sequences
 			my @extracted;
@@ -711,7 +711,6 @@ sub create_standard_locus_ids {
 
 	# Create the report
 	#$self->write_report(\%params, \%output);
-	
 }
 
 ############################################################################
@@ -835,6 +834,55 @@ sub search {
 }
 
 #***************************************************************************
+# Subroutine:  compress_results
+# Description: determine what to extract based on current results
+#***************************************************************************
+sub compress_results {
+	
+	my ($self, $query_ref, $to_extract_ref) = @_;
+
+	# Create the relevant set of previously extracted loci
+	my @loci;
+	my $where = $self->set_redundancy($query_ref);
+	$self->get_sorted_digs_results(\@loci, $where);
+	my $num_loci = scalar @loci;
+	print "\n\t\t # $num_loci previously extracted loci";
+		
+	# Add relevant set of  previously extracted loci to the active set of BLAST results
+	$self->create_combined_active_set(\@loci);
+
+	# Get new BLAST results & previously extracted loci in a sorted list
+	my @combined;
+	$self->get_sorted_active_set(\@combined);
+	my $total_hits = scalar @combined;
+	if ($total_hits > 0) {
+		print "\n\t\t # $total_hits new hits & previously extracted loci ";
+	}
+	# DEBUG $devtools->print_array(\@combined); exit;
+
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my %settings;
+	my %defragmented;
+	$settings{range} = $self->{defragment_range};
+	$settings{start} = 'subject_start';
+	$settings{end}   = 'subject_end';
+	$self->compose_clusters(\%defragmented, \@combined, \%settings);
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @cluster_ids;
+	if ($total_hits > $num_clusters) {
+		print "...compressed to $num_clusters overlapping/contiguous clusters";
+	}
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+
+	# Determine what to extract, and extract it
+	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
+	my $num_new = scalar @$to_extract_ref;
+	if ($num_new){
+		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+	}	
+}
+
+#***************************************************************************
 # Subroutine:  extract_sequences
 # Description: extract sequences from target databases
 #***************************************************************************
@@ -891,55 +939,6 @@ sub extract {
 		}
 	}	
 	return $new_hits;
-}
-
-#***************************************************************************
-# Subroutine:  compress_db
-# Description: determine what to extract based on current results
-#***************************************************************************
-sub compress_db {
-	
-	my ($self, $query_ref, $extracted_ref) = @_;
-
-	# Create the relevant set of previously extracted loci
-	my @loci;
-	my $where = $self->set_redundancy($query_ref);
-	$self->get_sorted_digs_results(\@loci, $where);
-	my $num_loci = scalar @loci;
-	print "\n\t\t # $num_loci previously extracted loci";
-		
-	# Add relevant set of  previously extracted loci to the active set of BLAST results
-	$self->create_combined_active_set(\@loci);
-
-	# Get new BLAST results & previously extracted loci in a sorted list
-	my @combined;
-	$self->get_sorted_active_set(\@combined);
-	my $total_hits = scalar @combined;
-	if ($total_hits > 0) {
-		print "\n\t\t # $total_hits new hits & previously extracted loci ";
-	}
-	# DEBUG $devtools->print_array(\@combined); exit;
-
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	my %settings;
-	my %defragmented;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@combined, \%settings);
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @cluster_ids;
-	if ($total_hits > $num_clusters) {
-		print "...compressed to $num_clusters overlapping/contiguous clusters";
-	}
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-
-	# Determine what to extract, and extract it
-	$self->merge_clustered_loci(\%defragmented, $extracted_ref);
-	my $num_new = scalar @$extracted_ref;
-	if ($num_new){
-		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
-	}	
 }
 
 #***************************************************************************
@@ -1028,6 +1027,7 @@ sub update_db {
 	# Flush the active set table
 	#print "\n # Flushing 'active_set' table";
 	$active_set_table->flush();
+	
 
 	# Iterate through the extracted sequences
 	foreach my $hit_ref (@$extracted_ref) {
@@ -1059,7 +1059,7 @@ sub update_db {
 			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
 			$digs_results_table->delete_rows($extracted_where);
 			# Update extract IDs			
-			my $chains_where = " WHERE Extract_ID = $old_digs_result_id ";
+			my $chains_where = " WHERE digs_result_id = $old_digs_result_id ";
 			my %new_id;
 			$new_id{digs_result_id} = $digs_result_id;	
 			$blast_chains_table->update(\%new_id, $chains_where);
