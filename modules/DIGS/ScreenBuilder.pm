@@ -219,6 +219,8 @@ sub setup_reference_library {
 	
 	my @ref_fasta;
 	my $num_fasta;
+	my $nonunique = 0;
+	my %nonunique;
 	if ($ref_fasta) {
 
 		my @fasta;
@@ -242,8 +244,11 @@ sub setup_reference_library {
 				my $seq    = $seq_ref->{sequence};
 				
 				if ($refseq_ids{$refseq_id}) {
-					print "\n\n\t  Error: non-unique sequence name '$refseq_id' in reference library\n\n";
-					exit;
+					$nonunique++;
+					if   ($nonunique{$refseq_id}) { $nonunique{$refseq_id}=1; }
+					else                          { $nonunique{$refseq_id}++; } 
+					#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
+					#sleep 1;
 				}
 				else {
 					$refseq_ids{$refseq_id} = 1;
@@ -254,7 +259,12 @@ sub setup_reference_library {
 			}
 		}
 	}
-
+	if ($nonunique) {
+		print "\n\n\t  Warning: $nonunique non-unique names identified in reference library\n";
+		sleep 1;
+		#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
+	}
+	
 	# Format the library for BLAST
 	if ($num_fasta) {
 		if ($self->{reference_library_type} eq 'aa') {
@@ -381,14 +391,6 @@ sub set_targets {
 		$genome_obj->refresh_genomes($targets_ref);
 	} 
 	
-	# Put the paths to exclude in a hash with path as the key
-	my %exclude;
-	my $exclude_paths_ref = $self->{exclude_paths};
-	foreach my $path (@$exclude_paths_ref) {
-		#print "\n\t    Excluding: $path";
-		$exclude{$path} = 1;
-	}
-
 	# Iterate through the list of paths 
 	my %paths;
 	my %target_data;
@@ -414,7 +416,7 @@ sub set_targets {
 			$file{path} = $full_path;
 			push (@leaves, \%file);
 		}
-		$self->read_genome_files(\@leaves, $targets_ref, \%exclude);		
+		$self->read_genome_files(\@leaves, $targets_ref);		
 	}
 	my @keys = keys %$targets_ref;
 	my $unique_targets = scalar @keys;
@@ -443,7 +445,8 @@ sub read_genome_files {
 	my ($self, $leaves_ref, $targets_ref, $exclude_ref) = @_;
 
 	my $genome_use_path  = $self->{genome_use_path};
-
+	my $exclude_paths_ref = $self->{exclude_paths};
+	my %excluded;
 	foreach my $file_ref (@$leaves_ref) {
 
 		my $file = $file_ref->{file};
@@ -467,20 +470,36 @@ sub read_genome_files {
 
 			my @key_path = ( $group , $organism, $type, $version, $file);
 			my $key_path = join('/', @key_path);
-			#print "\n\t PATH    $key_path";
-			if ($exclude_ref->{$key_path}) { 
-				 next; 
-			} # Exclude paths from the exclude block
+			
+			# Exclude paths from the exclude block
+			my $exclude = undef;
+			foreach my $path (@$exclude_paths_ref) {
+				$path =~ s/_\///; # Remove a trailing forwardslash
+				if ($key_path =~ m/$path/) { 
+					unless ($excluded{$path}) {
+						print "\n\t    Excluding: $path";
+						print "\n\t    Matches:   $key_path";
+						$excluded{$path} = 1;
+						last;
+					}
+				}
+				$exclude = 'true';
+			}
+			#$devtools->print_hash($exclude_ref); die;
+			
+			unless ($exclude) { 
 
-			# Store using key
-			my %data;
-			$data{file}      = $file;
-			$data{path}      = $path;
-			$data{organism}  = $organism;
-			$data{version}   = $version;
-			$data{datatype} = $type;
-			$data{group}     = $group;
-			$targets_ref->{$target_id} = \%data;	
+				# Store using key
+				my %data;
+				$data{file}      = $file;
+				$data{path}      = $path;
+				$data{organism}  = $organism;
+				$data{version}   = $version;
+				$data{datatype} = $type;
+				$data{group}     = $group;
+				$targets_ref->{$target_id} = \%data;	
+				#print "\n\t STORING TARGET $path";
+			}
 		}
 	}
 }
@@ -564,7 +583,7 @@ sub set_queries {
 			$outstanding++;
 			my %query = %$probe_ref;
 			$query{target_id}       = $target_id;		
-			$query{target_organism} = $organism;		
+			$query{organism}        = $organism;		
 			$query{target_version}  = $version;
 			$query{target_datatype} = $datatype;		
 			$query{target_name}     = $target_name;		

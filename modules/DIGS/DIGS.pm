@@ -108,7 +108,7 @@ sub run_digs_process {
 
 		# Hand off to DIGS functions
 		if ($option eq 2) { # Screen;
-			$self->set_up_digs();
+			$self->setup_digs();
 			$self->do_digs();	
 		}
 		elsif ($option eq 3) { # Reassign data in Exracted table
@@ -233,7 +233,7 @@ sub reassign {
 		delete $hit_ref->{extract_start};
 		delete $hit_ref->{extract_end};
 	
-		$hit_ref->{target_organism} = $hit_ref->{organism} ;
+		$hit_ref->{organism} = $hit_ref->{organism} ;
 	
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $hit_ref->{assigned_name};
@@ -277,7 +277,7 @@ sub reassign {
 			}
 			# Insert the data
 			delete $hit_ref->{record_id}; 
-			delete $hit_ref->{target_organism}; 
+			delete $hit_ref->{organism}; 
 			$digs_results_table->update($hit_ref, $where);
 		}
 	}
@@ -300,8 +300,8 @@ sub interactive_defragment {
 	my ($self) = @_;
 
 	# Display current settings
-	my $redundancy_mode= $self->{redundancy_mode};
-	my $defragment_range=$self->{defragment_range};
+	my $redundancy_mode  = $self->{redundancy_mode};
+	my $defragment_range = $self->{defragment_range};
 	unless ($redundancy_mode) { die; } 
 	print "\n\n\t\t Current settings (based on control file)";
 	print "\n\t\t redundancy mode: $redundancy_mode";
@@ -747,9 +747,9 @@ sub search {
 	my $probe_gene      = $query_ref->{probe_gene};
 	my $probe_type      = $query_ref->{probe_type};
 	my $probe_path      = $query_ref->{probe_path};
-	my $organism        = $query_ref->{target_organism};
+	my $organism        = $query_ref->{organism};
 	my $version         = $query_ref->{target_version};
-	my $target_datatype = $query_ref->{target_datatype};
+	my $datatype        = $query_ref->{target_datatype};
 	my $target_name     = $query_ref->{target_name};
 	my $target_path     = $query_ref->{target_path};
 	my $blast_alg       = $query_ref->{blast_alg};
@@ -758,7 +758,9 @@ sub search {
 
 	# Do BLAST similarity search
 	my $completed = $self->{completed};	
-	print "\n\t  $blast_alg screen # $completed: '$organism' file '$target_name' with probe $probe_id";   
+	print "\n\n\t  $blast_alg: $completed: '$organism' ($version, $datatype)";
+	print   "\n\t  target: '$target_name'";
+	print   "\n\t  probe:  '$probe_id'";   
 	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
 	
 	# Extract the results from tabular format BLAST output
@@ -804,9 +806,9 @@ sub search {
 		unless ($skip) {		
 			# Insert values into 'active_set' table
 			$hit_ref->{digs_result_id}  = 0;
-			$hit_ref->{target_organism} = $organism;
+			$hit_ref->{organism}        = $organism;
 			$hit_ref->{target_version}  = $version;
-			$hit_ref->{target_datatype} = $target_datatype;
+			$hit_ref->{target_datatype} = $datatype;
 			$hit_ref->{target_name}     = $target_name;
 			$hit_ref->{probe_id}        = $probe_id;
 			$hit_ref->{probe_name}      = $probe_name;
@@ -954,7 +956,7 @@ sub set_redundancy {
 	my $probe_gene      = $query_ref->{probe_gene};
 	my $probe_type      = $query_ref->{probe_type};
 	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{target_organism};
+	my $organism        = $query_ref->{organism};
 	my $target_datatype = $query_ref->{target_datatype};
 
 	# Compose the WHERE statement based on redundancy settings
@@ -1033,7 +1035,7 @@ sub update_db {
 	foreach my $hit_ref (@$extracted_ref) {
 
 		# Insert the data to the Extracted_sequences table
-		$hit_ref->{organism} = $hit_ref->{target_organism}; # Translate field name
+		$hit_ref->{organism} = $hit_ref->{organism}; # Translate field name
 		my $digs_result_id = $digs_results_table->insert_row($hit_ref);
 		#$devtools->print_hash($hit_ref); die;
 		
@@ -1102,7 +1104,7 @@ sub do_blast_genotyping {
 	
 	# Get required data about the hit, prior to performing reverse BLAST
 	my $sequence      = $hit_ref->{sequence};
-	my $organism      = $hit_ref->{target_organism};
+	my $organism      = $hit_ref->{organism};
 	my $probe_type    = $hit_ref->{probe_type};
 	
 	# Sanity checking
@@ -1415,7 +1417,7 @@ sub merge_clustered_loci {
 			$version         = $hit_ref->{target_version};
 			$scaffold        = $hit_ref->{scaffold};			
 			$orientation     = $hit_ref->{orientation};
-			$organism        = $hit_ref->{target_organism};
+			$organism        = $hit_ref->{organism};
 			unless ($organism) {
 		        $organism = $hit_ref->{organism};
 		    }
@@ -1487,7 +1489,7 @@ sub merge_clustered_loci {
 			$extract{target_name}     = $target_name;
 			$extract{target_datatype} = $target_datatype;
 			$extract{target_version}  = $version;
-			$extract{target_organism} = $organism;
+			$extract{organism} = $organism;
 			$extract{probe_type}      = $probe_type;
 			$extract{digs_result_id}      = $previous_digs_result_id;
 			$extract{target_name}     = $target_name;
@@ -1698,9 +1700,9 @@ sub index_previously_executed_searches {
 	my $searches_table = $db->{searches_table};
 	unless ($searches_table) { die "\n\t Searches_performed table not loaded\n\n"; }
 	my @data;
-	my @fields = qw [ record_id probe_name probe_gene 
-	                  target_organism target_datatype
-	                  target_version target_name ];
+	my @fields = qw [ record_id
+                      probe_name probe_gene 
+	                  organism target_datatype target_version target_name ];
 	my $where = " ORDER BY record_id ";
 	$searches_table->select_rows(\@fields, \@data, $where);
 	
@@ -1708,7 +1710,7 @@ sub index_previously_executed_searches {
 	foreach my $data_ref (@data) {
 		
 		# Get the query parameters
-		my $organism        = $data_ref->{target_organism};
+		my $organism        = $data_ref->{organism};
 		my $target_datatype = $data_ref->{target_datatype};
 		my $version         = $data_ref->{target_version};
 		my $target_name     = $data_ref->{target_name};
@@ -1716,11 +1718,12 @@ sub index_previously_executed_searches {
 		my $probe_gene      = $data_ref->{probe_gene};
 	
 		# Sanity checking
-		unless ( $organism and $target_datatype 
-		     and $version and $target_name 
-             and $probe_name and $probe_gene) { 
-			die;
-		};
+		unless ( $organism )        { die; }
+        unless ( $target_datatype ) { die; }
+        unless ( $version )         { die; }
+        unless ( $target_name )     { die; }
+        unless ( $probe_name )      { die; }
+        unless ( $probe_gene )      { die; }
 		
 		# Create the unique key for this search
 		my @genome = ( $organism , $target_datatype, $version );
@@ -1733,7 +1736,7 @@ sub index_previously_executed_searches {
 		$done_ref->{$key} = $data_ref;		
 	}
 
-	#$devtools->print_hash($done_ref);
+	#$devtools->print_hash($done_ref); die; # DEBUG
 }
 
 #***************************************************************************
@@ -1792,7 +1795,7 @@ sub create_combined_active_set {
 		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
 		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
 		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
-		$locus_ref->{target_organism}  = $locus_ref->{organism};
+		$locus_ref->{organism}  = $locus_ref->{organism};
 		$active_set_table->insert_row($locus_ref);
 	}
 }
@@ -1815,7 +1818,7 @@ sub get_sorted_active_set {
 	
 	# Get sorted, combined extracted loci and new blast results	
 	my @blast_fields = qw [ record_id digs_result_id  
-	                        target_organism target_datatype target_version target_name
+	                        organism target_datatype target_version target_name
 	                        probe_name probe_gene probe_type
 	                        bitscore gap_openings
 	                        query_start query_end 
@@ -1852,7 +1855,7 @@ sub show_blast_chains {
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
 		my @chain_fields = qw [ record_id probe_name probe_gene 
-		                        target_organism target_name 
+		                        organism target_name 
 		                        scaffold subject_start subject_end
 		                        bitscore identity align_len ];
 		my $blast_where  = " WHERE Extract_ID = $digs_result_id ";
@@ -1864,7 +1867,7 @@ sub show_blast_chains {
 			my $blast_id    = $hit_ref->{record_id};
 			my $probe_name  = $hit_ref->{probe_name};
 			my $probe_gene  = $hit_ref->{probe_gene};
-			my $organism    = $hit_ref->{target_organism};
+			my $organism    = $hit_ref->{organism};
 			my $scaffold    = $hit_ref->{scaffold};
 			my $start       = $hit_ref->{subject_start};
 			my $end         = $hit_ref->{subject_end};
@@ -2136,10 +2139,10 @@ sub initialise_reassign {
 }
 
 #***************************************************************************
-# Subroutine:  set_up_digs
-# Description: prepare DIGS queries
+# Subroutine:  setup_digs
+# Description: prepare database and DIGS query list to commence screening
 #***************************************************************************
-sub set_up_digs {
+sub setup_digs {
 
 	my ($self) = @_;
 
@@ -2147,8 +2150,8 @@ sub set_up_digs {
 	my $db  = $self->{db};
 	unless ($db) { die "\n\t Error: no DB defined \n\n\n"; }
 
-	my $active_set_table = $db->{active_set_table};
 	#print "\n\t  Flushing 'active_set' table\n";
+	my $active_set_table = $db->{active_set_table};
 	$active_set_table->flush();
 	
 	# Index previously executed searches
