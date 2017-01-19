@@ -322,7 +322,9 @@ sub interactive_defragment {
 	# Display current settings
 	my $redundancy_mode  = $self->{redundancy_mode};
 	my $defragment_range = $self->{defragment_range};
-	unless ($redundancy_mode) { die; } 
+	my $genome_use_path  = $self->{genome_use_path};
+	unless ($redundancy_mode and  $defragment_range ) { die; } 
+	unless ($genome_use_path) { die; } 
 	print "\n\n\t\t Current settings (based on control file)";
 	print "\n\t\t redundancy mode:  $redundancy_mode";
 	print "\n\t\t defragment_range: $defragment_range";
@@ -340,6 +342,8 @@ sub interactive_defragment {
 	$cluster_info{total_hits} = '0';
 	$cluster_info{total_clusters} = '0';
 	my $t_range;
+	
+	# Question loop
 	do {
 		my $question1 = "\n\n\t # Set the range for merging hits";
 		$t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
@@ -361,50 +365,60 @@ sub interactive_defragment {
 		
 	} until ($choice > 1);
 	
-
 	if ($choice eq 2) { # Apply the changes
 
 		# Create a backup of the current digs_results
 		$db->backup_digs_results_table();
 
-		# Get new BLAST results & previously extracted loci in a sorted list
-		my @combined;
-		$self->get_sorted_active_set(\@combined);
+		foreach my $target_ref (@targets) {
 
-		my %settings;
-		my %defragmented;
-		$settings{range} = $t_range;
-		$settings{start} = 'subject_start';
-		$settings{end}   = 'subject_end';
+			my $organism        = $target_ref->{organism};
+			my $target_name     = $target_ref->{target_name};
+			my $target_datatype = $target_ref->{target_datatype};
+			my $target_version  = $target_ref->{target_version};
+			my $target_path  = $genome_use_path;
+			my $target_path .= "~/Genomes/Mammalia/$organism/$target_datatype/$target_version/$target_name";
 		
-		# Defragment the results using these settings
-		my @defragmented;
-		$self->compress(\%settings, \%defragmented, \@combined, \@defragmented);
-		#$devtools->print_array(\@defragmented); die;
-		die;
+			# Create the relevant set of previously extracted loci
+			my @combined;
+			my $where  = " WHERE organism      = '$organism' ";
+			$where    .= " AND target_datatype = '$target_datatype' ";
+			$where    .= " AND target_version  = '$target_version' ";
+			$where    .= " AND target_name     = '$target_name' "; 
+
+			$self->get_sorted_digs_results(\@combined, $where);
+			my $num_hits = scalar @combined;
 		
-		# Extract newly identified or extended sequences
-		my $target_path;
-		my @extracted;
-		$self->extract($target_path, \@defragmented, \@extracted);	
-		die;
+			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+			my %settings;
+			my %target_defragmented;
+			$settings{range} = $t_range;
+			$settings{start} = 'extract_start';
+			$settings{end}   = 'extract_end';
+			$self->compose_clusters(\%target_defragmented, \@combined, \%settings);
+			#$self->show_clusters(\%defragmented);  # Show clusters
 		
-		# DEBUG
-		#$self->show_clusters(\%defragmented);  # Show clusters
-		$devtools->print_array(\@extracted); die;
+			# Defragment the results using these settings
+			my @defragmented;
+			$self->compress(\%settings, \%target_defragmented, \@combined, \@defragmented);
+		
+			# Extract newly identified or extended sequences
+			my @extracted;
+			$self->extract($target_path, \@defragmented, \@extracted);	
+			#$devtools->print_array(\@extracted); die;
 				
-		# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-		my $assigned_count   = 0;
-		my $crossmatch_count = 0;
-		foreach my $hit_ref (@extracted) { # Iterate through the matches
-			# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-			my $assigned = $self->do_blast_genotyping($hit_ref);
-			if ($assigned) { $assigned_count++; }
-		}
+			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+			my $assigned_count   = 0;
+			my $crossmatch_count = 0;
+			foreach my $hit_ref (@extracted) { # Iterate through the matches
+				# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
+				my $assigned = $self->do_blast_genotyping($hit_ref);
+				if ($assigned) { $assigned_count++; }
+			}
 			
-		# Update DB
-		$self->update_db(\@extracted);
-		
+			# Update DB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+			$self->update_db(\@extracted);
+		}
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
 }
@@ -929,9 +943,12 @@ sub extract {
 
 	# Iterate through the list of sequences to extract
 	my $new_hits = scalar @$hits_ref;
+	my $i;
 	foreach my $hit_ref (@$hits_ref) {
 				
 		# Add any buffer 
+		$i++;
+		#print "\n\t Extract $i";
 		my $orientation   = $hit_ref->{orientation};
 		if ($buffer) {
 			if ($orientation eq '-') {
@@ -2387,6 +2404,22 @@ sub run_utility_process {
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
 	}
+}
+
+############################################################################
+# VALIDATE FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  validate
+# Description: 
+#***************************************************************************
+sub validate {
+
+	my ($self) = @_;
+
+	# Build the test set
+
 }
 
 ############################################################################
