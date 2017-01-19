@@ -803,7 +803,6 @@ sub backup_digs_results_table {
    	unless ($sth->execute()) { print $copy_sql_1; exit;}	
    	my $sth = $dbh->prepare($copy_sql_2);
    	unless ($sth->execute()) { print $copy_sql_2; exit;}	
-	exit;
 }
 
 #***************************************************************************

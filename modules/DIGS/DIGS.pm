@@ -319,13 +319,12 @@ sub interactive_defragment {
 
 		# Create a backup of the current digs_results
 		$db_ref->backup_digs_results_table();
-		die;
 		
 		# Implement the merge
 		my @merged;
 		my %defragmented;
 		$self->merge_clustered_loci(\%defragmented, \@merged);
-		#$devtools->print_array(\@merged); die;	
+		$devtools->print_array(\@merged); die;	
 		#$devtools->print_hash(\%defragmented); die;	
 		die;
 		$self->update_db(\@merged);
