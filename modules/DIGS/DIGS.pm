@@ -171,14 +171,34 @@ sub do_digs {
 		
 			# Compress DB
 			my @new_hits;
-			$self->compress_results($query_ref, \@new_hits);
+			$self->compress_active_set($query_ref, \@new_hits);
 
 			# Extract newly identified or extended sequences
 			my @extracted;
-			$self->extract($query_ref, \@new_hits, \@extracted);	
+			my $target_path = $query_ref->{target_path};
+			$self->extract($target_path, \@new_hits, \@extracted);	
 	
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$self->assign($query_ref, \@extracted);
+			my $assigned_count   = 0;
+			my $crossmatch_count = 0;
+			foreach my $hit_ref (@extracted) { # Iterate through the matches
+				# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
+				my $assigned = $self->do_blast_genotyping($hit_ref);
+				if ($assigned) { $assigned_count++; }
+				# Get the unique key for this probe
+				my $probe_name  = $query_ref->{probe_name};
+				my $probe_gene  = $query_ref->{probe_gene};
+				my $probe_key = $probe_name . '_' . $probe_gene; 		
+				# Record cross-matching
+				if ($probe_key ne $assigned) {
+					$crossmatch_count++;
+					$self->update_cross_matching($probe_key, $assigned);
+				}
+			}	
+			if ($assigned_count > 0) {
+				print "\n\t\t # $assigned_count extracted sequences matched to reference library";
+				print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+			}
 			
 			# Update DB
 			$self->update_db(\@extracted);
@@ -308,26 +328,83 @@ sub interactive_defragment {
 	print "\n\t\t defragment_range: $defragment_range";
 
 	# Get a list of all the target files from the screening DB
-	my $db_ref = $self->{db};
-	my $digs_results_table = $db_ref->{digs_results_table};
+	my $db = $self->{db};
+	my $digs_results_table = $db->{digs_results_table};
 	my @fields = qw [ organism target_datatype target_version target_name ];
 	my @targets;
 	$digs_results_table->select_distinct(\@fields, \@targets);
-	my $choice = $self->interactive_defragment_loop(\@targets);
+
+	# Settings
+	my $choice;
+	my %cluster_info;
+	$cluster_info{total_hits} = '0';
+	$cluster_info{total_clusters} = '0';
+	my $t_range;
+	do {
+		my $question1 = "\n\n\t # Set the range for merging hits";
+		$t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+
+		# Apply the settings
+		$self->interactive_defragment_loop(\@targets, \%cluster_info, $t_range);
+		my $total_hits     = $cluster_info{total_hits};
+		my $total_clusters = $cluster_info{total_clusters};
+	
+		# Prompt for what to do next
+		print "\n\t\t\t TOTAL HITS:     $total_hits";
+		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+
+		print "\n\n\t\t Option 1: preview new parameters";
+		print "\n\t\t Option 2: apply these parameters";
+		print "\n\t\t Option 3: exit";
+		my $list_question = "\n\n\t # Choose an option:";
+		$choice = $console->ask_list_question($list_question, 3);
+		
+	} until ($choice > 1);
+	
 
 	if ($choice eq 2) { # Apply the changes
 
 		# Create a backup of the current digs_results
-		$db_ref->backup_digs_results_table();
-		
-		# Implement the merge
-		my @merged;
+		$db->backup_digs_results_table();
+
+		# Get new BLAST results & previously extracted loci in a sorted list
+		my @combined;
+		$self->get_sorted_active_set(\@combined);
+
+		my %settings;
 		my %defragmented;
-		$self->merge_clustered_loci(\%defragmented, \@merged);
-		$devtools->print_array(\@merged); die;	
-		#$devtools->print_hash(\%defragmented); die;	
+		$settings{range} = $t_range;
+		$settings{start} = 'subject_start';
+		$settings{end}   = 'subject_end';
+		
+		# Defragment the results using these settings
+		my @defragmented;
+		$self->compress(\%settings, \%defragmented, \@combined, \@defragmented);
+		#$devtools->print_array(\@defragmented); die;
 		die;
-		$self->update_db(\@merged);
+		
+		# Extract newly identified or extended sequences
+		my $target_path;
+		my @extracted;
+		$self->extract($target_path, \@defragmented, \@extracted);	
+		die;
+		
+		# DEBUG
+		#$self->show_clusters(\%defragmented);  # Show clusters
+		$devtools->print_array(\@extracted); die;
+				
+		# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+		my $assigned_count   = 0;
+		my $crossmatch_count = 0;
+		foreach my $hit_ref (@extracted) { # Iterate through the matches
+			# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
+			my $assigned = $self->do_blast_genotyping($hit_ref);
+			if ($assigned) { $assigned_count++; }
+		}
+			
+		# Update DB
+		$self->update_db(\@extracted);
+		
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
 }
@@ -778,10 +855,10 @@ sub search {
 }
 
 #***************************************************************************
-# Subroutine:  compress_results
+# Subroutine:  compress_active_set
 # Description: determine what to extract based on current results
 #***************************************************************************
-sub compress_results {
+sub compress_active_set {
 	
 	my ($self, $query_ref, $to_extract_ref) = @_;
 
@@ -798,28 +875,40 @@ sub compress_results {
 	# Get new BLAST results & previously extracted loci in a sorted list
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
-	my $total_hits = scalar @combined;
-	if ($total_hits > 0) {
-		print "\n\t\t # $total_hits new hits & previously extracted loci ";
-	}
-	# DEBUG $devtools->print_array(\@combined); exit;
 
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	my %settings;
 	my %defragmented;
 	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@combined, \%settings);
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @cluster_ids;
+	$self->compress(\%settings, \%defragmented, \@combined, $to_extract_ref);
+}
+
+#***************************************************************************
+# Subroutine:  compress
+# Description: 
+#***************************************************************************
+sub compress {
+
+	my ($self, $settings_ref, $defragmented_ref, $combined_ref, $to_extract_ref) = @_;
+
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my $total_hits = scalar @$combined_ref;
+	if ($total_hits > 0) {
+		print "\n\t\t # $total_hits new hits & previously extracted loci ";
+	}
+
+	# Compose clusters of related sequences
+	$self->compose_clusters($defragmented_ref, $combined_ref, $settings_ref);
+	my @cluster_ids  = keys %$defragmented_ref;
+	my $num_clusters = scalar @$combined_ref;
 	if ($total_hits > $num_clusters) {
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
 
 	# Determine what to extract, and extract it
-	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
+	# DEBUG $self->show_clusters($defragmented_ref);  # Show clusters
+	$self->merge_clustered_loci($defragmented_ref, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
@@ -832,12 +921,11 @@ sub compress_results {
 #***************************************************************************
 sub extract {
 
-	my ($self, $query_ref, $hits_ref, $extracted_ref) = @_;
+	my ($self, $target_path, $hits_ref, $extracted_ref) = @_;
 
 	# Get paths, objects, data structures and variables from self
 	my $blast_obj   = $self->{blast_obj};
 	my $buffer      = $self->{extract_buffer};
-	my $target_path = $query_ref->{target_path};
 
 	# Iterate through the list of sequences to extract
 	my $new_hits = scalar @$hits_ref;
@@ -883,75 +971,6 @@ sub extract {
 		}
 	}	
 	return $new_hits;
-}
-
-#***************************************************************************
-# Subroutine:  set_redundancy
-# Description: compose SQL WHERE statement based on redundancy settings
-#***************************************************************************
-sub set_redundancy {
-	
-	my ($self, $query_ref) = @_;
-	
-	# Get query details
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $target_datatype = $query_ref->{target_datatype};
-
-	# Compose the WHERE statement based on redundancy settings
-	my $redundancy_mode = $self->{redundancy_mode};
-	unless ($redundancy_mode) { die; } 
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
-		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
-		$where .= " AND assigned_gene = '$probe_gene' ";
-	}
-	if ($redundancy_mode eq 3) {
-		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
-		$where .= " AND assigned_name = '$probe_name' ";
-	}
-
-	return $where;
-}
-
-#***************************************************************************
-# Subroutine:  assign
-# Description: assign sequences using BLAST 
-#***************************************************************************
-sub assign {
-	
-	my ($self, $query_ref, $extracted_ref) = @_;
-		
-	# Iterate through the matches
-	my $assigned_count   = 0;
-	my $crossmatch_count = 0;
-	foreach my $hit_ref (@$extracted_ref) {
-
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
-		
-		my $assigned = $self->do_blast_genotyping($hit_ref);
-		if ($assigned) { $assigned_count++; }
-
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key = $probe_name . '_' . $probe_gene; 
-				
-		# Record cross-matching
-		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
-			$self->update_cross_matching($probe_key, $assigned);
-		}
-	}
-	
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-	}
 }
 
 #***************************************************************************
@@ -1142,9 +1161,42 @@ sub do_blast_genotyping {
 	return $assigned;
 }
 
+#***************************************************************************
+# Subroutine:  set_redundancy
+# Description: compose SQL WHERE statement based on redundancy settings
+#***************************************************************************
+sub set_redundancy {
+	
+	my ($self, $query_ref) = @_;
+	
+	# Get query details
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{organism};
+	my $target_datatype = $query_ref->{target_datatype};
+
+	# Compose the WHERE statement based on redundancy settings
+	my $redundancy_mode = $self->{redundancy_mode};
+	unless ($redundancy_mode) { die; } 
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
+		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
+		$where .= " AND assigned_gene = '$probe_gene' ";
+	}
+	if ($redundancy_mode eq 3) {
+		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
+		$where .= " AND assigned_name = '$probe_name' ";
+	}
+
+	return $where;
+}
+
 ############################################################################
 # INTERNAL FUNCTIONS: comparing and merging overlapping/adjacent hits
-###########################################################################	
+############################################################################
 
 #***************************************************************************
 # Subroutine:  compose_clusters 
@@ -1503,7 +1555,7 @@ sub show_cluster {
 		my $start         = $hit_ref->{extract_start};			
 		my $end           = $hit_ref->{extract_end};
 		unless ($start) {
-			$assigned_name = $hit_ref->{subject_start};			
+			$start = $hit_ref->{subject_start};			
 		}
 		unless ($end) {
 			$end = $hit_ref->{subject_end};			
@@ -1517,6 +1569,62 @@ sub show_cluster {
 			print " (extract ID: $digs_result_id)";				
 		}
 	}			
+}
+
+#***************************************************************************
+# Subroutine:  interactive_defragment_loop 
+# Description: 
+#***************************************************************************
+sub interactive_defragment_loop {
+
+    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
+   
+	# Apply the settings
+	my $total_hits     = $cluster_params->{total_hits};
+	my $total_clusters = $cluster_params->{total_clusters};
+   
+	foreach my $target_ref (@$targets_ref) {
+
+		my $organism        = $target_ref->{organism};
+		my $target_name     = $target_ref->{target_name};
+		my $target_datatype = $target_ref->{target_datatype};
+		my $target_version  = $target_ref->{target_version};
+			
+		# Create the relevant set of previously extracted loci
+		my @loci;
+		my $where  = " WHERE organism      = '$organism' ";
+		$where    .= " AND target_datatype = '$target_datatype' ";
+		$where    .= " AND target_version  = '$target_version' ";
+		$where    .= " AND target_name     = '$target_name' "; 
+
+		$self->get_sorted_digs_results(\@loci, $where);
+		my $num_hits = scalar @loci;
+		
+		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+		my %settings;
+		my %target_defragmented;
+		$settings{range} = $t_range;
+		$settings{start} = 'extract_start';
+		$settings{end}   = 'extract_end';
+		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
+		
+		# Show clusters
+		my @cluster_ids  = keys %target_defragmented;
+		my $num_clusters = scalar @cluster_ids;
+		#if ($verbose) {
+			print "\n\n\t\t $num_hits hits in target $target_name";
+			if ($num_hits > $num_clusters) {
+				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
+				$self->show_clusters(\%target_defragmented);
+			}
+		#}
+		$total_hits = $total_hits + $num_hits;
+		$total_clusters = $total_clusters + $num_clusters;
+	}
+
+	$cluster_params->{total_hits}     = $total_hits;
+	$cluster_params->{total_clusters} = $total_clusters;
+		
 }
 
 ############################################################################
@@ -1626,78 +1734,6 @@ sub write_crossmatching_data_to_file {
 	#$devtools->print_hash($matrix_ref);
 }
 
-#***************************************************************************
-# Subroutine:  interactive_defragment_loop 
-# Description: 
-#***************************************************************************
-sub interactive_defragment_loop {
-
-    my ($self, $targets_ref) = @_;
-    
-	my $db = $self->{db};
-	my $defragment_range = $self->{defragment_range};
-
-	my $choice;
-	do {
-
-		my $question1 = "\n\n\t # Set the range for merging hits";
-		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
-		my $total_hits = '0';
-		my $total_clusters = '0';
-		foreach my $target_ref (@$targets_ref) {
-
-			my $organism        = $target_ref->{organism};
-			my $target_name     = $target_ref->{target_name};
-			my $target_datatype = $target_ref->{target_datatype};
-			my $target_version  = $target_ref->{target_version};
-				
-			# Create the relevant set of previously extracted loci
-			my @loci;
-			my $where  = " WHERE organism      = '$organism' ";
-		   	$where    .= " AND target_datatype = '$target_datatype' ";
-		   	$where    .= " AND target_version  = '$target_version' ";
-		   	$where    .= " AND target_name     = '$target_name' "; 
-
-			$self->get_sorted_digs_results(\@loci, $where);
-			my $num_hits = scalar @loci;
-		
-			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-			my %settings;
-			my %target_defragmented;
-			$settings{range} = $t_range;
-			$settings{start} = 'extract_start';
-			$settings{end}   = 'extract_end';
-			$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
-			
-			# Show clusters
-			my @cluster_ids  = keys %target_defragmented;
-			my $num_clusters = scalar @cluster_ids;
-			if ($verbose) {
-				print "\n\n\t\t $num_hits hits in target $target_name";
-				if ($num_hits > $num_clusters) {
-					print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-					$self->show_clusters(\%target_defragmented);
-				}
-			}
-			$total_hits = $total_hits + $num_hits;
-			$total_clusters = $total_clusters + $num_clusters;
-		}
-		
-		# Prompt for what to do next
-		print "\n\t\t\t TOTAL HITS:     $total_hits";
-		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
-
-		print "\n\n\t\t Option 1: preview new parameters";
-		print "\n\t\t Option 2: apply these parameters";
-		print "\n\t\t Option 3: exit";
-		my $list_question = "\n\n\t # Choose an option:";
-		$choice = $console->ask_list_question($list_question, 3);
-
-	} until ($choice > 1);
-	
-	return $choice;
-}
-
 ############################################################################
 # INTERNAL FUNCTIONS: interacting with screening DB (indexing, sorting)
 ############################################################################
@@ -1762,7 +1798,7 @@ sub get_sorted_digs_results {
 	my ($self, $data_ref, $where) = @_;;
 
 	# Set statement to sort loci
-	my $sort  = " ORDER BY scaffold, extract_start ";
+	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
 	if ($where) { $where .= $sort; }
 	else        { $where  = $sort; }
 
@@ -2075,7 +2111,6 @@ sub load_translations {
 		$translations_ref->{$id} = \%taxonomy;		
 	}
 }
-
 
 ############################################################################
 # INTERNAL FUNCTIONS: initialisation

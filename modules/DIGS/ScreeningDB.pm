@@ -801,7 +801,7 @@ sub backup_digs_results_table {
     my $dbh = $self->{dbh};
 	my $sth = $dbh->prepare($copy_sql_1);
    	unless ($sth->execute()) { print $copy_sql_1; exit;}	
-   	my $sth = $dbh->prepare($copy_sql_2);
+   	$sth = $dbh->prepare($copy_sql_2);
    	unless ($sth->execute()) { print $copy_sql_2; exit;}	
 }
 
