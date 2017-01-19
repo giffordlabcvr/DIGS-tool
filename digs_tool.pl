@@ -115,33 +115,33 @@ sub main {
 	my $utility  = undef;
 	
 	# Options that don't require a value
-	my $help         = undef;
-	my $version      = undef;
+	my $help       = undef;
 	my $extra_help = undef;
-	my $analysis     = undef;
-
+	my $version    = undef;
+	my $analysis   = undef;
+	my $test       = undef;
+	
 	# Read in options using GetOpt::Long
-	GetOptions ('mode|m=i'        => \$mode, 
-			    'utility=i'       => \$utility,
-			    
-			    'infile|i=s'      => \$infile,
-			    
-			    'analysis|a=i'    => \$analysis,
-
-			    'help'            => \$help,
-			    'extra_help'      => \$extra_help,
-			    'version'         => \$version,	    			    
+	GetOptions ('mode|m=i'      => \$mode,
+			    'utility=i'     => \$utility,
+			    'infile|i=s'    => \$infile,    
+			    'analysis|a=i'  => \$analysis,
+			    'help'          => \$help,
+			    'extra_help'    => \$extra_help,
+			    'version'       => \$version,
+			    'test'          => \$test,
 	) or die $USAGE;
 	
 	# Hand off to functions
 	if ($version) { 
 		print "\n\t DIGS tool version $program_version\n\n"
 	}
-	elsif ($utility) { # Utility functions
-		$digs_tool_obj->run_utility_process($utility, $infile); 
-	}
 	elsif ($help) { # Show help page
 		$digs_tool_obj->show_help_page();
+		exit;
+	}
+	elsif ($test) { # Run inbuilt tests
+		$digs_tool_obj->validate();
 		exit;
 	}
 	elsif ($extra_help) {
@@ -151,7 +151,10 @@ sub main {
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($mode, $infile); 
 	}
-	elsif ($analysis) { # Analysis
+	elsif ($utility) { # Utility functions
+		$digs_tool_obj->run_utility_process($utility, $infile); 
+	}
+	elsif ($analysis) { # Analysis (batch runs etc)
 		my $digs_analyser = Deeper->new(\%params);
 		$digs_analyser->run_digs_analysis($analysis, $infile); 
 	}

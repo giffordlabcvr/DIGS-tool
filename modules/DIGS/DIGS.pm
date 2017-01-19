@@ -111,15 +111,15 @@ sub run_digs_process {
 			$self->setup_digs();
 			$self->do_digs();	
 		}
-		elsif ($option eq 3) { # Reassign data in Exracted table
+		elsif ($option eq 3) { # Reassign data in digs_results table
 			my @digs_results;
 			$self->initialise_reassign(\@digs_results); # Set up 
 			$self->reassign(\@digs_results);	
 		}
-		elsif ($option eq 4) { # Reassign data in Exracted table	
+		elsif ($option eq 4) { # Interactively defragment results 	
 			$self->interactive_defragment();	
 		}
-		elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
+		elsif ($option eq 5) { # Consolidate results into higher level structures 
 			$self->consolidate_loci();
 		}
 		elsif ($option eq 6) { # Standardised locus naming
@@ -304,7 +304,7 @@ sub interactive_defragment {
 	my $defragment_range = $self->{defragment_range};
 	unless ($redundancy_mode) { die; } 
 	print "\n\n\t\t Current settings (based on control file)";
-	print "\n\t\t redundancy mode: $redundancy_mode";
+	print "\n\t\t redundancy mode:  $redundancy_mode";
 	print "\n\t\t defragment_range: $defragment_range";
 
 	# Get a list of all the target files from the screening DB
@@ -313,81 +313,24 @@ sub interactive_defragment {
 	my @fields = qw [ organism target_datatype target_version target_name ];
 	my @targets;
 	$digs_results_table->select_distinct(\@fields, \@targets);
-
-	my $db = $self->{db};
-	my %defragmented;
-	my $choice;
-	do {
-
-		my $question1 = "\n\n\t # Set the range for merging hits";
-		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
-		#my $t_range = 100;
-		my $total_hits = '0';
-		my $total_clusters = '0';
-		foreach my $target_ref (@targets) {
-
-			my $organism        = $target_ref->{organism};
-			my $target_name     = $target_ref->{target_name};
-			my $target_datatype = $target_ref->{target_datatype};
-			my $target_version  = $target_ref->{target_version};
-			#$devtools->print_hash($target_ref);
-				
-			# Create the relevant set of previously extracted loci
-			my @loci;
-			my $where  = " WHERE organism      = '$organism' ";
-		   	$where    .= " AND target_datatype = '$target_datatype' ";
-		   	$where    .= " AND target_version  = '$target_version' ";
-		   	$where    .= " AND target_name     = '$target_name' "; 
-
-			$self->get_sorted_digs_results(\@loci, $where);
-			my $num_hits = scalar @loci;
-			#$devtools->print_array(\@loci); die;
-		
-			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-			my %settings;
-			my %target_defragmented;
-			$settings{range} = $t_range;
-			$settings{start} = 'extract_start';
-			$settings{end}   = 'extract_end';
-			$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
-			
-			# Show clusters
-			my @cluster_ids  = keys %target_defragmented;
-			my $num_clusters = scalar @cluster_ids;
-			if ($verbose) {
-				print "\n\n\t\t $num_hits hits in target $target_name";
-				if ($num_hits > $num_clusters) {
-					print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-					$self->show_clusters(\%target_defragmented);
-				}
-			}
-			$total_hits = $total_hits + $num_hits;
-			$total_clusters = $total_clusters + $num_clusters;
-		}
-		
-		# Prompt for what to do next
-		print "\n";
-		print "\n\t\t\t TOTAL HITS:     $total_hits";
-		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
-
-		print "\n\n\t\t Option 1: preview new parameters";
-		print "\n\t\t Option 2: apply these parameters";
-		print "\n\t\t Option 3: exit";
-		my $list_question = "\n\n\t # Choose an option:";
-		$choice = $console->ask_list_question($list_question, 3);
-
-	} until ($choice > 1);
+	my $choice = $self->interactive_defragment_loop(\@targets);
 
 	if ($choice eq 2) { # Apply the changes
+
+		# Create a backup of the current digs_results
+		$db_ref->backup_digs_results_table();
+		die;
+		
+		# Implement the merge
 		my @merged;
-		#$devtools->print_hash(\%defragmented); die;	
+		my %defragmented;
 		$self->merge_clustered_loci(\%defragmented, \@merged);
-		$devtools->print_array(\@merged); die;	
+		#$devtools->print_array(\@merged); die;	
+		#$devtools->print_hash(\%defragmented); die;	
+		die;
 		$self->update_db(\@merged);
 	}
-	elsif ($choice eq 3) {
-		exit;
-	}
+	elsif ($choice eq 3) { print "\n"; exit; }
 }
 
 #***************************************************************************
@@ -1682,6 +1625,78 @@ sub write_crossmatching_data_to_file {
 	my $file_path = $self->{tmp_path} . $file;
 	$fileio->write_file($file_path, \@matrix);
 	#$devtools->print_hash($matrix_ref);
+}
+
+#***************************************************************************
+# Subroutine:  interactive_defragment_loop 
+# Description: 
+#***************************************************************************
+sub interactive_defragment_loop {
+
+    my ($self, $targets_ref) = @_;
+    
+	my $db = $self->{db};
+	my $defragment_range = $self->{defragment_range};
+
+	my $choice;
+	do {
+
+		my $question1 = "\n\n\t # Set the range for merging hits";
+		my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+		my $total_hits = '0';
+		my $total_clusters = '0';
+		foreach my $target_ref (@$targets_ref) {
+
+			my $organism        = $target_ref->{organism};
+			my $target_name     = $target_ref->{target_name};
+			my $target_datatype = $target_ref->{target_datatype};
+			my $target_version  = $target_ref->{target_version};
+				
+			# Create the relevant set of previously extracted loci
+			my @loci;
+			my $where  = " WHERE organism      = '$organism' ";
+		   	$where    .= " AND target_datatype = '$target_datatype' ";
+		   	$where    .= " AND target_version  = '$target_version' ";
+		   	$where    .= " AND target_name     = '$target_name' "; 
+
+			$self->get_sorted_digs_results(\@loci, $where);
+			my $num_hits = scalar @loci;
+		
+			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+			my %settings;
+			my %target_defragmented;
+			$settings{range} = $t_range;
+			$settings{start} = 'extract_start';
+			$settings{end}   = 'extract_end';
+			$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
+			
+			# Show clusters
+			my @cluster_ids  = keys %target_defragmented;
+			my $num_clusters = scalar @cluster_ids;
+			if ($verbose) {
+				print "\n\n\t\t $num_hits hits in target $target_name";
+				if ($num_hits > $num_clusters) {
+					print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
+					$self->show_clusters(\%target_defragmented);
+				}
+			}
+			$total_hits = $total_hits + $num_hits;
+			$total_clusters = $total_clusters + $num_clusters;
+		}
+		
+		# Prompt for what to do next
+		print "\n\t\t\t TOTAL HITS:     $total_hits";
+		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+
+		print "\n\n\t\t Option 1: preview new parameters";
+		print "\n\t\t Option 2: apply these parameters";
+		print "\n\t\t Option 3: exit";
+		my $list_question = "\n\n\t # Choose an option:";
+		$choice = $console->ask_list_question($list_question, 3);
+
+	} until ($choice > 1);
+	
+	return $choice;
 }
 
 ############################################################################

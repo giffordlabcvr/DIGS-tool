@@ -773,8 +773,37 @@ sub drop_ancillary_table {
 	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
 	my $drop = "DROP TABLE IF EXISTS $table_name ";
 	my $sth = $dbh->prepare($drop);
-   	unless ($sth->execute()) { print $drop; exit;}	
+   	unless ($sth->execute()) { print $drop; exit;}
+   	
+}
 
+#***************************************************************************
+# Subroutine:  backup_digs_results_table 
+# Description: 
+#***************************************************************************
+sub backup_digs_results_table {
+
+    my ($self) = @_;
+
+	my $copy_name;
+	my $is_unique = undef;
+	my $i = 0;
+	do {
+		$i++;
+		$copy_name = 'digs_results_' . $i;
+		my $exists = $self->does_table_exist($copy_name);
+		unless ($exists) { $is_unique = 'true'; }
+	} until ($is_unique);
+	
+	print "\n\t Copying DIGS results to $copy_name";
+	my $copy_sql_1 = "CREATE TABLE $copy_name LIKE digs_results;";
+	my $copy_sql_2 = "INSERT $copy_name SELECT * FROM digs_results";
+    my $dbh = $self->{dbh};
+	my $sth = $dbh->prepare($copy_sql_1);
+   	unless ($sth->execute()) { print $copy_sql_1; exit;}	
+   	my $sth = $dbh->prepare($copy_sql_2);
+   	unless ($sth->execute()) { print $copy_sql_2; exit;}	
+	exit;
 }
 
 #***************************************************************************
