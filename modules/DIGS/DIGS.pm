@@ -1628,13 +1628,13 @@ sub interactive_defragment_loop {
 		# Show clusters
 		my @cluster_ids  = keys %target_defragmented;
 		my $num_clusters = scalar @cluster_ids;
-		#if ($verbose) {
+		if ($verbose) {
 			print "\n\n\t\t $num_hits hits in target $target_name";
 			if ($num_hits > $num_clusters) {
 				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
 				$self->show_clusters(\%target_defragmented);
 			}
-		#}
+		}
 		$total_hits = $total_hits + $num_hits;
 		$total_clusters = $total_clusters + $num_clusters;
 	}
