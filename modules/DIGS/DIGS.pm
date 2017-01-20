@@ -117,6 +117,8 @@ sub run_digs_process {
 			$self->reassign(\@digs_results);	
 		}
 		elsif ($option eq 4) { # Interactively defragment results 	
+			my @digs_results;
+			$self->initialise_reassign(\@digs_results); # Set up 
 			$self->interactive_defragment();	
 		}
 		elsif ($option eq 5) { # Consolidate results into higher level structures 
@@ -201,7 +203,7 @@ sub do_digs {
 			}
 			
 			# Update DB
-			$self->update_db(\@extracted);
+			$self->update_db(\@extracted, 'digs_results_table');
 			
 			# Show progress
 			$self->show_digs_progress();
@@ -356,7 +358,6 @@ sub interactive_defragment {
 		# Prompt for what to do next
 		print "\n\t\t\t TOTAL HITS:     $total_hits";
 		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
-
 		print "\n\n\t\t Option 1: preview new parameters";
 		print "\n\t\t Option 2: apply these parameters";
 		print "\n\t\t Option 3: exit";
@@ -368,8 +369,11 @@ sub interactive_defragment {
 	if ($choice eq 2) { # Apply the changes
 
 		# Create a backup of the current digs_results
-		$db->backup_digs_results_table();
-
+		my $copy_name = $db->backup_digs_results_table();
+		my $dbh = $db->{dbh};
+		$db->load_digs_results_table($dbh, $copy_name);
+		#$devtools->print_hash($db); exit;		
+		
 		foreach my $target_ref (@targets) {
 
 			my $organism        = $target_ref->{organism};
@@ -377,7 +381,7 @@ sub interactive_defragment {
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
 			my $target_path  = $genome_use_path;
-			my $target_path .= "~/Genomes/Mammalia/$organism/$target_datatype/$target_version/$target_name";
+			my $target_path .= "~/Genomes/test/$organism/$target_datatype/$target_version/$target_name";
 		
 			# Create the relevant set of previously extracted loci
 			my @combined;
@@ -416,8 +420,9 @@ sub interactive_defragment {
 				if ($assigned) { $assigned_count++; }
 			}
 			
-			# Update DB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-			$self->update_db(\@extracted);
+			# Update DB
+			my $copy_table_name = $copy_name . '_table';
+			$self->update_db(\@extracted, $copy_table_name);
 		}
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
@@ -996,11 +1001,11 @@ sub extract {
 #***************************************************************************
 sub update_db {
 
-	my ($self, $extracted_ref) = @_;
+	my ($self, $extracted_ref, $table_name) = @_;
 		
 	# Get parameters from self
 	my $db_ref = $self->{db};
-	my $digs_results_table  = $db_ref->{digs_results_table}; 
+	my $digs_results_table  = $db_ref->{$table_name}; 
 	my $active_set_table    = $db_ref->{active_set_table}; 
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
@@ -1078,12 +1083,13 @@ sub do_blast_genotyping {
 	# Get paths and objects from self
 	my $result_path   = $self->{tmp_path};
 	my $blast_obj     = $self->{blast_obj};
-	unless ($result_path and $blast_obj) { die; }
+	unless ($blast_obj)   { die; }
+	unless ($result_path) { die; }
 	
 	# Get required data about the hit, prior to performing reverse BLAST
-	my $sequence      = $hit_ref->{sequence};
-	my $organism      = $hit_ref->{organism};
-	my $probe_type    = $hit_ref->{probe_type};
+	my $sequence   = $hit_ref->{sequence};
+	my $organism   = $hit_ref->{organism};
+	my $probe_type = $hit_ref->{probe_type};
 	
 	# Sanity checking
 	unless ($organism)   { die; }
@@ -2419,7 +2425,7 @@ sub validate {
 	my ($self) = @_;
 
 	# Build the test set
-
+	die;
 }
 
 ############################################################################

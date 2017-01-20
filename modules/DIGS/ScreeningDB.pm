@@ -111,7 +111,7 @@ sub load_screening_db {
 	print   "\t  Connecting to DB:  $db_name";
 	$self->load_searches_table($dbh);	
 	$self->load_active_set_table($dbh);	
-	$self->load_digs_results_table($dbh);	
+	$self->load_digs_results_table($dbh, 'digs_results');	
 	$self->load_blast_chains_table($dbh);	
 
 }
@@ -186,7 +186,7 @@ sub load_active_set_table {
 #***************************************************************************
 sub load_digs_results_table {
 
-	my ($self, $dbh) = @_;
+	my ($self, $dbh, $name) = @_;
 
 	# Definition of the table
 	my %digs_fields = (
@@ -217,8 +217,9 @@ sub load_digs_results_table {
 		sequence         => 'text',
 		
 	);
-	my $digs_table = MySQLtable->new('digs_results', $dbh, \%digs_fields);
-	$self->{digs_results_table} = $digs_table;
+	my $digs_table = MySQLtable->new($name, $dbh, \%digs_fields);
+	my $table_name = $name . '_table';
+	$self->{$table_name} = $digs_table;
 }
 
 #***************************************************************************
@@ -800,8 +801,11 @@ sub backup_digs_results_table {
     my $dbh = $self->{dbh};
 	my $sth = $dbh->prepare($copy_sql_1);
    	unless ($sth->execute()) { print $copy_sql_1; exit;}	
-   	$sth = $dbh->prepare($copy_sql_2);
-   	unless ($sth->execute()) { print $copy_sql_2; exit;}	
+   	#$sth = $dbh->prepare($copy_sql_2);
+   	#unless ($sth->execute()) { print $copy_sql_2; exit;}
+   	
+   	return $copy_name;
+
 }
 
 #***************************************************************************
