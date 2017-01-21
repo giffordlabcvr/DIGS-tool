@@ -100,7 +100,6 @@ sub insert_row {
 	return $db_id;
 }	
 
-
 #***************************************************************************
 # Subroutine:  select row
 # Description: Generic select fxn for a selecting a single row and storing 

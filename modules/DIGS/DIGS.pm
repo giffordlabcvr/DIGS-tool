@@ -109,7 +109,7 @@ sub run_digs_process {
 		# Hand off to DIGS functions
 		if ($option eq 2) { # Screen;
 			$self->setup_digs();
-			$self->do_digs();	
+			$self->perform_digs();	
 		}
 		elsif ($option eq 3) { # Reassign data in digs_results table
 			my @digs_results;
@@ -125,7 +125,6 @@ sub run_digs_process {
 			$self->consolidate_loci();
 		}
 		elsif ($option eq 6) { # Standardised locus naming
-			# Initialise (an infile must be defined)
 			$self->create_standard_locus_ids();
 		}
 		else {
@@ -139,10 +138,10 @@ sub run_digs_process {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  do_digs
+# Subroutine:  perform_digs
 # Description: do the core database-integrated genome screening processes
 #***************************************************************************
-sub do_digs {
+sub perform_digs {
 
 	my ($self, $mode) = @_;
 
@@ -351,7 +350,7 @@ sub interactive_defragment {
 		$t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
 
 		# Apply the settings
-		$self->interactive_defragment_loop(\@targets, \%cluster_info, $t_range);
+		$self->defragment_digs_results(\@targets, \%cluster_info, $t_range);
 		my $total_hits     = $cluster_info{total_hits};
 		my $total_clusters = $cluster_info{total_clusters};
 	
@@ -380,7 +379,6 @@ sub interactive_defragment {
 			my $target_name     = $target_ref->{target_name};
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
-			my $target_path  = $genome_use_path;
 			my $target_path .= "~/Genomes/test/$organism/$target_datatype/$target_version/$target_name";
 		
 			# Create the relevant set of previously extracted loci
@@ -426,152 +424,6 @@ sub interactive_defragment {
 		}
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
-}
-
-#***************************************************************************
-# Subroutine:  extend_screening_db
-# Description: console managemant of ancillary tables in the screening database
-#***************************************************************************
-sub extend_screening_db {
-
-	my ($self) = @_;
-
-	# Get database handle
-	my $db = $self->{db};
-	unless ($db) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-
-	# Declare the variables & data structures we need
-	my %extra_tables;
-	my @extra_tables;
-	my $table_to_use;
-	my %fields;
-	my @fields;
-	my $anc_table;
-	my $table_name;
-
-	# Show the options
-	my @choices = qw [ 1 2 3 4 ];
-	print "\n\n\t\t 1. Create new ancillary table";
-	print "\n\t\t 2. Append data to existing ancillary table";
-	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
-	print "\n\t\t 4. Drop an ancillary table\n";
-	my $question4 = "\n\t Choose an option";
-	my $answer4   = $console->ask_simple_choice_question($question4, \@choices);
-
-	# Create new table
-	if ($answer4 == '1') {	
-		my $table_name_question = "\n\t What is the name of the new table?";
-		$table_name = $console->ask_question($table_name_question);
-	}
-	# or choose one of the ancillary tables already in the DB
-	else {
-
-		# Get the ancillary tables in this DB
-		$db->get_ancillary_table_names(\@extra_tables);
-		
-		my $table_num = 0;
-		foreach my $table_name (@extra_tables) {
-			$table_num++;
-			$extra_tables{$table_num} = $table_name;
-			print "\n\t\t Table $table_num: '$table_name'";
-		}
-		my @table_choices = keys %extra_tables;
-
-		my $question5 = "\n\n\t Apply to which of the above tables?";
-		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
-		$table_to_use = $extra_tables{$answer5};
-		unless ($table_to_use) { die; }
-	}
-		
-	# Upload data to table
-	my @data;
-	unless ($answer4 eq 4) {
-
-		# Try to read the tab-delimited infile
-		print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-		my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-		my $infile = $console->ask_question($question1);
-		unless ($infile) { die; }
-		my @infile;
-		$fileio->read_file($infile, \@infile);
-
-		my $line_number = 0;
-		foreach my $line (@infile) {
-			$line_number++;
-			if     ($line =~ /^\s*$/)  { next; } # discard blank line
-			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-			unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
-			push (@data, $line);
-		}
-		my $data = scalar @data;
-		unless ($data) {
-			die "\n\t Couldn't read input file\n\n";
-		}
-		
-		my $header_row = shift @data;
-		my @header_row = split ("\t", $header_row);		
-		print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
-		my $i;
-		foreach my $element (@header_row) {
-			chomp $element;
-			$i++;
-			$element =~ s/\s+/_/g;
-			if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
-			print "\n\t\t Column $i: '$element'";
-			push (@fields, $element);
-			$fields{$element} = "varchar";
-		}
-		
-		# Prompt user - did we read the file correctly?
-		my $question3 = "\n\n\t Is this correct?";
-		my $answer3 = $console->ask_yes_no_question($question3);
-		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
-			print "\n\t\t Aborted!\n\n\n"; exit;
-		}
-	}
-
-
-	# Create table if first time
-	if ($answer4 eq 1) {
-		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
-	}
-
-	# Get a reference to a table object for the ancillary table
-	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
-	$db->{$table_to_use} = $anc_table;
-		
-	if ($answer4 == '4') {	# Drop the ancillary table
-		$db->drop_ancillary_table($table_to_use);
-		return;
-	}
-	if ($answer4 eq 3)   {  # Flush the table if requested
-		$anc_table->flush();
-		$anc_table->reset_primary_keys();
-	}
-	
-	my $row_count = 0;
-	foreach my $line (@data) { # Add data to the table
-		$row_count++;
-		chomp $line;
-		my %insert;
-		my @elements = split ("\t", $line);
-		my $column_num = 0;
-		foreach my $field (@fields) {
-			my $value = $elements[$column_num];
-			$column_num++;
-			my $type  = $fields{$column_num};
-			if ($verbose) {
-				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
-			}
-			unless ($value) { 
-				$value = 'NULL';
-			}
-			$insert{$field} = $value;
-		}
-		$anc_table->insert_row(\%insert);
-	}
 }
 
 #***************************************************************************
@@ -735,20 +587,17 @@ sub create_standard_locus_ids {
 	}
 	# Load nomenclature table
 	$db_ref->load_nomenclature_table($dbh);
+	my $nom_table = $db_ref->{nomenclature_table};
+	unless ($nom_table) { die; }
 
-	# Load tracks into table
-	$self->load_nomenclature_tracks();
-	
-	# Load translation table
-	my %translations;
-	$self->load_translations(\%translations);
+	# Load tracks into table in a DIGS locus format
+	#$self->load_nomenclature_tracks();
 
-	# Cluster annotations
-	#$self->create_annotation_clusters(\%params, \%output, \@new_track, \%translations);
-	die;
+	# Cluster tracks
+	$self->create_nomenclature_clusters();
 
-	# Create the report
-	#$self->write_report(\%params, \%output);
+	# Apply standard names to locus clusters
+	$self->apply_standard_names_to_clusters();
 }
 
 ############################################################################
@@ -996,83 +845,6 @@ sub extract {
 }
 
 #***************************************************************************
-# Subroutine:  update_db
-# Description: update the screening DB based on a completed round of DIGS
-#***************************************************************************
-sub update_db {
-
-	my ($self, $extracted_ref, $table_name) = @_;
-		
-	# Get parameters from self
-	my $db_ref = $self->{db};
-	my $digs_results_table  = $db_ref->{$table_name}; 
-	my $active_set_table    = $db_ref->{active_set_table}; 
-	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
-
-	# Flush the active set table
-	#print "\n # Flushing 'active_set' table";
-	$active_set_table->flush();
-	
-
-	# Iterate through the extracted sequences
-	foreach my $hit_ref (@$extracted_ref) {
-
-		# Insert the data to the Extracted_sequences table
-		$hit_ref->{organism} = $hit_ref->{organism}; # Translate field name
-		my $digs_result_id = $digs_results_table->insert_row($hit_ref);
-		#$devtools->print_hash($hit_ref); die;
-		
-		# Insert the data to the BLAST_chains table
-		my $blast_chains = $hit_ref->{blast_chains};
-		#$devtools->print_hash($blast_chains);
-
-		if ($blast_chains) {		
-			my @blast_ids = keys %$blast_chains;
-			foreach my $blast_id (@blast_ids) {							
-				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{digs_result_id} = $digs_result_id;	
-				#$devtools->print_hash($data_ref); exit;
-				$blast_chains_table->insert_row($data_ref);
-			}
-		}
-
-		# Delete superfluous data from the
-		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
-		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
-			
-			# Delete superfluous extract rows
-			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
-			$digs_results_table->delete_rows($extracted_where);
-			# Update extract IDs			
-			my $chains_where = " WHERE digs_result_id = $old_digs_result_id ";
-			my %new_id;
-			$new_id{digs_result_id} = $digs_result_id;	
-			$blast_chains_table->update(\%new_id, $chains_where);
-			#$devtools->print_hash($data_ref); exit;	
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_digs_progress
-# Description: show progress in DIGS screening
-#***************************************************************************
-sub show_digs_progress {
-
-	my ($self) = @_;
-
-	# Get the counts
-	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{completed};	
-	unless ($completed and $total_queries) { die; } # Sanity checking
-	
-	# Calculate percentage progress
-	my $percent_prog    = ($completed / $total_queries) * 100;
-	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
-	print "\n\t\t  %$f_percent_prog completed";
-}
-
-#***************************************************************************
 # Subroutine:  do_blast_genotyping
 # Description: genotype a nucleotide sequence
 #***************************************************************************
@@ -1185,6 +957,83 @@ sub do_blast_genotyping {
 }
 
 #***************************************************************************
+# Subroutine:  update_db
+# Description: update the screening DB based on a completed round of DIGS
+#***************************************************************************
+sub update_db {
+
+	my ($self, $extracted_ref, $table_name) = @_;
+		
+	# Get parameters from self
+	my $db_ref = $self->{db};
+	my $digs_results_table  = $db_ref->{$table_name}; 
+	my $active_set_table    = $db_ref->{active_set_table}; 
+	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
+
+	# Flush the active set table
+	#print "\n # Flushing 'active_set' table";
+	$active_set_table->flush();
+	
+
+	# Iterate through the extracted sequences
+	foreach my $hit_ref (@$extracted_ref) {
+
+		# Insert the data to the Extracted_sequences table
+		$hit_ref->{organism} = $hit_ref->{organism}; # Translate field name
+		my $digs_result_id = $digs_results_table->insert_row($hit_ref);
+		#$devtools->print_hash($hit_ref); die;
+		
+		# Insert the data to the BLAST_chains table
+		my $blast_chains = $hit_ref->{blast_chains};
+		#$devtools->print_hash($blast_chains);
+
+		if ($blast_chains) {		
+			my @blast_ids = keys %$blast_chains;
+			foreach my $blast_id (@blast_ids) {							
+				my $data_ref = $blast_chains->{$blast_id};
+				$data_ref->{digs_result_id} = $digs_result_id;	
+				#$devtools->print_hash($data_ref); exit;
+				$blast_chains_table->insert_row($data_ref);
+			}
+		}
+
+		# Delete superfluous data from the
+		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
+		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
+			
+			# Delete superfluous extract rows
+			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
+			$digs_results_table->delete_rows($extracted_where);
+			# Update extract IDs			
+			my $chains_where = " WHERE digs_result_id = $old_digs_result_id ";
+			my %new_id;
+			$new_id{digs_result_id} = $digs_result_id;	
+			$blast_chains_table->update(\%new_id, $chains_where);
+			#$devtools->print_hash($data_ref); exit;	
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_digs_progress
+# Description: show progress in DIGS screening
+#***************************************************************************
+sub show_digs_progress {
+
+	my ($self) = @_;
+
+	# Get the counts
+	my $total_queries   = $self->{total_queries};
+	my $completed       = $self->{completed};	
+	unless ($completed and $total_queries) { die; } # Sanity checking
+	
+	# Calculate percentage progress
+	my $percent_prog    = ($completed / $total_queries) * 100;
+	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	print "\n\t\t  %$f_percent_prog completed";
+}
+
+#***************************************************************************
 # Subroutine:  set_redundancy
 # Description: compose SQL WHERE statement based on redundancy settings
 #***************************************************************************
@@ -1218,12 +1067,70 @@ sub set_redundancy {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: comparing and merging overlapping/adjacent hits
+# INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  defragment_digs_results
+# Description: group results in the digs_result table into groups of features
+#              that overlap or are within a given range of one another
+#***************************************************************************
+sub defragment_digs_results {
+
+    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
+   
+	# Apply the settings
+	my $total_hits     = $cluster_params->{total_hits};
+	my $total_clusters = $cluster_params->{total_clusters};
+   
+	foreach my $target_ref (@$targets_ref) {
+
+		my $organism        = $target_ref->{organism};
+		my $target_name     = $target_ref->{target_name};
+		my $target_datatype = $target_ref->{target_datatype};
+		my $target_version  = $target_ref->{target_version};
+			
+		# Create the relevant set of previously extracted loci
+		my @loci;
+		my $where  = " WHERE organism      = '$organism' ";
+		$where    .= " AND target_datatype = '$target_datatype' ";
+		$where    .= " AND target_version  = '$target_version' ";
+		$where    .= " AND target_name     = '$target_name' "; 
+
+		$self->get_sorted_digs_results(\@loci, $where);
+		my $num_hits = scalar @loci;
+		
+		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+		my %settings;
+		my %target_defragmented;
+		$settings{range} = $t_range;
+		$settings{start} = 'extract_start';
+		$settings{end}   = 'extract_end';
+		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
+		
+		# Show clusters
+		my @cluster_ids  = keys %target_defragmented;
+		my $num_clusters = scalar @cluster_ids;
+		if ($verbose) {
+			print "\n\n\t\t $num_hits hits in target $target_name";
+			if ($num_hits > $num_clusters) {
+				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
+				$self->show_clusters(\%target_defragmented);
+			}
+		}
+		$total_hits = $total_hits + $num_hits;
+		$total_clusters = $total_clusters + $num_clusters;
+	}
+
+	$cluster_params->{total_hits}     = $total_hits;
+	$cluster_params->{total_clusters} = $total_clusters;
+		
+}
+
+#***************************************************************************
 # Subroutine:  compose_clusters 
-# Description:
+# Description: process a sorted list of loci and group into 'clusters' of
+#              overlapping feature annotations
 #***************************************************************************
 sub compose_clusters {
 
@@ -1350,7 +1257,7 @@ sub compare_adjacent_hits {
 
 #***************************************************************************
 # Subroutine:  initialise_cluster
-# Description: 
+# Description: create the first element in a cluster of associated loci
 #***************************************************************************
 sub initialise_cluster {
 
@@ -1366,7 +1273,7 @@ sub initialise_cluster {
 
 #***************************************************************************
 # Subroutine:  extend_cluster 
-# Description: 
+# Description: add a new element to an initialised cluster of associated loci
 #***************************************************************************
 sub extend_cluster {
 
@@ -1528,7 +1435,7 @@ sub merge_clustered_loci {
 
 #***************************************************************************
 # Subroutine:  show_clusters
-# Description: 
+# Description: print information about clustered loci to the screen
 #***************************************************************************
 sub show_clusters {
 
@@ -1540,51 +1447,47 @@ sub show_clusters {
 	my $cluster_count;
 	foreach my $id (@cluster_ids) {
 		$cluster_count++;
-		my $hits_ref = $defragmented_ref->{$id};
-		my $cluster_size = scalar @$hits_ref;
+		my $cluster_ref = $defragmented_ref->{$id};
+		my $cluster_size = scalar @$cluster_ref;
 		if ($cluster_size > 1) {
-			$self->show_cluster($hits_ref, $cluster_count);
+			$self->show_cluster($cluster_ref, $cluster_count);
 		}	
 	}
 }
 
 #***************************************************************************
 # Subroutine:  show_cluster
-# Description: 
+# Description: print information about a cluster of loci to the screen
 #***************************************************************************
 sub show_cluster {
 
-	my ($self, $hits_ref, $cluster_id) = @_;
+	my ($self, $cluster_ref, $cluster_id) = @_;
 
  	#$devtools->print_array($hits_ref); die;	
 	#print "\n";
 	
-	foreach my $hit_ref (@$hits_ref) {
+	foreach my $locus_ref (@$cluster_ref) {
    		
    		#$devtools->print_hash($hit_ref); die;	
-		my $organism      = $hit_ref->{organism};			
-		my $assigned_name = $hit_ref->{probe_name};			
-		my $assigned_gene = $hit_ref->{probe_gene};			
-		my $orientation   = $hit_ref->{orientation};			
+		my $organism      = $locus_ref->{organism};			
+		my $assigned_name = $locus_ref->{probe_name};			
+		my $assigned_gene = $locus_ref->{probe_gene};			
+		my $orientation   = $locus_ref->{orientation};			
 
 		unless ($assigned_name) {
-			$assigned_name = $hit_ref->{assigned_name};			
+			$assigned_name = $locus_ref->{assigned_name};			
 		}
 		unless ($assigned_gene) {
-			$assigned_gene = $hit_ref->{assigned_gene};			
+			$assigned_gene = $locus_ref->{assigned_gene};			
 		}
 
-		my $scaffold      = $hit_ref->{scaffold};			
-		my $start         = $hit_ref->{extract_start};			
-		my $end           = $hit_ref->{extract_end};
-		unless ($start) {
-			$start = $hit_ref->{subject_start};			
-		}
-		unless ($end) {
-			$end = $hit_ref->{subject_end};			
-		}
+		my $scaffold      = $locus_ref->{scaffold};			
+		my $start         = $locus_ref->{extract_start};			
+		my $end           = $locus_ref->{extract_end};
+		unless ($start)   { $start = $locus_ref->{subject_start}; }
+		unless ($end)     { $end   = $locus_ref->{subject_end};	  }
 
-		my $digs_result_id    = $hit_ref->{digs_result_id};
+		my $digs_result_id    = $locus_ref->{digs_result_id};
 
 		print "\n\t\t CLUSTER $cluster_id $organism: ";
 		print "$assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
@@ -1592,62 +1495,6 @@ sub show_cluster {
 			print " (extract ID: $digs_result_id)";				
 		}
 	}			
-}
-
-#***************************************************************************
-# Subroutine:  interactive_defragment_loop 
-# Description: 
-#***************************************************************************
-sub interactive_defragment_loop {
-
-    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
-   
-	# Apply the settings
-	my $total_hits     = $cluster_params->{total_hits};
-	my $total_clusters = $cluster_params->{total_clusters};
-   
-	foreach my $target_ref (@$targets_ref) {
-
-		my $organism        = $target_ref->{organism};
-		my $target_name     = $target_ref->{target_name};
-		my $target_datatype = $target_ref->{target_datatype};
-		my $target_version  = $target_ref->{target_version};
-			
-		# Create the relevant set of previously extracted loci
-		my @loci;
-		my $where  = " WHERE organism      = '$organism' ";
-		$where    .= " AND target_datatype = '$target_datatype' ";
-		$where    .= " AND target_version  = '$target_version' ";
-		$where    .= " AND target_name     = '$target_name' "; 
-
-		$self->get_sorted_digs_results(\@loci, $where);
-		my $num_hits = scalar @loci;
-		
-		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-		my %settings;
-		my %target_defragmented;
-		$settings{range} = $t_range;
-		$settings{start} = 'extract_start';
-		$settings{end}   = 'extract_end';
-		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
-		
-		# Show clusters
-		my @cluster_ids  = keys %target_defragmented;
-		my $num_clusters = scalar @cluster_ids;
-		if ($verbose) {
-			print "\n\n\t\t $num_hits hits in target $target_name";
-			if ($num_hits > $num_clusters) {
-				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-				$self->show_clusters(\%target_defragmented);
-			}
-		}
-		$total_hits = $total_hits + $num_hits;
-		$total_clusters = $total_clusters + $num_clusters;
-	}
-
-	$cluster_params->{total_hits}     = $total_hits;
-	$cluster_params->{total_clusters} = $total_clusters;
-		
 }
 
 ############################################################################
@@ -1813,36 +1660,6 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted digs results
-# Description: 
-#***************************************************************************
-sub get_sorted_digs_results {
-
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set statement to sort loci
-	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
-	if ($where) { $where .= $sort; }
-	else        { $where  = $sort; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $digs_results_table  = $db->{digs_results_table};
-		
-	# Set the fields to get values for
-	my @extract_fields = qw [ record_id organism 
-	                          target_name target_version target_datatype
-	                          assigned_name assigned_gene probe_type
-	                          scaffold orientation
-	                          bitscore gap_openings
-	                          query_start query_end 
-	                          mismatches align_len
-                              evalue_num evalue_exp identity 
-                              extract_start extract_end sequence_length ];
-	$digs_results_table->select_rows(\@extract_fields, $data_ref, $where);
-}
-
-#***************************************************************************
 # Subroutine:  create_combined_active_set 
 # Description: get all extracted loci for this target file (& probe)
 #***************************************************************************
@@ -1874,8 +1691,38 @@ sub create_combined_active_set {
 }
 
 #***************************************************************************
+# Subroutine:  get sorted digs results
+# Description: get digs results sorted by scaffold, in order of location
+#***************************************************************************
+sub get_sorted_digs_results {
+
+	my ($self, $data_ref, $where) = @_;;
+
+	# Set statement to sort loci
+	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
+	if ($where) { $where .= $sort; }
+	else        { $where  = $sort; }
+
+	# Get database tables
+	my $db = $self->{db};
+	my $digs_results_table  = $db->{digs_results_table};
+		
+	# Set the fields to get values for
+	my @fields = qw [ record_id organism 
+	                  target_name target_version target_datatype
+	                  assigned_name assigned_gene probe_type
+	                  scaffold orientation
+	                  bitscore gap_openings
+	                  query_start query_end 
+	                  mismatches align_len
+                      evalue_num evalue_exp identity 
+                      extract_start extract_end sequence_length ];
+	$digs_results_table->select_rows(\@fields, $data_ref, $where);
+}
+
+#***************************************************************************
 # Subroutine:  get sorted active set 
-# Description: 
+# Description: get active set rows, sorted by scaffold, in order of location
 #***************************************************************************
 sub get_sorted_active_set {
 	
@@ -1905,124 +1752,31 @@ sub get_sorted_active_set {
 }
 
 #***************************************************************************
-# Subroutine:  show_blast_chains
-# Description: Show BLAST chains for all extracted sequences
+# Subroutine:  get sorted nomenclature rows
+# Description: get nomenclature set rows, sorted by scaffold, in order of location
 #***************************************************************************
-sub show_blast_chains {
-	
-	my ($self) = @_;
+sub get_sorted_nomenclature_results {
 
-	# Get relevant variables and objects
+	my ($self, $data_ref, $where) = @_;;
+
+	# Set SQL 'where' clause to sort the rows
+	my $sort  = " ORDER BY scaffold, extract_start ";
+	if ($where) { $where .= $sort; }
+	else        { $where  = $sort; }
+
+	# Get database tables
 	my $db = $self->{db};
-	unless ($db) { die; } # Sanity checking
-	my $digs_results_table = $db->{digs_results_table}; 
-	my $blast_chains_table = $db->{blast_chains_table};
-	my $extract_where = " ORDER BY record_id ";
-	my @extracted_ids;
-	my @fields = qw [ record_id assigned_name assigned_gene ];
-	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
-	
-	foreach my $hit_ref (@extracted_ids) {
-		my $digs_result_id = $hit_ref->{record_id};
-		my @chain;
-		my $assigned_name = $hit_ref->{assigned_name};
-		my $assigned_gene = $hit_ref->{assigned_gene};
-		my @chain_fields = qw [ record_id probe_name probe_gene 
-		                        organism target_name 
-		                        scaffold subject_start subject_end
-		                        bitscore identity align_len ];
-		my $blast_where  = " WHERE Extract_ID = $digs_result_id ";
-		   $blast_where .= " ORDER BY subject_start";
-		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
-		print "\n\t ### BLAST hit chain for extracted locus $digs_result_id";
-		print " ($assigned_name, $assigned_gene):";
-		foreach my $hit_ref (@chain) {
-			my $blast_id    = $hit_ref->{record_id};
-			my $probe_name  = $hit_ref->{probe_name};
-			my $probe_gene  = $hit_ref->{probe_gene};
-			my $organism    = $hit_ref->{organism};
-			my $scaffold    = $hit_ref->{scaffold};
-			my $start       = $hit_ref->{subject_start};
-			my $end         = $hit_ref->{subject_end};
-			my $bitscore    = $hit_ref->{bitscore};
-			my $identity    = $hit_ref->{identity};
-			my $f_identity  = sprintf("%.2f", $identity);
-			my $align_len   = $hit_ref->{align_len};
-			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
-			print "across $align_len aa ($start-$end) to:\t $probe_name ($probe_gene) ";
-		}
+	my $nomenclature_table = $db->{nomenclature_table};
+	unless ($nomenclature_table) {  
+		$devtools->print_hash($db); die; 
 	}
-}
-
-#***************************************************************************
-# Subroutine:  show_locus_chains
-# Description: Show digs_result chains for all consolidated loci
-#***************************************************************************
-sub show_locus_chains {
-	
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $db = $self->{db};
-	unless ($db) { die; } # Sanity checking
-	my $dbh = $db->{dbh};
-	$db->load_loci_table($dbh);
-	$db->load_loci_chains_table($dbh);
-	#$devtools->print_hash($db); die;
-
-	my $digs_results_table = $db->{digs_results_table}; 
-	my $loci_table         = $db->{loci_table};
-	my $loci_chains_table  = $db->{loci_chains_table};
-	unless ($digs_results_table and $loci_chains_table) {
-		print "\n\t # Locus tables not found - run consolidate first\n\n\n";
-		exit;
-	}
-
-	# Get all loci
-	my $loci_where = " ORDER BY record_id ";
-	my @loci;
-	my @fields = qw [ record_id locus_structure ];
-	$loci_table->select_rows(\@fields, \@loci, $loci_where);	 
-	
-	# Iterate through loci
-	foreach my $locus_ref (@loci) {
-
-		my $locus_id = $locus_ref->{record_id};
-		print "\n\t ### Chain $locus_id ";	
-		my $chain_where = " WHERE locus_id = $locus_id ";
-		my @results;
-		my @fields = qw [ record_id locus_id digs_result_id ];
-		$loci_chains_table->select_rows(\@fields, \@results, $chain_where);	 
 		
-		foreach my $result_ref (@results) {
-
-			my @digs_results;
-			my $digs_result_id = $result_ref->{digs_result_id};
-			my @result_fields = qw [ assigned_name assigned_gene 
-			                         organism target_name 
-			                         scaffold extract_start extract_end
-			                         bitscore identity align_len ];
-			my $where  = " WHERE record_id = $digs_result_id ";
-			$digs_results_table->select_rows(\@result_fields, \@digs_results, $where);			
-
-			foreach my $result_ref (@digs_results) {
-		
-				my $assigned_name = $result_ref->{assigned_name};
-				my $assigned_gene = $result_ref->{assigned_gene};
-				my $organism      = $result_ref->{organism};	
-				my $scaffold      = $result_ref->{scaffold};
-				my $start         = $result_ref->{extract_start};
-				my $end           = $result_ref->{extract_end};
-				my $bitscore      = $result_ref->{bitscore};
-				my $identity      = $result_ref->{identity};
-				my $align_len     = $result_ref->{align_len};
-				my $f_identity    = sprintf("%.2f", $identity);
-				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
-				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
-	
-			}
-		}
-	}
+	# Set the fields to get values for
+	my @fields = qw [ record_id 
+	                  assigned_name assigned_gene
+	                  scaffold orientation
+                      extract_start extract_end sequence_length ];
+	$nomenclature_table->select_rows(\@fields, $data_ref, $where);
 }
 
 ############################################################################
@@ -2030,8 +1784,479 @@ sub show_locus_chains {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  create_nomenclature_clusters
+# Description: 
+#***************************************************************************
+sub create_nomenclature_clusters {
+
+	my ($self) = @_;
+	
+	# Get sorted tracks from nomenclature table
+	my @sorted;
+	$self->get_sorted_nomenclature_results(\@sorted);
+	#$devtools->print_array(\@sorted); die;
+	my $total_hits = scalar @sorted;
+	print "\n\n\t # $total_hits rows in the nomenclature table";
+
+	# Compose clusters of related sequences
+	my %settings;
+	$settings{range} = '0';
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
+	my %clusters;
+	$self->compose_clusters(\%clusters, \@sorted, \%settings);
+	#$devtools->print_hash(\%clusters); die;
+
+	# Cluster IDs	
+	my @cluster_ids  = keys %clusters;
+	my $num_clusters = scalar @cluster_ids;
+	print "\n\t # $num_clusters locus groups in total";
+	$self->{nomenclature_clusters} = \%clusters;	
+
+	# Set the organism and version fields (a convenience)	
+	my $organism       = $self->{nomenclature_organism};
+	my $target_version = $self->{nomenclature_version};
+	
+
+	foreach my $cluster_id (@cluster_ids) {
+		my $cluster_ref = $clusters{$cluster_id};
+		#$devtools->print_array($cluster_ref); exit;
+		foreach my $locus_ref (@$cluster_ref) {		
+			$locus_ref->{organism}       = $organism;
+			$locus_ref->{target_version} = $target_version;			
+		}
+
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  apply_standard_names_to_clusters
+# Description: 
+#***************************************************************************
+sub apply_standard_names_to_clusters {
+
+	my ($self) = @_;
+
+	# Load translations
+	my %translations;
+	$self->load_translations(\%translations);
+
+	# Apply standard names to clusters 
+	my $clusters_ref = $self->{nomenclature_clusters};	
+	my @cluster_ids  = keys %$clusters_ref;
+	$self->show_clusters($clusters_ref);
+	die;
+
+	# Cluster ID	
+	foreach my $cluster_id (@cluster_ids) {
+		
+		my $cluster_ref = $clusters_ref->{$cluster_id};
+		
+	
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  update_report
+# Description:  
+# Placeholder - not yet integrated
+#***************************************************************************
+sub update_report {
+
+	my ($params_ref, $output_ref, $tax_ref, $array_ref, $name_counts_ref, $j, $cluster_ref) = @_;
+
+	# Get cluster data
+	my $tracks_ref   = $cluster_ref->{tracks};
+	my $mixed        = $cluster_ref->{mixed};
+	my $skip         = $cluster_ref->{skip};	
+	my $namespace_id = $cluster_ref->{namespace_id};	
+	my $hit_name     = $cluster_ref->{hit_name};	
+	my $lowest       = $cluster_ref->{lowest};	
+	my $highest      = $cluster_ref->{highest};	
+	my $hit_scaffold = $cluster_ref->{hit_scaffold};	
+
+	# Get output data structures
+	my $details_ref = $output_ref->{details};
+	my $names_ref   = $output_ref->{names};
+	my $summary_ref = $output_ref->{summary};
+	my $mixed_ref   = $output_ref->{mixed};
+	unless ($details_ref and $names_ref) { die; }
+
+	# Record non-mixed result (all tracks agree)
+	my $count = $j;
+	my $missing_ref = $output_ref->{missing}; # Tracking groups not represented in Taxonomy table
+	my $skip_missing_group = undef;
+	
+	# Skip if the annotation cluster has already been flagged for skipping
+	if ($skip) { return; }
+	
+	# If there are mixed annotations, try to resolve these
+	my $unresolved = undef;
+	if ($mixed) {
+		$unresolved = resolve_conflicting_annotations($array_ref);
+		if ($unresolved) {	
+			# Capture details for individual hits in the cluster
+			foreach my $hit_ref (@$array_ref) {
+				my $line = $hit_ref->{line};	
+				my $out  = "$j\t$line\n";
+				push(@$mixed_ref, $out);    
+			}
+		}
+	}
+	
+	# Create IDs for internally consistent & resolved clusters
+	unless ($unresolved) {
+	
+		### CREATE MISSILAC ID
+		if ($namespace_id) {
+			print "\n\t ### Got MASTER ID $hit_name: $namespace_id";
+		}
+		# Get taxonomic level
+		if ($params_ref->{tax_level}) {
+			my $tax_level = $params_ref->{tax_level};
+			my $tmp_hit_name = $hit_name;
+			$tmp_hit_name =~ s/ERV\.//g;			
+			my $erv_data_ref = $tax_ref->{$tmp_hit_name};
+			my $group = $erv_data_ref->{$tax_level};
+			unless ($group) { 
+				#print "\n\t ### Missing group $tmp_hit_name ";
+				$hit_name = $tmp_hit_name;
+				$missing_ref->{"$tmp_hit_name\n"} = 1;
+				$skip_missing_group = 1;
+			}
+			else {
+				$hit_name = 'ERV.' . $group;
+			}
+		}
+		# Increment the counts for this taxon
+		if ($name_counts_ref->{$hit_name}) {
+			$name_counts_ref->{$hit_name}++;
+		}
+		else {
+			$name_counts_ref->{$hit_name} = 1;
+		}
+	
+		# Get the numeric ID
+		my $namespace_ref = $output_ref->{namespace};
+		unless ($namespace_ref) { die; }
+		my $numeric = get_numeric_id($name_counts_ref, $namespace_ref, $hit_name, $namespace_id);
+	
+		# Create a missillac ID
+		my $missillac = "$hit_name" . ".$numeric" . ".Hsa";
+
+		### EXTRACT DETAILS FROM EACH HIT IN CLUSTER
+
+		# Extract gene annotation
+		my $genes = extract_gene_annotation($array_ref);
+	
+		# Capture details for individual hits in the cluster
+		foreach my $hit_ref (@$array_ref) {
+			my $line = $hit_ref->{line};	
+			my $out  = $missillac . "\t$line\n";
+			push(@$details_ref, $out);    
+		}
+	
+		my @tracks = sort keys %$tracks_ref;
+		my $tracks = join ('-', @tracks);
+
+		# Push the data
+		unless ($skip_missing_group) {
+			my $annotation = "MASTER\t$hit_name\t$hit_scaffold\t$highest\t$lowest\t$genes\t$numeric";
+			my $summary    = "$missillac\t$hit_name\t$hit_scaffold\t$highest\t$lowest\t$genes\t$tracks";
+			push(@$names_ref, "$annotation\n");    
+			push(@$summary_ref, "$summary\n");    
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  resolve_conflicting_annotations
+# Description:  
+# Placeholder - not yet integrated
+#***************************************************************************
+sub resolve_conflicting_annotations {
+
+	my ($array_ref) = @_;
+
+	# Identify within track conflicts
+	my %use_track;
+	identify_within_track_name_conflicts($array_ref, \%use_track);
+
+	# Resolve between track conflicts
+	my $resolved = resolve_between_track_name_conflicts(\%use_track);
+
+	return $resolved;
+}
+
+#***************************************************************************
+# Subroutine:  identify_within_track_name_conflicts
+# Description:  
+# Placeholder - not yet integrated
+#***************************************************************************
+sub identify_within_track_name_conflicts {
+
+	my ($array_ref, $use_track_ref) = @_;
+
+	# Get resolved within-track output where there are mixed within-track results
+	# Ignore tracks if within-track mixture unresolved
+	my %within_track;
+	my %ignore_track;
+	foreach my $hit_ref (@$array_ref) {
+	
+        # Get the entry values
+        my $track       = $hit_ref->{track};
+        my $name        = $hit_ref->{name};
+        my $scaffold    = $hit_ref->{scaffold};	
+        my $start       = $hit_ref->{start};
+        my $end         = $hit_ref->{end};
+        my $orientation = $hit_ref->{orientation};			
+        my $gene        = $hit_ref->{gene};
+        my $master_id   = $hit_ref->{master_id};
+        my $line        = $hit_ref->{line};
+	
+		if ($within_track{$track}) {
+			my $other_hit_ref = $within_track{$track};
+			my $other_name    = $other_hit_ref->{name};
+			if ($other_name ne $name) {
+				my $resolve = resolve_within_track_name_conflict($hit_ref, $other_hit_ref, $track);	
+				if ($resolve) {
+					$use_track_ref->{$track} = $resolve;
+				}
+				else {
+					$ignore_track{$track} = 1;
+				}
+			}
+		}
+		else {
+			$within_track{$track} = $hit_ref;
+			$use_track_ref->{$track} = $name;
+		}
+	}
+	
+}
+
+#***************************************************************************
+# Subroutine:  resolve_within_track_name_conflict
+# Description:  
+# Placeholder - not yet integrated
+#***************************************************************************
+sub resolve_within_track_name_conflict {
+
+	my ($hit_ref, $other_hit_ref, $track) = @_;
+
+	my $resolved = undef;
+
+	return $resolved;
+}
+	
+#***************************************************************************
+# Subroutine:  resolve_between_track_name_conflict
+# Description:  
+# Placeholder - not yet integrated
+#***************************************************************************
+sub resolve_between_track_name_conflicts {
+
+	my ($track_ref) = @_;
+
+
+	my $resolved = undef;
+	my @tracks = keys %$track_ref;
+	
+	
+	#if ($name1 eq 'ERV.W' and $name2 eq 'ERV.9'
+	#or  $name1 eq 'ERV.9' and $name2 eq 'ERV.W') {		
+	#	$mixed = undef;
+	#}
+
+
+	if ($track_ref->{RetTec}) { # prefer RetTec if present	
+		$resolved = $track_ref->{RetTec};
+	}
+	else {
+		
+		# Only ERV.9 and ERV.W mixed
+		{
+			my @only1 = qw [ ERV.9 ERV.W ];
+			my $only = only($track_ref, \@only1);
+			if ($only) {
+						
+			}	
+			
+			# Assign to Tristem if available
+		}
+	
+		# Only HML
+		{
+			my @only1 = qw [ ERV.K(HML1) ERV.K(HML2) ERV.K(HML3) ERV.K(HML4) ERV.K(HML5) 
+			                 ERV.K(HML6) ERV.K(HML7) ERV.K(HML8) ERV.K(HML9) ERV.K(HML10) ];
+			my $only = only($track_ref, \@only1);
+			if ($only) {
+						
+			}	
+		}
+
+
+
+	
+		if ($track_ref->{Tristem}) {
+		
+		}
+	
+		my $i = 0;
+		foreach my $track (@tracks) {
+	
+			$i++;
+			my $name = $track_ref->{$track};
+			print "\n\t MIXED $i: $track: $name"; 
+		}	
+	}
+
+	return $resolved;
+
+}
+
+#***************************************************************************
+# Subroutine:  load_translations
+# Description: load translation tables
+#***************************************************************************
+sub load_translations {
+
+	my ($self, $translations_ref) = @_;
+
+	# Read translation from file
+	my $translations_path = $self->{translation_path};
+	unless ($translations_path) { die; }
+	my @file;
+	$fileio->read_file($translations_path, \@file);
+	my $header = shift @file;
+	chomp $header;
+	my @header = split("\t", $header); 
+	my %levels;
+	my $i = 0;
+	foreach my $element (@header) {
+		$i++;
+		$levels{$i} = $element;
+	}
+
+	# Set up the translations
+	foreach my $line (@file) {
+
+		chomp $line;
+		my @line  = split("\t", $line);
+		my $j = 0;
+		my %taxonomy;
+		foreach my $value (@line) {
+			$j++;
+			my $level = $levels{$j};
+			unless ($level) { die; }		
+			$taxonomy{$level} = $value;			
+		}
+		my $id = shift @line;
+		$translations_ref->{$id} = \%taxonomy;		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_tracks
+# Description: load input tracks into table, in a DIGS locus format
+#***************************************************************************
+sub load_nomenclature_tracks {
+
+	my ($self) = @_;
+	
+	# Load nomenclature table
+	my $db_ref = $self->{db};
+	my $nom_table = $db_ref->{nomenclature_table};
+	unless ($nom_table) { die; }
+
+	# Read tracks from file path
+	my @new_track;
+	my $new_track_path = $self->{new_track_path};
+	unless ($new_track_path) { die; }
+	$fileio->read_file($new_track_path, \@new_track);
+	
+	# Load tracks into table
+	foreach my $line (@new_track) {
+	
+		print $line;
+		chomp $line;
+		my @line = split("\t", $line);
+		my $track_name    = shift @line;
+		my $assigned_name = shift @line;
+		my $scaffold      = shift @line;
+		my $extract_start = shift @line;
+		my $extract_end   = shift @line;
+		my $assigned_gene = shift @line;
+		my $namespace_id  = shift @line;		
+		my $span;
+		my $orientation;
+
+		#
+		if ($extract_end > $extract_start) {
+			$orientation = '+';
+			$span = $extract_end - $extract_start;
+		}
+		else {
+			$orientation = '-';
+			$span = $extract_start - $extract_end;		
+			my $start = $extract_start;
+			$extract_start = $extract_end;
+			$extract_end   = $start;
+		}
+
+		my %data;
+		$data{track_name}      = $track_name;
+		$data{assigned_name}   = $assigned_name;
+		$data{scaffold}        = $scaffold;
+		$data{extract_start}   = $extract_start;
+		$data{extract_end}     = $extract_end;
+		$data{sequence_length} = $span;
+		$data{orientation}     = $orientation;
+		$data{assigned_gene}   = $assigned_gene;
+		unless ($namespace_id) { $namespace_id = 'NULL'; }
+		$data{namespace_id}    = $namespace_id;		
+		$nom_table->insert_row(\%data);	
+
+	}
+}
+
+#***************************************************************************
+# Subroutine:  configure_namespace
+# Description: load a track as the current namespace 
+#***************************************************************************
+sub configure_namespace {
+
+	my ($params_ref, $output_ref) = @_;
+
+	my @namespace;
+	my %namespace;
+	my $namespace_path = $params_ref->{namespace_path};
+	read_file($namespace_path, \@namespace);
+
+	foreach my $line (@namespace) {
+
+		#print "\n\t # LINE $i (element $j):";
+        # Capture the annotation values in a hash				
+        my %hit;
+        extract_values_from_track_line($line, \%hit);
+		my $name = $hit{name};
+		my $id   = $hit{master_id};
+		print "\n NAMESPACE\t '$name'\t'$id'";
+		my %group_namespace;
+		if ( $group_namespace{$id} ) {
+			die; # Shouldn't happen
+		}
+		$group_namespace{$id} = 1;
+		$namespace{$name} = \%group_namespace;
+	}
+	$output_ref->{namespace} = \%namespace;
+
+}
+
+#***************************************************************************
 # Subroutine:  extract_values_from_track_line  
 # Description: 
+# Placeholder - not yet integrated
 #***************************************************************************
 sub extract_values_from_track_line {
 
@@ -2079,60 +2304,96 @@ sub extract_values_from_track_line {
 }
 
 #***************************************************************************
-# Subroutine:  load_nomenclature_tracks  
+# Subroutine:  write_report
 # Description: 
+# Placeholder - not yet integrated
 #***************************************************************************
-sub load_nomenclature_tracks {
+sub write_report {
 
-    my ($self) = @_;
-    
-	# Get new track(s) into table
-	my @new_track;
-	my $new_track_path = $self->{new_track_path};
-	unless ($new_track_path) { die; }
-	$fileio->read_file($new_track_path, \@new_track);
+	my ($params, $output_ref) = @_;
+
+	# Get the output data
+	my $details_ref = $output_ref->{details};
+	my $names_ref   = $output_ref->{names};
+	my $summary_ref = $output_ref->{summary};
+	my $missing_ref = $output_ref->{missing};
+	my $mixed_ref   = $output_ref->{mixed};
+
+	# Write names  
+	my $names_path = $params->{names_path};
+	my $outfile;
+	if ($names_path) {
+		$outfile = $names_path;
+	}
+	else {
+		$outfile = './missillac-names.txt';	
+	}
+	write_file($outfile, $names_ref);
+
+	# Write summary  
+	my $summary_path = $params->{summary_path};
+	if ($summary_path) {
+		$outfile = $summary_path;
+	}
+	else {
+		$outfile = './missillac-summary.txt';	
+	}
+	write_file($outfile, $summary_ref);
+
+	# Write mixed
+	my $mixed_path = $params->{mixed_path};
+	if ($mixed_path) {
+		$outfile = $mixed_path;
+	}
+	else {
+		$outfile = './missillac-mixed.txt';	
+	}
+	write_file($outfile, $mixed_ref);
 	
+	# Write details 
+	my $details_path = $params->{details_path};
+	if ($details_path) {
+		$outfile = $details_path;
+	}
+	else {
+		$outfile = './missillac-details.txt';	
+	}
+	write_file($outfile, $details_ref);
+
+	# Missing groups
+	my $missing_path = $params->{missing_path};
+	if ($missing_path) {
+		$outfile = $missing_path;
+	}
+	else {
+		$outfile = './missillac-missing.txt';	
+	}
+	my @missing = keys %$missing_ref;
+	#foreach my $key (@missing) {
+	#	print "\n\t $key";
+	#}
+	write_file($outfile, \@missing);
+
 }
 
 #***************************************************************************
-# Subroutine:  load_translations
-# Description: load translation tables
+# Subroutine:  get_orientation
+# Description: 
+# Placeholder - not yet integrated
 #***************************************************************************
-sub load_translations {
+sub get_orientation {
 
-	my ($self, $translations_ref) = @_;
+	my ($start, $end) = @_;
 
-	# Read translation from file
-	my $translations_path = $self->{translations_path};
-	unless ($translations_path) { die; }
-	my @file;
-	read_file($translations_path, \@file);
-	my $header = shift @file;
-	chomp $header;
-	my @header = split("\t", $header); 
-	my %levels;
-	my $i = 0;
-	foreach my $element (@header) {
-		$i++;
-		$levels{$i} = $element;
+	my $orientation;
+
+	if ($start > $end) {	
+		$orientation = '-';
 	}
-
-	# Set up the translations
-	foreach my $line (@file) {
-
-		chomp $line;
-		my @line  = split("\t", $line);
-		my $j = 0;
-		my %taxonomy;
-		foreach my $value (@line) {
-			$j++;
-			my $level = $levels{$j};
-			unless ($level) { die; }		
-			$taxonomy{$level} = $value;			
-		}
-		my $id = shift @line;
-		$translations_ref->{$id} = \%taxonomy;		
+	elsif ($end > $start) {
+		$orientation = '+';
 	}
+	return $orientation;
 }
 
 ############################################################################
@@ -2167,7 +2428,6 @@ sub initialise {
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
-	
 }
 
 #***************************************************************************
@@ -2412,21 +2672,298 @@ sub run_utility_process {
 	}
 }
 
+#***************************************************************************
+# Subroutine:  extend_screening_db
+# Description: console managemant of ancillary tables in the screening database
+#***************************************************************************
+sub extend_screening_db {
+
+	my ($self) = @_;
+
+	# Get database handle
+	my $db = $self->{db};
+	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+
+	# Declare the variables & data structures we need
+	my %extra_tables;
+	my @extra_tables;
+	my $table_to_use;
+	my %fields;
+	my @fields;
+	my $anc_table;
+	my $table_name;
+
+	# Show the options
+	my @choices = qw [ 1 2 3 4 ];
+	print "\n\n\t\t 1. Create new ancillary table";
+	print "\n\t\t 2. Append data to existing ancillary table";
+	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
+	print "\n\t\t 4. Drop an ancillary table\n";
+	my $question4 = "\n\t Choose an option";
+	my $answer4   = $console->ask_simple_choice_question($question4, \@choices);
+
+	# Create new table
+	if ($answer4 == '1') {	
+		my $table_name_question = "\n\t What is the name of the new table?";
+		$table_name = $console->ask_question($table_name_question);
+	}
+	# or choose one of the ancillary tables already in the DB
+	else {
+
+		# Get the ancillary tables in this DB
+		$db->get_ancillary_table_names(\@extra_tables);
+		
+		my $table_num = 0;
+		foreach my $table_name (@extra_tables) {
+			$table_num++;
+			$extra_tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+		}
+		my @table_choices = keys %extra_tables;
+
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
+		$table_to_use = $extra_tables{$answer5};
+		unless ($table_to_use) { die; }
+	}
+		
+	# Upload data to table
+	my @data;
+	unless ($answer4 eq 4) {
+
+		# Try to read the tab-delimited infile
+		print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+		my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+		my $infile = $console->ask_question($question1);
+		unless ($infile) { die; }
+		my @infile;
+		$fileio->read_file($infile, \@infile);
+
+		my $line_number = 0;
+		foreach my $line (@infile) {
+			$line_number++;
+			if     ($line =~ /^\s*$/)  { next; } # discard blank line
+			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+			unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
+			push (@data, $line);
+		}
+		my $data = scalar @data;
+		unless ($data) {
+			die "\n\t Couldn't read input file\n\n";
+		}
+		
+		my $header_row = shift @data;
+		my @header_row = split ("\t", $header_row);		
+		print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+		my $i;
+		foreach my $element (@header_row) {
+			chomp $element;
+			$i++;
+			$element =~ s/\s+/_/g;
+			if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+			print "\n\t\t Column $i: '$element'";
+			push (@fields, $element);
+			$fields{$element} = "varchar";
+		}
+		
+		# Prompt user - did we read the file correctly?
+		my $question3 = "\n\n\t Is this correct?";
+		my $answer3 = $console->ask_yes_no_question($question3);
+		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+			print "\n\t\t Aborted!\n\n\n"; exit;
+		}
+	}
+
+
+	# Create table if first time
+	if ($answer4 eq 1) {
+		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+	}
+
+	# Get a reference to a table object for the ancillary table
+	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
+	$db->{$table_to_use} = $anc_table;
+		
+	if ($answer4 == '4') {	# Drop the ancillary table
+		$db->drop_ancillary_table($table_to_use);
+		return;
+	}
+	if ($answer4 eq 3)   {  # Flush the table if requested
+		$anc_table->flush();
+		$anc_table->reset_primary_keys();
+	}
+	
+	my $row_count = 0;
+	foreach my $line (@data) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@fields) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields{$column_num};
+			if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			}
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			$insert{$field} = $value;
+		}
+		$anc_table->insert_row(\%insert);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_blast_chains
+# Description: Show BLAST chains for all extracted sequences
+#***************************************************************************
+sub show_blast_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	unless ($db) { die; } # Sanity checking
+	my $digs_results_table = $db->{digs_results_table}; 
+	my $blast_chains_table = $db->{blast_chains_table};
+	my $extract_where = " ORDER BY record_id ";
+	my @extracted_ids;
+	my @fields = qw [ record_id assigned_name assigned_gene ];
+	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
+	
+	foreach my $hit_ref (@extracted_ids) {
+		my $digs_result_id = $hit_ref->{record_id};
+		my @chain;
+		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
+		my @chain_fields = qw [ record_id probe_name probe_gene 
+		                        organism target_name 
+		                        scaffold subject_start subject_end
+		                        bitscore identity align_len ];
+		my $blast_where  = " WHERE Extract_ID = $digs_result_id ";
+		   $blast_where .= " ORDER BY subject_start";
+		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
+		print "\n\t ### BLAST hit chain for extracted locus $digs_result_id";
+		print " ($assigned_name, $assigned_gene):";
+		foreach my $hit_ref (@chain) {
+			my $blast_id    = $hit_ref->{record_id};
+			my $probe_name  = $hit_ref->{probe_name};
+			my $probe_gene  = $hit_ref->{probe_gene};
+			my $organism    = $hit_ref->{organism};
+			my $scaffold    = $hit_ref->{scaffold};
+			my $start       = $hit_ref->{subject_start};
+			my $end         = $hit_ref->{subject_end};
+			my $bitscore    = $hit_ref->{bitscore};
+			my $identity    = $hit_ref->{identity};
+			my $f_identity  = sprintf("%.2f", $identity);
+			my $align_len   = $hit_ref->{align_len};
+			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
+			print "across $align_len aa ($start-$end) to:\t $probe_name ($probe_gene) ";
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_locus_chains
+# Description: Show digs_result chains for all consolidated loci
+#***************************************************************************
+sub show_locus_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	unless ($db) { die; } # Sanity checking
+	my $dbh = $db->{dbh};
+	$db->load_loci_table($dbh);
+	$db->load_loci_chains_table($dbh);
+	#$devtools->print_hash($db); die;
+
+	my $digs_results_table = $db->{digs_results_table}; 
+	my $loci_table         = $db->{loci_table};
+	my $loci_chains_table  = $db->{loci_chains_table};
+	unless ($digs_results_table and $loci_chains_table) {
+		print "\n\t # Locus tables not found - run consolidate first\n\n\n";
+		exit;
+	}
+
+	# Get all loci
+	my $loci_where = " ORDER BY record_id ";
+	my @loci;
+	my @fields = qw [ record_id locus_structure ];
+	$loci_table->select_rows(\@fields, \@loci, $loci_where);	 
+	
+	# Iterate through loci
+	foreach my $locus_ref (@loci) {
+
+		my $locus_id = $locus_ref->{record_id};
+		print "\n\t ### Chain $locus_id ";	
+		my $chain_where = " WHERE locus_id = $locus_id ";
+		my @results;
+		my @fields = qw [ record_id locus_id digs_result_id ];
+		$loci_chains_table->select_rows(\@fields, \@results, $chain_where);	 
+		
+		foreach my $result_ref (@results) {
+
+			my @digs_results;
+			my $digs_result_id = $result_ref->{digs_result_id};
+			my @result_fields = qw [ assigned_name assigned_gene 
+			                         organism target_name 
+			                         scaffold extract_start extract_end
+			                         bitscore identity align_len ];
+			my $where  = " WHERE record_id = $digs_result_id ";
+			$digs_results_table->select_rows(\@result_fields, \@digs_results, $where);			
+
+			foreach my $result_ref (@digs_results) {
+		
+				my $assigned_name = $result_ref->{assigned_name};
+				my $assigned_gene = $result_ref->{assigned_gene};
+				my $organism      = $result_ref->{organism};	
+				my $scaffold      = $result_ref->{scaffold};
+				my $start         = $result_ref->{extract_start};
+				my $end           = $result_ref->{extract_end};
+				my $bitscore      = $result_ref->{bitscore};
+				my $identity      = $result_ref->{identity};
+				my $align_len     = $result_ref->{align_len};
+				my $f_identity    = sprintf("%.2f", $identity);
+				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
+				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
+	
+			}
+		}
+	}
+}
+
 ############################################################################
 # VALIDATE FUNCTIONS
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  validate
+# Subroutine:  validate_translations
 # Description: 
 #***************************************************************************
-sub validate {
+sub validate_translations {
 
-	my ($self) = @_;
+	my ($translations_ref) = @_;
 
-	# Build the test set
-	die;
-}
+	# Validate
+	#validate_translations(\%taxonomy); #die;
+		
+	my @keys = keys %$translations_ref;
+	foreach my $key (@keys) {
+		my $data_ref = $translations_ref->{$key};
+		my @keys2 = keys %$data_ref;
+		foreach my $key2 (@keys2) {
+			my $value = $data_ref->{$key2};
+			print "\n\t $key	$key2	$value";
+		}
+	}
+}		
 
 ############################################################################
 # EOF

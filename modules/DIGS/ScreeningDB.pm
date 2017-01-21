@@ -320,13 +320,9 @@ sub load_nomenclature_table {
 	# Definition of the table
 	my %nomenclature_fields = (	
         track_name       => 'varchar',
-		organism         => 'varchar',
-		target_version   => 'varchar',
-		target_datatype  => 'varchar',
-		target_name      => 'varchar',
 		assigned_name    => 'varchar',
-		assigned_gene    => 'varchar',
 		scaffold         => 'varchar',
+		assigned_gene    => 'varchar',
 		extract_start    => 'varchar',
 		extract_end      => 'varchar',
 		orientation      => 'varchar',
@@ -591,15 +587,11 @@ sub create_nomenclature_table {
 	my $nomenclature = "CREATE TABLE `nomenclature` (
 	  `record_id`        int(11) NOT NULL auto_increment,
 	  `track_name`       varchar(100) NOT NULL default '0',
-	  `organism`         varchar(100) NOT NULL default '0',
-	  `target_datatype`  varchar(100) NOT NULL default '0',
-	  `target_version`   varchar(100) NOT NULL default '0',
-	  `target_name`      varchar(100) NOT NULL default '0',
+	  `assigned_name`    varchar(100) NOT NULL default '0',
 	  `scaffold`         varchar(100) NOT NULL default '0',
 	  `extract_start`    int(11) NOT NULL default '0',
 	  `extract_end`      int(11) NOT NULL default '0',
 	  `sequence_length`  int(11) NOT NULL default '0',
-	  `assigned_name`    varchar(100) NOT NULL default '0',
 	  `assigned_gene`    varchar(100) NOT NULL default '0',
 	  `orientation`      varchar(100) NOT NULL default '0',
 	  `namespace_id`     varchar(100) NOT NULL default '0',
@@ -677,7 +669,6 @@ sub flush_screening_db {
 
 	}
 }
-
 
 ############################################################################
 # EXTEND SCREENING DB FUNCTIONS

@@ -150,8 +150,7 @@ sub parse_control_file {
 	# READ the 'NOMENCLATURE' block
 	$start_token  = 'BEGIN NOMENCLATURE';
 	$stop_token   = 'ENDBLOCK';
-	my %params;
-	$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token, \%params);
+	$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
 	
 	# Set parameters in pipeline object
 	# Screening DB name and MySQL connection details
@@ -174,12 +173,13 @@ sub parse_control_file {
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
-	# Check that required parameters are set	
+	# Set paths for applying nomenclature 	
 	$pipeline_obj->{new_track_path}   = $self->{new_track_path};
 	$pipeline_obj->{namespace_path}   = $self->{namespace_path};
 	$pipeline_obj->{translation_path} = $self->{translation_path};
 	$pipeline_obj->{tax_level}        = $self->{tax_level};
-
+	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
 
 	# Set the bit score minimum
 	if ($self->{bitscore_min_tblastn}) {
@@ -774,19 +774,41 @@ sub parse_target_block {
 # Path to file with the master (current namespace) track
 # Path to translation table
 # Translation system to use
+# Genome ID params: Organism and assembly version
 #***************************************************************************
 sub parse_nomenclature_block {
 
-	my ($self, $file_ref, $start, $stop, $params) = @_;
+	my ($self, $file_ref, $start, $stop) = @_;
 
 	# Extract the block	
-	$fileio->read_standard_field_value_block($file_ref, $start, $stop, $self);
+	my %params;
+	$fileio->read_standard_field_value_block($file_ref, $start, $stop, \%params);
+	#$devtools->print_hash(\%params);
 
 	# Check that required parameters are set	
-	my $new_track_path   = $self->{new_track_path};
-	my $namespace_path   = $self->{namespace_path};
-	my $translation_path = $self->{translation_path};
-	my $tax_level        = $self->{tax_level};
+	my $new_track_path   = $params{new_track_path};
+	my $namespace_path   = $params{namespace_path};
+	my $translation_path = $params{translation_path};
+	my $tax_level        = $params{tax_level};
+	my $organism         = $params{nomenclature_organism};
+	my $version          = $params{nomenclature_version};
+
+	unless ($new_track_path)      { die; }
+	unless ($namespace_path)      { die; }
+	unless ($translation_path)    { die; }
+	unless ($tax_level)           { die; }
+	unless ($organism and $version) { 
+		print "\n\t Organism and assembly version parameters are required";
+		die; 
+	}
+
+	# Set nomenclature parameters
+	$self->{new_track_path}        = $new_track_path;
+	$self->{namespace_path}        = $namespace_path;
+	$self->{translation_path}      = $translation_path;
+	$self->{tax_level}             = $tax_level;
+	$self->{nomenclature_organism} = $organism;
+	$self->{nomenclature_version}  = $version;
 
 }
 
