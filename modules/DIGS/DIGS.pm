@@ -591,7 +591,7 @@ sub create_standard_locus_ids {
 	unless ($nom_table) { die; }
 
 	# Load tracks into table in a DIGS locus format
-	#$self->load_nomenclature_tracks();
+	$self->load_nomenclature_tracks();
 
 	# Cluster tracks
 	$self->create_nomenclature_clusters();
@@ -1166,6 +1166,7 @@ sub compose_clusters {
 		my $last_orientation   = $last_hit{orientation};
 		my $last_start         = $last_hit{$start_token};
 		my $last_end           = $last_hit{$end_token};		
+		#$devtools->print_hash($hit_ref); die;
 
 	    if ($initialised) {
 			# Sanity checking - are sequences in sorted order for this scaffold?
@@ -1463,36 +1464,40 @@ sub show_cluster {
 
 	my ($self, $cluster_ref, $cluster_id) = @_;
 
- 	#$devtools->print_array($hits_ref); die;	
+ 	#$devtools->print_array($cluster_ref); die;	
 	#print "\n";
 	
 	foreach my $locus_ref (@$cluster_ref) {
    		
-   		#$devtools->print_hash($hit_ref); die;	
-		my $organism      = $locus_ref->{organism};			
-		my $assigned_name = $locus_ref->{probe_name};			
-		my $assigned_gene = $locus_ref->{probe_gene};			
-		my $orientation   = $locus_ref->{orientation};			
-
+   		#$devtools->print_hash($hit_ref); die;
+		my $organism      = $locus_ref->{organism};
+		my $assigned_name = $locus_ref->{probe_name};
+		my $assigned_gene = $locus_ref->{probe_gene};
+		my $orientation   = $locus_ref->{orientation};
+		my $track_name    = $locus_ref->{track_name};
+		
 		unless ($assigned_name) {
-			$assigned_name = $locus_ref->{assigned_name};			
+			$assigned_name = $locus_ref->{assigned_name};
 		}
 		unless ($assigned_gene) {
-			$assigned_gene = $locus_ref->{assigned_gene};			
+			$assigned_gene = $locus_ref->{assigned_gene};
 		}
 
-		my $scaffold      = $locus_ref->{scaffold};			
-		my $start         = $locus_ref->{extract_start};			
+		my $scaffold      = $locus_ref->{scaffold};
+		my $start         = $locus_ref->{extract_start};
 		my $end           = $locus_ref->{extract_end};
 		unless ($start)   { $start = $locus_ref->{subject_start}; }
 		unless ($end)     { $end   = $locus_ref->{subject_end};	  }
 
 		my $digs_result_id    = $locus_ref->{digs_result_id};
 
-		print "\n\t\t CLUSTER $cluster_id $organism: ";
+		print "\n\t\t $cluster_id $organism: ";
+		if ($track_name) {
+			print "TRACK '$track_name' ";
+		}
 		print "$assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
 		if ($digs_result_id) {
-			print " (extract ID: $digs_result_id)";				
+			print " (extract ID: $digs_result_id)";
 		}
 	}			
 }
@@ -1772,9 +1777,9 @@ sub get_sorted_nomenclature_results {
 	}
 		
 	# Set the fields to get values for
-	my @fields = qw [ record_id 
+	my @fields = qw [ record_id track_name
 	                  assigned_name assigned_gene
-	                  scaffold orientation
+	                  scaffold orientation namespace_id
                       extract_start extract_end sequence_length ];
 	$nomenclature_table->select_rows(\@fields, $data_ref, $where);
 }
@@ -1807,7 +1812,7 @@ sub create_nomenclature_clusters {
 	$self->compose_clusters(\%clusters, \@sorted, \%settings);
 	#$devtools->print_hash(\%clusters); die;
 
-	# Cluster IDs	
+	# Cluster IDs
 	my @cluster_ids  = keys %clusters;
 	my $num_clusters = scalar @cluster_ids;
 	print "\n\t # $num_clusters locus groups in total";
@@ -1816,8 +1821,6 @@ sub create_nomenclature_clusters {
 	# Set the organism and version fields (a convenience)	
 	my $organism       = $self->{nomenclature_organism};
 	my $target_version = $self->{nomenclature_version};
-	
-
 	foreach my $cluster_id (@cluster_ids) {
 		my $cluster_ref = $clusters{$cluster_id};
 		#$devtools->print_array($cluster_ref); exit;
@@ -1825,7 +1828,6 @@ sub create_nomenclature_clusters {
 			$locus_ref->{organism}       = $organism;
 			$locus_ref->{target_version} = $target_version;			
 		}
-
 	}	
 }
 
@@ -1835,7 +1837,7 @@ sub create_nomenclature_clusters {
 #***************************************************************************
 sub apply_standard_names_to_clusters {
 
-	my ($self) = @_;
+	my ($self, $params_ref, $output_ref, $tax_ref, $array_ref, $name_counts_ref, $j, $cluster_ref) = @_;
 
 	# Load translations
 	my %translations;
@@ -1845,128 +1847,16 @@ sub apply_standard_names_to_clusters {
 	my $clusters_ref = $self->{nomenclature_clusters};	
 	my @cluster_ids  = keys %$clusters_ref;
 	$self->show_clusters($clusters_ref);
-	die;
 
-	# Cluster ID	
+	# Cluster ID
 	foreach my $cluster_id (@cluster_ids) {
 		
 		my $cluster_ref = $clusters_ref->{$cluster_id};
 		
-	
+		my $start;
+		my $end;
+
 	}	
-}
-
-#***************************************************************************
-# Subroutine:  update_report
-# Description:  
-# Placeholder - not yet integrated
-#***************************************************************************
-sub update_report {
-
-	my ($params_ref, $output_ref, $tax_ref, $array_ref, $name_counts_ref, $j, $cluster_ref) = @_;
-
-	# Get cluster data
-	my $tracks_ref   = $cluster_ref->{tracks};
-	my $mixed        = $cluster_ref->{mixed};
-	my $skip         = $cluster_ref->{skip};	
-	my $namespace_id = $cluster_ref->{namespace_id};	
-	my $hit_name     = $cluster_ref->{hit_name};	
-	my $lowest       = $cluster_ref->{lowest};	
-	my $highest      = $cluster_ref->{highest};	
-	my $hit_scaffold = $cluster_ref->{hit_scaffold};	
-
-	# Get output data structures
-	my $details_ref = $output_ref->{details};
-	my $names_ref   = $output_ref->{names};
-	my $summary_ref = $output_ref->{summary};
-	my $mixed_ref   = $output_ref->{mixed};
-	unless ($details_ref and $names_ref) { die; }
-
-	# Record non-mixed result (all tracks agree)
-	my $count = $j;
-	my $missing_ref = $output_ref->{missing}; # Tracking groups not represented in Taxonomy table
-	my $skip_missing_group = undef;
-	
-	# Skip if the annotation cluster has already been flagged for skipping
-	if ($skip) { return; }
-	
-	# If there are mixed annotations, try to resolve these
-	my $unresolved = undef;
-	if ($mixed) {
-		$unresolved = resolve_conflicting_annotations($array_ref);
-		if ($unresolved) {	
-			# Capture details for individual hits in the cluster
-			foreach my $hit_ref (@$array_ref) {
-				my $line = $hit_ref->{line};	
-				my $out  = "$j\t$line\n";
-				push(@$mixed_ref, $out);    
-			}
-		}
-	}
-	
-	# Create IDs for internally consistent & resolved clusters
-	unless ($unresolved) {
-	
-		### CREATE MISSILAC ID
-		if ($namespace_id) {
-			print "\n\t ### Got MASTER ID $hit_name: $namespace_id";
-		}
-		# Get taxonomic level
-		if ($params_ref->{tax_level}) {
-			my $tax_level = $params_ref->{tax_level};
-			my $tmp_hit_name = $hit_name;
-			$tmp_hit_name =~ s/ERV\.//g;			
-			my $erv_data_ref = $tax_ref->{$tmp_hit_name};
-			my $group = $erv_data_ref->{$tax_level};
-			unless ($group) { 
-				#print "\n\t ### Missing group $tmp_hit_name ";
-				$hit_name = $tmp_hit_name;
-				$missing_ref->{"$tmp_hit_name\n"} = 1;
-				$skip_missing_group = 1;
-			}
-			else {
-				$hit_name = 'ERV.' . $group;
-			}
-		}
-		# Increment the counts for this taxon
-		if ($name_counts_ref->{$hit_name}) {
-			$name_counts_ref->{$hit_name}++;
-		}
-		else {
-			$name_counts_ref->{$hit_name} = 1;
-		}
-	
-		# Get the numeric ID
-		my $namespace_ref = $output_ref->{namespace};
-		unless ($namespace_ref) { die; }
-		my $numeric = get_numeric_id($name_counts_ref, $namespace_ref, $hit_name, $namespace_id);
-	
-		# Create a missillac ID
-		my $missillac = "$hit_name" . ".$numeric" . ".Hsa";
-
-		### EXTRACT DETAILS FROM EACH HIT IN CLUSTER
-
-		# Extract gene annotation
-		my $genes = extract_gene_annotation($array_ref);
-	
-		# Capture details for individual hits in the cluster
-		foreach my $hit_ref (@$array_ref) {
-			my $line = $hit_ref->{line};	
-			my $out  = $missillac . "\t$line\n";
-			push(@$details_ref, $out);    
-		}
-	
-		my @tracks = sort keys %$tracks_ref;
-		my $tracks = join ('-', @tracks);
-
-		# Push the data
-		unless ($skip_missing_group) {
-			my $annotation = "MASTER\t$hit_name\t$hit_scaffold\t$highest\t$lowest\t$genes\t$numeric";
-			my $summary    = "$missillac\t$hit_name\t$hit_scaffold\t$highest\t$lowest\t$genes\t$tracks";
-			push(@$names_ref, "$annotation\n");    
-			push(@$summary_ref, "$summary\n");    
-		}
-	}
 }
 
 #***************************************************************************
