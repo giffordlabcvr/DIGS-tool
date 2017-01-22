@@ -178,8 +178,10 @@ sub parse_control_file {
 	$pipeline_obj->{namespace_path}   = $self->{namespace_path};
 	$pipeline_obj->{translation_path} = $self->{translation_path};
 	$pipeline_obj->{tax_level}        = $self->{tax_level};
-	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
-	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
+	$pipeline_obj->{translation_path} = $self->{translation_path};
+	$pipeline_obj->{tax_level}        = $self->{tax_level};
+	$pipeline_obj->{organism_code}    = $self->{organism_code};
+	$pipeline_obj->{locus_class}      = $self->{locus_class};
 
 	# Set the bit score minimum
 	if ($self->{bitscore_min_tblastn}) {
@@ -792,7 +794,10 @@ sub parse_nomenclature_block {
 	my $tax_level        = $params{tax_level};
 	my $organism         = $params{nomenclature_organism};
 	my $version          = $params{nomenclature_version};
+	my $organism_code    = $params{organism_code};
+	my $locus_class      = $params{locus_class};
 
+	# Check what params we got
 	unless ($new_track_path)      { die; }
 	unless ($namespace_path)      { die; }
 	unless ($translation_path)    { die; }
@@ -801,14 +806,22 @@ sub parse_nomenclature_block {
 		print "\n\t Organism and assembly version parameters are required";
 		die; 
 	}
+	unless ($organism_code and $locus_class) { 
+		print "\n\t Organism code (e.g. 'Hsa') and ";
+		print "locus class (e.g. 'ERV') parameters are required";
+		die; 
+	}
 
 	# Set nomenclature parameters
 	$self->{new_track_path}        = $new_track_path;
 	$self->{namespace_path}        = $namespace_path;
 	$self->{translation_path}      = $translation_path;
 	$self->{tax_level}             = $tax_level;
-	$self->{nomenclature_organism} = $organism;
-	$self->{nomenclature_version}  = $version;
+	$self->{nomenclature_organism} = $organism;  # Genome assembly ID
+	$self->{nomenclature_version}  = $version;   # Genome assembly ID
+	$self->{organism_code}         = $organism_code;
+	$self->{locus_class}           = $locus_class;
+
 
 }
 

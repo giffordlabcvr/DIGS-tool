@@ -461,7 +461,6 @@ sub consolidate_loci {
 	unless ($loci_chains_exists) {
 		$db_ref->create_loci_chains_table($dbh);
 	}
-	
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
 
@@ -590,6 +589,11 @@ sub create_standard_locus_ids {
 	my $nom_table = $db_ref->{nomenclature_table};
 	unless ($nom_table) { die; }
 
+	# Check whether to flush the table
+	my $question = "\n\n\t  Flush the table before uploading tracks?";
+	my $flush = $console->ask_yes_no_question($question);
+	if ($flush eq 'y') { $nom_table->flush(); }
+
 	# Load tracks into table in a DIGS locus format
 	$self->load_nomenclature_tracks();
 
@@ -599,10 +603,8 @@ sub create_standard_locus_ids {
 	# Apply standard names to locus clusters
 	my $organism_code = $self->{organism_code};
 	my $locus_class   = $self->{locus_class};
-	$organism_code = 'Hsa';
-	$locus_class = 'ERV';
+	unless ($organism_code and $locus_class) { die; } # Sanity checking
 	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
-
 
 }
 
@@ -1796,7 +1798,7 @@ sub get_sorted_nomenclature_results {
 
 #***************************************************************************
 # Subroutine:  create_nomenclature_clusters
-# Description: 
+# Description: cluster nomenclature tracks
 #***************************************************************************
 sub create_nomenclature_clusters {
 
@@ -1860,7 +1862,7 @@ sub create_nomenclature_clusters {
 
 #***************************************************************************
 # Subroutine:  apply_standard_names_to_clusters
-# Description: 
+# Description: apply standard names to clusters  
 #***************************************************************************
 sub apply_standard_names_to_clusters {
 
@@ -1870,14 +1872,12 @@ sub apply_standard_names_to_clusters {
 	my %translations;
 	$self->load_translations(\%translations);
 
-	# Apply standard names to clusters 
-	my $clusters_ref = $self->{nomenclature_clusters};	
-	my @cluster_ids  = keys %$clusters_ref;
-	$self->show_clusters($clusters_ref);
-
 	# Iterate through the clusters
 	my %counter;
 	my @nomenclature;
+	my $clusters_ref = $self->{nomenclature_clusters};	
+	my @cluster_ids  = keys %$clusters_ref;
+	#$self->show_clusters($clusters_ref);
 	foreach my $cluster_id (@cluster_ids) {
 
 		my $mixed;
@@ -1902,6 +1902,7 @@ sub apply_standard_names_to_clusters {
 			# Set coordinates
 			my $last_start   = $last_locus{extract_start};
 			my $last_end     = $last_locus{extract_end};
+			
 			if ($last_start) {
 				if ($start < $last_start) { $lowest = $start; }
 				if ($end > $last_end)     { $highest = $end;  }
@@ -1923,16 +1924,14 @@ sub apply_standard_names_to_clusters {
 			push (@id, $numeric_id);
 			push (@id, $organism_code);	 
 			my $id = join('.', @id);
-			print "\n\t # ID: $id";
-			
-			
+			print "\n\t # ID: $id";			
 		}
 	}	
 }
 
 #***************************************************************************
 # Subroutine:  create_numeric_id
-# Description:  
+# Description: create a unique ID for a locus (tracking an ID namespace)
 #***************************************************************************
 sub create_numeric_id {
 
@@ -2038,7 +2037,7 @@ sub load_nomenclature_tracks {
 	# Load tracks into table
 	foreach my $line (@new_track) {
 	
-		print $line;
+		#print $line;
 		chomp $line;
 		my @line = split("\t", $line);
 		my $track_name    = shift @line;
