@@ -310,6 +310,50 @@ sub load_loci_chains_table {
 }
 
 #***************************************************************************
+# Subroutine:  load_nomenclature_tracks_table
+# Description: load screening database table 'nomenclature'
+#***************************************************************************
+sub load_nomenclature_tracks_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %fields = (	
+        track_name       => 'varchar',
+		assigned_name    => 'varchar',
+		scaffold         => 'varchar',
+		assigned_gene    => 'varchar',
+		extract_start    => 'varchar',
+		extract_end      => 'varchar',
+		orientation      => 'varchar',
+		sequence_length  => 'int',
+		namespace_id     => 'varchar',	
+	);
+	
+	my $tracks_table = MySQLtable->new('nomenclature_tracks', $dbh, \%fields);
+	$self->{nomenclature_tracks_table} = $tracks_table;
+}
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_chains_table
+# Description: load screening database table 'nomenclature'
+#***************************************************************************
+sub load_nomenclature_chains_table {
+
+	my ($self, $dbh) = @_;
+
+	# Definition of the table
+	my %fields = (	
+		track_id             => 'int',
+		nomeclature_locus_id => 'int',	
+	);
+	
+	my $chains_table = MySQLtable->new('nomenclature_chains', $dbh, \%fields);
+	$self->{nomenclature_chains_table} = $chains_table;
+}
+
+
+#***************************************************************************
 # Subroutine:  load_nomenclature_table
 # Description: load screening database table 'nomenclature'
 #***************************************************************************
@@ -328,11 +372,15 @@ sub load_nomenclature_table {
 		orientation      => 'varchar',
 		sequence_length  => 'int',
 		namespace_id     => 'varchar',	
+		locus_class      => 'varchar',	
+		organism_code    => 'varchar',	
+		full_id          => 'varchar',	
 	);
 	
 	my $nomenclature_table = MySQLtable->new('nomenclature', $dbh, \%nomenclature_fields);
 	$self->{nomenclature_table} = $nomenclature_table;
 }
+
 
 ############################################################################
 # CREATE SCREENING DATABASE TABLES
@@ -576,6 +624,53 @@ sub create_loci_chains_table {
 }
 
 #***************************************************************************
+# Subroutine:  create_nomenclature_tracks_table
+# Description: create MySQL 'nomenclature' table
+#***************************************************************************
+sub create_nomenclature_tracks_table {
+
+	my ($self, $dbh) = @_;
+
+	#  Nomenclature table 
+	my $nomenclature = "CREATE TABLE `nomenclature_tracks` (
+	  `record_id`        int(11) NOT NULL auto_increment,
+	  `track_name`       varchar(100) NOT NULL default '0',
+	  `assigned_name`    varchar(100) NOT NULL default '0',
+	  `scaffold`         varchar(100) NOT NULL default '0',
+	  `extract_start`    int(11) NOT NULL default '0',
+	  `extract_end`      int(11) NOT NULL default '0',
+	  `sequence_length`  int(11) NOT NULL default '0',
+	  `assigned_gene`    varchar(100) NOT NULL default '0',
+	  `orientation`      varchar(100) NOT NULL default '0',
+	  `namespace_id`     varchar(100) NOT NULL default '0',
+	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  PRIMARY KEY  (`record_id`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($nomenclature);
+	unless ($sth->execute()) { print "\n\t$nomenclature\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_nomenclature_table
+# Description: create MySQL 'nomenclature' table
+#***************************************************************************
+sub create_nomenclature_chains_table {
+
+	my ($self, $dbh) = @_;
+
+	#  Nomenclature table 
+	my $nomenclature = "CREATE TABLE `nomenclature_chains` (
+	  `record_id`             int(11) NOT NULL auto_increment,
+	  `track_id`              int(11) NOT NULL default '0',
+	  `nomeclature_locus_id`  int(11) NOT NULL default '0',
+	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  PRIMARY KEY  (`record_id`)
+	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+	my $sth = $dbh->prepare($nomenclature);
+	unless ($sth->execute()) { print "\n\t$nomenclature\n\n\n"; exit;}
+}
+
+#***************************************************************************
 # Subroutine:  create_nomenclature_table
 # Description: create MySQL 'nomenclature' table
 #***************************************************************************
@@ -595,12 +690,16 @@ sub create_nomenclature_table {
 	  `assigned_gene`    varchar(100) NOT NULL default '0',
 	  `orientation`      varchar(100) NOT NULL default '0',
 	  `namespace_id`     varchar(100) NOT NULL default '0',
+	  `locus_class`      varchar(100) NOT NULL default '0',
+	  `organism_code`    varchar(100) NOT NULL default '0',
+	  `full_id`          varchar(100) NOT NULL default '0',
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($nomenclature);
 	unless ($sth->execute()) { print "\n\t$nomenclature\n\n\n"; exit;}
 }
+
 
 ############################################################################
 # DROPPING AND FLUSHING DBs

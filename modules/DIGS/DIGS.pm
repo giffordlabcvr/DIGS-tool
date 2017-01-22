@@ -584,15 +584,34 @@ sub create_standard_locus_ids {
 	unless ($nomenclature_exists) {
 		$db_ref->create_nomenclature_table($dbh);
 	}
-	# Load nomenclature table
+	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	unless ($nom_tracks_exists) {
+		$db_ref->create_nomenclature_tracks_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_tracks_table($dbh);
+	$db_ref->load_nomenclature_chains_table($dbh);
 	$db_ref->load_nomenclature_table($dbh);
-	my $nom_table = $db_ref->{nomenclature_table};
-	unless ($nom_table) { die; }
+	my $tracks_table = $db_ref->{nomenclature_tracks_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	unless ($nom_table and $tracks_table and $chains_table) { die; }
 
 	# Check whether to flush the table
-	my $question = "\n\n\t  Flush the table before uploading tracks?";
+	my $question = "\n\n\t  Flush the tables before uploading tracks?";
 	my $flush = $console->ask_yes_no_question($question);
-	if ($flush eq 'y') { $nom_table->flush(); }
+	if ($flush eq 'y') { 
+		$tracks_table->flush();
+		$chains_table->flush();
+		$nom_table->flush();
+	}
 
 	# Load tracks into table in a DIGS locus format
 	$self->load_nomenclature_tracks();
@@ -1765,10 +1784,10 @@ sub get_sorted_active_set {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted nomenclature rows
+# Subroutine:  get_sorted_nomenclature_tracks
 # Description: get nomenclature set rows, sorted by scaffold, in order of location
 #***************************************************************************
-sub get_sorted_nomenclature_results {
+sub get_sorted_nomenclature_tracks {
 
 	my ($self, $data_ref, $where) = @_;;
 
@@ -1779,7 +1798,7 @@ sub get_sorted_nomenclature_results {
 
 	# Get database tables
 	my $db = $self->{db};
-	my $nomenclature_table = $db->{nomenclature_table};
+	my $nomenclature_table = $db->{nomenclature_tracks_table};
 	unless ($nomenclature_table) {  
 		$devtools->print_hash($db); die; 
 	}
@@ -1806,7 +1825,7 @@ sub create_nomenclature_clusters {
 	
 	# Get sorted tracks from nomenclature table
 	my @sorted;
-	$self->get_sorted_nomenclature_results(\@sorted);
+	$self->get_sorted_nomenclature_tracks(\@sorted);
 	#$devtools->print_array(\@sorted); die;
 	my $total_hits = scalar @sorted;
 	print "\n\n\t # $total_hits rows in the nomenclature table";
@@ -1868,6 +1887,11 @@ sub apply_standard_names_to_clusters {
 
 	my ($self, $locus_class, $organism_code) = @_;
 
+	my $db_ref        = $self->{db};
+	my $chains_table  = $db_ref->{nomenclature_chains_table};
+	my $nom_table     = $db_ref->{nomenclature_table};
+	unless ($nom_table and $chains_table) { die; }
+
 	# Load translations
 	my %translations;
 	$self->load_translations(\%translations);
@@ -1882,14 +1906,17 @@ sub apply_standard_names_to_clusters {
 
 		my $mixed;
 		my $skip;
-		my $namespace_id;
 		my $lowest;
 		my $highest;
 		my $taxname_final;
+		my $scaffold_final;
+		my $orientation_final;
+		my $namespace_id_final = undef;
 		
 		# Get the array of loci
 		my $cluster_ref = $clusters_ref->{$cluster_id};
 		my %last_locus;
+		my %composite;
 		foreach my $locus_ref (@$cluster_ref) {
 		
 			#$devtools->print_hash($locus_ref);
@@ -1898,6 +1925,11 @@ sub apply_standard_names_to_clusters {
 			my $track        = $locus_ref->{track_name};
 			my $taxname      = $locus_ref->{assigned_name};
 			my $namespace_id = $locus_ref->{namespace_id};
+			my $orientation  = $locus_ref->{orientation};
+			my $scaffold     = $locus_ref->{scaffold};
+			if ($namespace_id ne 'NULL') {	
+				$namespace_id_final = $namespace_id;
+			}
 
 			# Set coordinates
 			my $last_start   = $last_locus{extract_start};
@@ -1911,20 +1943,45 @@ sub apply_standard_names_to_clusters {
 				$lowest = $start;
 				$highest = $end;
 			}
-						
-			# Create numeric ID
-			my $numeric_id = $self->create_numeric_id($locus_ref, \%counter);
-					
-			# Set taxon name
-			$taxname_final = $taxname;
 			
-			my @id;
-			#push (@id, $locus_class);
-			push (@id, $taxname_final);
-			push (@id, $numeric_id);
-			push (@id, $organism_code);	 
-			my $id = join('.', @id);
-			print "\n\t # ID: $id";			
+			$taxname_final = $taxname;
+			$scaffold_final = $scaffold;
+			$orientation_final = $orientation;
+		}
+		
+		# Create numeric ID
+		$composite{track_name}    = 'MASTER';
+		$composite{assigned_name} = $taxname_final;
+		$composite{scaffold}      = $scaffold_final;
+		$composite{extract_start} = $lowest;
+		$composite{extract_end}   = $highest;
+		$composite{orientation}   = $orientation_final;
+		$composite{locus_class}   = $locus_class;
+		$composite{organism_code} = $organism_code;
+		$composite{namespace_id}  = $namespace_id_final;
+		my $numeric_id = $self->create_numeric_id(\%composite, \%counter);
+
+		# Create the locus ID		
+		my @id;
+		push (@id, $locus_class);
+		push (@id, $taxname_final);
+		push (@id, $numeric_id);
+		push (@id, $organism_code);	 
+		my $id = join('.', @id);
+		print "\n\t # ID: $id";
+
+		# Update the nomenclature table
+		$composite{full_id} = $id;
+		$composite{namespace_id} = $numeric_id;
+		my $nom_id = $nom_table->insert_row(\%composite);
+	
+		# Update chains table
+		foreach my $locus_ref (@$cluster_ref) {			
+			my $locus_id = $locus_ref->{record_id};
+			my %data;
+			$data{track_id}             = $locus_id;
+			$data{nomeclature_locus_id} = $nom_id;
+			$chains_table->insert_row(\%data);
 		}
 	}	
 }
@@ -1944,7 +2001,7 @@ sub create_numeric_id {
 
 	# Create numeric ID
 	my $numeric_id;			
-	if ($namespace_id ne 'NULL') {	
+	if ($namespace_id) {	
 		$numeric_id = $namespace_id;
 	}
 	else {			
@@ -2025,7 +2082,7 @@ sub load_nomenclature_tracks {
 	
 	# Load nomenclature table
 	my $db_ref = $self->{db};
-	my $nom_table = $db_ref->{nomenclature_table};
+	my $nom_table = $db_ref->{nomenclature_tracks_table};
 	unless ($nom_table) { die; }
 
 	# Read tracks from file path
