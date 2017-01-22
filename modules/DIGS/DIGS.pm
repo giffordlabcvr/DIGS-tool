@@ -591,7 +591,7 @@ sub create_standard_locus_ids {
 	unless ($nom_table) { die; }
 
 	# Load tracks into table in a DIGS locus format
-	#$self->load_nomenclature_tracks();
+	$self->load_nomenclature_tracks();
 
 	# Cluster tracks
 	$self->create_nomenclature_clusters();
