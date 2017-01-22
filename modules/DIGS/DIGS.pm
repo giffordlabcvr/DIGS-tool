@@ -591,13 +591,19 @@ sub create_standard_locus_ids {
 	unless ($nom_table) { die; }
 
 	# Load tracks into table in a DIGS locus format
-	$self->load_nomenclature_tracks();
+	#$self->load_nomenclature_tracks();
 
 	# Cluster tracks
 	$self->create_nomenclature_clusters();
 
 	# Apply standard names to locus clusters
-	$self->apply_standard_names_to_clusters();
+	my $organism_code = $self->{organism_code};
+	my $locus_class   = $self->{locus_class};
+	$organism_code = 'Hsa';
+	$locus_class = 'ERV';
+	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
+
+
 }
 
 ############################################################################
@@ -1818,17 +1824,38 @@ sub create_nomenclature_clusters {
 	print "\n\t # $num_clusters locus groups in total";
 	$self->{nomenclature_clusters} = \%clusters;	
 
-	# Set the organism and version fields (a convenience)	
+	# Set the organism and version fields (a convenience), & configure namespace
+	my %namespace;
 	my $organism       = $self->{nomenclature_organism};
 	my $target_version = $self->{nomenclature_version};
 	foreach my $cluster_id (@cluster_ids) {
+		
 		my $cluster_ref = $clusters{$cluster_id};
 		#$devtools->print_array($cluster_ref); exit;
 		foreach my $locus_ref (@$cluster_ref) {		
+			
+			# Set organism and target version
 			$locus_ref->{organism}       = $organism;
 			$locus_ref->{target_version} = $target_version;			
+
+			# Check namespace
+			my $assigned_name = $locus_ref->{assigned_name};
+			my $namespace_id  = $locus_ref->{namespace_id};
+			if ($namespace_id ne 'NULL') {
+				
+				if ($namespace{$assigned_name}) {			
+					my $taxon_namespace_ref = $namespace{$assigned_name};
+					$taxon_namespace_ref->{$namespace_id} = 1;
+				}
+				else{
+					my %taxon_namespace;
+					$taxon_namespace{$namespace_id} = 1;
+					$namespace{$assigned_name} = \%taxon_namespace;
+				}				
+			}
 		}
-	}	
+	}
+	$self->{namespace} = \%namespace;
 }
 
 #***************************************************************************
@@ -1837,7 +1864,7 @@ sub create_nomenclature_clusters {
 #***************************************************************************
 sub apply_standard_names_to_clusters {
 
-	my ($self, $params_ref, $output_ref, $tax_ref, $array_ref, $name_counts_ref, $j, $cluster_ref) = @_;
+	my ($self, $locus_class, $organism_code) = @_;
 
 	# Load translations
 	my %translations;
@@ -1848,161 +1875,104 @@ sub apply_standard_names_to_clusters {
 	my @cluster_ids  = keys %$clusters_ref;
 	$self->show_clusters($clusters_ref);
 
-	# Cluster ID
+	# Iterate through the clusters
+	my %counter;
+	my @nomenclature;
 	foreach my $cluster_id (@cluster_ids) {
-		
-		my $cluster_ref = $clusters_ref->{$cluster_id};
-		
-		my $start;
-		my $end;
 
+		my $mixed;
+		my $skip;
+		my $namespace_id;
+		my $lowest;
+		my $highest;
+		my $taxname_final;
+		
+		# Get the array of loci
+		my $cluster_ref = $clusters_ref->{$cluster_id};
+		my %last_locus;
+		foreach my $locus_ref (@$cluster_ref) {
+		
+			#$devtools->print_hash($locus_ref);
+			my $start        = $locus_ref->{extract_start};
+			my $end          = $locus_ref->{extract_end};
+			my $track        = $locus_ref->{track_name};
+			my $taxname      = $locus_ref->{assigned_name};
+			my $namespace_id = $locus_ref->{namespace_id};
+
+			# Set coordinates
+			my $last_start   = $last_locus{extract_start};
+			my $last_end     = $last_locus{extract_end};
+			if ($last_start) {
+				if ($start < $last_start) { $lowest = $start; }
+				if ($end > $last_end)     { $highest = $end;  }
+			}
+			else {
+				$lowest = $start;
+				$highest = $end;
+			}
+						
+			# Create numeric ID
+			my $numeric_id = $self->create_numeric_id($locus_ref, \%counter);
+					
+			# Set taxon name
+			$taxname_final = $taxname;
+			
+			my @id;
+			#push (@id, $locus_class);
+			push (@id, $taxname_final);
+			push (@id, $numeric_id);
+			push (@id, $organism_code);	 
+			my $id = join('.', @id);
+			print "\n\t # ID: $id";
+			
+			
+		}
 	}	
 }
 
 #***************************************************************************
-# Subroutine:  resolve_conflicting_annotations
+# Subroutine:  create_numeric_id
 # Description:  
-# Placeholder - not yet integrated
 #***************************************************************************
-sub resolve_conflicting_annotations {
+sub create_numeric_id {
 
-	my ($array_ref) = @_;
+	my ($self, $locus_ref, $counter_ref) = @_;
 
-	# Identify within track conflicts
-	my %use_track;
-	identify_within_track_name_conflicts($array_ref, \%use_track);
+	# Get data structures and values
+	my $taxname       = $locus_ref->{assigned_name};
+	my $namespace_id  = $locus_ref->{namespace_id};
+	my $namespace_ref = $self->{namespace};
 
-	# Resolve between track conflicts
-	my $resolved = resolve_between_track_name_conflicts(\%use_track);
+	# Create numeric ID
+	my $numeric_id;			
+	if ($namespace_id ne 'NULL') {	
+		$numeric_id = $namespace_id;
+	}
+	else {			
 
-	return $resolved;
-}
-
-#***************************************************************************
-# Subroutine:  identify_within_track_name_conflicts
-# Description:  
-# Placeholder - not yet integrated
-#***************************************************************************
-sub identify_within_track_name_conflicts {
-
-	my ($array_ref, $use_track_ref) = @_;
-
-	# Get resolved within-track output where there are mixed within-track results
-	# Ignore tracks if within-track mixture unresolved
-	my %within_track;
-	my %ignore_track;
-	foreach my $hit_ref (@$array_ref) {
-	
-        # Get the entry values
-        my $track       = $hit_ref->{track};
-        my $name        = $hit_ref->{name};
-        my $scaffold    = $hit_ref->{scaffold};	
-        my $start       = $hit_ref->{start};
-        my $end         = $hit_ref->{end};
-        my $orientation = $hit_ref->{orientation};			
-        my $gene        = $hit_ref->{gene};
-        my $master_id   = $hit_ref->{master_id};
-        my $line        = $hit_ref->{line};
-	
-		if ($within_track{$track}) {
-			my $other_hit_ref = $within_track{$track};
-			my $other_name    = $other_hit_ref->{name};
-			if ($other_name ne $name) {
-				my $resolve = resolve_within_track_name_conflict($hit_ref, $other_hit_ref, $track);	
-				if ($resolve) {
-					$use_track_ref->{$track} = $resolve;
-				}
-				else {
-					$ignore_track{$track} = 1;
-				}
-			}
+		# Get namespace for this taxon
+		my $taxon_namespace = $namespace_ref->{$taxname};
+		
+		# Create new numeric ID that does not infringe the current namespace
+		my $unique = undef;
+		
+		if ($counter_ref->{$taxname}) {
+			$numeric_id = $counter_ref->{$taxname};	
 		}
 		else {
-			$within_track{$track} = $hit_ref;
-			$use_track_ref->{$track} = $name;
+			$numeric_id = '0';
 		}
-	}
-	
-}
-
-#***************************************************************************
-# Subroutine:  resolve_within_track_name_conflict
-# Description:  
-# Placeholder - not yet integrated
-#***************************************************************************
-sub resolve_within_track_name_conflict {
-
-	my ($hit_ref, $other_hit_ref, $track) = @_;
-
-	my $resolved = undef;
-
-	return $resolved;
-}
-	
-#***************************************************************************
-# Subroutine:  resolve_between_track_name_conflict
-# Description:  
-# Placeholder - not yet integrated
-#***************************************************************************
-sub resolve_between_track_name_conflicts {
-
-	my ($track_ref) = @_;
-
-
-	my $resolved = undef;
-	my @tracks = keys %$track_ref;
-	
-	
-	#if ($name1 eq 'ERV.W' and $name2 eq 'ERV.9'
-	#or  $name1 eq 'ERV.9' and $name2 eq 'ERV.W') {		
-	#	$mixed = undef;
-	#}
-
-
-	if ($track_ref->{RetTec}) { # prefer RetTec if present	
-		$resolved = $track_ref->{RetTec};
-	}
-	else {
-		
-		# Only ERV.9 and ERV.W mixed
-		{
-			my @only1 = qw [ ERV.9 ERV.W ];
-			my $only = only($track_ref, \@only1);
-			if ($only) {
 						
-			}	
+		do { # Increment until we get a number that doesn't infringe the namespace
+			$numeric_id++;
+			unless ($taxon_namespace->{$numeric_id}) {
+				$unique = 'true';
+			}
+		} until ($unique);
 			
-			# Assign to Tristem if available
-		}
-	
-		# Only HML
-		{
-			my @only1 = qw [ ERV.K(HML1) ERV.K(HML2) ERV.K(HML3) ERV.K(HML4) ERV.K(HML5) 
-			                 ERV.K(HML6) ERV.K(HML7) ERV.K(HML8) ERV.K(HML9) ERV.K(HML10) ];
-			my $only = only($track_ref, \@only1);
-			if ($only) {
-						
-			}	
-		}
-
-
-
-	
-		if ($track_ref->{Tristem}) {
-		
-		}
-	
-		my $i = 0;
-		foreach my $track (@tracks) {
-	
-			$i++;
-			my $name = $track_ref->{$track};
-			print "\n\t MIXED $i: $track: $name"; 
-		}	
-	}
-
-	return $resolved;
-
+		$counter_ref->{$taxname} = $numeric_id;
+	}	
+	return $numeric_id;
 }
 
 #***************************************************************************
@@ -2108,182 +2078,6 @@ sub load_nomenclature_tracks {
 		$nom_table->insert_row(\%data);	
 
 	}
-}
-
-#***************************************************************************
-# Subroutine:  configure_namespace
-# Description: load a track as the current namespace 
-#***************************************************************************
-sub configure_namespace {
-
-	my ($params_ref, $output_ref) = @_;
-
-	my @namespace;
-	my %namespace;
-	my $namespace_path = $params_ref->{namespace_path};
-	read_file($namespace_path, \@namespace);
-
-	foreach my $line (@namespace) {
-
-		#print "\n\t # LINE $i (element $j):";
-        # Capture the annotation values in a hash				
-        my %hit;
-        extract_values_from_track_line($line, \%hit);
-		my $name = $hit{name};
-		my $id   = $hit{master_id};
-		print "\n NAMESPACE\t '$name'\t'$id'";
-		my %group_namespace;
-		if ( $group_namespace{$id} ) {
-			die; # Shouldn't happen
-		}
-		$group_namespace{$id} = 1;
-		$namespace{$name} = \%group_namespace;
-	}
-	$output_ref->{namespace} = \%namespace;
-
-}
-
-#***************************************************************************
-# Subroutine:  extract_values_from_track_line  
-# Description: 
-# Placeholder - not yet integrated
-#***************************************************************************
-sub extract_values_from_track_line {
-
-    my ($self, $line, $hit_ref) = @_;
-
-    # Chomp and split the line on tabs
-    chomp $line;
-	my @line = split("\t", $line);
-    
-    # Get values
-    my $track     = shift @line;
-    my $name      = shift @line;
-    my $scaffold  = shift @line;
-    my $start     = shift @line;
-    my $end       = shift @line;
-    my $gene      = shift @line;
-    my $master_id = shift @line;
-    my $orientation = get_orientation($start, $end);
-
-    unless ($track) { die; }
-    unless ($name)  { die; }
-    unless ($start) { 
-    	if ($start eq '0') {
-    		$start = 1;
-    	}
-    	else { print "\n\n$line\n\n"; die; } 
-    
-    }
-    unless ($end)   { die; }
-    unless ($gene)  { print "\n\n$line\n\n"; die; }
-    unless ($orientation)  { die; }
-
-    # Extract line
-    $hit_ref->{track}       = $track;
-    $hit_ref->{name}        = $name;
-    $hit_ref->{scaffold}    = $scaffold;
-    $hit_ref->{start}       = $start;
-    $hit_ref->{end}         = $end;
-    $hit_ref->{orientation} = $orientation;
-    $hit_ref->{gene}        = $gene;
-    $hit_ref->{master_id}   = $master_id;
-    $hit_ref->{hit_id}      = $track . '_' . $name;
-    $hit_ref->{line}        = $line;
-
-}
-
-#***************************************************************************
-# Subroutine:  write_report
-# Description: 
-# Placeholder - not yet integrated
-#***************************************************************************
-sub write_report {
-
-	my ($params, $output_ref) = @_;
-
-	# Get the output data
-	my $details_ref = $output_ref->{details};
-	my $names_ref   = $output_ref->{names};
-	my $summary_ref = $output_ref->{summary};
-	my $missing_ref = $output_ref->{missing};
-	my $mixed_ref   = $output_ref->{mixed};
-
-	# Write names  
-	my $names_path = $params->{names_path};
-	my $outfile;
-	if ($names_path) {
-		$outfile = $names_path;
-	}
-	else {
-		$outfile = './missillac-names.txt';	
-	}
-	write_file($outfile, $names_ref);
-
-	# Write summary  
-	my $summary_path = $params->{summary_path};
-	if ($summary_path) {
-		$outfile = $summary_path;
-	}
-	else {
-		$outfile = './missillac-summary.txt';	
-	}
-	write_file($outfile, $summary_ref);
-
-	# Write mixed
-	my $mixed_path = $params->{mixed_path};
-	if ($mixed_path) {
-		$outfile = $mixed_path;
-	}
-	else {
-		$outfile = './missillac-mixed.txt';	
-	}
-	write_file($outfile, $mixed_ref);
-	
-	# Write details 
-	my $details_path = $params->{details_path};
-	if ($details_path) {
-		$outfile = $details_path;
-	}
-	else {
-		$outfile = './missillac-details.txt';	
-	}
-	write_file($outfile, $details_ref);
-
-	# Missing groups
-	my $missing_path = $params->{missing_path};
-	if ($missing_path) {
-		$outfile = $missing_path;
-	}
-	else {
-		$outfile = './missillac-missing.txt';	
-	}
-	my @missing = keys %$missing_ref;
-	#foreach my $key (@missing) {
-	#	print "\n\t $key";
-	#}
-	write_file($outfile, \@missing);
-
-}
-
-#***************************************************************************
-# Subroutine:  get_orientation
-# Description: 
-# Placeholder - not yet integrated
-#***************************************************************************
-sub get_orientation {
-
-	my ($start, $end) = @_;
-
-	my $orientation;
-
-	if ($start > $end) {	
-		$orientation = '-';
-	}
-	elsif ($end > $start) {
-		$orientation = '+';
-	}
-	return $orientation;
 }
 
 ############################################################################
