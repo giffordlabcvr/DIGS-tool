@@ -1980,7 +1980,7 @@ sub apply_standard_names_to_clusters {
 			my $locus_id = $locus_ref->{record_id};
 			my %data;
 			$data{track_id}             = $locus_id;
-			$data{nomeclature_locus_id} = $nom_id;
+			$data{nomenclature_locus_id} = $nom_id;
 			$chains_table->insert_row(\%data);
 		}
 	}	
@@ -2344,10 +2344,11 @@ sub show_utility_help_page {
 		$HELP  .= "\n\t -u=3  Drop screening DB"; 
 		$HELP  .= "\n\t -u=4  Show BLAST chains"; 
 		$HELP  .= "\n\t -u=5  Show locus chains"; 
-		$HELP  .= "\n\t -u=6  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=7  Summarise genomes (long, by target file)";
-		$HELP  .= "\n\t -u=8  Translate DB schema\n\n"; 
-		#$HELP  .= "\n\t -u=6  Extract sequences using track";
+		$HELP  .= "\n\t -u=6  Show nomenclature chains"; 
+		$HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
+		$HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
+		$HELP  .= "\n\t -u=9  Translate DB schema\n\n"; 
+		#$HELP  .= "\n\t -u=10  Extract sequences using track";
 
 	print $HELP;
 }
@@ -2388,20 +2389,22 @@ sub run_utility_process {
 	elsif ($option eq 5) { # Consolidate DIGS results into higher level loci 
 		$self->show_locus_chains();
 	}
-
-	elsif ($option eq 6)    { # Summarise target genome directory (short)
+	elsif ($option eq 6) { # Consolidate DIGS results into higher level loci 
+		$self->show_nomenclature_chains();
+	}
+	elsif ($option eq 7)    { # Summarise target genome directory (short)
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_short();
 	}
-	elsif ($option eq 7) { # Summarise target genome directory (long)
+	elsif ($option eq 8) { # Summarise target genome directory (long)
 		my $target_db_obj = TargetDB->new($self);
 		$target_db_obj->summarise_genomes_long();
 	}
-	elsif ($option eq 8) { # DB schema translation
+	elsif ($option eq 9) { # DB schema translation
 		my $db_obj = $self->{db};
 		$db_obj->translate_schema();
 	}
-	elsif ($option eq 9) {
+	elsif ($option eq 10) {
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		my $loader_obj = ScreenBuilder->new($self);
 		my @extracted;
@@ -2673,6 +2676,60 @@ sub show_locus_chains {
 				my $f_identity    = sprintf("%.2f", $identity);
 				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
 				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
+	
+			}
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_nomenclature_chains
+# Description: Show digs_result chains for all consolidated loci
+#***************************************************************************
+sub show_nomenclature_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $db = $self->{db};
+	unless ($db) { die; } # Sanity checking
+	my $dbh = $db->{dbh};
+	$db->load_nomenclature_table($dbh);
+	$db->load_nomenclature_chains_table($dbh);
+	my $nomenclature_table = $db->{nomenclature_table}; 
+	my $chains_table  = $db->{nomenclature_chains_table};
+	unless ($nomenclature_table and $chains_table) { die; } # Sanity checking
+
+	# Get all named loci
+	my $nom_where = " ORDER BY record_id ";
+	my @loci;
+	my @fields = qw [ record_id full_id ];
+	$nomenclature_table->select_rows(\@fields, \@loci, $nom_where);	 
+	
+	# Iterate through loci
+	foreach my $locus_ref (@loci) {
+
+		my $locus_id = $locus_ref->{record_id};
+		print "\n\t ### Chain $locus_id ";	
+		my $chain_where = " WHERE nomenclature_locus_id = $locus_id ";
+		my @results;
+		@fields = qw [ record_id track_id nomenclature_locus_id ];
+		$chains_table->select_rows(\@fields, \@results, $chain_where);	 
+		
+		foreach my $result_ref (@results) {
+
+			my @digs_results;
+			my $track_entry_id = $result_ref->{track_id};
+			my @fields = qw [ assigned_name assigned_gene ];
+			my $where  = " WHERE record_id = $track_entry_id ";
+			$nomenclature_table->select_rows(\@fields, \@digs_results, $where);
+			
+			foreach my $result_ref (@digs_results) {
+		
+				my $assigned_name = $result_ref->{assigned_name};
+				my $assigned_name = $result_ref->{assigned_name};
+				my $assigned_gene = $result_ref->{assigned_gene};
+				print " $locus_id: $track_entry_id ";
 	
 			}
 		}

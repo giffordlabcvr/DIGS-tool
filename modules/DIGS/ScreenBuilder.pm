@@ -799,7 +799,6 @@ sub parse_nomenclature_block {
 
 	# Check what params we got
 	unless ($new_track_path)      { die; }
-	unless ($namespace_path)      { die; }
 	unless ($translation_path)    { die; }
 	unless ($tax_level)           { die; }
 	unless ($organism and $version) { 

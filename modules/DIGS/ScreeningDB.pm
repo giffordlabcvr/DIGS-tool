@@ -345,7 +345,7 @@ sub load_nomenclature_chains_table {
 	# Definition of the table
 	my %fields = (	
 		track_id             => 'int',
-		nomeclature_locus_id => 'int',	
+		nomenclature_locus_id => 'int',	
 	);
 	
 	my $chains_table = MySQLtable->new('nomenclature_chains', $dbh, \%fields);
@@ -662,7 +662,7 @@ sub create_nomenclature_chains_table {
 	my $nomenclature = "CREATE TABLE `nomenclature_chains` (
 	  `record_id`             int(11) NOT NULL auto_increment,
 	  `track_id`              int(11) NOT NULL default '0',
-	  `nomeclature_locus_id`  int(11) NOT NULL default '0',
+	  `nomenclature_locus_id`  int(11) NOT NULL default '0',
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -751,10 +751,10 @@ sub flush_screening_db {
 		#sleep 3;
 
 		# get tables
-		my $active_set_table  = $self->{active_set_table};
-		my $digs_results_table      = $self->{digs_results_table};
-		my $searches_table       = $self->{searches_table};
-		my $blast_chains_table   = $self->{blast_chains_table};
+		my $active_set_table   = $self->{active_set_table};
+		my $digs_results_table = $self->{digs_results_table};
+		my $searches_table     = $self->{searches_table};
+		my $blast_chains_table = $self->{blast_chains_table};
 		
 		# Flush result tables
 		$active_set_table->flush();
