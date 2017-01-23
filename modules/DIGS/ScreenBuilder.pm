@@ -97,10 +97,15 @@ sub set_up_screen  {
 	
 	# Set target sequence files for screening
 	my %targets;
-	$self->set_targets(\%targets);
-	
+	my %target_groups;
+	$self->set_targets(\%targets, \%target_groups);
+	$pipeline_obj->{target_groups} = \%target_groups; 
+
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	my @keys        = keys %targets;
+	my $unique      = scalar @keys;
+	print "\n\t  Targets:           $unique target files";
 	
 }
 
@@ -386,20 +391,18 @@ sub get_fasta_probes {
 #***************************************************************************
 sub set_targets {
 	
-	my ($self, $targets_ref) = @_;
+	my ($self, $targets_ref, $target_groups_ref) = @_;
 
 	# Initialise target sequence library
 	my $genome_obj = TargetDB->new($self);
-	if ($self->{refresh_genomes}) {
-		$genome_obj->refresh_genomes($targets_ref);
-	} 
 	
 	# Iterate through the list of paths 
 	my %paths;
 	my %target_data;
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
-	unless ($target_paths_ref) { die; } 	
+	unless ($target_paths_ref) { die; } 
+	my @targets;	
 	foreach my $path (@$target_paths_ref) {
 				
 		my $full_path = $genome_use_path . "/$path";	
@@ -419,7 +422,9 @@ sub set_targets {
 			$file{path} = $full_path;
 			push (@leaves, \%file);
 		}
-		$self->read_genome_files(\@leaves, $targets_ref);		
+		$self->read_genome_files(\@leaves, $targets_ref);
+		push (@targets, @leaves);
+				
 	}
 	my @keys = keys %$targets_ref;
 	my $unique_targets = scalar @keys;
@@ -436,7 +441,29 @@ sub set_targets {
 		print "\n\n";
 		exit;
 	}
-	print "\n\t  Targets:           $unique_targets target files";
+	
+	# Iterate through targets
+	foreach my $target_name (@keys) {
+			
+		# Get target data
+		my $target_ref   = $targets_ref->{$target_name};
+		my $group        = $target_ref->{group};
+		my $organism     = $target_ref->{organism};
+		my $datatype     = $target_ref->{datatype};
+		my $version      = $target_ref->{version};
+		my $target_path  = $target_ref->{path};
+		my $target_name  = $target_ref->{file};		
+		
+		# Sanity checking	
+		unless ($organism and $version and $datatype and $target_name) { die; }
+			
+		# Create a unique key for this genome
+		my @genome = ( $organism , $datatype, $version );
+		my $target_id = join ('|', @genome);
+		
+		# Set a key to get the top level group name in the target path
+		$target_groups_ref->{$target_id} = $group;
+	}
 }
 
 #***************************************************************************
@@ -535,8 +562,11 @@ sub set_queries {
 	my $path;
 	my $num_probes = scalar @$probes_ref;
 	unless ($num_probes) { die "\n\t no probes found\n\n\n"; }
-
-	my $outstanding;
+	
+	my %target_groups; # To record top level group name in the target path (e.g. Mammals)		
+	my $outstanding;   # Number of searches still to be performed
+	
+	# Create the queries
 	foreach my $probe_ref (@$probes_ref) {
 	
 		my $blast_alg       = $probe_ref->{blast_alg};
@@ -558,8 +588,9 @@ sub set_queries {
 			
 			# Get target data
 			my $target_ref   = $targets_ref->{$target_name};
+			my $group        = $target_ref->{group};
 			my $organism     = $target_ref->{organism};
-			my $datatype    = $target_ref->{datatype};
+			my $datatype     = $target_ref->{datatype};
 			my $version      = $target_ref->{version};
 			my $target_path  = $target_ref->{path};
 			my $target_name  = $target_ref->{file};		
@@ -603,6 +634,7 @@ sub set_queries {
 			}
 		}
 	}
+		
 	# Show number of queries loaded
 	unless ($outstanding) { print "\n\n\t ### No outstanding searches were loaded\n"; }
 	else { print "\n\t  Searches to run    $outstanding\n"; }

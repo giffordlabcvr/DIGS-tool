@@ -320,15 +320,19 @@ sub interactive_defragment {
 
 	my ($self) = @_;
 
-	# Display current settings
 	my $redundancy_mode  = $self->{redundancy_mode};
 	my $defragment_range = $self->{defragment_range};
 	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	unless ($genome_use_path)  { die; }
+	unless ($target_group_ref) { die; }
 	unless ($redundancy_mode and  $defragment_range ) { die; } 
 	unless ($genome_use_path) { die; } 
+
+	# Display current settings	
 	print "\n\n\t\t Current settings (based on control file)";
 	print "\n\t\t redundancy mode:  $redundancy_mode";
-	print "\n\t\t defragment_range: $defragment_range";
+	print "\n\t\t defragment range: $defragment_range";
 
 	# Get a list of all the target files from the screening DB
 	my $db = $self->{db};
@@ -379,7 +383,20 @@ sub interactive_defragment {
 			my $target_name     = $target_ref->{target_name};
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
-			my $target_path .= "~/Genomes/test/$organism/$target_datatype/$target_version/$target_name";
+
+			# Create a unique key for this genome
+			my @genome = ( $organism , $target_datatype, $target_version );
+			my $target_id = join ('|', @genome);
+			my $target_group    = $target_group_ref->{$target_id};
+
+			my @path;
+			push (@path, $genome_use_path);
+			push (@path, $target_group);
+			push (@path, $organism);
+			push (@path, $target_datatype);
+			push (@path, $target_version);
+			push (@path, $target_name);
+			my $target_path = join ('/', @path);
 		
 			# Create the relevant set of previously extracted loci
 			my @combined;
@@ -2204,6 +2221,11 @@ sub initialise_reassign {
 	                   extract_start extract_end sequence ];
 	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref, $where);
 
+	# Set target sequence files for screening
+	my %targets;
+	my %target_groups;
+	$loader_obj->set_targets(\%targets, \%target_groups);
+	$self->{target_groups} = \%target_groups; 
 }
 
 #***************************************************************************
