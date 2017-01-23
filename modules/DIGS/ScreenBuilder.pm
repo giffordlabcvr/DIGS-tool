@@ -153,6 +153,7 @@ sub parse_control_file {
 	$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
 	
 	# Set parameters in pipeline object
+	
 	# Screening DB name and MySQL connection details
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
@@ -174,14 +175,14 @@ sub parse_control_file {
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
 	# Set paths for applying nomenclature 	
-	$pipeline_obj->{new_track_path}   = $self->{new_track_path};
-	$pipeline_obj->{namespace_path}   = $self->{namespace_path};
-	$pipeline_obj->{translation_path} = $self->{translation_path};
-	$pipeline_obj->{tax_level}        = $self->{tax_level};
-	$pipeline_obj->{translation_path} = $self->{translation_path};
-	$pipeline_obj->{tax_level}        = $self->{tax_level};
-	$pipeline_obj->{organism_code}    = $self->{organism_code};
-	$pipeline_obj->{locus_class}      = $self->{locus_class};
+	$pipeline_obj->{new_track_path}        = $self->{new_track_path};
+	$pipeline_obj->{translation_path}      = $self->{translation_path};
+	$pipeline_obj->{tax_level}             = $self->{tax_level};
+	$pipeline_obj->{organism_code}         = $self->{organism_code};
+	$pipeline_obj->{locus_class}           = $self->{locus_class};
+	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
+	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+	$pipeline_obj->{genome_structure}      = $self->{genome_structure};
 
 	# Set the bit score minimum
 	if ($self->{bitscore_min_tblastn}) {
@@ -820,7 +821,6 @@ sub parse_nomenclature_block {
 	$self->{nomenclature_version}  = $version;   # Genome assembly ID
 	$self->{organism_code}         = $organism_code;
 	$self->{locus_class}           = $locus_class;
-
 
 }
 
