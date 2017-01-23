@@ -39,7 +39,6 @@ use Interface::MySQLtable;   # Interface to BLAST
 
 # DIGS framework modules
 use DIGS::DIGS;
-use DIGS::Deeper;
 use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
@@ -153,10 +152,6 @@ sub main {
 	}
 	elsif ($utility) { # Utility functions
 		$digs_tool_obj->run_utility_process($utility, $infile); 
-	}
-	elsif ($analysis) { # Analysis (batch runs etc)
-		my $digs_analyser = Deeper->new(\%params);
-		$digs_analyser->run_digs_analysis($analysis, $infile); 
 	}
 
 	else { die $USAGE; }
