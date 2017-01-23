@@ -2723,7 +2723,6 @@ sub show_nomenclature_chains {
 			foreach my $result_ref (@digs_results) {
 		
 				my $assigned_name = $result_ref->{assigned_name};
-				my $assigned_name = $result_ref->{assigned_name};
 				my $assigned_gene = $result_ref->{assigned_gene};
 				print " $locus_id: $track_entry_id ";
 	
