@@ -2193,12 +2193,8 @@ sub initialise_reassign {
 	# Set up the reference library
 	$loader_obj->setup_reference_library($self);
 	my $where;
-	if ($self->{blast_utr_lib_path}) {
-		$where = " WHERE probe_type = 'UTR'";
-	}
-	elsif ($self->{blast_orf_lib_path}) {
-		$where = " WHERE probe_type = 'ORF'";
-	}
+	if ($self->{blast_utr_lib_path})    { $where = " WHERE probe_type = 'UTR'"; }
+	elsif ($self->{blast_orf_lib_path}) { $where = " WHERE probe_type = 'ORF'"; }
 
 	# Get the assigned data
 	my $digs_results_table = $db->{digs_results_table};
