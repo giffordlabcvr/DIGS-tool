@@ -2706,7 +2706,7 @@ sub show_nomenclature_chains {
 	foreach my $locus_ref (@loci) {
 
 		my $locus_id = $locus_ref->{record_id};
-		print "\n\t ### Chain $locus_id ";	
+		print "\n\t ### Chain $locus_id: ";	
 		my $chain_where = " WHERE nomenclature_locus_id = $locus_id ";
 		my @results;
 		@fields = qw [ record_id track_id nomenclature_locus_id ];
@@ -2724,7 +2724,7 @@ sub show_nomenclature_chains {
 		
 				my $assigned_name = $result_ref->{assigned_name};
 				my $assigned_gene = $result_ref->{assigned_gene};
-				print " $locus_id: $track_entry_id ";
+				print " $track_entry_id ";
 	
 			}
 		}
