@@ -2741,15 +2741,15 @@ sub show_nomenclature_chains {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  validate_translations
-# Description: 
+# Subroutine:  show_translations
+# Description:  
 #***************************************************************************
-sub validate_translations {
+sub show_translations {
 
 	my ($translations_ref) = @_;
 
 	# Validate
-	#validate_translations(\%taxonomy); #die;
+	#show_translations(\%taxonomy); #die;
 		
 	my @keys = keys %$translations_ref;
 	foreach my $key (@keys) {
