@@ -71,10 +71,10 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  set_up_screen
+# Subroutine:  setup_screen
 # Description: Set up all the queries to execute, indexed by genome target
 #***************************************************************************
-sub set_up_screen  {
+sub setup_screen  {
 	
 	my ($self, $pipeline_obj, $queries_ref) = @_;
 
@@ -107,6 +107,7 @@ sub set_up_screen  {
 	my $unique      = scalar @keys;
 	print "\n\t  Targets:           $unique target files";
 	
+	return $num_queries;
 }
 
 ############################################################################
@@ -119,7 +120,7 @@ sub set_up_screen  {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj) = @_;
+	my ($self, $ctl_file, $pipeline_obj, $option) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -152,11 +153,6 @@ sub parse_control_file {
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
 	$self->{skipindexing_paths} = \@skipindex;
 
-	# READ the 'NOMENCLATURE' block
-	$start_token  = 'BEGIN NOMENCLATURE';
-	$stop_token   = 'ENDBLOCK';
-	$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
-	
 	# Set parameters in pipeline object
 	
 	# Screening DB name and MySQL connection details
@@ -179,26 +175,35 @@ sub parse_control_file {
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
-	# Set paths for applying nomenclature 	
-	$pipeline_obj->{new_track_path}        = $self->{new_track_path};
-	$pipeline_obj->{translation_path}      = $self->{translation_path};
-	$pipeline_obj->{tax_level}             = $self->{tax_level};
-	$pipeline_obj->{organism_code}         = $self->{organism_code};
-	$pipeline_obj->{locus_class}           = $self->{locus_class};
-	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
-	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
-	$pipeline_obj->{genome_structure}      = $self->{genome_structure};
+	if ($option eq 6) {
+	
+		# READ the 'NOMENCLATURE' block
+		$start_token  = 'BEGIN NOMENCLATURE';
+		$stop_token   = 'ENDBLOCK';
+		$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
+	
+		# Set paths for applying nomenclature 	
+		$pipeline_obj->{new_track_path}        = $self->{new_track_path};
+		$pipeline_obj->{translation_path}      = $self->{translation_path};
+		$pipeline_obj->{tax_level}             = $self->{tax_level};
+		$pipeline_obj->{organism_code}         = $self->{organism_code};
+		$pipeline_obj->{locus_class}           = $self->{locus_class};
+		$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
+		$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+		$pipeline_obj->{genome_structure}      = $self->{genome_structure};
 
-	# Set the bit score minimum
-	if ($self->{bitscore_min_tblastn}) {
-		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+		# Set the bit score minimum
+		if ($self->{bitscore_min_tblastn}) {
+			$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+		}
+		elsif ($self->{bitscore_min_blastn}) {
+			$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
+		}
+		else {
+			die;
+		}
 	}
-	elsif ($self->{bitscore_min_blastn}) {
-		$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
-	}
-	else {
-		die;
-	}
+
 }
 
 #***************************************************************************
@@ -234,9 +239,9 @@ sub setup_reference_library {
 		my @fasta;
 		$self->read_fasta($ref_fasta, \@fasta);
 		$num_fasta = scalar @fasta;
-		unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n\n"; }
+		unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-		print "\n\t  Reference library: $num_fasta $reference_type sequences";
+		print "\n\t  Reference library: $num_fasta $reference_type sequences\n";
 		my $i = 0;
 		my %refseq_ids; # Hash to check probe names are unique		
 		foreach my $seq_ref (@fasta) {

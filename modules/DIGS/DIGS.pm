@@ -101,7 +101,7 @@ sub run_digs_process {
 	
 		# Initialise (an infile must be defined)
 		unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
-		$self->initialise($ctl_file);
+		$self->initialise($ctl_file, $option);
 	
 		# Load/create the screening
 		$self->load_screening_db($ctl_file);
@@ -1074,7 +1074,8 @@ sub show_digs_progress {
 	# Calculate percentage progress
 	my $percent_prog    = ($completed / $total_queries) * 100;
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
-	print "\n\t\t  %$f_percent_prog completed";
+	#print "\n\t\t  ";
+	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
 }
 
 #***************************************************************************
@@ -2164,7 +2165,7 @@ sub load_nomenclature_tracks {
 #***************************************************************************
 sub initialise {
 
-	my ($self, $ctl_file) = @_;
+	my ($self, $ctl_file, $option) = @_;
 
 	# Try opening control file
 	my @ctl_file;
@@ -2176,7 +2177,7 @@ sub initialise {
 	# If control file looks OK, store the path and parse the file
 	$self->{ctl_file}   = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self);
+	$loader_obj->parse_control_file($ctl_file, $self, $option);
 
 	# Update numthreads setting in BLAST object
 	my $num_threads = $loader_obj->{num_threads};
@@ -2255,7 +2256,7 @@ sub setup_digs {
 	#$devtools->print_hash(\%done);
 	$loader_obj->{previously_executed_searches} = \%done;
 
-	my $total_queries = $loader_obj->set_up_screen($self, \%queries);
+	my $total_queries = $loader_obj->setup_screen($self, \%queries);
 	unless ($total_queries)  { 
 		print "\n\t  Exiting without screening.\n\n";	
 		exit;
@@ -2384,7 +2385,7 @@ sub run_utility_process {
 
 	# Initialise (an infile must be defined)
 	unless ($infile) { die "\n\t Option '$option' requires an infile\n\n"; }
-	$self->initialise($infile);
+	$self->initialise($infile, $option);
 	
 	# Load/create the screening
 	$self->load_screening_db($infile);
@@ -2758,12 +2759,37 @@ sub show_nomenclature_chains {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  run_tests
+# Description:  
+#***************************************************************************
+sub run_tests {
+
+	my ($self) = @_;
+
+	# Display current settings	
+	print "\n\n\t\t Running tests from 'test' directory: ";
+
+	# Create the 'digs_test' database
+
+	# Do a DIGS run against synthetic data (included in repo)
+
+		
+	# Upload test data to the 'digs_test' database
+	
+	# Check that defragment gives expected result
+
+	# Check that consolidate gives expected result
+
+	
+}		
+
+#***************************************************************************
 # Subroutine:  show_translations
 # Description:  
 #***************************************************************************
 sub show_translations {
 
-	my ($translations_ref) = @_;
+	my ($self, $translations_ref) = @_;
 
 	# Validate
 	#show_translations(\%taxonomy); #die;

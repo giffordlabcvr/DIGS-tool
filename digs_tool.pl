@@ -140,7 +140,7 @@ sub main {
 		exit;
 	}
 	elsif ($test) { # Run inbuilt tests
-		$digs_tool_obj->validate();
+		$digs_tool_obj->run_tests();
 		exit;
 	}
 	elsif ($extra_help) {
