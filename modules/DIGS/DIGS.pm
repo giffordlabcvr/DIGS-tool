@@ -798,7 +798,7 @@ sub compress_active_set {
 
 #***************************************************************************
 # Subroutine:  compress
-# Description: 
+# Description: apply clustering and merging of loci
 #***************************************************************************
 sub compress {
 
@@ -2330,8 +2330,8 @@ sub show_help_page {
 	# Initialise usage statement to print if usage is incorrect
 	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
 
-        $HELP  .= "\n\t ### Main functions"; 
-		$HELP  .= "\n\t -m=1  Index target files under path '$ENV{DIGS_GENOMES}'"; 
+        $HELP  .= "\n\t ### Main functions\n"; 
+		$HELP  .= "\n\t -m=1  Format target nucleotide FASTA targets (under path '$ENV{DIGS_GENOMES}')"; 
 		$HELP  .= "\n\t -m=2  Screen"; 
 		$HELP  .= "\n\t -m=3  Reassign"; 
 		$HELP  .= "\n\t -m=4  Defragment"; 
@@ -2773,14 +2773,18 @@ sub run_tests {
 
 	# Do a DIGS run against synthetic data (included in repo)
 
-		
+	# Do a DIGS reassign for synthetic data
+
 	# Upload test data to the 'digs_test' database
+	my $test_results_path;
+	my $test_searches_path;
+	$db_ref->upload_data_to_digs_results($test_results_path);
+	$db_ref->upload_data_to_digs_results($test_searches_path);
 	
 	# Check that defragment gives expected result
-
-	# Check that consolidate gives expected result
-
 	
+	# Check that consolidate gives expected result
+		
 }		
 
 #***************************************************************************

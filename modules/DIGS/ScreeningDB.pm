@@ -700,7 +700,6 @@ sub create_nomenclature_table {
 	unless ($sth->execute()) { print "\n\t$nomenclature\n\n\n"; exit;}
 }
 
-
 ############################################################################
 # DROPPING AND FLUSHING DBs
 ############################################################################
@@ -1116,6 +1115,91 @@ sub does_db_exist {
 
 	return $exists;	
 }
+
+############################################################################
+# TEST 
+############################################################################
+
+#***************************************************************************
+# Subroutine:  upload_data_to_digs_results
+# Description:  
+#***************************************************************************
+sub upload_data_to_digs_results {
+
+	my ($self, $data_path) = @_;
+
+	# Get the table object
+	my $digs_results_table = $self->{digs_results_table};
+
+	# Get the data
+	my @data;
+	$fileio->read_file(\@data, $data_path);
+
+	# Iterate through the data and insert to the table
+	foreach my $line (@data) {
+		my %data;
+		chomp $line;
+		my @line = split("\t", $line);
+		$data{organism}        = shift @line;
+		$data{target_datatype} = shift @line;
+		$data{target_version}  = shift @line;
+		$data{target_name}     = shift @line;
+		$data{probe_type}      = shift @line;
+		$data{scaffold}        = shift @line;
+		$data{extract_start}   = shift @line;
+		$data{extract_end}     = shift @line;
+		$data{sequence_length} = shift @line;
+		$data{sequence}        = shift @line;
+		$data{assigned_name}   = shift @line;
+		$data{assigned_gene}   = shift @line;
+		$data{orientation}     = shift @line;
+		$data{bitscore}        = shift @line;
+		$data{identity}        = shift @line;
+		$data{evalue_num}      = shift @line;
+		$data{evalue_exp}      = shift @line;
+		$data{subject_start}   = shift @line;
+		$data{subject_end}     = shift @line;
+		$data{query_start}     = shift @line;
+		$data{query_end}       = shift @line;
+		$data{align_len}       = shift @line;
+		$data{gap_openings}    = shift @line;
+		$data{mismatches}      = shift @line;
+		$digs_results_table->insert_row(\%data);	
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  upload_data_to_searches_performed
+# Description:  
+#***************************************************************************
+sub upload_data_to_searches_performed {
+
+	my ($self,  $data_path) = @_;
+
+	# Get the table object
+	my $searches_table = $self->{searches_table};
+
+	# Get the data	
+	my @data;
+	$fileio->read_file(\@data, $data_path);
+
+	# Iterate through the data and insert to the table
+	foreach my $line (@data) {
+		my %data;
+		chomp $line;
+		my @line = split("\t", $line);
+		$data{probe_id}        = shift @line;
+		$data{probe_name}      = shift @line;
+		$data{probe_gene}      = shift @line;
+		$data{target_id}       = shift @line;
+		$data{organism}        = shift @line;
+		$data{target_datatype} = shift @line;
+		$data{target_version}  = shift @line;
+		$data{target_name}     = shift @line;
+		$searches_table->insert_row(\%data);	
+	}
+}
+
 
 ############################################################################
 # EOF
