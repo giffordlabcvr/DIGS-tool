@@ -167,12 +167,12 @@ sub perform_digs {
 		
 			# Compress DB
 			my @new_hits;
-			$self->compress_active_set($query_ref, \@new_hits);
+			$self->compile_nonredundant_locus_set($query_ref, \@new_hits);
 
 			# Extract newly identified or extended sequences
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
-			$self->extract($target_path, \@new_hits, \@extracted);	
+			$self->extract_locus_sequences($target_path, \@new_hits, \@extracted);	
 			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->classify_using_blast(\@extracted, $query_ref);
@@ -381,13 +381,28 @@ sub interactive_defragment {
 			$self->compose_clusters(\%target_defragmented, \@combined, \%settings);
 			#$self->show_clusters(\%defragmented);  # Show clusters
 		
-			# Defragment the results using these settings
-			my @defragmented;
-			$self->compress(\%settings, \%target_defragmented, \@combined, \@defragmented);
+			
+			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+			my %defragmented;
+			$self->compose_clusters(\%defragmented, \@combined, \%settings);
+			my @cluster_ids  = keys %defragmented;
+			my $num_clusters = scalar @combined;
+			#if ($total_hits > $num_clusters) {
+			#	print "...compressed to $num_clusters overlapping/contiguous clusters";
+			#}
+
+			# Determine what to extract, and extract it
+			# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+			my @loci;
+			$self->merge_clustered_loci(\%defragmented, \@loci);
+			my $num_new = scalar @loci;
+			if ($num_new){
+				print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+			}
 		
 			# Extract newly identified or extended sequences
 			my @extracted;
-			$self->extract($target_path, \@defragmented, \@extracted);	
+			$self->extract_locus_sequences($target_path, \@loci, \@extracted);	
 			#$devtools->print_array(\@extracted); die;
 				
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
@@ -731,10 +746,10 @@ sub search_target_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  compress_active_set
+# Subroutine:  compile_nonredundant_locus_set
 # Description: determine what to extract based on current results
 #***************************************************************************
-sub compress_active_set {
+sub compile_nonredundant_locus_set {
 	
 	my ($self, $query_ref, $to_extract_ref) = @_;
 
@@ -1108,7 +1123,7 @@ sub  wrap_up {
 
 	my $loader_obj  = $self->{loader_obj};
 	
-	# Cleanup
+	# Remove the output directory
 	my $output_dir = $loader_obj->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
