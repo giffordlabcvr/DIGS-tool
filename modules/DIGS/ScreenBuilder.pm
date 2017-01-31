@@ -105,8 +105,13 @@ sub setup_screen  {
 	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
 	my @keys        = keys %targets;
 	my $unique      = scalar @keys;
-	print "\n\t  Targets:           $unique target files";
 	
+	# Show number of oustanding targets and number of queries loaded
+	print "\n\t  Targets:           $unique target files";
+	unless ($num_queries) { print "\n\n\t ### No outstanding searches were loaded\n"; }
+	else { print "\n\t  Searches to run    $num_queries\n"; }
+
+
 	return $num_queries;
 }
 
@@ -246,7 +251,7 @@ sub setup_reference_library {
 		$num_fasta = scalar @fasta;
 		unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-		print "\n\t  Reference library: $num_fasta $reference_type sequences\n";
+		print "\n\t  Reference library: $num_fasta $reference_type sequences";
 		my $i = 0;
 		my %refseq_ids; # Hash to check probe names are unique		
 		foreach my $seq_ref (@fasta) {
@@ -645,9 +650,6 @@ sub set_queries {
 		}
 	}
 		
-	# Show number of queries loaded
-	unless ($outstanding) { print "\n\n\t ### No outstanding searches were loaded\n"; }
-	else { print "\n\t  Searches to run    $outstanding\n"; }
 	return $outstanding;
 }
 
@@ -841,18 +843,13 @@ sub parse_nomenclature_block {
 	my $locus_class      = $params{locus_class};
 
 	# Check what params we got
-	unless ($new_track_path)      { die; }
-	unless ($translation_path)    { die; }
-	unless ($tax_level)           { die; }
-	unless ($organism and $version) { 
-		print "\n\t Organism and assembly version parameters are required";
-		die; 
-	}
-	unless ($organism_code and $locus_class) { 
-		print "\n\t Organism code (e.g. 'Hsa') and ";
-		print "locus class (e.g. 'ERV') parameters are required";
-		die; 
-	}
+	unless ($new_track_path)      { die "\n\t No input track path defined\n\n"; }
+	unless ($translation_path)    { die "\n\t No translation path defined\n\n"; }
+	unless ($tax_level)           { die "\n\t No tax_level defined\n\n";        }
+	unless ($organism_code)       { die "\n\t No orgaism code defined \n\n";    }
+	unless ($locus_class)         { die "\n\t No locus class defined\n\n";      }
+	unless ($organism)            { die "\n\t No organism defined\n\n";         }
+	unless ($version)             { die "\n\t No version defined\n\n";          }
 
 	# Set nomenclature parameters
 	$self->{new_track_path}        = $new_track_path;
