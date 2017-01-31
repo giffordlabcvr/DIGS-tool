@@ -141,11 +141,9 @@ sub main {
 	}
 	elsif ($test) { # Run inbuilt tests
 		$digs_tool_obj->run_tests();
-		exit;
 	}
 	elsif ($extra_help) {
 		$digs_tool_obj->show_utility_help_page();
-		exit;
 	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($mode, $infile); 
