@@ -175,6 +175,11 @@ sub parse_control_file {
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
+	# Set numthreads in the BLAST object 
+	my $num_threads = $self->{num_threads};
+	unless ($num_threads) { $num_threads = 1; }  # Default setting
+	$pipeline_obj->{blast_obj}->{num_threads} = $num_threads;
+
 	if ($option eq 6) {
 	
 		# READ the 'NOMENCLATURE' block

@@ -1117,8 +1117,41 @@ sub does_db_exist {
 }
 
 ############################################################################
-# TEST 
+# TEST & DEBUGGING FXNS
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  upload_data_to_searches_performed
+# Description:  
+#***************************************************************************
+sub upload_data_to_searches_performed {
+
+	my ($self,  $data_path) = @_;
+
+	# Get the table object
+	my $searches_table = $self->{searches_table};
+
+	# Get the data	
+	my @data;
+	$fileio->read_file(\@data, $data_path);
+
+	# Iterate through the data and insert to the table
+	foreach my $line (@data) {
+		my %data;
+		chomp $line;
+		my @line = split("\t", $line);
+		$data{probe_id}        = shift @line;
+		$data{probe_name}      = shift @line;
+		$data{probe_gene}      = shift @line;
+		$data{target_id}       = shift @line;
+		$data{organism}        = shift @line;
+		$data{target_datatype} = shift @line;
+		$data{target_version}  = shift @line;
+		$data{target_name}     = shift @line;
+		$searches_table->insert_row(\%data);	
+	}
+}
+
 
 #***************************************************************************
 # Subroutine:  upload_data_to_digs_results
@@ -1166,38 +1199,6 @@ sub upload_data_to_digs_results {
 		$data{mismatches}      = shift @line;
 		$digs_results_table->insert_row(\%data);	
 	}	
-}
-
-#***************************************************************************
-# Subroutine:  upload_data_to_searches_performed
-# Description:  
-#***************************************************************************
-sub upload_data_to_searches_performed {
-
-	my ($self,  $data_path) = @_;
-
-	# Get the table object
-	my $searches_table = $self->{searches_table};
-
-	# Get the data	
-	my @data;
-	$fileio->read_file(\@data, $data_path);
-
-	# Iterate through the data and insert to the table
-	foreach my $line (@data) {
-		my %data;
-		chomp $line;
-		my @line = split("\t", $line);
-		$data{probe_id}        = shift @line;
-		$data{probe_name}      = shift @line;
-		$data{probe_gene}      = shift @line;
-		$data{target_id}       = shift @line;
-		$data{organism}        = shift @line;
-		$data{target_datatype} = shift @line;
-		$data{target_version}  = shift @line;
-		$data{target_name}     = shift @line;
-		$searches_table->insert_row(\%data);	
-	}
 }
 
 

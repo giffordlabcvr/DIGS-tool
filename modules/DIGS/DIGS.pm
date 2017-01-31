@@ -2179,11 +2179,6 @@ sub initialise {
 	my $loader_obj = ScreenBuilder->new($self);
 	$loader_obj->parse_control_file($ctl_file, $self, $option);
 
-	# Update numthreads setting in BLAST object
-	my $num_threads = $loader_obj->{num_threads};
-	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$self->{blast_obj}->{num_threads} = $num_threads;
-
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
 }
@@ -2768,10 +2763,17 @@ sub run_tests {
 
 	# Display current settings	
 	print "\n\n\t\t Running tests from 'test' directory: ";
+	my $db_ref = $self->{db};
+
 
 	# Create the 'digs_test' database
+	$db_ref->create_screening_db('digs_test_screen');
+
+	# Read the control file for the test run
+	$self->initialise('./tests/test_artificial_1.ctl', '2');
 
 	# Do a DIGS run against synthetic data (included in repo)
+	
 
 	# Do a DIGS reassign for synthetic data
 
