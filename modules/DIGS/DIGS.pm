@@ -2762,24 +2762,19 @@ sub run_tests {
 	my ($self) = @_;
 
 	# Display current settings	
-	print "\n\n\t\t Running tests from 'test' directory: ";
-	my $db_ref = $self->{db};
+	print "\n\n\t  Running DIGS tests\n";
 
-
-	# Create the 'digs_test' database
-	$db_ref->create_screening_db('digs_test_screen');
-
-	# Read the control file for the test run
-	$self->initialise('./tests/test_artificial_1.ctl', '2');
-
-	# Do a DIGS run against synthetic data (included in repo)
-	
+	# Do a live screen using test control file and synthetic target data
+	print "\n\t  Running live screen against synthetic data: ";
+	$self->run_live_screen_test();
 
 	# Do a DIGS reassign for synthetic data
-
+	
+	
 	# Upload test data to the 'digs_test' database
 	my $test_results_path;
 	my $test_searches_path;
+	my $db_ref = $self->{db};
 	$db_ref->upload_data_to_digs_results($test_results_path);
 	$db_ref->upload_data_to_digs_results($test_searches_path);
 	
@@ -2788,6 +2783,29 @@ sub run_tests {
 	# Check that consolidate gives expected result
 		
 }		
+
+#***************************************************************************
+# Subroutine:  run_live_screen_test
+# Description:  
+#***************************************************************************
+sub run_live_screen_test {
+
+	my ($self) = @_;
+
+	# Read the control file for the test run
+	my $test_ctl_file = './test/test_artificial_1.ctl';
+	$self->initialise($test_ctl_file, '2');
+
+	# Load the 'digs_test' database
+	$self->load_screening_db($test_ctl_file);
+
+	# Do a DIGS run against synthetic data (included in repo)
+	$self->setup_digs();
+	$self->perform_digs();
+
+	
+
+}
 
 #***************************************************************************
 # Subroutine:  show_translations
