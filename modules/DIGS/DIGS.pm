@@ -145,18 +145,13 @@ sub perform_digs {
 
 	my ($self, $mode) = @_;
 
-	# Get relevant member variables and objects
-	my $queries_ref = $self->{queries};
-	my $loader_obj  = $self->{loader_obj};
-	unless ($queries_ref and $loader_obj) { die; }  # Sanity checking
-
-	# Iterate through and excute screens
-	print "\n\t  Starting database-integrated genome screening\n";
-	my @probes = keys %$queries_ref;
-
+	# Iterate through the list of DIGS queries, dealing each in turn 
+	# Each DIGS query constitutes a probe sequence and a target FASTA file
 	my $completed = 0;
-	my %crossmatching;
-	$self->{crossmatching} = \%crossmatching;
+	my $queries_ref = $self->{queries};
+	unless ($queries_ref) { die; }   # Sanity checking
+	my @probes = keys %$queries_ref; # Get the list of queries
+	print "\n\t  Starting database-integrated genome screening";
 	foreach my $probe_name (@probes) {
 		
 		# Get the array of queries for this target file
@@ -168,7 +163,7 @@ sub perform_digs {
 			$self->{completed} = $completed;
 
 			# Do the 1st BLAST (probe vs target)
-			$self->search($query_ref);
+			$self->search_target_using_blast($query_ref);
 		
 			# Compress DB
 			my @new_hits;
@@ -178,28 +173,9 @@ sub perform_digs {
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
 			$self->extract($target_path, \@new_hits, \@extracted);	
-	
+			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			my $assigned_count   = 0;
-			my $crossmatch_count = 0;
-			foreach my $hit_ref (@extracted) { # Iterate through the matches
-				# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-				my $assigned = $self->do_blast_genotyping($hit_ref);
-				if ($assigned) { $assigned_count++; }
-				# Get the unique key for this probe
-				my $probe_name  = $query_ref->{probe_name};
-				my $probe_gene  = $query_ref->{probe_gene};
-				my $probe_key = $probe_name . '_' . $probe_gene; 		
-				# Record cross-matching
-				if ($probe_key ne $assigned) {
-					$crossmatch_count++;
-					$self->update_cross_matching($probe_key, $assigned);
-				}
-			}	
-			if ($assigned_count > 0) {
-				print "\n\t\t # $assigned_count extracted sequences matched to reference library";
-				print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-			}
+			$self->classify_using_blast(\@extracted, $query_ref);
 			
 			# Update DB
 			$self->update_db(\@extracted, 'digs_results_table');
@@ -209,16 +185,8 @@ sub perform_digs {
 		}	
 	}
 	
-	# Cleanup
-	my $output_dir = $loader_obj->{report_dir};
-	my $command1 = "rm -rf $output_dir";
-	system $command1;
-
-	# Show cross matching at end if verbose output setting is on
-	if ($verbose) { $self->show_cross_matching(); }
-
-	# Print finished message
-	print "\n\n\t ### SCREEN COMPLETE ~ + ~ + ~";
+	# Show final summary and exit message
+	$self->wrap_up();
 }
 
 #***************************************************************************
@@ -245,15 +213,13 @@ sub reassign {
 	foreach my $hit_ref (@$extracted_seqs_ref) {
 
 		# Set the linking to the BLAST result table
-		my $record_id  = $hit_ref->{record_id};
-		
+		my $record_id       = $hit_ref->{record_id};	
 		my $extract_start   = $hit_ref->{extract_start};
 		my $extract_end     = $hit_ref->{extract_end};
 		$hit_ref->{subject_start} = $extract_start;
 		$hit_ref->{subject_end}   = $extract_end;
 		delete $hit_ref->{extract_start};
 		delete $hit_ref->{extract_end};
-	
 		$hit_ref->{organism} = $hit_ref->{organism} ;
 	
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
@@ -264,9 +230,7 @@ sub reassign {
 		$self->do_blast_genotyping($hit_ref);
 		
 		$count++;
-		if (($count % 100) eq 0) {
-			print "\n\t  Checked $count rows";
-		}
+		if (($count % 100) eq 0) { print "\n\t  Checked $count rows"; }
 
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
@@ -649,10 +613,10 @@ sub create_standard_locus_ids {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  search
+# Subroutine:  search_target_using_blast
 # Description: execute a similarity search and parse the results
 #***************************************************************************
-sub search {
+sub search_target_using_blast {
 	
 	my ($self, $query_ref) = @_;
 
@@ -787,40 +751,27 @@ sub compress_active_set {
 	# Get new BLAST results & previously extracted loci in a sorted list
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
+	my $total_hits = scalar @combined;
+	if ($total_hits > 0) {
+		print "\n\t\t # $total_hits new hits & previously extracted loci ";
+	}
 
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	my %settings;
 	my %defragmented;
 	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
-	$self->compress(\%settings, \%defragmented, \@combined, $to_extract_ref);
-}
-
-#***************************************************************************
-# Subroutine:  compress
-# Description: apply clustering and merging of loci
-#***************************************************************************
-sub compress {
-
-	my ($self, $settings_ref, $defragmented_ref, $combined_ref, $to_extract_ref) = @_;
-
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	my $total_hits = scalar @$combined_ref;
-	if ($total_hits > 0) {
-		print "\n\t\t # $total_hits new hits & previously extracted loci ";
-	}
-
-	# Compose clusters of related sequences
-	$self->compose_clusters($defragmented_ref, $combined_ref, $settings_ref);
-	my @cluster_ids  = keys %$defragmented_ref;
-	my $num_clusters = scalar @$combined_ref;
+	$self->compose_clusters(\%defragmented, \@combined, \%settings);
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @combined;
 	if ($total_hits > $num_clusters) {
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 
 	# Determine what to extract, and extract it
-	# DEBUG $self->show_clusters($defragmented_ref);  # Show clusters
-	$self->merge_clustered_loci($defragmented_ref, $to_extract_ref);
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
@@ -886,6 +837,42 @@ sub extract {
 		}
 	}	
 	return $new_hits;
+}
+
+#***************************************************************************
+# Subroutine:  classify_using_blast
+# Description: classify a sequence by blast comparison to the reference library
+#***************************************************************************
+sub classify_using_blast {
+
+	my ($self, $extracted_ref, $query_ref) = @_;
+
+	#$devtools->print_array($extracted_ref); die;
+
+	my $assigned_count   = 0;
+	my $crossmatch_count = 0;
+	unless ($query_ref) { die; }
+	foreach my $hit_ref (@$extracted_ref) { # Iterate through the matches
+
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
+		my $assigned = $self->do_blast_genotyping($hit_ref);
+		if ($assigned) { $assigned_count++; }
+
+		# Get the unique key for this probe
+		my $probe_name  = $query_ref->{probe_name};
+		my $probe_gene  = $query_ref->{probe_gene};
+		my $probe_key = $probe_name . '_' . $probe_gene; 		
+
+		# Record cross-matching
+		if ($probe_key ne $assigned) {
+			$crossmatch_count++;
+			$self->update_cross_matching($probe_key, $assigned);
+		}
+	}
+	if ($assigned_count > 0) {
+		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
+		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+	}
 }
 
 #***************************************************************************
@@ -1109,6 +1096,29 @@ sub set_redundancy {
 	}
 
 	return $where;
+}
+
+#***************************************************************************
+# Subroutine:  wrap_up
+# Description: compose SQL WHERE statement based on redundancy settings
+#***************************************************************************
+sub  wrap_up {
+
+	my ($self) = @_;
+
+	my $loader_obj  = $self->{loader_obj};
+	
+	# Cleanup
+	my $output_dir = $loader_obj->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
+
+	# Show cross matching at end if verbose output setting is on
+	if ($verbose) { $self->show_cross_matching(); }
+
+	# Print finished message
+	print "\n\n\t ### SCREEN COMPLETE ~ + ~ + ~";
+
 }
 
 ############################################################################
@@ -2181,6 +2191,10 @@ sub initialise {
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
+	
+	# Set up hash for recording cross_matching during DIGS
+	my %crossmatching;
+	$self->{crossmatching} = \%crossmatching;
 }
 
 #***************************************************************************
@@ -2761,12 +2775,15 @@ sub run_tests {
 
 	my ($self) = @_;
 
+ 	# Show title
+	$self->show_title();  
+
 	# Display current settings	
 	print "\n\n\t  Running DIGS tests\n";
 
 	# Do a live screen using test control file and synthetic target data
-	print "\n\t  Running live screen against synthetic data: ";
 	$self->run_live_screen_test();
+	exit;
 
 	# Do a DIGS reassign for synthetic data
 	
@@ -2792,8 +2809,10 @@ sub run_live_screen_test {
 
 	my ($self) = @_;
 
+	print "\n\t  Running live screen against synthetic data\n";
+
 	# Read the control file for the test run
-	my $test_ctl_file = './test/test_artificial_1.ctl';
+	my $test_ctl_file = './test/test1_erv_na.ctl';
 	$self->initialise($test_ctl_file, '2');
 
 	# Load the 'digs_test' database
@@ -2803,7 +2822,7 @@ sub run_live_screen_test {
 	$self->setup_digs();
 	$self->perform_digs();
 
-	
+	my $db_ref = $self->{db};
 
 }
 
