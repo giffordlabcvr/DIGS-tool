@@ -98,8 +98,8 @@ sub run_digs_process {
 		$target_db_obj->format_targets_for_blast();
 	}
 	else {
-	
-		# Initialise (an infile must be defined)
+		
+		# Initialise (an control file argument must be defined)
 		unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
 		$self->initialise($ctl_file, $option);
 	
@@ -165,7 +165,7 @@ sub perform_digs {
 			# Do the 1st BLAST (probe vs target)
 			$self->search_target_using_blast($query_ref);
 		
-			# Compress DB
+			# For this target, create a non-redundant locus set
 			my @new_hits;
 			$self->compile_nonredundant_locus_set($query_ref, \@new_hits);
 
@@ -753,17 +753,28 @@ sub compile_nonredundant_locus_set {
 	
 	my ($self, $query_ref, $to_extract_ref) = @_;
 
-	# Create the relevant set of previously extracted loci
-	my @loci;
-	my $where = $self->set_redundancy($query_ref);
+	# Compose SQL WHERE statement to retrieve relevant set of loci
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{organism};
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
+		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
+		$where .= " AND assigned_gene = '$probe_gene' ";
+	}
+
+	# Get the relevant set of DIGS results
+	my @digs_results;
 	$self->get_sorted_digs_results(\@loci, $where);
-	my $num_loci = scalar @loci;
+	my $num_loci = scalar @digs_results;
 	print "\n\t\t # $num_loci previously extracted loci";
 		
-	# Add relevant set of  previously extracted loci to the active set of BLAST results
-	$self->create_combined_active_set(\@loci);
+	# Add the digs results to the BLAST hits in the active_set table
+	$self->add_digs_results_to_active_set(\@digs_results);
 
-	# Get new BLAST results & previously extracted loci in a sorted list
+	# Get sorted list of digs results and BLAST hits from active_set table
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
 	my $total_hits = scalar @combined;
@@ -771,21 +782,21 @@ sub compile_nonredundant_locus_set {
 		print "\n\t\t # $total_hits new hits & previously extracted loci ";
 	}
 
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	# Compose clusters of overlapping/adjacent loci
 	my %settings;
 	my %defragmented;
 	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
 	$self->compose_clusters(\%defragmented, \@combined, \%settings);
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
 	my @cluster_ids  = keys %defragmented;
 	my $num_clusters = scalar @combined;
 	if ($total_hits > $num_clusters) {
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 
-	# Determine what to extract, and extract it
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	# Get a resolved list of non-redundant, non-overlapping loci to extract
 	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
 	if ($num_new){
@@ -1078,39 +1089,6 @@ sub show_digs_progress {
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
 	#print "\n\t\t  ";
 	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
-}
-
-#***************************************************************************
-# Subroutine:  set_redundancy
-# Description: compose SQL WHERE statement based on redundancy settings
-#***************************************************************************
-sub set_redundancy {
-	
-	my ($self, $query_ref) = @_;
-	
-	# Get query details
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $target_datatype = $query_ref->{target_datatype};
-
-	# Compose the WHERE statement based on redundancy settings
-	my $redundancy_mode = $self->{redundancy_mode};
-	unless ($redundancy_mode) { die; } 
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
-		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
-		$where .= " AND assigned_gene = '$probe_gene' ";
-	}
-	if ($redundancy_mode eq 3) {
-		# Mode 3, select all rows with same value for 'assigned_name' and 'assigned_gene'
-		$where .= " AND assigned_name = '$probe_name' ";
-	}
-
-	return $where;
 }
 
 #***************************************************************************
@@ -1735,10 +1713,10 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  create_combined_active_set 
+# Subroutine:  add_digs_results_to_active_set 
 # Description: get all extracted loci for this target file (& probe)
 #***************************************************************************
-sub create_combined_active_set {
+sub add_digs_results_to_active_set {
 	
 	my ($self, $data_ref) = @_;;
 
