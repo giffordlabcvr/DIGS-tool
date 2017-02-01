@@ -352,7 +352,6 @@ sub load_nomenclature_chains_table {
 	$self->{nomenclature_chains_table} = $chains_table;
 }
 
-
 #***************************************************************************
 # Subroutine:  load_nomenclature_table
 # Description: load screening database table 'nomenclature'
@@ -381,7 +380,6 @@ sub load_nomenclature_table {
 	$self->{nomenclature_table} = $nomenclature_table;
 }
 
-
 ############################################################################
 # CREATE SCREENING DATABASE TABLES
 ############################################################################
@@ -400,7 +398,7 @@ sub create_screening_db {
 	my $password = $self->{password};
 
 	# CREATE THE DB 
-	print "\n\t ### Creating '$db_name' screening database\n";
+	print "\n\t ### Creating '$db_name' screening database\n\n";
     my $drh = DBI->install_driver("mysql");
     my $rc = $drh->func("createdb", $db_name, $server, $username, $password, 'admin');
     my $dbh = DBI->connect("dbi:mysql:$db_name:$server", $username, $password);
@@ -741,31 +739,23 @@ sub drop_screening_db {
 sub flush_screening_db {
 
 	my ($self) = @_;
-	
-	# Ask to make sure
-	my $db_name = $self->{db_name};
-	my $question = "\n\n\t Are you sure you want to flush data in the $db_name database?";
-	my $answer1 = $console->ask_yes_no_question($question);
-	if ($answer1 eq 'y') {
-		#sleep 3;
 
-		# get tables
-		my $active_set_table   = $self->{active_set_table};
-		my $digs_results_table = $self->{digs_results_table};
-		my $searches_table     = $self->{searches_table};
-		my $blast_chains_table = $self->{blast_chains_table};
+	# Get tables
+	my $active_set_table   = $self->{active_set_table};
+	my $digs_results_table = $self->{digs_results_table};
+	my $searches_table     = $self->{searches_table};
+	my $blast_chains_table = $self->{blast_chains_table};
 		
-		# Flush result tables
-		$active_set_table->flush();
-		$active_set_table->reset_primary_keys();
-		$digs_results_table->flush();
-		$digs_results_table->reset_primary_keys();
-		$searches_table->flush();
-		$searches_table->reset_primary_keys();
-		$blast_chains_table->flush();
-		$blast_chains_table->reset_primary_keys();
+	# Flush result tables
+	$active_set_table->flush();
+	$active_set_table->reset_primary_keys();
+	$digs_results_table->flush();
+	$digs_results_table->reset_primary_keys();
+	$searches_table->flush();
+	$searches_table->reset_primary_keys();
+	$blast_chains_table->flush();
+	$blast_chains_table->reset_primary_keys();
 
-	}
 }
 
 ############################################################################
@@ -1152,7 +1142,6 @@ sub upload_data_to_searches_performed {
 	}
 }
 
-
 #***************************************************************************
 # Subroutine:  upload_data_to_digs_results
 # Description:  
@@ -1200,7 +1189,6 @@ sub upload_data_to_digs_results {
 		$digs_results_table->insert_row(\%data);	
 	}	
 }
-
 
 ############################################################################
 # EOF

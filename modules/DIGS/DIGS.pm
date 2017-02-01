@@ -151,7 +151,7 @@ sub perform_digs {
 	my $queries_ref = $self->{queries};
 	unless ($queries_ref) { die; }   # Sanity checking
 	my @probes = keys %$queries_ref; # Get the list of queries
-	print "\n\t  Starting database-integrated genome screening";
+	print "\n\t ### Starting database-integrated genome screening";
 	foreach my $probe_name (@probes) {
 		
 		# Get the array of queries for this target file
@@ -760,14 +760,10 @@ sub compile_nonredundant_locus_set {
 	my $probe_gene      = $query_ref->{probe_gene};
 	my $where  = " WHERE organism = '$organism' ";
 	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	if ($redundancy_mode eq 2 or $redundancy_mode eq 3) {
-		# Mode 2 & 3, select all Extracted table rows with same value for 'assigned_gene'
-		$where .= " AND assigned_gene = '$probe_gene' ";
-	}
 
 	# Get the relevant set of DIGS results
 	my @digs_results;
-	$self->get_sorted_digs_results(\@loci, $where);
+	$self->get_sorted_digs_results(\@digs_results, $where);
 	my $num_loci = scalar @digs_results;
 	print "\n\t\t # $num_loci previously extracted loci";
 		
@@ -805,10 +801,10 @@ sub compile_nonredundant_locus_set {
 }
 
 #***************************************************************************
-# Subroutine:  extract_sequences
+# Subroutine:  extract_locus_sequences
 # Description: extract sequences from target databases
 #***************************************************************************
-sub extract {
+sub extract_locus_sequences {
 
 	my ($self, $target_path, $hits_ref, $extracted_ref) = @_;
 
@@ -1095,7 +1091,7 @@ sub show_digs_progress {
 # Subroutine:  wrap_up
 # Description: compose SQL WHERE statement based on redundancy settings
 #***************************************************************************
-sub  wrap_up {
+sub wrap_up {
 
 	my ($self) = @_;
 
@@ -1110,7 +1106,7 @@ sub  wrap_up {
 	if ($verbose) { $self->show_cross_matching(); }
 
 	# Print finished message
-	print "\n\n\t ### SCREEN COMPLETE ~ + ~ + ~";
+	print "\n\n\t ### DIGS process completed ~ + ~ + ~";
 
 }
 
@@ -2398,7 +2394,10 @@ sub run_utility_process {
 	}
 	elsif ($option eq 2) { # Flush screening DB
 		my $db = $self->{db};
-		$db->flush_screening_db();
+		my $db_name = $db->{db_name};
+		my $question = "\n\n\t Are you sure you want to flush data in the $db_name database?";
+		my $answer1 = $console->ask_yes_no_question($question); # Ask to make sure
+		if ($answer1 eq 'y') { $db->flush_screening_db(); }
 	}
 	elsif ($option eq 3) { # Drop screening DB 
 		my $db = $self->{db};
@@ -2772,7 +2771,7 @@ sub run_tests {
 	$self->show_title();  
 
 	# Display current settings	
-	print "\n\n\t  Running DIGS tests\n";
+	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
 	$self->run_live_screen_test();
@@ -2780,18 +2779,12 @@ sub run_tests {
 
 	# Do a DIGS reassign for synthetic data
 	
-	
 	# Upload test data to the 'digs_test' database
 	my $test_results_path;
 	my $test_searches_path;
 	my $db_ref = $self->{db};
 	$db_ref->upload_data_to_digs_results($test_results_path);
-	$db_ref->upload_data_to_digs_results($test_searches_path);
-	
-	# Check that defragment gives expected result
-	
-	# Check that consolidate gives expected result
-		
+	$db_ref->upload_data_to_digs_results($test_searches_path);		
 }		
 
 #***************************************************************************
@@ -2810,12 +2803,42 @@ sub run_live_screen_test {
 
 	# Load the 'digs_test' database
 	$self->load_screening_db($test_ctl_file);
+	my $db = $self->{db}; # Get the database reference
+	$db->flush_screening_db();
 
 	# Do a DIGS run against synthetic data (included in repo)
 	$self->setup_digs();
 	$self->perform_digs();
 
-	my $db_ref = $self->{db};
+	# Check that we got expected result
+	# For this test it is two hits
+	# Hit 1: start KoRV, LTR: 200   end 703   in -ve orientation 
+	# Hit 2: start KoRV, LTR: 10967 end 11470 in -ve orientation 
+	my $results_table = $db->{digs_results_table};
+	my @data;
+	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
+	my $sort = " ORDER BY scaffold, extract_start ";
+	$results_table->select_rows(\@fields, \@data, $sort);
+	my $result1_ref = shift @data;		
+	my $result2_ref = shift @data;
+	my $correct_result = 1;
+	unless ($result1_ref->{assigned_gene} eq 'LTR'
+	   and  $result2_ref->{assigned_gene} eq 'LTR')  { $correct_result = undef; }
+	unless ($result1_ref->{assigned_name} eq 'Korv'
+	   and  $result2_ref->{assigned_name} eq 'Korv') { $correct_result = undef; }
+	unless ($result1_ref->{extract_start} eq 200
+	   and  $result2_ref->{extract_start} eq 10967)  { $correct_result = undef; }
+	unless ($result1_ref->{extract_end}   eq 703
+	   and  $result2_ref->{extract_end}   eq 11470)  { $correct_result = undef; }
+	if ($correct_result)  { print "\n\n\t  Live screen test PASSED\n\n" }
+	else                  { die   "\n\n\t  Live screen test FAILED\n\n" }
+	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
+	
+
+	# Check that defragment gives expected result
+	
+	# Check that consolidate gives expected result
+
 
 }
 
