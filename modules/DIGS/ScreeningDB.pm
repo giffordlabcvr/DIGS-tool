@@ -874,7 +874,6 @@ sub backup_digs_results_table {
 		unless ($exists) { $is_unique = 'true'; }
 	} until ($is_unique);
 	
-	print "\n\t Copying DIGS results to $copy_name";
 	my $copy_sql_1 = "CREATE TABLE $copy_name LIKE digs_results;";
 	my $copy_sql_2 = "INSERT $copy_name SELECT * FROM digs_results";
     my $dbh = $self->{dbh};

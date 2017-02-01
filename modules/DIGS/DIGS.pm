@@ -335,24 +335,33 @@ sub interactive_defragment {
 	
 	if ($choice eq 2) { # Apply the changes
 
+
 		# Create a backup of the current digs_results
 		my $copy_name = $db->backup_digs_results_table();
+		print "\n\t # Defragmenting using range '$t_range' in table '$copy_name'\n";
+		#print "\n\n\t # Copied DIGS results to $copy_name\n";
 		my $dbh = $db->{dbh};
-		$db->load_digs_results_table($dbh, $copy_name);
-		#$devtools->print_hash($db); exit;		
-		
+		$db->load_digs_results_table($dbh, $copy_name);	
+			
 		foreach my $target_ref (@targets) {
 
+			# Create a unique key for this genome
 			my $organism        = $target_ref->{organism};
 			my $target_name     = $target_ref->{target_name};
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
-
-			# Create a unique key for this genome
 			my @genome = ( $organism , $target_datatype, $target_version );
-			my $target_id = join ('|', @genome);
+			my $target_id       = join ('|', @genome);
 			my $target_group    = $target_group_ref->{$target_id};
+			print "\n\t\t # Defragmenting hits in '$target_name'";
 
+			# Construct WHERE statement
+			my $where  = " WHERE organism      = '$organism' ";
+			$where    .= " AND target_datatype = '$target_datatype' ";
+			$where    .= " AND target_version  = '$target_version' ";
+			$where    .= " AND target_name     = '$target_name' "; 
+
+			# Construct the path to this target file
 			my @path;
 			push (@path, $genome_use_path);
 			push (@path, $target_group);
@@ -361,62 +370,12 @@ sub interactive_defragment {
 			push (@path, $target_version);
 			push (@path, $target_name);
 			my $target_path = join ('/', @path);
-		
-			# Create the relevant set of previously extracted loci
-			my @combined;
-			my $where  = " WHERE organism      = '$organism' ";
-			$where    .= " AND target_datatype = '$target_datatype' ";
-			$where    .= " AND target_version  = '$target_version' ";
-			$where    .= " AND target_name     = '$target_name' "; 
 
-			$self->get_sorted_digs_results(\@combined, $where);
-			my $num_hits = scalar @combined;
-		
-			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 			my %settings;
-			my %target_defragmented;
 			$settings{range} = $t_range;
 			$settings{start} = 'extract_start';
 			$settings{end}   = 'extract_end';
-			$self->compose_clusters(\%target_defragmented, \@combined, \%settings);
-			#$self->show_clusters(\%defragmented);  # Show clusters
-		
-			
-			# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-			my %defragmented;
-			$self->compose_clusters(\%defragmented, \@combined, \%settings);
-			my @cluster_ids  = keys %defragmented;
-			my $num_clusters = scalar @combined;
-			#if ($total_hits > $num_clusters) {
-			#	print "...compressed to $num_clusters overlapping/contiguous clusters";
-			#}
-
-			# Determine what to extract, and extract it
-			# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-			my @loci;
-			$self->merge_clustered_loci(\%defragmented, \@loci);
-			my $num_new = scalar @loci;
-			if ($num_new){
-				print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
-			}
-		
-			# Extract newly identified or extended sequences
-			my @extracted;
-			$self->extract_locus_sequences($target_path, \@loci, \@extracted);	
-			#$devtools->print_array(\@extracted); die;
-				
-			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			my $assigned_count   = 0;
-			my $crossmatch_count = 0;
-			foreach my $hit_ref (@extracted) { # Iterate through the matches
-				# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-				my $assigned = $self->do_blast_genotyping($hit_ref);
-				if ($assigned) { $assigned_count++; }
-			}
-			
-			# Update DB
-			my $copy_table_name = $copy_name . '_table';
-			$self->update_db(\@extracted, $copy_table_name);
+			$self->defragment_target(\%settings, $where, $target_path, $copy_name);
 		}
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
@@ -798,6 +757,62 @@ sub compile_nonredundant_locus_set {
 	if ($num_new){
 		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
 	}	
+}
+
+#***************************************************************************
+# Subroutine:  defragment_target 
+# Description: 
+#***************************************************************************
+sub defragment_target {
+
+	my ($self, $settings_ref, $where, $target_path, $copy_name) = @_;
+
+	# Create the relevant set of previously extracted loci
+	my @combined;
+	my %target_defragmented;
+	$self->get_sorted_digs_results(\@combined, $where);
+	my $num_hits = scalar @combined;
+		
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
+	my @cluster_ids  = keys %target_defragmented;
+	my $num_clusters = scalar @combined;
+	if ($num_clusters < $num_hits) {
+		print "...compressed to $num_clusters overlapping/contiguous clusters";
+		# DEBUG 
+		$self->show_clusters(\%target_defragmented);  # Show clusters
+	}
+
+	# Determine what to extract, and extract it
+	my @loci;
+	$self->merge_clustered_loci(\%target_defragmented, \@loci);
+	my $num_new = scalar @loci;
+	if ($num_new){
+		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+	}
+		
+	# Extract newly identified or extended sequences
+	my @extracted;
+	$self->extract_locus_sequences($target_path, \@loci, \@extracted);	
+	#$devtools->print_array(\@extracted); die;
+				
+	# Do the genotyping step for the newly extracted locus sequences
+	my $assigned_count   = 0;
+	my $crossmatch_count = 0;
+	print "\n\t\t # Genotyping newly extracted sequences:";
+	foreach my $hit_ref (@extracted) { # Iterate through loci		
+		my $assigned  = $self->do_blast_genotyping($hit_ref);
+		if ($assigned) { $assigned_count++; }
+		my $remainder = $assigned_count % 100;
+		if ($remainder eq 0) {
+			print "\n\t\t\t # Done $assigned_count";
+		}
+	}
+	print "\n\t\t\t # Done $assigned_count\n";
+	
+	# Update DB
+	my $copy_table_name = $copy_name . '_table';
+	$self->update_db(\@extracted, $copy_table_name);
 }
 
 #***************************************************************************
@@ -2795,7 +2810,7 @@ sub run_live_screen_test {
 
 	my ($self) = @_;
 
-	print "\n\t  Running live screen against synthetic data\n";
+	print "\n\t ### TEST 1: Running live screen against synthetic data ~ + ~ + ~ \n\n";
 
 	# Read the control file for the test run
 	my $test_ctl_file = './test/test1_erv_na.ctl';
@@ -2830,14 +2845,15 @@ sub run_live_screen_test {
 	   and  $result2_ref->{extract_start} eq 10967)  { $correct_result = undef; }
 	unless ($result1_ref->{extract_end}   eq 703
 	   and  $result2_ref->{extract_end}   eq 11470)  { $correct_result = undef; }
-	if ($correct_result)  { print "\n\n\t  Live screen test PASSED\n\n" }
-	else                  { die   "\n\n\t  Live screen test FAILED\n\n" }
+	if ($correct_result)  { print "\n\n\t  Live screen test PASSED\n" }
+	else                  { die   "\n\n\t  Live screen test FAILED\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
-	
 
-	# Check that defragment gives expected result
-	
+	# Check that defragment gives expected result	
+	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n\n";
+
 	# Check that consolidate gives expected result
+	print "\n\t ### TEST 3: Try to defragment results (should not work) ~ + ~ + ~ \n\n";
 
 
 }
