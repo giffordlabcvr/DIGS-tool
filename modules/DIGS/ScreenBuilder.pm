@@ -77,9 +77,6 @@ sub new {
 sub setup_screen  {
 	
 	my ($self, $pipeline_obj, $queries_ref) = @_;
-
-	# Create the output directories
-	$self->create_output_directories($pipeline_obj);
 	
 	# Create log file
 	my $report_dir = $self->{report_dir};
@@ -178,7 +175,6 @@ sub parse_control_file {
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
 	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
 	# Set numthreads in the BLAST object 
 	my $num_threads = $self->{num_threads};
@@ -201,17 +197,21 @@ sub parse_control_file {
 		$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
 		$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
 		$pipeline_obj->{genome_structure}      = $self->{genome_structure};
+	}
 
-		# Set the bit score minimum
-		if ($self->{bitscore_min_tblastn}) {
-			$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
-		}
-		elsif ($self->{bitscore_min_blastn}) {
-			$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
-		}
-		else {
-			die;
-		}
+	# Set the thresholds for filtering results
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+
+	# Set the bit score minimum for a tBLASTn screen
+	if ($self->{bitscore_min_tblastn}) {
+		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+	}
+	# Set the bit score minimum for a BLASTn screen
+	elsif ($self->{bitscore_min_blastn}) {
+		$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
+	}
+	else {
+		die "\n\t No bit score minimum is defined\n\n";
 	}
 
 }

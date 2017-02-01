@@ -600,7 +600,12 @@ sub search_target_using_blast {
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
-
+	unless ($min_length) { die; }
+	unless ($min_score)  { 
+		$devtools->print_hash($self); die;
+		die; 
+	}
+	
 	# Sanity checking
 	unless ($blast_obj)       { die; } 
 	unless ($tmp_path)        { die; } 
@@ -665,7 +670,8 @@ sub search_target_using_blast {
 		}
 
 		# Apply bitscore cutoff
-		if ($min_score) { # Skip sequences that have too low bit scores
+		if ($min_score) { 
+			# Skip sequences that have too low bit scores
 			my $query_score = $hit_ref->{bitscore};
 			if ($query_score < $min_score) {  
 				$skip = 'true';
@@ -766,7 +772,7 @@ sub compile_nonredundant_locus_set {
 #***************************************************************************
 sub defragment_target {
 
-	my ($self, $settings_ref, $where, $target_path, $copy_name) = @_;
+	my ($self, $settings_ref, $where, $target_path, $copy_name, $flag) = @_;
 
 	# Create the relevant set of previously extracted loci
 	my @combined;
@@ -779,23 +785,19 @@ sub defragment_target {
 	my @cluster_ids  = keys %target_defragmented;
 	my $num_clusters = scalar @combined;
 	if ($num_clusters < $num_hits) {
-		print "...compressed to $num_clusters overlapping/contiguous clusters";
-		# DEBUG 
 		$self->show_clusters(\%target_defragmented);  # Show clusters
+		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 
 	# Determine what to extract, and extract it
 	my @loci;
-	$self->merge_clustered_loci(\%target_defragmented, \@loci);
+	$self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
 	my $num_new = scalar @loci;
-	if ($num_new){
-		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
-	}
+	if ($num_new) { print "\n\t\t # $num_new loci to extract after defragment "; }
 		
 	# Extract newly identified or extended sequences
 	my @extracted;
 	$self->extract_locus_sequences($target_path, \@loci, \@extracted);	
-	#$devtools->print_array(\@extracted); die;
 				
 	# Do the genotyping step for the newly extracted locus sequences
 	my $assigned_count   = 0;
@@ -908,7 +910,7 @@ sub classify_using_blast {
 		}
 	}
 	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences matched to reference library";
+		print "\n\t\t # $assigned_count extracted sequences classified";
 		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
 	}
 }
@@ -1111,10 +1113,8 @@ sub wrap_up {
 
 	my ($self) = @_;
 
-	my $loader_obj  = $self->{loader_obj};
-	
 	# Remove the output directory
-	my $output_dir = $loader_obj->{report_dir};
+	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
 
@@ -1354,7 +1354,7 @@ sub extend_cluster {
 #***************************************************************************
 sub merge_clustered_loci {
 	
-	my ($self, $defragmented_ref, $to_extract_ref) = @_;
+	my ($self, $defragmented_ref, $to_extract_ref, $flag) = @_;
 
 	#$devtools->print_hash($defragmented_ref); die;
 
@@ -1362,136 +1362,144 @@ sub merge_clustered_loci {
 	my $db_ref           = $self->{db};
 	my $searches_table   = $db_ref->{searches_table};
 	my $active_set_table = $db_ref->{active_set_table};	
-
-	my $extend_count = '0';
-	my @cluster_ids = keys %$defragmented_ref;
-	foreach my $cluster_id (@cluster_ids) {
+	my $extend_count     = '0';
+	my @cluster_ids      = keys %$defragmented_ref;
+	foreach my $id (@cluster_ids) {
 
 		# Get data for this cluster
-		my $cluster_ref = $defragmented_ref->{$cluster_id};
+		my $cluster_ref = $defragmented_ref->{$id};
 		unless ($cluster_ref) { die; }
-		
-		# Determine what to extract for this cluster
-		my %new_blast_chains;
-		my %previous_digs_result_ids;
-		my $highest_end   = undef;
-		my $lowest_start  = undef;
-		my $previous_digs_result_id = undef;
-		my $target_name;		
-		my $version;
-		my $target_datatype;		
-		my $scaffold;			
-		my $orientation;
-		my $organism;
-		my $probe_type;
-		foreach my $hit_ref (@$cluster_ref) {
-					
-			my $record_id    = $hit_ref->{record_id};					
-			my $digs_result_id   = $hit_ref->{digs_result_id};					
-			my $start        = $hit_ref->{extract_start};			
-			my $end          = $hit_ref->{extract_end};
-			unless ($start) {
-		        $start = $hit_ref->{subject_start};
-		    }
-			unless ($end) {
-		        $end   = $hit_ref->{subject_end};
-		    }
-
-			$target_name     = $hit_ref->{target_name};					
-			$target_datatype = $hit_ref->{target_datatype};			
-			$version         = $hit_ref->{target_version};
-			$scaffold        = $hit_ref->{scaffold};			
-			$orientation     = $hit_ref->{orientation};
-			$organism        = $hit_ref->{organism};
-			unless ($organism) {
-		        $organism = $hit_ref->{organism};
-		    }
-			$probe_type      = $hit_ref->{probe_type};
-			#print "\n\t\t : $organism $target_name $scaffold $orientation $start";
-			unless ($target_name) {
-				$devtools->print_hash($hit_ref); die;
-			}
-							
-			# Check if this is a a previously extracted locus
-			if ($digs_result_id) {
-				if ($previous_digs_result_id) { # If this represents a merge of multiple extracted loci, record the ids
-					unless ($digs_result_id eq $previous_digs_result_id) {
-					}
-				}
-				$previous_digs_result_ids{$digs_result_id} = $hit_ref;
-				$previous_digs_result_id = $digs_result_id;		
-			}
-			# Store this BLAST result as part of a chain if it is new
-			else {
-				my %data = %$hit_ref;
-				$new_blast_chains{$record_id} = \%data; 				
-			}
-			
-			#print "\n\t\t RECORD ID:\t $scaffold $extract_start-$extract_end";
-			if ($lowest_start and $highest_end ) {		
-				if ($start > $lowest_start) { $lowest_start = $start; }
-				if ($end > $highest_end)    { $highest_end  = $end;   }
-			}
-			else {
-				$highest_end  = $end;
-				$lowest_start = $start;
-			}									
-		}
-
-		# Determine whether or not to extract
-		my $extract = undef;		
-
-		# Is this cluster composed entirely of new loci?
-		unless ($previous_digs_result_id) {
-			$extract = 'true';				
-		}
-		# Is this a merge of multiple previously extracted loci?
-		my @previous_digs_result_ids = keys %previous_digs_result_ids;
-		my $num_previously_extracted_loci_in_cluster = scalar @previous_digs_result_ids;
-		if ($num_previously_extracted_loci_in_cluster > 1) {
-			my $combined = join (',', @previous_digs_result_ids);
-			print "\n\t\t # Merging previously extracted loci: ($combined) ";
-			$extract = 'true';							
-		}
-		# If it includes a single extracted locus, does this locus need to be extended?
-		elsif ($previous_digs_result_id) {
-		
-			# get the indexed query 
-			my $data_ref = $previous_digs_result_ids{$previous_digs_result_id};
-			my $extract_start = $data_ref->{subject_start};
-			my $extract_end   = $data_ref->{subject_end};
-			unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
-				$extend_count++;
-				$extract = 'true';							
-				#print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
-			}			
-		}
-		if ($extract) {
-		
-			# Set the extract params for this cluster
-			my %extract;
-			$extract{digs_result_id}      = $previous_digs_result_id;
-			$extract{target_name}     = $target_name;
-			$extract{target_datatype} = $target_datatype;
-			$extract{target_version}  = $version;
-			$extract{organism} = $organism;
-			$extract{probe_type}      = $probe_type;
-			$extract{digs_result_id}      = $previous_digs_result_id;
-			$extract{target_name}     = $target_name;
-			$extract{scaffold}        = $scaffold;
-			$extract{start}           = $lowest_start;	
-			$extract{end}             = $highest_end;
-			$extract{orientation}     = $orientation;
-			$extract{digs_result_ids}   = \@previous_digs_result_ids;
-			my $num_chains = scalar keys %new_blast_chains;
-			if ($num_chains) {
-				$extract{blast_chains} = \%new_blast_chains;
-			}
-			push (@$to_extract_ref, \%extract);	
-		}
+		my $num_cluster_loci = scalar @$cluster_ref;
+		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref, $flag);
+		if ($extended) { $extend_count = $extend_count + $extended; }
 	}
 	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
+}
+
+#***************************************************************************
+# Subroutine:  merge_cluster
+# Description: 
+#***************************************************************************
+sub merge_cluster {
 	
+	my ($self, $cluster_id, $cluster_ref, $to_extract_ref, $flag) = @_;
+
+	# Determine what to extract for this cluster
+	my %new_blast_chains;
+	my %previous_digs_result_ids;
+	my $highest_end   = undef;
+	my $lowest_start  = undef;
+	my $previous_digs_result_id = undef;
+	my $target_name;		
+	my $version;
+	my $target_datatype;		
+	my $scaffold;
+	my $orientation;
+	my $organism;
+	my $probe_type;
+	my $extended;
+	foreach my $hit_ref (@$cluster_ref) {
+					
+		my $record_id      = $hit_ref->{record_id};					
+		my $digs_result_id = $hit_ref->{digs_result_id};					
+		my $start          = $hit_ref->{extract_start};			
+		my $end            = $hit_ref->{extract_end};
+		$target_name       = $hit_ref->{target_name};					
+		$target_datatype   = $hit_ref->{target_datatype};			
+		$version           = $hit_ref->{target_version};
+		$scaffold          = $hit_ref->{scaffold};			
+		$orientation       = $hit_ref->{orientation};
+		$organism          = $hit_ref->{organism};
+		$probe_type        = $hit_ref->{probe_type};
+		unless ($organism) { $organism = $hit_ref->{organism};   }
+		unless ($start)    { $start = $hit_ref->{subject_start}; }
+		unless ($end)      { $end   = $hit_ref->{subject_end};   }
+		#print "\n\t\t : $organism $target_name $scaffold $orientation $start";
+		#print "\n\t\t DIGS RESULT ID = '$previous_digs_result_id'";
+							
+		# Check if this is a a previously extracted locus
+		if ($digs_result_id) {
+			if ($previous_digs_result_id) { # If this represents a merge of multiple extracted loci, record the ids
+				unless ($digs_result_id eq $previous_digs_result_id) { die; }
+			}
+			$previous_digs_result_ids{$digs_result_id} = $hit_ref;
+			$previous_digs_result_id = $digs_result_id;		
+		}
+		
+		# Store this BLAST result as part of a chain if it is new
+		else {
+			my %data = %$hit_ref;
+			$new_blast_chains{$record_id} = \%data; 				
+		}
+			
+		# Record the start and stop parameters so we know whether or not to extend
+		if ($lowest_start and $highest_end ) {		
+			if ($start > $lowest_start) { $lowest_start = $start; }
+			if ($end > $highest_end)    { $highest_end  = $end;   }
+		}
+		else {
+			$highest_end  = $end;
+			$lowest_start = $start;
+		}									
+	}
+
+	# Determine whether or not we need to extract sequences for this cluster
+	my $extract = undef;		
+
+	# Extract if cluster is composed entirely of new loci (no previous result IDs)
+	unless ($flag) {
+		unless ($previous_digs_result_id) { 
+			#print "\n\t\t # Cluster $cluster_id is comprised entirely of new loci ";
+			$extract = 'true';	
+		}
+	}
+	
+	# Is this a merge of multiple previously extracted loci?
+	my @previous_digs_result_ids = keys %previous_digs_result_ids;
+	my $num_previously_extracted_loci_in_cluster = scalar @previous_digs_result_ids;
+	if ($num_previously_extracted_loci_in_cluster > 1) {
+		my $combined = join (',', @previous_digs_result_ids);
+		print "\n\t\t # Merging previously extracted loci: ($combined) ";
+		$extract = 'true';							
+		print "\n\t FAIL 1";
+	}
+	
+	# If it includes a single extracted locus, does this locus need to be extended?
+	elsif ($previous_digs_result_id) {
+		
+		# get the indexed query 
+		my $data_ref = $previous_digs_result_ids{$previous_digs_result_id};
+		my $extract_start = $data_ref->{subject_start};
+		my $extract_end   = $data_ref->{subject_end};
+		unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
+			$extended++;
+			$extract = 'true';							
+			print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+		}			
+	}
+
+	# If the locus needs to be re-extracted record the details
+	if ($extract) {
+		my %extract; # Set the extract params for this cluster
+		$extract{digs_result_id}  = $previous_digs_result_id;
+		$extract{target_name}     = $target_name;
+		$extract{target_datatype} = $target_datatype;
+		$extract{target_version}  = $version;
+		$extract{organism}        = $organism;
+		$extract{probe_type}      = $probe_type;
+		$extract{digs_result_id}  = $previous_digs_result_id;
+		$extract{target_name}     = $target_name;
+		$extract{scaffold}        = $scaffold;
+		$extract{start}           = $lowest_start;	
+		$extract{end}             = $highest_end;
+		$extract{orientation}     = $orientation;
+		$extract{digs_result_ids} = \@previous_digs_result_ids;
+		my $num_chains = scalar keys %new_blast_chains;
+		if ($num_chains) { $extract{blast_chains} = \%new_blast_chains; }
+		push (@$to_extract_ref, \%extract);	
+	}
+	
+	return $extended;
 }
 
 #***************************************************************************
@@ -2196,7 +2204,10 @@ sub initialise {
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
-	
+
+	# Create the output directories
+	$loader_obj->create_output_directories($self);
+
 	# Set up hash for recording cross_matching during DIGS
 	my %crossmatching;
 	$self->{crossmatching} = \%crossmatching;
@@ -2814,11 +2825,11 @@ sub run_live_screen_test {
 	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
 
 	# Read the control file for the test run
-	my $test_ctl_file = './test/test1_erv_na.ctl';
-	$self->initialise($test_ctl_file, '2');
+	my $test_ctl_file1 = './test/test1_erv_na.ctl';
+	$self->initialise($test_ctl_file1, '2');
 
 	# Load the 'digs_test' database
-	$self->load_screening_db($test_ctl_file);
+	$self->load_screening_db($test_ctl_file1);
 	my $db = $self->{db}; # Get the database reference
 	$db->flush_screening_db();
 
@@ -2846,8 +2857,8 @@ sub run_live_screen_test {
 	   and  $result2_ref->{extract_start} eq 10967)  { $correct_result = undef; }
 	unless ($result1_ref->{extract_end}   eq 703
 	   and  $result2_ref->{extract_end}   eq 11470)  { $correct_result = undef; }
-	if ($correct_result)  { print "\n\n\t  Live screen test PASSED\n" }
-	else                  { die   "\n\n\t  Live screen test FAILED\n" }
+	if ($correct_result)  { print "\n\n\t  Live screen test: ** PASSED **\n" }
+	else                  { die   "\n\n\t  Live screen test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 
 
@@ -2858,22 +2869,28 @@ sub run_live_screen_test {
 	$where    .= " AND target_datatype = 'fake_datatype' ";
 	$where    .= " AND target_version  = 'fake_version' ";
 	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
-	my $target_path = $ENV{DIGS_GENOMES}  . "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
+	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
+	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
 	my %settings;
 	$settings{range} = 100;
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
-	$self->defragment_target(\%settings, $where, $target_path, 'digs_results');
+	$self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
 
-	# Check that consolidate gives expected result
-	print "\n\t ### TEST 3: Running live peptide screen against synthetic data ~ + ~ + ~ \n\n";
+	# Run a peptide screen
+	print "\n\t ### TEST 3: Running live peptide screen against synthetic data ~ + ~ + ~ \n";
+	my $test_ctl_file2 = './test/test1_erv_aa.ctl';
+	my $loader_obj     = $self->{loader_obj};
+	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
+	$self->setup_digs();
+	$self->perform_digs();
 
 
 	# Print finished message
-	print "\n\n\t ### DIGS process completed ~ + ~ + ~";
+	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
 
 	# Remove the output directory
-	my $output_dir = $loader_obj->{report_dir};
+	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
 
