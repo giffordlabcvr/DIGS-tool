@@ -131,6 +131,10 @@ sub run_digs_process {
 			print "\n\t  Unrecognized option '-m=$option'\n";
 		}
 	}
+
+	# Show final summary and exit message
+	$self->wrap_up();
+
 }
 
 ############################################################################
@@ -184,9 +188,6 @@ sub perform_digs {
 			$self->show_digs_progress();
 		}	
 	}
-	
-	# Show final summary and exit message
-	$self->wrap_up();
 }
 
 #***************************************************************************
@@ -335,14 +336,14 @@ sub interactive_defragment {
 	
 	if ($choice eq 2) { # Apply the changes
 
-
-		# Create a backup of the current digs_results
+		# Create a copy of the digs_results table (changes will be applied to copy)
 		my $copy_name = $db->backup_digs_results_table();
 		print "\n\t # Defragmenting using range '$t_range' in table '$copy_name'\n";
 		#print "\n\n\t # Copied DIGS results to $copy_name\n";
 		my $dbh = $db->{dbh};
 		$db->load_digs_results_table($dbh, $copy_name);	
-			
+		
+		# Iterate through the target files, applying the defragment process to each		
 		foreach my $target_ref (@targets) {
 
 			# Create a unique key for this genome
@@ -941,9 +942,9 @@ sub do_blast_genotyping {
 	$sequence =~ s/~//g;   # Remove any gaps that might happen to be there
 	$sequence =~ s/\s+//g; # Remove any gaps that might happen to be there
 	my $fasta      = ">TEMPORARY\n$sequence";
-	my $query_file = $result_path . 'TEMPORARY.fas';
+	my $query_file = $result_path . '/TEMPORARY.fas';
 	$fileio->write_text_to_file($query_file, $fasta);
-	my $result_file = $result_path . 'TEMPORARY.blast_result';
+	my $result_file = $result_path . '/TEMPORARY.blast_result';
 		
 	# Do the BLAST according to the type of sequence (AA or NA)
 	my $blast_alg;
@@ -2810,7 +2811,7 @@ sub run_live_screen_test {
 
 	my ($self) = @_;
 
-	print "\n\t ### TEST 1: Running live screen against synthetic data ~ + ~ + ~ \n\n";
+	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
 
 	# Read the control file for the test run
 	my $test_ctl_file = './test/test1_erv_na.ctl';
@@ -2849,11 +2850,33 @@ sub run_live_screen_test {
 	else                  { die   "\n\n\t  Live screen test FAILED\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 
+
 	# Check that defragment gives expected result	
-	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n\n";
+	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n";	
+	# Construct WHERE statement
+	my $where  = " WHERE organism      = 'fake_species' ";
+	$where    .= " AND target_datatype = 'fake_datatype' ";
+	$where    .= " AND target_version  = 'fake_version' ";
+	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
+	my $target_path = $ENV{DIGS_GENOMES}  . "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
+	my %settings;
+	$settings{range} = 100;
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
+	$self->defragment_target(\%settings, $where, $target_path, 'digs_results');
 
 	# Check that consolidate gives expected result
-	print "\n\t ### TEST 3: Try to defragment results (should not work) ~ + ~ + ~ \n\n";
+	print "\n\t ### TEST 3: Running live peptide screen against synthetic data ~ + ~ + ~ \n\n";
+
+
+	# Print finished message
+	print "\n\n\t ### DIGS process completed ~ + ~ + ~";
+
+	# Remove the output directory
+	my $output_dir = $loader_obj->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
+
 
 
 }
