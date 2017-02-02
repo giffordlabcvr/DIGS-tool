@@ -1138,12 +1138,13 @@ sub wrap_up {
 sub defragment_target {
 
 	my ($self, $settings_ref, $where, $target_path, $copy_name, $flag) = @_;
-
+	
 	# Create the relevant set of previously extracted loci
 	my @combined;
 	my %target_defragmented;
 	$self->get_sorted_digs_results(\@combined, $where);
 	my $num_hits = scalar @combined;
+	#$devtools->print_array(\@combined); die;
 		
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
@@ -1153,18 +1154,17 @@ sub defragment_target {
 		$self->show_clusters(\%target_defragmented);  # Show clusters
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
-
+	
 	# Determine what to extract, and extract it
 	my @loci;
 	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
 	print "\n\t\t # $extended extensions to previously extracted sequences ";
 	my $num_new = scalar @loci;
 	print "\n\t\t # $num_new loci to extract after defragment ";
-		
-		
+	
 	# Extract newly identified or extended sequences
 	my @extracted;
-	$self->extract_locus_sequences($target_path, \@loci, \@extracted);	
+	$self->extract_locus_sequences($target_path, \@loci, \@extracted);
 				
 	# Do the genotyping step for the newly extracted locus sequences
 	my $assigned_count   = 0;
@@ -1186,7 +1186,7 @@ sub defragment_target {
 	# Update DB
 	my $copy_table_name = $copy_name . '_table';
 	$self->update_db(\@extracted, $copy_table_name);
-
+	
 	return $num_new;
 }
 
@@ -1274,21 +1274,21 @@ sub compose_clusters {
 		my $scaffold      = $hit_ref->{scaffold};
 		my $target_name   = $hit_ref->{target_name};
 		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
 		my $orientation   = $hit_ref->{orientation};
 		my $start         = $hit_ref->{$start_token};
 		my $end           = $hit_ref->{$end_token};
-		#print "\n\t\t Range $start-$end on scaffold $scaffold";
+		print "\n\t\t Range $start-$end on scaffold $scaffold";
 		
 		# Get last hit values
 		my $last_record_id     = $last_hit{record_id};
 		my $last_scaffold      = $last_hit{scaffold};
 		my $last_target_name   = $last_hit{target_name};
 		my $last_assigned_name = $last_hit{assigned_name};
+		my $last_assigned_gene = $last_hit{assigned_gene};
 		my $last_orientation   = $last_hit{orientation};
 		my $last_start         = $last_hit{$start_token};
 		my $last_end           = $last_hit{$end_token};		
-		#$devtools->print_hash($hit_ref); die;
-
 	    if ($initialised) {
 			# Sanity checking - are sequences in sorted order for this scaffold?
 			if ( $scaffold eq $last_scaffold) {
@@ -1321,11 +1321,13 @@ sub compose_clusters {
 		# Update last hit data
 		$last_hit{record_id}     = $record_id;
 		$last_hit{assigned_name} = $assigned_name;
+		$last_hit{assigned_gene} = $assigned_gene;
 		$last_hit{scaffold}      = $scaffold;
 		$last_hit{orientation}   = $orientation;
 		$last_hit{$start_token}  = $start;
 		$last_hit{$end_token}    = $end;
 	}	
+
 }
 
 #***************************************************************************
@@ -1343,6 +1345,7 @@ sub compare_adjacent_hits {
 
 	# Get the current hit values
 	my $name             = $hit1_ref->{assigned_name};
+	my $gene             = $hit1_ref->{assigned_gene};			
 	my $scaffold         = $hit1_ref->{scaffold};	
 	my $start            = $hit1_ref->{$start_token};
 	my $end              = $hit1_ref->{$end_token};
@@ -1350,6 +1353,7 @@ sub compare_adjacent_hits {
 
 	# Get the last hit values
 	my $last_name        = $hit2_ref->{assigned_name};
+	my $last_gene        = $hit2_ref->{assigned_gene};			
 	my $last_scaffold    = $hit2_ref->{scaffold};	
 	my $last_start       = $hit2_ref->{$start_token};
 	my $last_end         = $hit2_ref->{$end_token};
@@ -1359,6 +1363,14 @@ sub compare_adjacent_hits {
 	if ($scaffold ne $last_scaffold)       { return 0; }  # different scaffolds
 	if ($orientation ne $last_orientation) { return 0; }  # different orientation
 
+	# Take action depending on whether we are DEFRAGMENTING or CONSOLIDATING
+	my $mode = $self->{defragment_mode};
+	if ($gene and $last_gene) { 
+		if ($mode eq 'defragment') {
+			if ($gene ne $last_gene) { return 0; }  # different genes
+		}
+	}
+	
 	# If on same scaffold in same orientation, determine how far apart 
 	my $gap = $start - $last_end;		
 	my $verbose      = $self->{verbose};
@@ -1496,13 +1508,14 @@ sub merge_cluster {
 			
 		# Record the start and stop parameters so we know whether or not to extend
 		if ($lowest_start and $highest_end ) {		
-			if ($start > $lowest_start) { $lowest_start = $start; }
+			if ($start < $lowest_start) { $lowest_start = $start; }
 			if ($end > $highest_end)    { $highest_end  = $end;   }
 		}
-		else {
+		elsif ($start and $end) {
 			$highest_end  = $end;
 			$lowest_start = $start;
-		}									
+		}
+		else { die; } # should never get here			
 	}
 
 	# Determine whether or not we need to extract sequences for this cluster
@@ -1529,9 +1542,9 @@ sub merge_cluster {
 	elsif ($num_previously_extracted_loci_in_cluster eq 1) {
 			
 		# get the indexed query 
+		#$devtools->print_hash($data_ref);
 		my $ref_id   = shift @previous_digs_result_ids;
 		my $data_ref = $previous_digs_result_ids{$ref_id};
-		#$devtools->print_hash($data_ref);
 		my $start    = $data_ref->{extract_start};			
 		my $end      = $data_ref->{extract_end};
 		unless ($start)    { $start = $data_ref->{subject_start}; }
@@ -2877,7 +2890,7 @@ sub run_tests {
 
  	# Show title
 	$self->show_title();  
-
+	$self->{defragment_mode} = 'defragment';
 
 	# Read the control file for the test run
 	my $test_ctl_file1 = './test/test1_erv_na.ctl';
@@ -2887,7 +2900,9 @@ sub run_tests {
 	$self->load_screening_db($test_ctl_file1);
 	my $db = $self->{db}; # Get the database reference
 	$db->flush_screening_db();
-
+	#my $searches_table = $db->{searches_table}; # Get the database reference
+	#$searches_table->flush();
+	
 	# Display current settings	
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
@@ -2896,7 +2911,7 @@ sub run_tests {
 	$self->run_test_2();
 	$self->run_test_3();
 	$self->run_test_4();
-	#$self->run_test_5();
+	$self->run_test_5();
 	#$self->run_test_6();
 	#$self->run_test_7();
 
@@ -2932,6 +2947,7 @@ sub run_test_1 {
 	# Do a DIGS run against synthetic data (included in repo)
 	$self->setup_digs();
 	$self->perform_digs();
+	#$devtools->print_hash($self); die;
 
 	# Check that we got expected result
 	# For this test it is two hits
@@ -2996,7 +3012,7 @@ sub run_test_3 {
 	my ($self) = @_;
 
 	# Run a peptide screen
-	print "\n\t ### TEST 3: Running live gag & pol peptide screen against synthetic data ~ + ~ + ~ \n";
+	print "\n\t ### TEST 3: Running live partially deleted pol peptide screen against synthetic data ~ + ~ + ~ \n";
 	my $test_ctl_file2 = './test/test3_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
@@ -3010,15 +3026,16 @@ sub run_test_3 {
 	my $test3_where = " WHERE probe_type = 'ORF' ORDER BY scaffold, extract_start ";
 	$results_table->select_rows(\@fields, \@data, $test3_where);
 	my $result3_ref = shift @data;
-	my $result4_ref = shift @data;		
+	my $result4_ref = shift @data;
+	unless ($result3_ref and $result4_ref) { die; };
 	my $correct_result = 1;
-	unless ($result3_ref->{assigned_gene} eq 'gag'
-	   and  $result4_ref->{assigned_gene} eq 'pol')  { die; $correct_result = undef; }
+	unless ($result3_ref->{assigned_gene} eq 'pol'
+	   and  $result4_ref->{assigned_gene} eq 'pol') { $correct_result = undef; }
 	unless ($result3_ref->{assigned_name} eq 'KoRV'
-	   and  $result4_ref->{assigned_name} eq 'KoRV') { die; $correct_result = undef; }
-	unless ($result3_ref->{extract_start} eq 4001
-	   and  $result4_ref->{extract_start} eq 5681)   { $correct_result = undef; }
-	unless ($result3_ref->{extract_end}   eq 5566
+	   and  $result4_ref->{assigned_name} eq 'KoRV') { $correct_result = undef; }
+	unless ($result3_ref->{extract_start} eq 5681
+	   and  $result4_ref->{extract_start} eq 7481)   { $correct_result = undef; }
+	unless ($result3_ref->{extract_end}   eq 7144
 	   and  $result4_ref->{extract_end}   eq 9064)   { $correct_result = undef; }
 	if ($correct_result)  { print "\n\n\t  Live tblastn test: ** PASSED **\n" }
 	else                  { die   "\n\n\t  Live tblastn test: ** FAILED **\n" }
@@ -3038,14 +3055,11 @@ sub run_test_4 {
 	print "\n\t ### TEST 4: Try to defragment results (should work) ~ + ~ + ~ \n";
 
 	# Construct WHERE statement
-	my $where  = " WHERE organism      = 'fake_species' ";
-	$where    .= " AND target_datatype = 'fake_datatype' ";
-	$where    .= " AND target_version  = 'fake_version' ";
-	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
+	my $where  = " WHERE probe_type = 'ORF' ";
 	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
 	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
 	my %settings;
-	$settings{range} = 200;
+	$settings{range} = 500;
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
 
@@ -3060,6 +3074,10 @@ sub run_test_4 {
 	my $num_rows = scalar @data;
 
 	my $fail = undef;
+	my $result_ref = shift @data;
+	unless ($result_ref->{extract_start} eq 5681 and $result_ref->{extract_start} eq 9064) { 
+	   $fail = 1;
+	}
 	if ($num_new  eq '0' ) { 
 		die   "\n\t  Defragment positive test: ** FAILED ** No merge \n";
 		$fail = 1;
@@ -3083,9 +3101,14 @@ sub run_test_5 {
 
 	my ($self) = @_;
 
-	# Run the second peptide peptide screen
-	print "\n\t ### TEST 5: Running live env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
-	sleep 2;
+	# Run the second peptide screen
+	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
+
+	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
+	my $loader_obj     = $self->{loader_obj};
+	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
+	$self->setup_digs();
+	$self->perform_digs();
 
 }
 
