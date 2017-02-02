@@ -540,7 +540,7 @@ sub create_standard_locus_ids {
 	}
 	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
 	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_tracks_table($dbh);
+		$db_ref->create_nomenclature_track_table($dbh);
 	}
 	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
 	unless ($nom_chains_exists) {
@@ -571,7 +571,7 @@ sub create_standard_locus_ids {
 	$self->load_nomenclature_tracks();
 
 	# Cluster tracks
-	$self->create_nomenclature_clusters();
+	$self->create_nomenclature_track();
 
 	# Apply standard names to locus clusters
 	my $organism_code = $self->{organism_code};
@@ -801,16 +801,19 @@ sub defragment_target {
 	# Do the genotyping step for the newly extracted locus sequences
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
-	print "\n\t\t # Genotyping newly extracted sequences:";
-	foreach my $hit_ref (@extracted) { # Iterate through loci		
-		my $assigned  = $self->do_blast_genotyping($hit_ref);
-		if ($assigned) { $assigned_count++; }
-		my $remainder = $assigned_count % 100;
-		if ($remainder eq 0) {
-			print "\n\t\t\t # Done $assigned_count";
+	my $num_extracted = scalar @extracted;
+	if ($num_extracted) {
+		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+		foreach my $hit_ref (@extracted) { # Iterate through loci		
+			my $assigned  = $self->do_blast_genotyping($hit_ref);
+			if ($assigned) { $assigned_count++; }
+			my $remainder = $assigned_count % 100;
+			if ($remainder eq 0) {
+				print "\n\t\t\t # Done $assigned_count";
+			}
 		}
+		print "\n\t\t\t # Done $assigned_count\n";
 	}
-	print "\n\t\t\t # Done $assigned_count\n";
 	
 	# Update DB
 	my $copy_table_name = $copy_name . '_table';
@@ -1244,7 +1247,6 @@ sub compose_clusters {
 	my ($self, $defragmented_ref, $hits_ref, $settings_ref) = @_;
 	
 	# Get settings
-	my $range       = $settings_ref->{range};
 	my $start_token = $settings_ref->{start};
 	my $end_token   = $settings_ref->{end};
 	
@@ -1279,16 +1281,16 @@ sub compose_clusters {
 			# Sanity checking - are sequences in sorted order for this scaffold?
 			if ( $scaffold eq $last_scaffold) {
 				unless ($start >= $last_start) { 
-					print "\n\t\t $start is less than $last_start";
+					print "\n\t\t ERROR: $start is less than $last_start";
 					print " (end $end , last end $last_end) on scaffold $scaffold";
 					die;
 				}
 			}			
             
             # Work out wether to merge this hit with the last
-            my $new = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
+            my $merge = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
             
-            if ($new) {
+            unless ($merge) {
                  # Increment the count
                 $j++;       
                 # Initialise record
@@ -1342,24 +1344,27 @@ sub compare_adjacent_hits {
 	my $last_orientation = $last_hit_ref->{orientation};			
 	
 	if ($scaffold ne $last_scaffold) {
-		return 1;
+		return 0;
 	}
 	
 	if ($orientation ne $last_orientation) {
-		return 1;
+		return 0;
 	}
 	
 	my $gap = $start - $last_end;		
-	#print "\n\t #\t CALC: '$scaffold': '$start'-'$last_end' = $gap";
+	my $verbose      = $self->{verbose};
+	if ($verbose) {
+		print "\n\t\t    - Defragment calculation '$scaffold': '$start'-'$last_end' = $gap";
+	}
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine
-		#print "\n\t #\t COMBINE";
-        return 0;
+		print "\n\t\t      - Combined (gap '$gap' < range '$range')";
+        return 1;
 	
 	}
 	else { # Don't combine
-		return 1;
+		return 0;
 	}
 }
 
@@ -1906,10 +1911,10 @@ sub get_sorted_nomenclature_tracks {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  create_nomenclature_clusters
+# Subroutine:  create_nomenclature_track
 # Description: cluster nomenclature tracks
 #***************************************************************************
-sub create_nomenclature_clusters {
+sub create_nomenclature_track {
 
 	my ($self) = @_;
 	
@@ -2920,7 +2925,7 @@ sub run_live_screen_test {
 	sleep 1;
 	
 
-	## Check that defragment gives expected result	
+	## Check that defragment gives expected result	(negative)
 	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n";	
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
@@ -2934,8 +2939,8 @@ sub run_live_screen_test {
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
 	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
-	if ($num_new eq '0' )  { print "\n\t  Deframent negative test: ** PASSED **\n" }
-	else                   { die   "\n\t  Deframent negative test: ** FAILED **\n" }
+	if ($num_new eq '0' )  { print "\n\t  Defragment negative test: ** PASSED **\n" }
+	else                   { die   "\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
 	
 
@@ -2963,23 +2968,45 @@ sub run_live_screen_test {
 	else                  { die   "\n\n\t  Live tblastn test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 	sleep 1;
-	
+
+	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
+	print "\n\t ### TEST 4: Try to defragment results (should work) ~ + ~ + ~ \n";
 	$settings{range} = 200;
-	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
-	if ($num_new eq '0' )  { print "\n\t  Deframent negative test: ** PASSED **\n" }
-	else                   { die   "\n\t  Deframent negative test: ** FAILED **\n" }
+	$num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	my @test4_data;
+	$results_table->select_rows(\@fields, \@test4_data, $sort);
+	my $num_rows = scalar @test4_data;
+	my $fail = undef;
+	if ($num_new  eq '0' ) { $fail = 1;   }
+	if ($num_rows eq '3')  { $fail = 1;   };
+	if ( $fail )  { die   "\n\t  Defragment positive test: ** FAILED **\n"   }
+	else          { print "\n\t  Defragment positive test: ** PASSED **\n" }
 	sleep 2;
 
+	# Run the second peptide peptide screen
+	print "\n\t ### TEST 5: Running live env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
+	sleep 2;
+
+	# Test the reassign function
+	print "\n\t ### TEST 6: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
+	sleep 2;
+
+	# Test short match screen
+	print "\n\t ### TEST 7: Live test blastn screen using short probes ~ + ~ + ~ \n";
+	sleep 2;
+
+	# Test consolidation
+	print "\n\t ### TEST 8: Testing consolidation function ~ + ~ + ~ \n";
+	sleep 2;
 
 	# Print finished message
 	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
+	sleep 2;
 
 	# Remove the output directory
 	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";
 	system $command1;
-
-
 
 }
 
