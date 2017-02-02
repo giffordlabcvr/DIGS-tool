@@ -34,9 +34,6 @@ my $devtools  = DevTools->new();
 
 # Maximum range for defragment
 my $maximum   = 100000000;
-
-# Flags
-my $verbose   = undef;
 1;
 
 ############################################################################
@@ -203,6 +200,7 @@ sub reassign {
 	my $blast_obj       = $self->{blast_obj};
 	my $result_path     = $self->{report_dir};
 	my $db              = $self->{db};
+	my $verbose         = $self->{verbose};
 	my $digs_results_table = $db->{digs_results_table};
 	unless ($digs_results_table) { die; }
 	
@@ -235,6 +233,7 @@ sub reassign {
 
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
+		if ($verbose) { print "\n\t Sequence assigned as $assigned_name ($assigned_gene) using "; }
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 			
 			# Show the results
@@ -829,6 +828,7 @@ sub extract_locus_sequences {
 	# Get paths, objects, data structures and variables from self
 	my $blast_obj   = $self->{blast_obj};
 	my $buffer      = $self->{extract_buffer};
+	my $verbose     = $self->{verbose};
 
 	# Iterate through the list of sequences to extract
 	my $new_hits = scalar @$hits_ref;
@@ -858,11 +858,9 @@ sub extract_locus_sequences {
 		
 		# Extract the sequence
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {	
-			if ($verbose) {
-				print "\t ........extracting";
-			}
-			my $seq_length = length $sequence; # Set sequence length
+			if ($verbose) { print "\n\t\t    # Extracted sequence: $seq_length nucleotides "; }
 			$hit_ref->{extract_start}   = $hit_ref->{start};
 			$hit_ref->{extract_end}     = $hit_ref->{end};
 			$hit_ref->{sequence}        = $sequence;
@@ -870,10 +868,8 @@ sub extract_locus_sequences {
 			#print "\n\t Sequence $sequence\n\n";	die;
 			push (@$extracted_ref, $hit_ref);
 		}
-		else {
-			if ($verbose) {
-				print "\n\t Sequence extraction failed";
-			}
+		elsif ($verbose) { 
+			print "\n\t\t    # Sequence extraction failed ";
 		}
 	}	
 	return $new_hits;
@@ -924,8 +920,9 @@ sub do_blast_genotyping {
 	my ($self, $hit_ref) = @_;
 	
 	# Get paths and objects from self
-	my $result_path   = $self->{tmp_path};
-	my $blast_obj     = $self->{blast_obj};
+	my $result_path = $self->{tmp_path};
+	my $blast_obj   = $self->{blast_obj};
+	my $verbose     = $self->{verbose};
 	unless ($blast_obj)   { die; }
 	unless ($result_path) { die; }
 	
@@ -949,20 +946,8 @@ sub do_blast_genotyping {
 	my $result_file = $result_path . '/TEMPORARY.blast_result';
 		
 	# Do the BLAST according to the type of sequence (AA or NA)
-	my $blast_alg;
-	my $lib_path;
-	if ($probe_type eq 'UTR') {
-		$lib_path  = $self->{blast_utr_lib_path};
-		$blast_alg = 'blastn';
-		unless ($lib_path) { die "\n\t NO UTR LIBRARY defined"; }
-	}
-	elsif ($probe_type eq 'ORF') {
-		$lib_path  = $self->{blast_orf_lib_path};
-		unless ($lib_path) {  die "\n\t NO ORF LIBRARY defined"; }
-		$blast_alg = 'blastx';
-	}
-	else { die; }
-	unless ($lib_path) { return; }
+	my $blast_alg = $self->get_blast_algorithm($probe_type);
+	my $lib_path  = $self->get_blast_library_path($probe_type);
 
 	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
@@ -979,20 +964,8 @@ sub do_blast_genotyping {
 	my $assigned;
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
-	unless ($assigned_name) {	
-		$hit_ref->{assigned_name}    = 'Unassigned';
-		$hit_ref->{assigned_gene}    = 'Unassigned';
-		$hit_ref->{identity}         = 0;
-		$hit_ref->{bitscore}        = 0;
-		$hit_ref->{evalue_exp}      = 0;
-		$hit_ref->{evalue_num}      = 0;
-		$hit_ref->{mismatches}       = 0;
-		$hit_ref->{align_len}        = 0;
-		$hit_ref->{gap_openings}     = 0;
-		$hit_ref->{query_end}        = 0;
-		$hit_ref->{query_start}      = 0;
-		$hit_ref->{subject_end}      = 0;
-		$hit_ref->{subject_start}    = 0;
+	unless ($assigned_name) {
+		$self->set_default_values_for_unassigned_seq($hit_ref);	
 		$assigned = undef;
 	}
 	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
@@ -1000,20 +973,21 @@ sub do_blast_genotyping {
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
 		my @assigned_name = split('_', $assigned_name);
 		my $assigned_gene = pop @assigned_name;
-		$assigned_name = join ('_', @assigned_name);
-		$hit_ref->{assigned_name}    = $assigned_name;
-		$hit_ref->{assigned_gene}    = $assigned_gene;
-		$hit_ref->{identity}         = $top_match->{identity};
-		$hit_ref->{bitscore}        = $top_match->{bitscore};
-		$hit_ref->{evalue_exp}      = $top_match->{evalue_exp};
-		$hit_ref->{evalue_num}      = $top_match->{evalue_num};
-		$hit_ref->{mismatches}       = $top_match->{mismatches};
-		$hit_ref->{align_len}        = $top_match->{align_len};
-		$hit_ref->{gap_openings}     = $top_match->{gap_openings};
-		$hit_ref->{query_end}        = $query_end;
-		$hit_ref->{query_start}      = $query_start;
-		$hit_ref->{subject_end}      = $subject_end;
-		$hit_ref->{subject_start}    = $subject_start;
+		if ($verbose) { print "\n\t\t    # Classified sequence as '$assigned_name ($assigned_gene) "; }
+		#$assigned_name = join ('_', @assigned_name);
+		$hit_ref->{assigned_name}  = $assigned_name;
+		$hit_ref->{assigned_gene}  = $assigned_gene;
+		$hit_ref->{identity}       = $top_match->{identity};
+		$hit_ref->{bitscore}       = $top_match->{bitscore};
+		$hit_ref->{evalue_exp}     = $top_match->{evalue_exp};
+		$hit_ref->{evalue_num}     = $top_match->{evalue_num};
+		$hit_ref->{mismatches}     = $top_match->{mismatches};
+		$hit_ref->{align_len}      = $top_match->{align_len};
+		$hit_ref->{gap_openings}   = $top_match->{gap_openings};
+		$hit_ref->{query_end}      = $query_end;
+		$hit_ref->{query_start}    = $query_start;
+		$hit_ref->{subject_end}    = $subject_end;
+		$hit_ref->{subject_start}  = $subject_start;
 		$assigned = $assigned_name . '_' . $assigned_gene;
 	}
 
@@ -1025,6 +999,71 @@ sub do_blast_genotyping {
 
 	unless ($assigned) { $assigned = 'Unassigned'; }
 	return $assigned;
+}
+
+#***************************************************************************
+# Subroutine:  set_default_values_for_unassigned_seq
+# Description: set default values for an unassigned extracted sequence
+#***************************************************************************
+sub set_default_values_for_unassigned_seq {
+
+	my ($self, $hit_ref) = @_;
+
+	$hit_ref->{assigned_name}    = 'Unassigned';
+	$hit_ref->{assigned_gene}    = 'Unassigned';
+	$hit_ref->{identity}         = 0;
+	$hit_ref->{bitscore}         = 0;
+	$hit_ref->{evalue_exp}       = 0;
+	$hit_ref->{evalue_num}       = 0;
+	$hit_ref->{mismatches}       = 0;
+	$hit_ref->{align_len}        = 0;
+	$hit_ref->{gap_openings}     = 0;
+	$hit_ref->{query_end}        = 0;
+	$hit_ref->{query_start}      = 0;
+	$hit_ref->{subject_end}      = 0;
+	$hit_ref->{subject_start}    = 0;
+
+}
+
+#***************************************************************************
+# Subroutine:  get_blast_algorithm
+# Description: determine which blast algorithm to use based on settings
+#***************************************************************************
+sub get_blast_algorithm {
+
+	my ($self, $probe_type) = @_;
+	
+	my $blast_alg;
+	if    ($probe_type eq 'UTR') { $blast_alg = 'blastn'; }
+	elsif ($probe_type eq 'ORF') { $blast_alg = 'blastx'; }
+	else { die; }
+	
+	return $blast_alg;
+}
+
+#***************************************************************************
+# Subroutine:  get_blast_library_path
+# Description: get path to a reference library, based on settings
+#***************************************************************************
+sub get_blast_library_path {
+
+	my ($self, $probe_type) = @_;
+	my $lib_path;
+	
+	if ($probe_type eq 'UTR') { 
+		$lib_path = $self->{blast_utr_lib_path};
+		unless ($lib_path) {
+			#$devtools->print_hash($self); die;
+			die "\n\t NO UTR LIBRARY defined";
+		}
+	}
+	elsif ($probe_type eq 'ORF') { 
+		$lib_path = $self->{blast_orf_lib_path};
+		unless ($lib_path) {
+			die "\n\t NO ORF LIBRARY defined";
+		}
+	}	
+	return $lib_path;
 }
 
 #***************************************************************************
@@ -1119,6 +1158,7 @@ sub wrap_up {
 	system $command1;
 
 	# Show cross matching at end if verbose output setting is on
+	my $verbose = $self->{verbose};
 	if ($verbose) { $self->show_cross_matching(); }
 
 	# Print finished message
@@ -1168,9 +1208,12 @@ sub defragment_digs_results {
 		$settings{end}   = 'extract_end';
 		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
 		
-		# Show clusters
+		# Get number of clusters
 		my @cluster_ids  = keys %target_defragmented;
 		my $num_clusters = scalar @cluster_ids;
+
+		# Show clusters if verbose flag is set
+	    my $verbose = $self->{verbose};
 		if ($verbose) {
 			print "\n\n\t\t $num_hits hits in target $target_name";
 			if ($num_hits > $num_clusters) {
@@ -1385,6 +1428,7 @@ sub merge_cluster {
 	my ($self, $cluster_id, $cluster_ref, $to_extract_ref, $flag) = @_;
 
 	# Determine what to extract for this cluster
+	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
 	my %new_blast_chains;
 	my %previous_digs_result_ids;
 	my $highest_end   = undef;
@@ -1473,8 +1517,10 @@ sub merge_cluster {
 		my $extract_end   = $data_ref->{subject_end};
 		unless ($lowest_start >= $extract_start and $highest_end <= $extract_end) {	
 			$extended++;
-			$extract = 'true';							
-			print "\n\t\t # Extending extracted sequence: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+			$extract = 'true';
+			if ($verbose) {
+				print "\n\t\t    # Extending locus: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+			}
 		}			
 	}
 
@@ -2337,7 +2383,7 @@ sub show_title {
 		$version_num = 'version undefined (use with caution)';
 	}
 	$console->refresh();
-	my $title       = 'DIGS';
+	my $title       = 'DIGS (version: $version_num)';
 	my $description = 'Database-Integrated Genome Screening';
 	my $author      = 'Robert J. Gifford';
 	my $contact	    = '<robert.gifford@glasgow.ac.uk>';
@@ -2352,17 +2398,22 @@ sub show_help_page {
 
 	my ($self) = @_;
 
-	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
+	# Create help menu
+	my $program_version = $self->{program_version};
+	
+    my $HELP   = "\n\t DIGS version $program_version";
+       $HELP .= "\n\t usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
 
-        $HELP  .= "\n\t ### Main functions\n"; 
-		$HELP  .= "\n\t -m=1  Format target nucleotide FASTA targets (under path '$ENV{DIGS_GENOMES}')"; 
-		$HELP  .= "\n\t -m=2  Screen"; 
-		$HELP  .= "\n\t -m=3  Reassign"; 
-		$HELP  .= "\n\t -m=4  Defragment"; 
-		$HELP  .= "\n\t -m=5  Consolidate"; 
-		$HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
-		$HELP  .= "\n\t Run  $0 -e to see information on utility functions \n\n"; 
+       $HELP  .= "\n\t ### Main functions\n"; 
+	   $HELP  .= "\n\t -m=1  Prepare nucleotide FASTA targets (index for BLAST)";
+	   $HELP  .= "\n\n\t       genome path = '$ENV{DIGS_GENOMES}'\n";
+		
+	   $HELP  .= "\n\t -m=2  Screen"; 
+	   $HELP  .= "\n\t -m=3  Reassign"; 
+	   $HELP  .= "\n\t -m=4  Defragment"; 
+	   $HELP  .= "\n\t -m=5  Consolidate"; 
+	   $HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
+	   $HELP  .= "\n\t Run  $0 -e to see information on utility functions \n\n"; 
 
 	print $HELP;
 }
@@ -2379,8 +2430,11 @@ sub show_utility_help_page {
 
 	my ($self) = @_;
 
-	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
+	# Create utility help menu
+	my $program_version = $self->{program_version};
+
+    my $HELP   = "\n\t DIGS version $program_version";
+       $HELP .= "\n\t usage: $0 m=[option] -i=[control file] -e=[utility help]\n\n";
 
         $HELP  .= "\n\t ### Utility functions"; 
 		$HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
@@ -2470,11 +2524,13 @@ sub extend_screening_db {
 
 	my ($self) = @_;
 
-	# Get database handle
+	# Get database handle, die if we can't 
 	my $db = $self->{db};
 	unless ($db) { die; }
 	my $dbh = $db->{dbh};
 	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	
+	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
 
 	# Declare the variables & data structures we need
 	my %extra_tables;
@@ -2802,16 +2858,14 @@ sub run_tests {
 
 	# Do a live screen using test control file and synthetic target data
 	$self->run_live_screen_test();
-	exit;
 
-	# Do a DIGS reassign for synthetic data
-	
+	# Do a DIGS reassign for synthetic data	
 	# Upload test data to the 'digs_test' database
-	my $test_results_path;
-	my $test_searches_path;
-	my $db_ref = $self->{db};
-	$db_ref->upload_data_to_digs_results($test_results_path);
-	$db_ref->upload_data_to_digs_results($test_searches_path);		
+	#my $test_results_path;
+	#my $test_searches_path;
+	#my $db_ref = $self->{db};
+	#$db_ref->upload_data_to_digs_results($test_results_path);
+	#$db_ref->upload_data_to_digs_results($test_searches_path);		
 }		
 
 #***************************************************************************
@@ -2862,7 +2916,7 @@ sub run_live_screen_test {
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 
 
-	# Check that defragment gives expected result	
+	## Check that defragment gives expected result	
 	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n";	
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";

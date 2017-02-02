@@ -74,11 +74,11 @@ my $blast_obj = BLAST->new(\%blast_params);
 
 # Instantiate main program classes using global settings
 my %params;
-$params{program_version}    = $program_version;
-$params{process_id}         = $process_id;
-$params{blast_bin_path}     = $blast_bin_path; 
-$params{genome_use_path}    = $genome_use_path;
-$params{blast_obj}          = $blast_obj;
+$params{program_version} = $program_version;
+$params{process_id}      = $process_id;
+$params{blast_bin_path}  = $blast_bin_path; 
+$params{genome_use_path} = $genome_use_path;
+$params{blast_obj}       = $blast_obj;
 my $digs_tool_obj = DIGS->new(\%params);
 
 ############################################################################
@@ -86,7 +86,8 @@ my $digs_tool_obj = DIGS->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my ($USAGE) = "\n\t  usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
+my $USAGE = "\n\t DIGS version $program_version";
+  $USAGE .= "\n\t usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
 
 ############################################################################
 # Main program
@@ -105,6 +106,8 @@ exit;
 # Description: top level handler fxn
 #***************************************************************************
 sub main {
+
+	# Set version
 	
 	# Options that require a file path
 	my $infile   = undef;
@@ -116,7 +119,7 @@ sub main {
 	# Options that don't require a value
 	my $help       = undef;
 	my $extra_help = undef;
-	my $version    = undef;
+	my $verbose    = undef;
 	my $analysis   = undef;
 	my $test       = undef;
 	
@@ -127,15 +130,18 @@ sub main {
 			    'analysis|a=i'  => \$analysis,
 			    'help'          => \$help,
 			    'extra_help'    => \$extra_help,
-			    'version'       => \$version,
+			    'verbose'       => \$verbose,
 			    'test'          => \$test,
 	) or die $USAGE;
-	
-	# Hand off to functions
-	if ($version) { 
-		print "\n\t DIGS tool version $program_version\n\n"
+
+
+	# Set flags based on options received
+	if ($verbose) { 
+		$digs_tool_obj->{verbose} = 'true';
 	}
-	elsif ($help) { # Show help page
+
+	# Hand off to functions based on options received
+	if ($help) { # Show help page
 		$digs_tool_obj->show_help_page();
 		exit;
 	}
