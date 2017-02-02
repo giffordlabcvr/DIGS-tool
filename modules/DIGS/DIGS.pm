@@ -959,19 +959,20 @@ sub do_blast_genotyping {
 	my $query_end     = $top_match->{query_stop};
 	my $subject_start = $top_match->{aln_start};
 	my $subject_end   = $top_match->{aln_stop};
-	my $assigned_name = $top_match->{scaffold};	
+	my $assigned_key  = $top_match->{scaffold};	
 	my $assigned;
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
-	unless ($assigned_name) {
+	unless ($assigned_key) {
 		$self->set_default_values_for_unassigned_seq($hit_ref);	
 		$assigned = undef;
 	}
 	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
 
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_name = split('_', $assigned_name);
-		my $assigned_gene = pop @assigned_name;
+		my @assigned_key  = split('_', $assigned_key);
+		my $assigned_gene = pop @assigned_key;
+		my $assigned_name = shift @assigned_key;
 		if ($verbose) { print "\n\t\t    # Classified sequence as '$assigned_name ($assigned_gene) "; }
 		#$assigned_name = join ('_', @assigned_name);
 		$hit_ref->{assigned_name}  = $assigned_name;
@@ -2716,7 +2717,7 @@ sub show_blast_chains {
 
 #***************************************************************************
 # Subroutine:  show_locus_chains
-# Description: Show digs_result chains for all consolidated loci
+# Description: Show composition of consolidated loci
 #***************************************************************************
 sub show_locus_chains {
 	
@@ -2787,7 +2788,7 @@ sub show_locus_chains {
 
 #***************************************************************************
 # Subroutine:  show_nomenclature_chains
-# Description: Show digs_result chains for all consolidated loci
+# Description: Show nomenclature chains for all consolidated annotations
 #***************************************************************************
 sub show_nomenclature_chains {
 	
