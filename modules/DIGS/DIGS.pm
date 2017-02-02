@@ -283,18 +283,16 @@ sub interactive_defragment {
 
 	my ($self) = @_;
 
-	my $redundancy_mode  = $self->{redundancy_mode};
 	my $defragment_range = $self->{defragment_range};
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_group_ref = $self->{target_groups};
-	unless ($genome_use_path)  { die; }
-	unless ($target_group_ref) { die; }
-	unless ($redundancy_mode and  $defragment_range ) { die; } 
-	unless ($genome_use_path) { die; } 
+	unless ($genome_use_path)    { die; }
+	unless ($target_group_ref)   { die; }
+	unless ($$defragment_range ) { die; } 
+	unless ($genome_use_path)    { die; } 
 
 	# Display current settings	
 	print "\n\n\t\t Current settings (based on control file)";
-	print "\n\t\t redundancy mode:  $redundancy_mode";
 	print "\n\t\t defragment range: $defragment_range";
 
 	# Get a list of all the target files from the screening DB
@@ -1359,7 +1357,8 @@ sub compare_adjacent_hits {
 
 	# Test whether to combine this pair into a set
 	if ($gap < $range) {  # Combine
-		print "\n\t\t      - Combined (gap '$gap' < range '$range')";
+	if ($verbose) { print "\n\t\t      - Combined (gap '$gap' < range '$range')"; }
+
         return 1;
 	
 	}

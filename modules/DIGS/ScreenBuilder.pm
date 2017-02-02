@@ -171,7 +171,6 @@ sub parse_control_file {
 	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 	
 	# Set parameters for screening
-	$pipeline_obj->{redundancy_mode}        = $self->{redundancy_mode};
 	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
 	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
 	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
@@ -728,7 +727,6 @@ sub parse_screensets_block {
 
 	# Screen parameters
 	my $extract_buffer         = $self->{extract_buffer};
-	my $redundancy_mode        = $self->{redundancy_mode};
 	my $defragment_range       = $self->{defragment_range};
 	
 	
@@ -774,9 +772,6 @@ sub parse_screensets_block {
 
 	unless ($query_aa_fasta or $query_na_fasta or $query_na_track) {
 		die "\n\t Control file error: no path to query sequence input is defined\n\n\n";
-	}
-	unless ($redundancy_mode) {
-		$self->{redundancy_mode} = 2; # Set extract mode to default 
 	}
 	unless ($defragment_range) {
 		die "\n\t Control file error: 'Screensets' block parameter 'defragment_range' is undefined. \n\n\n";
