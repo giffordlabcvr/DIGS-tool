@@ -235,6 +235,7 @@ sub update {
 	my $query = "UPDATE $self->{name}
 	             SET    $set_clause 
 				 $where";
+	#print "\\n\t\t $query\n\n";
 	my $sth = $dbh->prepare($query);
 	$sth->execute();	
 }
@@ -251,6 +252,7 @@ sub delete_rows {
 	my $dbh = $self->{dbh};
 	unless ($where) { die; }
 	my $query = "DELETE from $self->{name} $where";
+	##print "\\n\t\t $query\n\n";
 	my $sth = $dbh->prepare($query);
 	$sth->execute();	
 }
