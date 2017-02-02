@@ -189,8 +189,7 @@ sub perform_digs {
 
 #***************************************************************************
 # Subroutine:  reassign
-# Description: reassign sequences in the digs_results_table (for use after
-#              the reference library has been updated)
+# Description: reassign sequences in the digs_results_table 
 #***************************************************************************
 sub reassign {
 	
@@ -2401,19 +2400,19 @@ sub show_help_page {
 	# Create help menu
 	my $program_version = $self->{program_version};
 	
-    my $HELP   = "\n\t DIGS version $program_version";
-       $HELP .= "\n\t usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
+    my $HELP   = "\n\t ### DIGS version $program_version";
+       $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
-	   $HELP  .= "\n\t -m=1  Prepare nucleotide FASTA targets (index for BLAST)";
-	   $HELP  .= "\n\n\t       genome path = '$ENV{DIGS_GENOMES}'\n";
-		
+	   $HELP  .= "\n\t -m=1  Prepare nucleotide FASTA targets (index for BLAST)";		
 	   $HELP  .= "\n\t -m=2  Screen"; 
 	   $HELP  .= "\n\t -m=3  Reassign"; 
 	   $HELP  .= "\n\t -m=4  Defragment"; 
 	   $HELP  .= "\n\t -m=5  Consolidate"; 
 	   $HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
-	   $HELP  .= "\n\t Run  $0 -e to see information on utility functions \n\n"; 
+	   $HELP  .= "\n\t Genome path = '$ENV{DIGS_GENOMES}'";
+
+	   $HELP  .= "\n\t Run  $0 -e to see information on utility functions\n\n"; 
 
 	print $HELP;
 }
@@ -2433,10 +2432,10 @@ sub show_utility_help_page {
 	# Create utility help menu
 	my $program_version = $self->{program_version};
 
-    my $HELP   = "\n\t DIGS version $program_version";
-       $HELP .= "\n\t usage: $0 m=[option] -i=[control file] -e=[utility help]\n\n";
+    my $HELP   = "\n\t ### DIGS version $program_version";
+       $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -e=[utility help]\n";
 
-        $HELP  .= "\n\t ### Utility functions"; 
+        $HELP  .= "\n\t ### Utility functions\n"; 
 		$HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
 		$HELP  .= "\n\t -u=2  Flush screening DB"; 
 		$HELP  .= "\n\t -u=3  Drop screening DB"; 
@@ -2445,8 +2444,9 @@ sub show_utility_help_page {
 		$HELP  .= "\n\t -u=6  Show nomenclature chains"; 
 		$HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
 		$HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
-		$HELP  .= "\n\t -u=9  Translate DB schema\n\n"; 
+		$HELP  .= "\n\t -u=9  Translate DB schema\n"; 
 		#$HELP  .= "\n\t -u=10  Extract sequences using track";
+		$HELP  .= "\n\n"; 
 
 	print $HELP;
 }

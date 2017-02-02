@@ -86,8 +86,8 @@ my $digs_tool_obj = DIGS->new(\%params);
 ############################################################################
 
 # Initialise usage statement to print if usage is incorrect
-my $USAGE = "\n\t DIGS version $program_version";
-  $USAGE .= "\n\t usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
+my $USAGE = "\n\t ### DIGS version $program_version";
+  $USAGE .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n\n";
 
 ############################################################################
 # Main program
@@ -150,6 +150,7 @@ sub main {
 	}
 	elsif ($extra_help) {
 		$digs_tool_obj->show_utility_help_page();
+		exit;
 	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($mode, $infile); 
