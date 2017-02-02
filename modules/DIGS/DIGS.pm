@@ -169,7 +169,7 @@ sub perform_digs {
 			# For this target, create a non-redundant locus set
 			my @new_hits;
 			$self->compile_nonredundant_locus_set($query_ref, \@new_hits);
-
+			
 			# Extract newly identified or extended sequences
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
@@ -630,6 +630,7 @@ sub search_target_using_blast {
 #***************************************************************************
 # Subroutine:  compile_nonredundant_locus_set
 # Description: determine what to extract based on current results
+# Note similar to defragment fxn
 #***************************************************************************
 sub compile_nonredundant_locus_set {
 	
@@ -1144,6 +1145,8 @@ sub defragment_target {
 	my %target_defragmented;
 	$self->get_sorted_digs_results(\@combined, $where);
 	my $num_hits = scalar @combined;
+	print "\n\t\t # $num_hits digs_results to defragment ";
+
 	#$devtools->print_array(\@combined); die;
 		
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
@@ -1256,7 +1259,7 @@ sub defragment_digs_results {
 #***************************************************************************
 sub compose_clusters {
 
-	my ($self, $defragmented_ref, $hits_ref, $settings_ref) = @_;
+	my ($self, $defragmented_ref, $loci_ref, $settings_ref) = @_;
 	
 	# Get settings
 	my $start_token = $settings_ref->{start};
@@ -1264,31 +1267,36 @@ sub compose_clusters {
 	
 	# Iterate through consolidating as we go
 	my $j = 1;
-	my %last_hit;
+	my %last_locus;
 	my %name_counts;
 	my $initialised = undef;
-	foreach my $hit_ref (@$hits_ref)  {
+	foreach my $locus_ref (@$loci_ref)  {
 
 		# Get hit values
-		my $record_id     = $hit_ref->{record_id};
-		my $scaffold      = $hit_ref->{scaffold};
-		my $target_name   = $hit_ref->{target_name};
-		my $assigned_name = $hit_ref->{assigned_name};
-		my $assigned_gene = $hit_ref->{assigned_gene};
-		my $orientation   = $hit_ref->{orientation};
-		my $start         = $hit_ref->{$start_token};
-		my $end           = $hit_ref->{$end_token};
-		print "\n\t\t Range $start-$end on scaffold $scaffold";
+		my $record_id     = $locus_ref->{record_id};
+		my $scaffold      = $locus_ref->{scaffold};
+		my $target_name   = $locus_ref->{target_name};
+		my $assigned_name = $locus_ref->{assigned_name};
+		my $assigned_gene = $locus_ref->{assigned_gene};
+		my $orientation   = $locus_ref->{orientation};
+		my $start         = $locus_ref->{$start_token};
+		my $end           = $locus_ref->{$end_token};
 		
+		if ($assigned_name and  $assigned_gene){
+			print "\n\t\t  - $assigned_name $assigned_gene, range: $start-$end on scaffold $scaffold";
+		}
+		else {
+			#$devtools->print_hash($locus_ref);
+		}			
 		# Get last hit values
-		my $last_record_id     = $last_hit{record_id};
-		my $last_scaffold      = $last_hit{scaffold};
-		my $last_target_name   = $last_hit{target_name};
-		my $last_assigned_name = $last_hit{assigned_name};
-		my $last_assigned_gene = $last_hit{assigned_gene};
-		my $last_orientation   = $last_hit{orientation};
-		my $last_start         = $last_hit{$start_token};
-		my $last_end           = $last_hit{$end_token};		
+		my $last_record_id     = $last_locus{record_id};
+		my $last_scaffold      = $last_locus{scaffold};
+		my $last_target_name   = $last_locus{target_name};
+		my $last_assigned_name = $last_locus{assigned_name};
+		my $last_assigned_gene = $last_locus{assigned_gene};
+		my $last_orientation   = $last_locus{orientation};
+		my $last_start         = $last_locus{$start_token};
+		my $last_end           = $last_locus{$end_token};		
 	    if ($initialised) {
 			# Sanity checking - are sequences in sorted order for this scaffold?
 			if ( $scaffold eq $last_scaffold) {
@@ -1300,32 +1308,32 @@ sub compose_clusters {
 			}			
             
             # Work out wether to merge this hit with the last
-            my $merge = $self->compare_adjacent_hits($hit_ref, \%last_hit, $settings_ref);
+            my $merge = $self->compare_adjacent_hits($locus_ref, \%last_locus, $settings_ref);
             
             unless ($merge) {
                  # Increment the count
                 $j++;       
                 # Initialise record
-                $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
+                $self->initialise_cluster($defragmented_ref, $locus_ref, $j);
             }
             else {             
                 # Extend record
-                $self->extend_cluster($defragmented_ref, $hit_ref, $j);
+                $self->extend_cluster($defragmented_ref, $locus_ref, $j);
             }
         }
 		else {
             $initialised = 'true'; # Set flag - we have seen at least one   
-            $self->initialise_cluster($defragmented_ref, $hit_ref, $j);
+            $self->initialise_cluster($defragmented_ref, $locus_ref, $j);
 		}
 
 		# Update last hit data
-		$last_hit{record_id}     = $record_id;
-		$last_hit{assigned_name} = $assigned_name;
-		$last_hit{assigned_gene} = $assigned_gene;
-		$last_hit{scaffold}      = $scaffold;
-		$last_hit{orientation}   = $orientation;
-		$last_hit{$start_token}  = $start;
-		$last_hit{$end_token}    = $end;
+		$last_locus{record_id}     = $record_id;
+		$last_locus{assigned_name} = $assigned_name;
+		$last_locus{assigned_gene} = $assigned_gene;
+		$last_locus{scaffold}      = $scaffold;
+		$last_locus{orientation}   = $orientation;
+		$last_locus{$start_token}  = $start;
+		$last_locus{$end_token}    = $end;
 	}	
 
 }
@@ -2373,6 +2381,10 @@ sub setup_digs {
 	# Record queries 
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
+
+	# Set defragment mode
+	$self->{defragment_mode} = 'defragment';
+
 }
 
 #***************************************************************************
@@ -2907,21 +2919,13 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
+	#$self->run_test_1();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
 	$self->run_test_5();
 	#$self->run_test_6();
 	#$self->run_test_7();
-
-	# Do a DIGS reassign for synthetic data	
-	# Upload test data to the 'digs_test' database
-	#my $test_results_path;
-	#my $test_searches_path;
-	#my $db_ref = $self->{db};
-	#$db_ref->upload_data_to_digs_results($test_results_path);
-	#$db_ref->upload_data_to_digs_results($test_searches_path);		
 
 	# Print finished message
 	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
@@ -3104,11 +3108,24 @@ sub run_test_5 {
 	# Run the second peptide screen
 	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
 
+	my $db = $self->{db}; # Get the database reference
+	my $results_table = $db->{searches_table}; # Get the database reference
+	$results_table->flush();
+	my $test5_path = './test/test5.txt';;
+	$db->upload_data_to_digs_results($test5_path);
+	
 	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
 	$self->setup_digs();
 	$self->perform_digs();
+
+	# Upload test data to the 'digs_test' database
+	#my $test_results_path;
+	#my $test_searches_path;
+	#my $db_ref = $self->{db};
+	#$db_ref->upload_data_to_digs_results($test_results_path);
+	#$db_ref->upload_data_to_digs_results($test_searches_path);		
 
 }
 

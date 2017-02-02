@@ -204,7 +204,7 @@ sub load_digs_results_table {
 		orientation      => 'varchar',
 		bitscore         => 'float',
 		identity         => 'varchar',
-		evalue_num       => 'float',
+		evalue_num       => 'int',
 		evalue_exp       => 'int',
 	  	subject_start    => 'int',
 	  	subject_end      => 'int',
@@ -505,9 +505,9 @@ sub create_digs_results_table {
 	  `assigned_name`    varchar(100) NOT NULL default '0',
 	  `assigned_gene`    varchar(100) NOT NULL default '0',
 	  `orientation`      varchar(100) NOT NULL default '0',
-	  `bitscore`         float   NOT NULL default '0',
+	  `bitscore`         int(11) NOT NULL default '0',
 	  `identity`         float   NOT NULL default '0',
-	  `evalue_num`       float   NOT NULL default '0',
+	  `evalue_num`       int(11) NOT NULL default '0',
 	  `evalue_exp`       int(11) NOT NULL default '0',
 	  `subject_start`    int(11) NOT NULL default '0',
 	  `subject_end`      int(11) NOT NULL default '0',
@@ -1154,13 +1154,20 @@ sub upload_data_to_digs_results {
 
 	# Get the data
 	my @data;
-	$fileio->read_file(\@data, $data_path);
+	$fileio->read_file($data_path, \@data);
+
+	# Remove header
+	shift @data;
 
 	# Iterate through the data and insert to the table
 	foreach my $line (@data) {
-		my %data;
+
 		chomp $line;
-		my @line = split("\t", $line);
+		my @line = split(",", $line);
+
+		my %data;
+		#$devtools->print_array(\@line); die;
+		$data{record_id}       = shift @line;
 		$data{organism}        = shift @line;
 		$data{target_datatype} = shift @line;
 		$data{target_version}  = shift @line;
@@ -1186,6 +1193,7 @@ sub upload_data_to_digs_results {
 		$data{gap_openings}    = shift @line;
 		$data{mismatches}      = shift @line;
 		$digs_results_table->insert_row(\%data);	
+
 	}	
 }
 
