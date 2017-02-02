@@ -739,7 +739,7 @@ sub compile_nonredundant_locus_set {
 	$self->get_sorted_active_set(\@combined);
 	my $total_hits = scalar @combined;
 	if ($total_hits > 0) {
-		print "\n\t\t # $total_hits new hits & previously extracted loci ";
+		print "\n\t\t # $total_hits new hits + previously extracted loci in this target file ";
 	}
 
 	# Compose clusters of overlapping/adjacent loci
@@ -789,7 +789,8 @@ sub defragment_target {
 
 	# Determine what to extract, and extract it
 	my @loci;
-	$self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
+	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
+	if ($extended) { print "\n\t\t # $extended extensions to previously extracted sequences "; }
 	my $num_new = scalar @loci;
 	if ($num_new) { print "\n\t\t # $num_new loci to extract after defragment "; }
 		
@@ -814,6 +815,9 @@ sub defragment_target {
 	# Update DB
 	my $copy_table_name = $copy_name . '_table';
 	$self->update_db(\@extracted, $copy_table_name);
+
+
+	return $num_new;
 }
 
 #***************************************************************************
@@ -859,7 +863,7 @@ sub extract_locus_sequences {
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
 		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {	
-			if ($verbose) { print "\n\t\t    # Extracted sequence: $seq_length nucleotides "; }
+			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
 			$hit_ref->{extract_start}   = $hit_ref->{start};
 			$hit_ref->{extract_end}     = $hit_ref->{end};
 			$hit_ref->{sequence}        = $sequence;
@@ -973,7 +977,7 @@ sub do_blast_genotyping {
 		my @assigned_key  = split('_', $assigned_key);
 		my $assigned_gene = pop @assigned_key;
 		my $assigned_name = shift @assigned_key;
-		if ($verbose) { print "\n\t\t    # Classified sequence as '$assigned_name ($assigned_gene) "; }
+		if ($verbose) { print "\n\t\t    - Classified sequence as '$assigned_name ($assigned_gene)'"; }
 		#$assigned_name = join ('_', @assigned_name);
 		$hit_ref->{assigned_name}  = $assigned_name;
 		$hit_ref->{assigned_gene}  = $assigned_gene;
@@ -1416,7 +1420,7 @@ sub merge_clustered_loci {
 		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref, $flag);
 		if ($extended) { $extend_count = $extend_count + $extended; }
 	}
-	print "\n\t\t # $extend_count extensions to previously extracted sequences ";
+	return $extend_count;
 }
 
 #***************************************************************************
@@ -1430,6 +1434,7 @@ sub merge_cluster {
 	# Determine what to extract for this cluster
 	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
 	my %new_blast_chains;
+	my @merged_results;
 	my %previous_digs_result_ids;
 	my $highest_end   = undef;
 	my $lowest_start  = undef;
@@ -1463,9 +1468,6 @@ sub merge_cluster {
 							
 		# Check if this is a a previously extracted locus
 		if ($digs_result_id) {
-			if ($previous_digs_result_id) { # If this represents a merge of multiple extracted loci, record the ids
-				unless ($digs_result_id eq $previous_digs_result_id) { die; }
-			}
 			$previous_digs_result_ids{$digs_result_id} = $hit_ref;
 			$previous_digs_result_id = $digs_result_id;		
 		}
@@ -1503,9 +1505,10 @@ sub merge_cluster {
 	my $num_previously_extracted_loci_in_cluster = scalar @previous_digs_result_ids;
 	if ($num_previously_extracted_loci_in_cluster > 1) {
 		my $combined = join (',', @previous_digs_result_ids);
-		print "\n\t\t # Merging previously extracted loci: ($combined) ";
+		if ($verbose) {
+			print "\n\t\t    - Merging previously extracted loci: ($combined)";
+		}
 		$extract = 'true';							
-		print "\n\t FAIL 1";
 	}
 	
 	# If it includes a single extracted locus, does this locus need to be extended?
@@ -1519,7 +1522,7 @@ sub merge_cluster {
 			$extended++;
 			$extract = 'true';
 			if ($verbose) {
-				print "\n\t\t    # Extending locus: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
+				print "\n\t\t    - Extending locus: $extract_start, $extract_end: ($lowest_start-$highest_end) ";
 			}
 		}			
 	}
@@ -2436,18 +2439,18 @@ sub show_utility_help_page {
     my $HELP   = "\n\t ### DIGS version $program_version";
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -e=[utility help]\n";
 
-        $HELP  .= "\n\t ### Utility functions\n"; 
-		$HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
-		$HELP  .= "\n\t -u=2  Flush screening DB"; 
-		$HELP  .= "\n\t -u=3  Drop screening DB"; 
-		$HELP  .= "\n\t -u=4  Show BLAST chains"; 
-		$HELP  .= "\n\t -u=5  Show locus chains"; 
-		$HELP  .= "\n\t -u=6  Show nomenclature chains"; 
-		$HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
-		$HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
-		$HELP  .= "\n\t -u=9  Translate DB schema\n"; 
-		#$HELP  .= "\n\t -u=10  Extract sequences using track";
-		$HELP  .= "\n\n"; 
+       $HELP  .= "\n\t ### Utility functions\n"; 
+	   $HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
+	   $HELP  .= "\n\t -u=2  Flush screening DB"; 
+	   $HELP  .= "\n\t -u=3  Drop screening DB"; 
+	   $HELP  .= "\n\t -u=4  Show BLAST chains"; 
+	   $HELP  .= "\n\t -u=5  Show locus chains"; 
+	   $HELP  .= "\n\t -u=6  Show nomenclature chains"; 
+	   $HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
+	   $HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
+	   $HELP  .= "\n\t -u=9  Translate DB schema\n"; 
+	   #$HELP  .= "\n\t -u=10  Extract sequences using track";
+	   $HELP  .= "\n\n"; 
 
 	print $HELP;
 }
@@ -2878,7 +2881,6 @@ sub run_live_screen_test {
 	my ($self) = @_;
 
 	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
-
 	# Read the control file for the test run
 	my $test_ctl_file1 = './test/test1_erv_na.ctl';
 	$self->initialise($test_ctl_file1, '2');
@@ -2915,7 +2917,8 @@ sub run_live_screen_test {
 	if ($correct_result)  { print "\n\n\t  Live screen test: ** PASSED **\n" }
 	else                  { die   "\n\n\t  Live screen test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
-
+	sleep 2;
+	
 
 	## Check that defragment gives expected result	
 	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n";	
@@ -2930,16 +2933,21 @@ sub run_live_screen_test {
 	$settings{range} = 100;
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
-	$self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	if ($num_new eq '0' )  { print "\n\t  Deframent negative test: ** PASSED **\n" }
+	else                   { die   "\n\t  Deframent negative test: ** FAILED **\n" }
+	sleep 2;
+	
 
 	# Run a peptide screen
-	print "\n\t ### TEST 3: Running live peptide screen against synthetic data ~ + ~ + ~ \n";
+	print "\n\t ### TEST 3: Running live gag & pol peptide screen against synthetic data ~ + ~ + ~ \n";
 	my $test_ctl_file2 = './test/test1_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
 	$self->setup_digs();
 	$self->perform_digs();
-
+	sleep 2;
+	
 
 	# Print finished message
 	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
