@@ -6,8 +6,8 @@ Begin SCREENDB;
 ENDBLOCK;
 
 BEGIN SCREENSETS;
-    query_aa_fasta=./test/korv_test2.faa;
-    reference_aa_fasta=./test/korv_test2.faa;
+    query_aa_fasta=./test/korv_test3.faa;
+    reference_aa_fasta=./test/korv_test3.faa;
     bitscore_min_tblastn=100;
     output_path=./../tmp/;
     seq_length_minimum=50;

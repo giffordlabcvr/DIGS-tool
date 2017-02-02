@@ -766,7 +766,7 @@ sub compile_nonredundant_locus_set {
 
 #***************************************************************************
 # Subroutine:  defragment_target 
-# Description: 
+# Description: similar to compile_nonredundant_locus_set fxn, diff details
 #***************************************************************************
 sub defragment_target {
 
@@ -2908,16 +2908,16 @@ sub run_live_screen_test {
 	my $correct_result = 1;
 	unless ($result1_ref->{assigned_gene} eq 'LTR'
 	   and  $result2_ref->{assigned_gene} eq 'LTR')  { $correct_result = undef; }
-	unless ($result1_ref->{assigned_name} eq 'Korv'
-	   and  $result2_ref->{assigned_name} eq 'Korv') { $correct_result = undef; }
+	unless ($result1_ref->{assigned_name} eq 'KoRV'
+	   and  $result2_ref->{assigned_name} eq 'KoRV') { $correct_result = undef; }
 	unless ($result1_ref->{extract_start} eq 200
 	   and  $result2_ref->{extract_start} eq 10967)  { $correct_result = undef; }
 	unless ($result1_ref->{extract_end}   eq 703
 	   and  $result2_ref->{extract_end}   eq 11470)  { $correct_result = undef; }
-	if ($correct_result)  { print "\n\n\t  Live screen test: ** PASSED **\n" }
-	else                  { die   "\n\n\t  Live screen test: ** FAILED **\n" }
+	if ($correct_result)  { print "\n\n\t  Live blastn screen test: ** PASSED **\n" }
+	else                  { die   "\n\n\t  Live blastn screen test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
-	sleep 2;
+	sleep 1;
 	
 
 	## Check that defragment gives expected result	
@@ -2936,18 +2936,40 @@ sub run_live_screen_test {
 	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
 	if ($num_new eq '0' )  { print "\n\t  Deframent negative test: ** PASSED **\n" }
 	else                   { die   "\n\t  Deframent negative test: ** FAILED **\n" }
-	sleep 2;
+	sleep 1;
 	
 
 	# Run a peptide screen
 	print "\n\t ### TEST 3: Running live gag & pol peptide screen against synthetic data ~ + ~ + ~ \n";
-	my $test_ctl_file2 = './test/test1_erv_aa.ctl';
+	my $test_ctl_file2 = './test/test3_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
 	$self->setup_digs();
 	$self->perform_digs();
-	sleep 2;
+	my $test3_where = " WHERE probe_type = 'ORF' ORDER BY scaffold, extract_start ";
+	$results_table->select_rows(\@fields, \@data, $test3_where);
+	my $result3_ref = shift @data;
+	my $result4_ref = shift @data;		
+	$correct_result = 1;
+	unless ($result3_ref->{assigned_gene} eq 'gag'
+	   and  $result4_ref->{assigned_gene} eq 'pol')  { die; $correct_result = undef; }
+	unless ($result3_ref->{assigned_name} eq 'KoRV'
+	   and  $result4_ref->{assigned_name} eq 'KoRV') { die; $correct_result = undef; }
+	unless ($result3_ref->{extract_start} eq 4001
+	   and  $result4_ref->{extract_start} eq 5681)   { $correct_result = undef; }
+	unless ($result3_ref->{extract_end}   eq 5566
+	   and  $result4_ref->{extract_end}   eq 9064)   { $correct_result = undef; }
+	if ($correct_result)  { print "\n\n\t  Live tblastn test: ** PASSED **\n" }
+	else                  { die   "\n\n\t  Live tblastn test: ** FAILED **\n" }
+	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
+	sleep 1;
 	
+	$settings{range} = 200;
+	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	if ($num_new eq '0' )  { print "\n\t  Deframent negative test: ** PASSED **\n" }
+	else                   { die   "\n\t  Deframent negative test: ** FAILED **\n" }
+	sleep 2;
+
 
 	# Print finished message
 	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
