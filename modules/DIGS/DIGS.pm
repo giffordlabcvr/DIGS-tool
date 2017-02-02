@@ -589,9 +589,11 @@ sub search_target_using_blast {
 		if ($min_score) { 
 			# Skip sequences that have too low bit scores
 			my $query_score = $hit_ref->{bitscore};
-			if ($query_score < $min_score) {  
-				$skip = 'true';
-				$score_exclude_count++;
+			if ($query_score < $min_score) { 
+				unless ($skip) { # Don't count as a bit_score exclusion if already exclude via length
+					$skip = 'true';
+					$score_exclude_count++;
+				}
 			}
 		}
 	
@@ -607,8 +609,8 @@ sub search_target_using_blast {
 			$hit_ref->{probe_gene}      = $probe_gene;
 			$hit_ref->{probe_type}      = $probe_type;
 			$hit_ref->{align_len}       = $hit_ref->{align_len};
-			$hit_ref->{subject_start}   = $hit_ref->{aln_start}; 	# Rename to match DB
-			$hit_ref->{subject_end}     = $hit_ref->{aln_stop}; 	# Rename to match DB
+			$hit_ref->{subject_start}   = $hit_ref->{aln_start};  # Rename to match DB
+			$hit_ref->{subject_end}     = $hit_ref->{aln_stop};   # Rename to match DB
 			$hit_ref->{query_end}       = $hit_ref->{query_stop}; # Rename to match DB
 			$active_set_table->insert_row($hit_ref);
 			$num_retained_hits++;			
@@ -636,19 +638,25 @@ sub compile_nonredundant_locus_set {
 	
 	my ($self, $query_ref, $to_extract_ref) = @_;
 
+	# Get flag
+	my $verbose         = $self->{verbose};
+
 	# Compose SQL WHERE statement to retrieve relevant set of loci
 	my $target_name     = $query_ref->{target_name};
 	my $organism        = $query_ref->{organism};
 	my $probe_name      = $query_ref->{probe_name};
 	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+
 	my $where  = " WHERE organism = '$organism' ";
 	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
 
 	# Get the relevant set of DIGS results
 	my @digs_results;
 	$self->get_sorted_digs_results(\@digs_results, $where);
 	my $num_loci = scalar @digs_results;
-	print "\n\t\t # $num_loci previously extracted loci";
+	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
 		
 	# Add the digs results to the BLAST hits in the active_set table
 	$self->add_digs_results_to_active_set(\@digs_results);
@@ -657,10 +665,12 @@ sub compile_nonredundant_locus_set {
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
 	my $total_hits = scalar @combined;
-	if ($total_hits > 0) {
-		print "\n\t\t # $total_hits new hits + previously extracted loci in this target file ";
+	if ($verbose) {
+		if ($total_hits > 0) {
+			print "\n\t\t # $total_hits rows in active set (including $num_loci previously extracted) ";
+		}
 	}
-
+	
 	# Compose clusters of overlapping/adjacent loci
 	my %settings;
 	my %defragmented;
@@ -671,8 +681,10 @@ sub compile_nonredundant_locus_set {
 	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
 	my @cluster_ids  = keys %defragmented;
 	my $num_clusters = scalar @combined;
-	if ($total_hits > $num_clusters) {
-		print "...compressed to $num_clusters overlapping/contiguous clusters";
+	if ($verbose) {
+		if ($total_hits > $num_clusters) {
+			print "\n\t ...compressed to $num_clusters overlapping/contiguous clusters ";
+		}
 	}
 
 	# Get a resolved list of non-redundant, non-overlapping loci to extract
@@ -750,7 +762,7 @@ sub classify_using_blast {
 	my ($self, $extracted_ref, $query_ref) = @_;
 
 	#$devtools->print_array($extracted_ref); die;
-
+	my $verbose = $self->{verbose};
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
 	unless ($query_ref) { die; }
@@ -771,9 +783,11 @@ sub classify_using_blast {
 			$self->update_cross_matching($probe_key, $assigned);
 		}
 	}
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences classified";
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+	if ($verbose) {	
+		if ($assigned_count > 0) {
+			print "\n\t\t # $assigned_count extracted sequences classified";
+			print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+		}
 	}
 }
 
@@ -786,6 +800,7 @@ sub do_blast_genotyping {
 	my ($self, $hit_ref) = @_;
 	
 	# Get paths and objects from self
+	#$devtools->print_hash($hit_ref);
 	my $result_path = $self->{tmp_path};
 	my $blast_obj   = $self->{blast_obj};
 	my $verbose     = $self->{verbose};
@@ -810,7 +825,7 @@ sub do_blast_genotyping {
 	my $query_file = $result_path . '/TEMPORARY.fas';
 	$fileio->write_text_to_file($query_file, $fasta);
 	my $result_file = $result_path . '/TEMPORARY.blast_result';
-		
+	
 	# Do the BLAST according to the type of sequence (AA or NA)
 	my $blast_alg = $self->get_blast_algorithm($probe_type);
 	my $lib_path  = $self->get_blast_library_path($probe_type);
@@ -1145,7 +1160,7 @@ sub defragment_target {
 	my %target_defragmented;
 	$self->get_sorted_digs_results(\@combined, $where);
 	my $num_hits = scalar @combined;
-	print "\n\t\t # $num_hits digs_results to defragment ";
+	print "\n\t\t # $num_hits digs results to defragment ";
 
 	#$devtools->print_array(\@combined); die;
 		
@@ -1282,12 +1297,10 @@ sub compose_clusters {
 		my $start         = $locus_ref->{$start_token};
 		my $end           = $locus_ref->{$end_token};
 		
-		if ($assigned_name and  $assigned_gene){
-			print "\n\t\t  - $assigned_name $assigned_gene, range: $start-$end on scaffold $scaffold";
-		}
-		else {
-			#$devtools->print_hash($locus_ref);
-		}			
+		#if ($assigned_name and  $assigned_gene){
+		#	print "\n\t\t  - $assigned_name $assigned_gene, range: $start-$end on scaffold $scaffold";
+		#}
+
 		# Get last hit values
 		my $last_record_id     = $last_locus{record_id};
 		my $last_scaffold      = $last_locus{scaffold};
@@ -1350,10 +1363,14 @@ sub compare_adjacent_hits {
 	my $range       = $settings_ref->{range};
 	my $start_token = $settings_ref->{start};
 	my $end_token   = $settings_ref->{end};
+	my $verbose     = $self->{verbose};
 
 	# Get the current hit values
 	my $name             = $hit1_ref->{assigned_name};
 	my $gene             = $hit1_ref->{assigned_gene};			
+	unless ($gene) {
+		$gene = $hit1_ref->{probe_gene};
+	}			
 	my $scaffold         = $hit1_ref->{scaffold};	
 	my $start            = $hit1_ref->{$start_token};
 	my $end              = $hit1_ref->{$end_token};
@@ -1362,6 +1379,9 @@ sub compare_adjacent_hits {
 	# Get the last hit values
 	my $last_name        = $hit2_ref->{assigned_name};
 	my $last_gene        = $hit2_ref->{assigned_gene};			
+	unless ($last_gene) {
+		$last_gene = $hit1_ref->{probe_gene};
+	}			
 	my $last_scaffold    = $hit2_ref->{scaffold};	
 	my $last_start       = $hit2_ref->{$start_token};
 	my $last_end         = $hit2_ref->{$end_token};
@@ -1381,14 +1401,20 @@ sub compare_adjacent_hits {
 	
 	# If on same scaffold in same orientation, determine how far apart 
 	my $gap = $start - $last_end;		
-	my $verbose      = $self->{verbose};
 	if ($verbose) {
-		print "\n\t\t    - Defragment calculation '$scaffold': '$start'-'$last_end' = $gap";
+		#print "\n\t\t    - Defragment calculation '$scaffold': '$start'-'$last_end' = $gap";
+		print "\n\t\t    - Gap between loci = $gap";
 	}
 
 	# Test whether to combine this pair of loci into a single merged locus
 	if ($gap < $range) {  # Combine
-		if ($verbose) { print "\n\t\t      - Merged this pair"; }
+		if ($verbose) {
+			if ($last_name and $last_gene) {
+				print "\n\t\t      - Merged pair: $last_name ($last_gene), $name ($gene)"; 		
+			}
+			else { print "\n\t\t      - Merged pair"; }
+
+		}
 		return 1;
 	}
 	else { # Don't combine
@@ -1848,6 +1874,8 @@ sub add_digs_results_to_active_set {
 		$locus_ref->{organism}  = $locus_ref->{organism};
 		$active_set_table->insert_row($locus_ref);
 	}
+	
+	return $num_loci;
 }
 
 #***************************************************************************
