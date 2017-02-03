@@ -1280,46 +1280,32 @@ sub compose_clusters {
 	my $start_token = $settings_ref->{start};
 	my $end_token   = $settings_ref->{end};
 	
-	# Iterate through consolidating as we go
+	# Iterate through loci, grouping them into clusters when they are within range
 	my $j = 1;
 	my %last_locus;
 	my %name_counts;
 	my $initialised = undef;
 	foreach my $locus_ref (@$loci_ref)  {
 
-		# Get hit values
+		# Get locus data
 		my $record_id     = $locus_ref->{record_id};
 		my $scaffold      = $locus_ref->{scaffold};
 		my $target_name   = $locus_ref->{target_name};
 		my $assigned_name = $locus_ref->{assigned_name};
+		my $probe_gene    = $locus_ref->{probe_gene};
 		my $assigned_gene = $locus_ref->{assigned_gene};
 		my $orientation   = $locus_ref->{orientation};
 		my $start         = $locus_ref->{$start_token};
 		my $end           = $locus_ref->{$end_token};
 		
-		#if ($assigned_name and  $assigned_gene){
-		#	print "\n\t\t  - $assigned_name $assigned_gene, range: $start-$end on scaffold $scaffold";
-		#}
-
 		# Get last hit values
-		my $last_record_id     = $last_locus{record_id};
 		my $last_scaffold      = $last_locus{scaffold};
-		my $last_target_name   = $last_locus{target_name};
-		my $last_assigned_name = $last_locus{assigned_name};
-		my $last_assigned_gene = $last_locus{assigned_gene};
-		my $last_orientation   = $last_locus{orientation};
 		my $last_start         = $last_locus{$start_token};
-		my $last_end           = $last_locus{$end_token};		
 	    if ($initialised) {
+
 			# Sanity checking - are sequences in sorted order for this scaffold?
-			if ( $scaffold eq $last_scaffold) {
-				unless ($start >= $last_start) { 
-					print "\n\t\t ERROR: $start is less than $last_start";
-					print " (end $end , last end $last_end) on scaffold $scaffold";
-					die;
-				}
-			}			
-            
+			if ( $scaffold eq $last_scaffold and $start < $last_start) { die; }
+           
             # Work out wether to merge this hit with the last
             my $merge = $self->compare_adjacent_hits($locus_ref, \%last_locus, $settings_ref);
             
@@ -1343,6 +1329,7 @@ sub compose_clusters {
 		$last_locus{record_id}     = $record_id;
 		$last_locus{assigned_name} = $assigned_name;
 		$last_locus{assigned_gene} = $assigned_gene;
+		$last_locus{probe_gene}    = $probe_gene;
 		$last_locus{scaffold}      = $scaffold;
 		$last_locus{orientation}   = $orientation;
 		$last_locus{$start_token}  = $start;
@@ -1380,8 +1367,9 @@ sub compare_adjacent_hits {
 	my $last_name        = $hit2_ref->{assigned_name};
 	my $last_gene        = $hit2_ref->{assigned_gene};			
 	unless ($last_gene) {
-		$last_gene = $hit1_ref->{probe_gene};
-	}			
+		$last_gene = $hit2_ref->{probe_gene};
+	}	
+		
 	my $last_scaffold    = $hit2_ref->{scaffold};	
 	my $last_start       = $hit2_ref->{$start_token};
 	my $last_end         = $hit2_ref->{$end_token};
@@ -1397,6 +1385,11 @@ sub compare_adjacent_hits {
 		if ($mode eq 'defragment') {
 			if ($gene ne $last_gene) { return 0; }  # different genes
 		}
+	}
+	else { 
+		print "\n\t\t ERRPOR genes not found: ene $gene LAST $last_gene";;
+		$devtools->print_hash($hit2_ref);
+		die; 
 	}
 	
 	# If on same scaffold in same orientation, determine how far apart 
@@ -1507,36 +1500,43 @@ sub merge_cluster {
 	my $probe_type;
 	my $extended;
 	my $extract = undef;		
-	foreach my $hit_ref (@$cluster_ref) {
-					
-		my $record_id      = $hit_ref->{record_id};					
-		my $digs_result_id = $hit_ref->{digs_result_id};					
-		my $start          = $hit_ref->{extract_start};			
-		my $end            = $hit_ref->{extract_end};
-		$target_name       = $hit_ref->{target_name};					
-		$target_datatype   = $hit_ref->{target_datatype};			
-		$version           = $hit_ref->{target_version};
-		$scaffold          = $hit_ref->{scaffold};			
-		$orientation       = $hit_ref->{orientation};
-		$organism          = $hit_ref->{organism};
-		$probe_type        = $hit_ref->{probe_type};
-		unless ($organism) { $organism = $hit_ref->{organism};   }
-		unless ($start)    { $start = $hit_ref->{subject_start}; }
-		unless ($end)      { $end   = $hit_ref->{subject_end};   }
-		#if ($verbose) {
-		#	print "\n\t\t    - ID = '$digs_result_id' ($scaffold $orientation $start-$end)";
-		#}
+	if ($verbose) {
+		print "\n\t\t   ## Merging all items in cluster";
+		$self->show_cluster($cluster_ref, $cluster_id);
+	}
+
+	my $num_loci = '0';
+	foreach my $locus_ref (@$cluster_ref) {
+		
+		$num_loci++;			
+		my $record_id      = $locus_ref->{record_id};					
+		my $digs_result_id = $locus_ref->{digs_result_id};					
+		my $start          = $locus_ref->{extract_start};			
+		my $end            = $locus_ref->{extract_end};
+		$target_name       = $locus_ref->{target_name};					
+		$target_datatype   = $locus_ref->{target_datatype};			
+		$version           = $locus_ref->{target_version};
+		$scaffold          = $locus_ref->{scaffold};			
+		$orientation       = $locus_ref->{orientation};
+		$organism          = $locus_ref->{organism};
+		$probe_type        = $locus_ref->{probe_type};
+		unless ($organism) { $organism = $locus_ref->{organism};   }
+		unless ($start)    { $start = $locus_ref->{subject_start}; }
+		unless ($end)      { $end   = $locus_ref->{subject_end};   }
+		if ($verbose) {
+			print "\n\t\t    - ID = '$digs_result_id' ($scaffold $orientation $start-$end)";
+		}
 		#$devtools->print_hash($hit_ref);
 							
 		# Check if this is a a previously extracted locus
 		if ($digs_result_id) {
-			$previous_digs_result_ids{$digs_result_id} = $hit_ref;
+			$previous_digs_result_ids{$digs_result_id} = $locus_ref;
 			$previous_digs_result_id = $digs_result_id;		
 		}
 		
 		# Store this BLAST result as part of a chain if it is new
 		else {
-			my %data = %$hit_ref;
+			my %data = %$locus_ref;
 			$new_blast_chains{$record_id} = \%data; 				
 		}
 			
@@ -1573,10 +1573,9 @@ sub merge_cluster {
 		$extract = 'true';							
 	}
 	# If it includes a single extracted locus, does this locus need to be extended?	
-	elsif ($num_previously_extracted_loci_in_cluster eq 1) {
+	elsif ($num_previously_extracted_loci_in_cluster eq 1 and $num_loci > 1) {
 			
 		# get the indexed query 
-		#$devtools->print_hash($data_ref);
 		my $ref_id   = shift @previous_digs_result_ids;
 		my $data_ref = $previous_digs_result_ids{$ref_id};
 		my $start    = $data_ref->{extract_start};			
@@ -3017,7 +3016,7 @@ sub run_test_2 {
 	my ($self) = @_;
 
 	## Check that defragment gives expected result	(negative)
-	print "\n\t ### TEST 2: Try to defragment results (should not work) ~ + ~ + ~ \n";	
+	print "\n\t ### TEST 2: Try to defragment results (nothing should be merged) ~ + ~ + ~ \n";	
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
 	$where    .= " AND target_datatype = 'fake_datatype' ";
@@ -3096,7 +3095,6 @@ sub run_test_4 {
 	$settings{end}   = 'extract_end';
 
 	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
-	
 	my $db = $self->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};	
 	my @data;
@@ -3122,7 +3120,7 @@ sub run_test_4 {
 		print "\n\t  Defragment positive test: ** PASSED **\n";
 	}
 	
-	sleep 2;
+	#sleep 2;
 }
 
 #***************************************************************************
@@ -3137,23 +3135,62 @@ sub run_test_5 {
 	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
 
 	my $db = $self->{db}; # Get the database reference
-	my $results_table = $db->{searches_table}; # Get the database reference
+	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 	my $test5_path = './test/test5.txt';;
 	$db->upload_data_to_digs_results($test5_path);
-	
+		
 	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
 	$self->setup_digs();
 	$self->perform_digs();
 
-	# Upload test data to the 'digs_test' database
-	#my $test_results_path;
-	#my $test_searches_path;
-	#my $db_ref = $self->{db};
-	#$db_ref->upload_data_to_digs_results($test_results_path);
-	#$db_ref->upload_data_to_digs_results($test_searches_path);		
+	my @data;
+	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
+	my $sort = " ORDER BY scaffold, extract_start ";
+	$results_table->select_rows(\@fields, \@data, $sort);
+	my $num_rows = scalar @data;
+
+	my $fail = undef;
+	if ($num_rows ne '5')  { 
+		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) ** Wrong unmber of rows in digs_results table \n";
+		$fail = 1;
+	}
+	my $result1_ref = shift @data;
+	my $result2_ref = shift @data;
+	my $result3_ref = shift @data;
+	my $result4_ref = shift @data;
+	my $result5_ref = shift @data;
+
+	unless ($result1_ref->{assigned_gene} eq 'LTR'
+	   and  $result1_ref->{assigned_name} eq 'KoRV'
+	   and  $result1_ref->{extract_start} eq 200  
+	   and  $result1_ref->{extract_end}   eq 703)    { $fail = 2; }
+	unless ($result2_ref->{assigned_gene} eq 'gag'
+	   and  $result2_ref->{assigned_name} eq 'KoRV'
+	   and  $result2_ref->{extract_start} eq 4001  
+	   and  $result2_ref->{extract_end}   eq 5566)   { $fail = 3; }
+	unless ($result3_ref->{assigned_gene} eq 'pol'
+	   and  $result3_ref->{assigned_name} eq 'KoRV'
+	   and  $result3_ref->{extract_start} eq 5681  
+	   and  $result3_ref->{extract_end}   eq 9064)   { $fail = 4; }
+	unless ($result4_ref->{assigned_gene} eq 'env'
+	   and  $result4_ref->{assigned_name} eq 'KoRV'
+	   and  $result4_ref->{extract_start} eq 8946  
+	   and  $result4_ref->{extract_end}   eq 10925)  { $fail = 5; }
+	unless ($result5_ref->{assigned_gene} eq 'LTR'
+	   and  $result5_ref->{assigned_name} eq 'KoRV'
+	   and  $result5_ref->{extract_start} eq 10967  
+	   and  $result5_ref->{extract_end}   eq 11470)  { $fail = 6; }
+	unless ($fail) {
+		print "\n\n\t  tBLASTn screen, gag + env peptides: ** PASSED **\n";
+	}
+	else {
+		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) **\n";
+	}
+	
+	sleep 2;
 
 }
 
@@ -3165,8 +3202,8 @@ sub run_test_6 {
 
 	my ($self) = @_;
 
-	# Test the reassign function
-	print "\n\t ### TEST 6: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
+	# Test consolidation
+	print "\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
 	sleep 2;
 
 }
@@ -3194,9 +3231,9 @@ sub run_test_8 {
 
 	my ($self) = @_;
 
+	# Test the reassign function
+	print "\n\t ### TEST 8: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
 
-	# Test consolidation
-	print "\n\t ### TEST 8: Testing consolidation function ~ + ~ + ~ \n";
 	sleep 2;
 
 }

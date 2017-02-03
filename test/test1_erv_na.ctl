@@ -8,7 +8,7 @@ ENDBLOCK;
 BEGIN SCREENSETS;
     query_na_fasta=./test/korv_test1.fna;
     reference_na_fasta=./test/korv_test1.fna;
-    bitscore_min_blastn=40;
+    bitscore_min_blastn=100;
     output_path=./../tmp/;
     seq_length_minimum=50;
     defragment_range=100;
