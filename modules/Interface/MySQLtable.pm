@@ -251,7 +251,7 @@ sub delete_rows {
 	
 	my $dbh = $self->{dbh};
 	unless ($where) { die; }
-	my $query = "DELETE from $self->{name} $where";
+	#my $query = "DELETE from $self->{name} $where";
 	print "\n\t\t $query\n\n";
 	my $sth = $dbh->prepare($query);
 	$sth->execute();	
