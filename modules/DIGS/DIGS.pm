@@ -2947,10 +2947,10 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	#$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
+	$self->run_test_1();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
 	$self->run_test_5();
 	#$self->run_test_6();
 	#$self->run_test_7();
