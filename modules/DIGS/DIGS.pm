@@ -119,6 +119,7 @@ sub run_digs_process {
 			$self->interactive_defragment();	
 		}
 		elsif ($option eq 5) { # Consolidate results into higher level structures 
+			$self->{defragment_mode} = 'consolidate';
 			$self->consolidate_loci();
 		}
 		elsif ($option eq 6) { # Standardised locus naming
@@ -391,11 +392,6 @@ sub consolidate_loci {
     # Set up for consolidation
 	my @sorted;
 
-	# DEBUG OPTIONS
-	#my $where = " WHERE orientation = '+'";
-	#my $where = " WHERE assigned_name = 'HERV-E'";
-	#$self->get_sorted_digs_results(\@sorted, $where);
-
 	# Get the 
 	$self->get_sorted_digs_results(\@sorted);
 	my $total_hits = scalar @sorted;
@@ -415,7 +411,8 @@ sub consolidate_loci {
 	}
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
-
+	die;
+	
 	# Set up for consolidate
 	my %settings;
 	my %consolidated;
