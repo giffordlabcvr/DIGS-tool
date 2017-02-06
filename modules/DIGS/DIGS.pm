@@ -387,48 +387,19 @@ sub consolidate_loci {
 
 	my ($self) = @_;
 
+   # Set up for consolidation
 	print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
+	my %settings;
+	$self->initialise_consolidation(\%settings);
 
-    # Set up for consolidation
+	# Get the digs results sorted by scaffold and extract start
 	my @sorted;
-
-	# Get the 
 	$self->get_sorted_digs_results(\@sorted);
 	my $total_hits = scalar @sorted;
 	print "\n\t...$total_hits individual hits";
-	#$devtools->print_array(\@sorted); die; # Show loci 	
-
-	# Create tables if they don't exist already
-	my $db_ref = $self->{db};
-	my $dbh = $db_ref->{dbh};
-	my $loci_exists = $db_ref->does_table_exist('loci');
-	unless ($loci_exists) {
-		$db_ref->create_loci_table($dbh);
-	}
-	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
-	unless ($loci_chains_exists) {
-		$db_ref->create_loci_chains_table($dbh);
-	}
-	$db_ref->load_loci_table($dbh);
-	$db_ref->load_loci_chains_table($dbh);
-	die;
-	
-	# Set up for consolidate
-	my %settings;
-	my %consolidated;
-	my $range = $self->{consolidate_range};
-	my $d_range = $self->{defragment_range};
-	unless ($range) { 
-		my $question1 = "\n\n\t # Set the range for consolidating digs results";
-		$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
-	}
-	
-	# Settings
-	$settings{range} = $range;
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my %consolidated;
 	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
@@ -887,84 +858,33 @@ sub do_blast_genotyping {
 sub update_locus_data {
 
 	my ($self, $consolidated_ref) = @_;
-	
-	# Create tables if they don't exist already
-	my $db_ref = $self->{db};
+
+	unless ($consolidated_ref) { die; }
+
+	# Get parameters and data structures
+	my $verbose           = $self->{verbose};
+	my $db_ref            = $self->{db};
 	my $loci_table        = $db_ref->{loci_table};
 	my $loci_chains_table = $db_ref->{loci_chains_table};
-
-	#$self->show_clusters(\%consolidated);  die; # DEBUG- Show clusters 	
+	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
+	
 	my @cluster_ids  = keys %$consolidated_ref;
 	foreach my $cluster_id (@cluster_ids) {
-	
-		my $hits_ref = $consolidated_ref->{$cluster_id};
-		my $cluster_size = scalar @$hits_ref;
-		if ($cluster_size > 1) {
+
+		# Get the loci in this cluster
+		my $loci_ref = $consolidated_ref->{$cluster_id};
+		my $cluster_size = scalar @$loci_ref;
+		if ($verbose and $cluster_size > 1) {
 			#$self->show_cluster($hits_ref, $cluster_id);
 		}	
-		
-		my @locus_structure;
-		my $initialised = undef;
-		my $lowest;
-		my $highest;
-		my $scaffold;
-		my $version;
-		my $orientation;
-		my $datatype;
-		my $organism;
-		my $target_name;
-		my $assigned_name;
 
-		foreach my $hit_ref (@$hits_ref) {
-			
-			my $feature     = $hit_ref->{assigned_gene};
-			my $start       = $hit_ref->{extract_start};
-			my $end         = $hit_ref->{extract_end};
-			$version        = $hit_ref->{target_version};
-			$datatype       = $hit_ref->{target_datatype};
-			$orientation    = $hit_ref->{orientation};
-			$scaffold       = $hit_ref->{scaffold};
-			$organism       = $hit_ref->{organism};
-			$target_name    = $hit_ref->{target_name};
-
-			unless ($feature and $orientation) { die; }
-			if ($orientation eq '+') {
-				push(@locus_structure, $feature);
-			}
-			elsif ($orientation eq '-') {
-				unshift(@locus_structure, $feature);			
-			}
-
-			if ($initialised) {
-				if ($end > $highest) {
-					$highest = $end;
-				}
-				if ($start < $lowest) {
-					$lowest = $start;					
-				}
-			}
-			else {
-				$highest = $end;
-				$lowest = $start;
-				$initialised = 'true';								
-			}
-		}
-		
-		my $locus_structure = join('-', @locus_structure);
-		my %locus;
-		$locus{organism}        = $organism;
-		$locus{target_version}  = $version;
-		$locus{target_name}     = $target_name;
-		$locus{target_datatype} = $datatype;
-		$locus{scaffold}        = $scaffold;
-		$locus{orientation}     = $orientation;
-		$locus{extract_start}   = $lowest;
-		$locus{extract_end}     = $highest;
-		$locus{assigned_name}   = $assigned_name;
-		$locus{locus_structure} = $locus_structure;
+		# Insert the consolidated locus information
+		my %locus;		
+		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
 		my $locus_id  = $loci_table->insert_row(\%locus);
 		
-		foreach my $hit_ref (@$hits_ref) {
+		# Create the links between the loci and digs_results tables
+		foreach my $hit_ref (@$loci_ref) {
 			my $digs_result_id = $hit_ref->{record_id};
 			my %chain_data;
 			$chain_data{digs_result_id} = $digs_result_id;
@@ -972,6 +892,75 @@ sub update_locus_data {
 			$loci_chains_table->insert_row(\%chain_data);
 		}		
 	}
+}
+
+#***************************************************************************
+# Subroutine:  create_consolidated_locus
+# Description: 
+#***************************************************************************
+sub create_consolidated_locus {
+
+	my ($self, $consolidated_ref, $hits_ref, $cluster_id) = @_;
+
+	my @locus_structure;
+	my $initialised = undef;
+	my $lowest;
+	my $highest;
+	my $scaffold;
+	my $version;
+	my $orientation;
+	my $datatype;
+	my $organism;
+	my $target_name;
+	my $assigned_name;
+
+	foreach my $hit_ref (@$hits_ref) {
+			
+		my $feature     = $hit_ref->{assigned_gene};
+		my $start       = $hit_ref->{extract_start};
+		my $end         = $hit_ref->{extract_end};
+		$version        = $hit_ref->{target_version};
+		$datatype       = $hit_ref->{target_datatype};
+		$orientation    = $hit_ref->{orientation};
+		$scaffold       = $hit_ref->{scaffold};
+		$organism       = $hit_ref->{organism};
+		$target_name    = $hit_ref->{target_name};
+
+		unless ($feature and $orientation) { die; }
+		if ($orientation eq '+') {
+			push(@locus_structure, $feature);
+		}
+		elsif ($orientation eq '-') {
+			unshift(@locus_structure, $feature);			
+		}
+
+		if ($initialised) {
+			if ($end > $highest) {
+				$highest = $end;
+			}
+			if ($start < $lowest) {
+				$lowest = $start;					
+			}
+		}
+		else {
+			$highest = $end;
+			$lowest = $start;
+			$initialised = 'true';								
+		}
+	}
+	
+	my $locus_structure = join('-', @locus_structure);
+	$consolidated_ref->{organism}        = $organism;
+	$consolidated_ref->{target_version}  = $version;
+	$consolidated_ref->{target_name}     = $target_name;
+	$consolidated_ref->{target_datatype} = $datatype;
+	$consolidated_ref->{scaffold}        = $scaffold;
+	$consolidated_ref->{orientation}     = $orientation;
+	$consolidated_ref->{extract_start}   = $lowest;
+	$consolidated_ref->{extract_end}     = $highest;
+	$consolidated_ref->{assigned_name}   = $assigned_name;
+	$consolidated_ref->{locus_structure} = $locus_structure;
+
 }
 
 #***************************************************************************
@@ -1348,6 +1337,7 @@ sub compare_adjacent_hits {
 	my $start_token = $settings_ref->{start};
 	my $end_token   = $settings_ref->{end};
 	my $verbose     = $self->{verbose};
+	my $mode        = $self->{defragment_mode};
 
 	# Get the current hit values
 	my $name             = $hit1_ref->{assigned_name};
@@ -1374,10 +1364,19 @@ sub compare_adjacent_hits {
 	
 	# Exclude the obvious cases
 	if ($scaffold ne $last_scaffold)       { return 0; }  # different scaffolds
-	if ($orientation ne $last_orientation) { return 0; }  # different orientation
+
+	# Check orientation
+	if ($orientation ne $last_orientation) {
+		unless ($mode eq 'consolidate') { 
+			#print "\n\t\t Two hits in range but different orientation";
+			return 0;
+		}
+		else {
+			unless ($last_gene and $gene) { die; } # Should never get here		
+		}
+	}
 
 	# Take action depending on whether we are DEFRAGMENTING or CONSOLIDATING
-	my $mode = $self->{defragment_mode};
 	if ($gene and $last_gene) { 
 		if ($mode eq 'defragment') {
 			if ($gene ne $last_gene) { return 0; }  # different genes
@@ -1400,9 +1399,9 @@ sub compare_adjacent_hits {
 	if ($gap < $range) {  # Combine
 		if ($verbose) {
 			if ($last_name and $last_gene) {
-				print "\n\t\t      - Merged pair: $last_name ($last_gene), $name ($gene)"; 		
+				print "\n\t\t      - Added pair to cluster: $last_name ($last_gene [$last_orientation]), $name ($gene [$orientation])"; 		
 			}
-			else { print "\n\t\t      - Merged pair"; }
+			else { print "\n\t\t      - Added pair to cluster"; }
 
 		}
 		return 1;
@@ -2344,14 +2343,11 @@ sub initialise_reassign {
 	unless ($db and $db_name and $process_id and $output_path) { die; }
 	#$devtools->print_hash($self); die;
 	
-	# Create report directory
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->create_output_directories($self);
-
 	# Set up the reference library
+	my $loader_obj = $self->{loader_obj};
 	$loader_obj->setup_reference_library($self);
 	my $where;
-	if ($self->{blast_utr_lib_path})    { $where = " WHERE probe_type = 'UTR'"; }
+	if    ($self->{blast_utr_lib_path}) { $where = " WHERE probe_type = 'UTR'"; }
 	elsif ($self->{blast_orf_lib_path}) { $where = " WHERE probe_type = 'ORF'"; }
 
 	# Get the assigned data
@@ -2368,6 +2364,43 @@ sub initialise_reassign {
 	$loader_obj->set_targets(\%targets, \%target_groups);
 	$self->{target_groups} = \%target_groups; 
 }
+
+
+#***************************************************************************
+# Subroutine:  initialise_consolidation
+# Description: set up for consolidation process
+#***************************************************************************
+sub initialise_consolidation {
+
+	my ($self, $settings_ref) = @_;
+
+ 	# Create tables if they don't exist already
+	my $db_ref = $self->{db};
+	my $dbh = $db_ref->{dbh};
+	my $loci_exists = $db_ref->does_table_exist('loci');
+	unless ($loci_exists) {
+		$db_ref->create_loci_table($dbh);
+	}
+	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
+	unless ($loci_chains_exists) {
+		$db_ref->create_loci_chains_table($dbh);
+	}
+	$db_ref->load_loci_table($dbh);
+	$db_ref->load_loci_chains_table($dbh);
+
+	# Get the parameters for consolidation
+	my $range = $self->{consolidate_range};
+	my $d_range = $self->{defragment_range};
+	unless ($range) { 
+		my $question1 = "\n\n\t # Set the range for consolidating digs results";
+		$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
+	}
+	$settings_ref->{range} = $range;
+	$settings_ref->{start} = 'extract_start';
+	$settings_ref->{end}   = 'extract_end';
+
+}
+
 
 #***************************************************************************
 # Subroutine:  setup_digs
@@ -2943,12 +2976,12 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
+	#$self->run_test_1();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
 	$self->run_test_5();
-	#$self->run_test_6();
+	$self->run_test_6();
 	#$self->run_test_7();
 
 	# Print finished message
@@ -3129,13 +3162,15 @@ sub run_test_5 {
 	my ($self) = @_;
 
 	# Run the second peptide screen
-	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ \n";
+	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ ";
 
 	my $db = $self->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 	my $test5_path = './test/test5.txt';;
+	print "\n\t ### Flushed digs_results table & now uploading data from file '$test5_path'";
 	$db->upload_data_to_digs_results($test5_path);
+	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
 		
 	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
@@ -3201,6 +3236,9 @@ sub run_test_6 {
 
 	# Test consolidation
 	print "\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
+	$self->{consolidate_range} = 100;
+	$self->consolidate_loci();
+
 	sleep 2;
 
 }
