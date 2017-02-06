@@ -855,7 +855,7 @@ sub do_blast_genotyping {
 
 #***************************************************************************
 # Subroutine:  update_locus_data
-# Description: 
+# Description: insert new data about consolidated loci into relevant tables
 #***************************************************************************
 sub update_locus_data {
 
@@ -2999,7 +2999,7 @@ sub run_tests {
 	$self->run_test_4();
 	$self->run_test_5();
 	$self->run_test_6();
-	#$self->run_test_7();
+	$self->run_test_7();
 
 	# Print finished message
 	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
@@ -3273,7 +3273,6 @@ sub run_test_6 {
 sub run_test_7 {
 
 	my ($self) = @_;
-
 
 	# Test short match screen
 	print "\n\t ### TEST 7: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
