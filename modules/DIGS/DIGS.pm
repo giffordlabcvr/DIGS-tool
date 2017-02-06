@@ -3063,7 +3063,7 @@ sub run_test_1 {
 
 #***************************************************************************
 # Subroutine:  run_test_2
-# Description:  
+# Description: Defragment results test negative (i.e. will not merge loci)
 #***************************************************************************
 sub run_test_2 {
 
@@ -3090,7 +3090,7 @@ sub run_test_2 {
 	
 #***************************************************************************
 # Subroutine:  run_test_3
-# Description:  
+# Description: Partially deleted pol peptide screen against synthetic data
 #***************************************************************************
 sub run_test_3 {
 
@@ -3130,7 +3130,7 @@ sub run_test_3 {
 
 #***************************************************************************
 # Subroutine:  run_test_4
-# Description:  
+# Description: Defragment results test positive (i.e. will merge loci)
 #***************************************************************************
 sub run_test_4 {
 
@@ -3179,7 +3179,7 @@ sub run_test_4 {
 
 #***************************************************************************
 # Subroutine:  run_test_5
-# Description:  
+# Description: Live gag + env peptide screen
 #***************************************************************************
 sub run_test_5 {
 
@@ -3250,7 +3250,7 @@ sub run_test_5 {
 
 #***************************************************************************
 # Subroutine:  run_test_6
-# Description:  
+# Description: Test consolidation function
 #***************************************************************************
 sub run_test_6 {
 
@@ -3275,7 +3275,7 @@ sub run_test_6 {
 
 #***************************************************************************
 # Subroutine:  run_test_7
-# Description:  
+# Description: Reassign test 
 #***************************************************************************
 sub run_test_7 {
 
@@ -3284,6 +3284,7 @@ sub run_test_7 {
 	# Test short match screen
 	print "\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
 
+	# Upload a data set
 	my $db = $self->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
@@ -3292,12 +3293,29 @@ sub run_test_7 {
 	$db->upload_data_to_digs_results($test7_path);
 	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
 
+	# Do the reassign
 	my $test_ctl_file7 = './test/test7_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file7, $self, 2);
 	my @digs_results;
 	$self->initialise_reassign(\@digs_results); # Set up 
 	$self->reassign(\@digs_results);	
+	
+	# Get data and check reassign looks right
+	my @data;
+	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
+	my $sort = " WHERE probe_type = 'ORF' ORDER BY scaffold, extract_start ";
+	$results_table->select_rows(\@fields, \@data, $sort);
+	#$devtools->print_array(\@data); die;
+	
+	my $fail = undef;
+	foreach my $result_ref (@data) {
+		unless ($result_ref->{assigned_name} eq 'MLV') { $fail = 1; }
+	}
+	
+	# Final message
+	unless ($fail) { print "\n\n\t  Test 7: Reassign test  ** PASSED **\n"; }
+	else           { die   "\n\t  Test 7: Reassign test  ** FAILED ($fail) **\n"; }
 		
 	sleep 2;
 
@@ -3305,7 +3323,7 @@ sub run_test_7 {
 
 #***************************************************************************
 # Subroutine:  run_test_8
-# Description:  
+# Description: Reverse complement screen 
 #***************************************************************************
 sub run_test_8 {
 
