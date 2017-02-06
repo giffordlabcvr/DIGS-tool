@@ -131,8 +131,7 @@ sub run_digs_process {
 	}
 
 	# Show final summary and exit message
-	$self->wrap_up();
-
+	$self->wrap_up($option);
 }
 
 ############################################################################
@@ -197,10 +196,10 @@ sub reassign {
 	my ($self, $extracted_seqs_ref) = @_;
 
 	# Get data structures and variables from self
-	my $blast_obj       = $self->{blast_obj};
-	my $result_path     = $self->{report_dir};
-	my $db              = $self->{db};
-	my $verbose         = $self->{verbose};
+	my $blast_obj   = $self->{blast_obj};
+	my $result_path = $self->{report_dir};
+	my $db          = $self->{db};
+	my $verbose     = $self->{verbose};
 	my $digs_results_table = $db->{digs_results_table};
 	unless ($digs_results_table) { die; }
 	
@@ -210,7 +209,7 @@ sub reassign {
 	my %reassign_matrix;
 	my %unique_keys;
 	foreach my $hit_ref (@$extracted_seqs_ref) {
-
+		
 		# Set the linking to the BLAST result table
 		my $record_id       = $hit_ref->{record_id};	
 		my $extract_start   = $hit_ref->{extract_start};
@@ -224,8 +223,8 @@ sub reassign {
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $hit_ref->{assigned_name};
 		my $previous_gene   = $hit_ref->{assigned_gene};
-		#print "\n\t Redoing assign for record ID $blast_id assigned to $previous_assign";
-		#print "\n\t coordinates: $extract_start-$extract_end";
+		print "\n\t\t # Redoing assign for record ID $record_id assigned to $previous_assign ($previous_gene)";
+		print "\n\t\t # coordinates: $extract_start-$extract_end";
 		$self->do_blast_genotyping($hit_ref);
 		
 		$count++;
@@ -233,11 +232,11 @@ sub reassign {
 
 		my $assigned_name = $hit_ref->{assigned_name};
 		my $assigned_gene = $hit_ref->{assigned_gene};
-		if ($verbose) { print "\n\t Sequence assigned as $assigned_name ($assigned_gene) using "; }
+		if ($verbose) { print "\n\t\t # Sequence assigned as $assigned_name ($assigned_gene) using "; }
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 			
 			# Show the results
-			print "\n\t ##### Reassigned $record_id from $previous_assign ($previous_gene)";
+			print "\n\t\t # Reassigned $record_id from $previous_assign ($previous_gene)";
 			print " to $assigned_name ($assigned_gene)";
 			my $where = " WHERE record_id = $record_id ";
 			
@@ -289,12 +288,13 @@ sub interactive_defragment {
 	my $target_group_ref = $self->{target_groups};
 	unless ($genome_use_path)    { die; }
 	unless ($target_group_ref)   { die; }
-	unless ($$defragment_range ) { die; } 
+	unless ($defragment_range )  { die; } 
 	unless ($genome_use_path)    { die; } 
 
 	# Display current settings	
 	print "\n\n\t\t Current settings (based on control file)";
 	print "\n\t\t defragment range: $defragment_range";
+	$self->{defragment_mode} = 'defragment';
 
 	# Get a list of all the target files from the screening DB
 	my $db = $self->{db};
@@ -334,11 +334,12 @@ sub interactive_defragment {
 	if ($choice eq 2) { # Apply the changes
 
 		# Create a copy of the digs_results table (changes will be applied to copy)
+		print "\n\t # Defragmenting using range '$t_range'\n";
 		my $copy_name = $db->backup_digs_results_table();
-		print "\n\t # Defragmenting using range '$t_range' in table '$copy_name'\n";
-		#print "\n\n\t # Copied DIGS results to $copy_name\n";
+		print "\n\t # Copied DIGS results to '$copy_name'\n";
 		my $dbh = $db->{dbh};
-		$db->load_digs_results_table($dbh, $copy_name);	
+		$db->load_digs_results_table($dbh, 'digs_results');	
+		unless ($db->{digs_results_table}) { die; }
 		
 		# Iterate through the target files, applying the defragment process to each		
 		foreach my $target_ref (@targets) {
@@ -373,7 +374,7 @@ sub interactive_defragment {
 			$settings{range} = $t_range;
 			$settings{start} = 'extract_start';
 			$settings{end}   = 'extract_end';
-			$self->defragment_target(\%settings, $where, $target_path, $copy_name);
+			$self->defragment_target(\%settings, $where, $target_path, 'digs_results');
 		}
 	}
 	elsif ($choice eq 3) { print "\n"; exit; }
@@ -399,7 +400,6 @@ sub consolidate_loci {
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	print "\n\t  Consolidating assigned extracted sequences into loci";
 	print "\n\t  $total_hits loci in the digs_results table prior to consolidation'";
-
 	my %consolidated;
 	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
 	my @cluster_ids  = keys %consolidated;
@@ -410,7 +410,8 @@ sub consolidate_loci {
 	
 	# Update locus data based on consolidated results
 	$self->update_locus_data(\%consolidated);
-
+	
+	# Return the number of clusters
 	return $num_clusters;
 }
 
@@ -1000,7 +1001,7 @@ sub get_blast_algorithm {
 	my $blast_alg;
 	if    ($probe_type eq 'UTR') { $blast_alg = 'blastn'; }
 	elsif ($probe_type eq 'ORF') { $blast_alg = 'blastx'; }
-	else { die; }
+	else { die "\n\t Unknown probe type '$probe_type '\n\n"; }
 	
 	return $blast_alg;
 }
@@ -1017,7 +1018,7 @@ sub get_blast_library_path {
 	if ($probe_type eq 'UTR') { 
 		$lib_path = $self->{blast_utr_lib_path};
 		unless ($lib_path) {
-			#$devtools->print_hash($self); die;
+			$devtools->print_hash($self); 
 			die "\n\t NO UTR LIBRARY defined";
 		}
 	}
@@ -1115,19 +1116,23 @@ sub show_digs_progress {
 #***************************************************************************
 sub wrap_up {
 
-	my ($self) = @_;
+	my ($self, $option) = @_;
 
 	# Remove the output directory
 	my $output_dir = $self->{report_dir};
-	my $command1 = "rm -rf $output_dir";
-	system $command1;
+	if ($output_dir) {
+		my $command1 = "rm -rf $output_dir";
+		system $command1;
+	}
 
 	# Show cross matching at end if verbose output setting is on
 	my $verbose = $self->{verbose};
-	if ($verbose) { $self->show_cross_matching(); }
+	if ($verbose and $option eq 2 and $option eq 3) { 
+		$self->show_cross_matching();
+	}
 
 	# Print finished message
-	print "\n\n\t ### DIGS process completed ~ + ~ + ~";
+	print "\n\n\t ### Process completed ~ + ~ + ~";
 
 }
 
@@ -1243,7 +1248,7 @@ sub defragment_digs_results {
 			print "\n\n\t\t $num_hits hits in target $target_name";
 			if ($num_hits > $num_clusters) {
 				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-				$self->show_clusters(\%target_defragmented);
+				#$self->show_clusters(\%target_defragmented);
 			}
 		}
 		$total_hits = $total_hits + $num_hits;
@@ -1507,10 +1512,13 @@ sub merge_cluster {
 	my $organism;
 	my $probe_type;
 	my $extended;
-	my $extract = undef;		
+	my $extract = undef;
+	my $num_cluster_loci = scalar @$cluster_ref;		
 	if ($verbose) {
-		print "\n\t\t   ## Merging all items in cluster";
-		$self->show_cluster($cluster_ref, $cluster_id);
+		if ($num_cluster_loci > 1) {
+			print "\n\t\t   ## Merging $num_cluster_loci loci in cluster";
+			#$self->show_cluster($cluster_ref, $cluster_id);
+		}
 	}
 
 	my $num_loci = '0';
@@ -2353,14 +2361,13 @@ sub initialise_reassign {
 	my $db          = $self->{db};
 	my $db_name     = $db->{db_name};
 	unless ($db and $db_name and $process_id and $output_path) { die; }
-	#$devtools->print_hash($self); die;
-	
+
 	# Set up the reference library
 	my $loader_obj = $self->{loader_obj};
-	$loader_obj->setup_reference_library($self);
+	$loader_obj->setup_reference_libraries($self);
 	my $where;
-	if    ($self->{blast_utr_lib_path}) { $where = " WHERE probe_type = 'UTR'"; }
-	elsif ($self->{blast_orf_lib_path}) { $where = " WHERE probe_type = 'ORF'"; }
+	#if    ($self->{blast_utr_lib_path}) { $where = " WHERE probe_type = 'UTR'"; }
+	#elsif ($self->{blast_orf_lib_path}) { $where = " WHERE probe_type = 'ORF'"; }
 
 	# Get the assigned data
 	my $digs_results_table = $db->{digs_results_table};
@@ -3076,8 +3083,8 @@ sub run_test_2 {
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
 	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
-	if ($num_new eq '0' )  { print "\n\t  Defragment negative test: ** PASSED **\n" }
-	else                   { die   "\n\t  Defragment negative test: ** FAILED **\n" }
+	if ($num_new eq '0' )  { print "\n\n\t  Defragment negative test: ** PASSED **\n" }
+	else                   { die   "\n\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
 }
 	
@@ -3275,7 +3282,23 @@ sub run_test_7 {
 	my ($self) = @_;
 
 	# Test short match screen
-	print "\n\t ### TEST 7: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
+	print "\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
+
+	my $db = $self->{db}; # Get the database reference
+	my $results_table = $db->{digs_results_table}; # Get the database reference
+	$results_table->flush();
+	my $test7_path = './test/test7.txt';;
+	print "\n\t ### Flushed digs_results table & now uploading data from file '$test7_path'";
+	$db->upload_data_to_digs_results($test7_path);
+	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
+
+	my $test_ctl_file7 = './test/test7_erv_aa.ctl';
+	my $loader_obj     = $self->{loader_obj};
+	$loader_obj->parse_control_file($test_ctl_file7, $self, 2);
+	my @digs_results;
+	$self->initialise_reassign(\@digs_results); # Set up 
+	$self->reassign(\@digs_results);	
+		
 	sleep 2;
 
 }
@@ -3289,7 +3312,21 @@ sub run_test_8 {
 	my ($self) = @_;
 
 	# Test the reassign function
-	print "\n\t ### TEST 8: Live test blastn screen using short probes ~ + ~ + ~ \n";
+	print "\n\t ### TEST 8: Reverse complement screen ~ + ~ + ~ \n";
+	sleep 2;
+
+}
+
+#***************************************************************************
+# Subroutine:  run_test_9
+# Description:  
+#***************************************************************************
+sub run_test_9 {
+
+	my ($self) = @_;
+
+	# Test the reassign function
+	print "\n\t ### TEST 9: blastn screen using short probes ~ + ~ + ~ \n";
 	sleep 2;
 
 }

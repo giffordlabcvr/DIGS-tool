@@ -88,9 +88,9 @@ sub setup_screen  {
 	# Import the probes
 	my @probes;
 	$self->setup_blast_probes(\@probes);
-
+	
 	# Set up the reference library for BLAST
-	$self->setup_reference_library($pipeline_obj);
+	$self->setup_reference_libraries($pipeline_obj);
 	
 	# Set target sequence files for screening
 	my %targets;
@@ -206,96 +206,107 @@ sub parse_control_file {
 		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
 	}
 	# Set the bit score minimum for a BLASTn screen
-	elsif ($self->{bitscore_min_blastn}) {
-		$pipeline_obj->{bitscore_minimum}   = $self->{bitscore_min_blastn};	
-	}
-	else {
-		die "\n\t No bit score minimum is defined\n\n";
+	if ($self->{bitscore_min_blastn}) {
+		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
 	}
 
 }
 
 #***************************************************************************
-# Subroutine:  setup_reference_library
+# Subroutine:  setup_reference_libraries
 # Description: handler for reference library set up
 #***************************************************************************
-sub setup_reference_library {
-	
+sub setup_reference_libraries {
+
 	my ($self, $pipeline_obj) = @_;
 
 	# Get reference library params
 	my $reference_type;
 	my $ref_fasta;
+	my @ref_fasta;
+	my $num_fasta;
+	
+	# Load a peptide sequence library
 	if ($self->{reference_aa_fasta}) {
  		$self->{reference_library_type} = 'aa';
 		$ref_fasta = $self->{reference_aa_fasta};
 		$reference_type = 'amino acid';
+		$self->create_reference_library($pipeline_obj, $ref_fasta, $reference_type);
 	}
-	elsif ($self->{reference_na_fasta}) {
+	
+	# Load a nucleotide sequence library	
+	if ($self->{reference_na_fasta}) {
  		$self->{reference_library_type} = 'na';
 		$ref_fasta = $self->{reference_na_fasta};
 		$reference_type = 'nucleic acid';
+		$self->create_reference_library($pipeline_obj, $ref_fasta, $reference_type);
 	}
-	else { die; }
-	unless ($ref_fasta)  {die; }
+}
+
+#***************************************************************************
+# Subroutine:  create_reference_library
+# Description: 
+#***************************************************************************
+sub create_reference_library {
 	
-	my @ref_fasta;
-	my $num_fasta;
+	my ($self, $pipeline_obj, $ref_fasta, $reference_type) = @_;
+
 	my $nonunique = 0;
 	my %nonunique;
-	if ($ref_fasta) {
+	my @fasta;
+	$self->read_fasta($ref_fasta, \@fasta);
+	my $num_fasta = scalar @fasta;
+	unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-		my @fasta;
-		$self->read_fasta($ref_fasta, \@fasta);
-		$num_fasta = scalar @fasta;
-		unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
+	print "\n\t  Reference library ($reference_type): $num_fasta $reference_type sequences";
+	my $i = 0;
+	#$devtools->print_array(\@fasta); die;
+	my @references;
+	my %refseq_ids; # Hash to check probe names are unique		
+	foreach my $seq_ref (@fasta) {
 
-		print "\n\t  Reference library: $num_fasta $reference_type sequences";
-		my $i = 0;
-		my %refseq_ids; # Hash to check probe names are unique		
-		foreach my $seq_ref (@fasta) {
-			$i++;
-			my $header  = $seq_ref->{header};
-			$header  =~ s/\s+/_/g;
-			my %header_data;
-			my $valid = $self->parse_fasta_header_data($header, \%header_data);
-			if ($valid) {
-				my $name      = $header_data{name};
-				my $gene_name = $header_data{gene_name};
-				my $refseq_id = $name . "_$gene_name";
-				my $seq    = $seq_ref->{sequence};
-				
-				if ($refseq_ids{$refseq_id}) {
-					$nonunique++;
-					if   ($nonunique{$refseq_id}) { $nonunique{$refseq_id}=1; }
-					else                          { $nonunique{$refseq_id}++; } 
-					#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
-					#sleep 1;
-				}
-				else {
-					$refseq_ids{$refseq_id} = 1;
-				}
+		#$devtools->print_hash($seq_ref);
+		$i++;
+		my $header = $seq_ref->{header};
+		#print "FUCK OFF YOU TAOTAL CUNT $header"; 
 
-				my $fasta = ">$name" . "_$gene_name" . "\n$seq\n\n";
-				push (@ref_fasta, $fasta);
-			}
+		$header    =~ s/\s+/_/g;
+		my %header_data;
+		my $valid = $self->parse_fasta_header_data($header, \%header_data);
+		unless ($valid) { die; }
+		my $name      = $header_data{name};
+		my $gene_name = $header_data{gene_name};
+		my $refseq_id = $name . "_$gene_name";
+		my $seq    = $seq_ref->{sequence};
+
+		if ($refseq_ids{$refseq_id}) {
+			$nonunique++;
+			if   ($nonunique{$refseq_id}) { $nonunique{$refseq_id}=1; }
+			else                          { $nonunique{$refseq_id}++; } 
+			#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
+			#sleep 1;
 		}
+		else {
+			$refseq_ids{$refseq_id} = 1;
+		}
+		my $fasta = ">$name" . "_$gene_name" . "\n$seq\n\n";
+		push (@references, $fasta);
 	}
+
 	if ($nonunique) {
 		print "\n\t   - Warning: $nonunique non-unique names identified in reference library";
 		sleep 1;
 		#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
 	}
-	
+
 	# Format the library for BLAST
 	if ($num_fasta) {
 		if ($self->{reference_library_type} eq 'aa') {
-			$self->create_blast_lib(\@ref_fasta, 'aa');
+			$self->create_blast_lib(\@references, 'aa');
 		}
-		elsif ($self->{reference_library_type} eq 'na') {
-			$self->create_blast_lib(\@ref_fasta, 'na');
+		if ($self->{reference_library_type} eq 'na') {
+			$self->create_blast_lib(\@references, 'na');
 		}
-		else { die; }
 	}
 
 	# Set the paths to the BLAST-formatted libraries
@@ -311,29 +322,25 @@ sub setup_blast_probes {
 	
 	my ($self, $probes_ref) = @_;
 
-	# Get parameters from self
+	# Set up peptide probes
 	my $probe_type;
 	my $input_path;
 	if ($self->{query_aa_fasta}) {
  		$self->{probe_library_type} = 'aa';
 		$input_path = $self->{query_aa_fasta};
 		$probe_type = 'amino acid FASTA';
+		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
 	}
-	elsif ($self->{query_na_fasta}) {
+
+	# Set up nucleotide probes
+	if ($self->{query_na_fasta}) {
  		$self->{probe_library_type} = 'na';
 		$input_path = $self->{query_na_fasta};
 		$probe_type = 'nucleic acid FASTA';
+		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
 	}
 	else { 
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
-	}
-
-	# Get a FASTA set of probes 
-	if ($probe_type eq 'nucleic acid FASTA' or $probe_type eq 'amino acid FASTA') {
-		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
-	}
-	else {
-		die;
 	}
 }
 
@@ -742,7 +749,7 @@ sub parse_screensets_block {
 	if ($query_aa_fasta) { # If a set of protein probes has been specified
 		# Check if BLAST bitscore or evalue minimum set
 		unless ($tblastn_min) { # Set to default minimum
-			print "\n\t  Warning: no bitscore minimum defined for blastn\n\n";
+			print "\n\t  Warning: no bitscore minimum defined for tblastn\n\n";
 			sleep 1;
 		}
 		unless ($reference_aa_fasta) { # Set to default minimum
@@ -752,7 +759,7 @@ sub parse_screensets_block {
 	# Validation for a nucleic acid, FASTA-based screen
 	if ($query_na_fasta) {
 		unless ($blastn_min) { # Set to default minimum
-			print "\n\t Warning: no bitscore minimum defined for tblastn\n\n";
+			print "\n\t Warning: no bitscore minimum defined for blastn\n\n";
 			sleep 1;
 		}
 		unless ($reference_na_fasta) { # Set to default minimum
@@ -872,7 +879,7 @@ sub read_fasta {
 
 	my ($self, $file, $array_ref, $identifier) = @_;
 	
-	unless ($identifier) { $identifier = 'SEQ_'; }
+	unless ($identifier) { $identifier = 'SEQ'; }
 
 	# Read in the file or else return
 	unless (open(INFILE, $file)) {
@@ -904,7 +911,7 @@ sub read_fasta {
 			# new header, store any sequence held in the buffer
 			if ($header and $sequence) {
 				$i++;
-				my $alias_id = $alias_stem . "_$i";
+				my $alias_id = $alias_stem . '_' . $i;
 				$sequence = uc $sequence;
 				my %seq_obj;
 				$seq_obj{sequence}    = $sequence;
