@@ -1293,7 +1293,7 @@ sub compose_clusters {
 			if ( $scaffold eq $last_scaffold and $start < $last_start) { die; }
            
             # Work out wether to merge this hit with the last
-            my $merge = $self->compare_adjacent_hits($locus_ref, \%last_locus, $settings_ref);
+            my $merge = $self->compare_adjacent_loci($locus_ref, \%last_locus, $settings_ref);
             
             unless ($merge) {
                  # Increment the count
@@ -1325,12 +1325,14 @@ sub compose_clusters {
 }
 
 #***************************************************************************
-# Subroutine:  compare_adjacent_hits
+# Subroutine:  compare_adjacent_loci
 # Description: compare two loci and determine whether to merge into one
+# Note: this is a critical function in many respects - the logic for 
+#       merging or not merging loci is implemented here
 #***************************************************************************
-sub compare_adjacent_hits {
+sub compare_adjacent_loci {
 
-	my ($self, $hit1_ref, $hit2_ref, $settings_ref) = @_;
+	my ($self, $locus1_ref, $locus2_ref, $settings_ref) = @_;
 
 	# Get settings
 	my $range       = $settings_ref->{range};
@@ -1339,28 +1341,30 @@ sub compare_adjacent_hits {
 	my $verbose     = $self->{verbose};
 	my $mode        = $self->{defragment_mode};
 
+
 	# Get the current hit values
-	my $name             = $hit1_ref->{assigned_name};
-	my $gene             = $hit1_ref->{assigned_gene};			
-	unless ($gene) {
-		$gene = $hit1_ref->{probe_gene};
+	my $name             = $locus1_ref->{assigned_name};
+	my $gene             = $locus1_ref->{assigned_gene};					
+	unless ($gene) { # If there is no assigned gene set, use probe gene	
+		$gene = $locus1_ref->{probe_gene};
 	}			
-	my $scaffold         = $hit1_ref->{scaffold};	
-	my $start            = $hit1_ref->{$start_token};
-	my $end              = $hit1_ref->{$end_token};
-	my $orientation      = $hit1_ref->{orientation};			
+	my $scaffold         = $locus1_ref->{scaffold};	
+	my $start            = $locus1_ref->{$start_token};
+	my $end              = $locus1_ref->{$end_token};
+	my $orientation      = $locus1_ref->{orientation};			
+
 
 	# Get the last hit values
-	my $last_name        = $hit2_ref->{assigned_name};
-	my $last_gene        = $hit2_ref->{assigned_gene};			
-	unless ($last_gene) {
-		$last_gene = $hit2_ref->{probe_gene};
+	my $last_name        = $locus2_ref->{assigned_name};
+	my $last_gene        = $locus2_ref->{assigned_gene};		
+	unless ($last_gene) {  # If there is no assigned gene set, use probe gene	
+		$last_gene = $locus2_ref->{probe_gene};
 	}	
-		
-	my $last_scaffold    = $hit2_ref->{scaffold};	
-	my $last_start       = $hit2_ref->{$start_token};
-	my $last_end         = $hit2_ref->{$end_token};
-	my $last_orientation = $hit2_ref->{orientation};			
+	my $last_scaffold    = $locus2_ref->{scaffold};	
+	my $last_start       = $locus2_ref->{$start_token};
+	my $last_end         = $locus2_ref->{$end_token};
+	my $last_orientation = $locus2_ref->{orientation};			
+
 	
 	# Exclude the obvious cases
 	if ($scaffold ne $last_scaffold)       { return 0; }  # different scaffolds
@@ -1381,10 +1385,13 @@ sub compare_adjacent_hits {
 		if ($mode eq 'defragment') {
 			if ($gene ne $last_gene) { return 0; }  # different genes
 		}
+		else {
+			die;
+		}
 	}
 	else { 
-		print "\n\t\t ERRPOR genes not found: ene $gene LAST $last_gene";;
-		$devtools->print_hash($hit2_ref);
+		print "\n\t\t ERROR genes not found: ene $gene LAST $last_gene";;
+		$devtools->print_hash($locus2_ref);
 		die; 
 	}
 	
@@ -1399,10 +1406,10 @@ sub compare_adjacent_hits {
 	if ($gap < $range) {  # Combine
 		if ($verbose) {
 			if ($last_name and $last_gene) {
-				print "\n\t\t      - Added pair to cluster: $last_name ($last_gene [$last_orientation]), $name ($gene [$orientation])"; 		
+				print "\n\t\t      - Added pair to cluster: $last_name";
+				print "($last_gene [$last_orientation]), $name ($gene [$orientation])"; 		
 			}
-			else { print "\n\t\t      - Added pair to cluster"; }
-
+			else { print "\n\t\t      - Added pair to cluster";
 		}
 		return 1;
 	}
@@ -2365,7 +2372,6 @@ sub initialise_reassign {
 	$self->{target_groups} = \%target_groups; 
 }
 
-
 #***************************************************************************
 # Subroutine:  initialise_consolidation
 # Description: set up for consolidation process
@@ -2399,8 +2405,10 @@ sub initialise_consolidation {
 	$settings_ref->{start} = 'extract_start';
 	$settings_ref->{end}   = 'extract_end';
 
-}
+	# Set mode for comparing adjacent loci
+	$self->{defragment_mode} = 'consolidate';
 
+}
 
 #***************************************************************************
 # Subroutine:  setup_digs
