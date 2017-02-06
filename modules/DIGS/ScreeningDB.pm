@@ -108,7 +108,6 @@ sub load_screening_db {
 	$self->{dbh} = $dbh;
 
 	# Main Screening DB tables
-	print   "\t  Connecting to DB:  $db_name";
 	$self->load_searches_table($dbh);	
 	$self->load_active_set_table($dbh);	
 	$self->load_digs_results_table($dbh, 'digs_results');	

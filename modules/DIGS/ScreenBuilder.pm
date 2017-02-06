@@ -261,7 +261,7 @@ sub create_reference_library {
 	my $num_fasta = scalar @fasta;
 	unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-	print "\n\t  Reference library ($reference_type): $num_fasta $reference_type sequences";
+	print "\n\t  Reference library: $num_fasta $reference_type sequences";
 	my $i = 0;
 	#$devtools->print_array(\@fasta); die;
 	my @references;
@@ -332,11 +332,13 @@ sub setup_blast_probes {
 	# Set up peptide probes
 	my $probe_type;
 	my $input_path;
+	my $got_probes = undef;
 	if ($self->{query_aa_fasta}) {
  		$self->{probe_library_type} = 'aa';
 		$input_path = $self->{query_aa_fasta};
 		$probe_type = 'amino acid FASTA';
 		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
+		$got_probes = scalar @$probes_ref;;
 	}
 
 	# Set up nucleotide probes
@@ -345,8 +347,11 @@ sub setup_blast_probes {
 		$input_path = $self->{query_na_fasta};
 		$probe_type = 'nucleic acid FASTA';
 		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
+		$got_probes = scalar @$probes_ref;;
 	}
-	else { 
+	
+	unless ($got_probes) { 
+		$devtools->print_hash($self);
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
 	}
 }
@@ -363,7 +368,7 @@ sub get_fasta_probes {
 	my @fasta;
 	$self->read_fasta($query_fasta, \@fasta);
 	my $num_fasta = scalar @fasta;
-	print "\n\t  Probes:            $num_fasta $probe_type sequences";
+	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences";
 	my $i = 0;
 	my $type = $self->{probe_library_type};
 	my %probe_ids; # Hash to check probe names are unique

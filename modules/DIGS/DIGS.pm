@@ -601,7 +601,7 @@ sub search_target_using_blast {
 	# Show summary of BLAST results after filtering
 	if ($score_exclude_count or $length_exclude_count) {
 		print "\n\t\t # $num_retained_hits matches above threshold ";
-		print "(excluded $length_exclude_count < length; $score_exclude_count < bitscore)";
+		print "(excluded: $length_exclude_count < length; $score_exclude_count < bitscore)";
 	}
 
 	# Update the searches table, to indicate this search has been performed
@@ -672,7 +672,10 @@ sub compile_nonredundant_locus_set {
 	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
 	if ($num_new){
-		print "\n\t\t # $num_new newly extracted sequences for assign/reassign";
+		print "\n\t\t # $num_new sequences to extract";
+	}	
+	else {
+		print "\n\t\t # No new loci to extract";
 	}	
 }
 
@@ -766,11 +769,11 @@ sub classify_using_blast {
 			$self->update_cross_matching($probe_key, $assigned);
 		}
 	}
+	if ($assigned_count > 0) {
+		print "\n\t\t # $assigned_count extracted sequences classified";
+	}
 	if ($verbose) {	
-		if ($assigned_count > 0) {
-			print "\n\t\t # $assigned_count extracted sequences classified";
-			print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-		}
+		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
 	}
 }
 
@@ -2511,6 +2514,7 @@ sub load_screening_db {
 	}
 	
 	# Load the table handles into screening database object
+	print   "\t  Connecting to DB:  $db_name";
 	$db_obj->load_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
 }
@@ -3018,12 +3022,12 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	#$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
-	#$self->run_test_5();
-	#$self->run_test_6();
+	$self->run_test_1();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
+	$self->run_test_5();
+	$self->run_test_6();
 	$self->run_test_7();
 
 	# Print finished message
@@ -3032,10 +3036,11 @@ sub run_tests {
 
 	# Remove the output directory
 	my $output_dir = $self->{report_dir};
-	my $command1 = "rm -rf $output_dir";
-	system $command1;
-
-}		
+	if ($output_dir) {
+		my $command1 = "rm -rf $output_dir";
+		system $command1;
+	}
+}
 
 #***************************************************************************
 # Subroutine:  run_test_1
