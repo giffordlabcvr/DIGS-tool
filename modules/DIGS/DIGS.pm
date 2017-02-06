@@ -68,6 +68,13 @@ sub new {
 	
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},
+
+		# Parameters for screening
+		query_na_fasta         => '',   # Obtained from control file
+		query_aa_fasta         => '',   # Obtained from control file
+		reference_na_fasta     => '',   # Obtained from control file
+		reference_aa_fasta     => '',   # Obtained from control file
+
 	};
 	
 	bless ($self, $class);
@@ -740,7 +747,9 @@ sub classify_using_blast {
 	foreach my $hit_ref (@$extracted_ref) { # Iterate through the matches
 
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-		my $assigned = $self->do_blast_genotyping($hit_ref);
+		my $blast_alg = $self->do_blast_genotyping($hit_ref);
+		my $assigned  = $hit_ref->{assigned_name};
+		unless ($assigned) { die; }
 		if ($assigned) { $assigned_count++; }
 
 		# Get the unique key for this probe
@@ -800,6 +809,10 @@ sub do_blast_genotyping {
 	# Do the BLAST according to the type of sequence (AA or NA)
 	my $blast_alg = $self->get_blast_algorithm($probe_type);
 	my $lib_path  = $self->get_blast_library_path($probe_type);
+	my $lib_file;
+	if    ($probe_type eq 'ORF') {  $lib_file = $self->{aa_lib_name}; }
+	elsif ($probe_type eq 'UTR') {  $lib_file = $self->{na_lib_name}; }
+	else  { die; }
 
 	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
@@ -840,7 +853,7 @@ sub do_blast_genotyping {
 		$hit_ref->{query_start}    = $query_start;
 		$hit_ref->{subject_end}    = $subject_end;
 		$hit_ref->{subject_start}  = $subject_start;
-		if ($verbose) { print "\n\t\t    - Classified sequence as '$assigned_name ($assigned_gene)'"; }
+		if ($verbose) { print "\n\t\t    - Classified as '$assigned_name ($assigned_gene)' via $blast_alg comparison to $lib_file"; }
 		$assigned = $assigned_name . '_' . $assigned_gene;
 	}
 
@@ -849,9 +862,8 @@ sub do_blast_genotyping {
 	my $command2 = "rm $result_file";
 	system $command1;
 	system $command2;
-
-	unless ($assigned) { $assigned = 'Unassigned'; }
-	return $assigned;
+	
+	return $blast_alg;
 }
 
 #***************************************************************************
@@ -3071,6 +3083,7 @@ sub run_test_2 {
 
 	## Check that defragment gives expected result	(negative)
 	print "\n\t ### TEST 2: Try to defragment results (nothing should be merged) ~ + ~ + ~ \n";	
+
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
 	$where    .= " AND target_datatype = 'fake_datatype' ";
@@ -3293,6 +3306,19 @@ sub run_test_7 {
 	$db->upload_data_to_digs_results($test7_path);
 	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
 
+	# Defragment - Construct WHERE statement
+	my $where  = " WHERE organism      = 'fake_species' ";
+	$where    .= " AND target_datatype = 'fake_datatype' ";
+	$where    .= " AND target_version  = 'fake_version' ";
+	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
+	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
+	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
+	my %settings;
+	$settings{range} = 100;
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
+	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+
 	# Do the reassign
 	my $test_ctl_file7 = './test/test7_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
@@ -3307,7 +3333,6 @@ sub run_test_7 {
 	my $sort = " WHERE probe_type = 'ORF' ORDER BY scaffold, extract_start ";
 	$results_table->select_rows(\@fields, \@data, $sort);
 	#$devtools->print_array(\@data); die;
-	
 	my $fail = undef;
 	foreach my $result_ref (@data) {
 		unless ($result_ref->{assigned_name} eq 'MLV') { $fail = 1; }

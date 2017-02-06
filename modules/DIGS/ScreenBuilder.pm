@@ -251,6 +251,9 @@ sub create_reference_library {
 	
 	my ($self, $pipeline_obj, $ref_fasta, $reference_type) = @_;
 
+	my @path = split(/\//, $ref_fasta);
+	my $lib_file = pop @path;
+
 	my $nonunique = 0;
 	my %nonunique;
 	my @fasta;
@@ -268,7 +271,6 @@ sub create_reference_library {
 		#$devtools->print_hash($seq_ref);
 		$i++;
 		my $header = $seq_ref->{header};
-		#print "FUCK OFF YOU TAOTAL CUNT $header"; 
 
 		$header    =~ s/\s+/_/g;
 		my %header_data;
@@ -303,15 +305,20 @@ sub create_reference_library {
 	if ($num_fasta) {
 		if ($self->{reference_library_type} eq 'aa') {
 			$self->create_blast_lib(\@references, 'aa');
+			$pipeline_obj->{aa_lib_name} = $self->{$lib_file};
 		}
 		if ($self->{reference_library_type} eq 'na') {
 			$self->create_blast_lib(\@references, 'na');
+			$pipeline_obj->{na_lib_name} = $self->{$lib_file};
 		}
 	}
 
 	# Set the paths to the BLAST-formatted libraries
 	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
+
+
+
 }
 
 #***************************************************************************
