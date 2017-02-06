@@ -387,8 +387,7 @@ sub consolidate_loci {
 
 	my ($self) = @_;
 
-   # Set up for consolidation
-	print "\n\n\t  ### Consolidating assigned extracted sequences into loci \n";
+   # First, set up for consolidation
 	my %settings;
 	$self->initialise_consolidation(\%settings);
 
@@ -396,20 +395,23 @@ sub consolidate_loci {
 	my @sorted;
 	$self->get_sorted_digs_results(\@sorted);
 	my $total_hits = scalar @sorted;
-	print "\n\t...$total_hits individual hits";
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	print "\n\t  Consolidating assigned extracted sequences into loci";
+	print "\n\t  $total_hits loci in the digs_results table prior to consolidation'";
+
 	my %consolidated;
 	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_hits > $num_clusters) {
-		print "\n\t...consolidated to $num_clusters overlapping/contiguous clusters";
+		print   "\n\t  ...consolidated to $num_clusters overlapping/contiguous clusters";
 	}
 	
 	# Update locus data based on consolidated results
 	$self->update_locus_data(\%consolidated);
-	
+
+	return $num_clusters;
 }
 
 #***************************************************************************
@@ -1371,7 +1373,7 @@ sub compare_adjacent_loci {
 
 	# Check orientation
 	if ($orientation ne $last_orientation) {
-		unless ($mode eq 'consolidate') { 
+		unless ($mode eq 'consolidate2') { 
 			#print "\n\t\t Two hits in range but different orientation";
 			return 0;
 		}
@@ -1385,11 +1387,14 @@ sub compare_adjacent_loci {
 		if ($mode eq 'defragment') {
 			if ($gene ne $last_gene) { return 0; }  # different genes
 		}
-		else {
+		elsif ($mode eq 'consolidate' or $mode eq 'consolidate2') { 
+			# do nothing (these loci can be merged, even though different genes)
+		}
+		else { # Shouldn't get here
 			die;
 		}
 	}
-	else { 
+	else { # Shouldn't get here
 		print "\n\t\t ERROR genes not found: ene $gene LAST $last_gene";;
 		$devtools->print_hash($locus2_ref);
 		die; 
@@ -1409,7 +1414,7 @@ sub compare_adjacent_loci {
 				print "\n\t\t      - Added pair to cluster: $last_name";
 				print "($last_gene [$last_orientation]), $name ($gene [$orientation])"; 		
 			}
-			else { print "\n\t\t      - Added pair to cluster";
+			else { print "\n\t\t      - Added pair to cluster"; }
 		}
 		return 1;
 	}
@@ -2393,6 +2398,10 @@ sub initialise_consolidation {
 	}
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+	$loci_table->flush();
+	$loci_chains_table->flush();
 
 	# Get the parameters for consolidation
 	my $range = $self->{consolidate_range};
@@ -3194,8 +3203,8 @@ sub run_test_5 {
 
 	my $fail = undef;
 	if ($num_rows ne '5')  { 
-		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) ** Wrong unmber of rows in digs_results table \n";
 		$fail = 1;
+		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) ** Wrong number of rows in digs_results table \n";
 	}
 	my $result1_ref = shift @data;
 	my $result2_ref = shift @data;
@@ -3229,9 +3238,7 @@ sub run_test_5 {
 	else {
 		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) **\n";
 	}
-	
-	sleep 2;
-
+	#sleep 2;
 }
 
 #***************************************************************************
@@ -3243,12 +3250,20 @@ sub run_test_6 {
 	my ($self) = @_;
 
 	# Test consolidation
-	print "\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
-	$self->{consolidate_range} = 100;
-	$self->consolidate_loci();
+	print "\n\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
+	$self->{consolidate_range} = 200;
+	my $num_consolidated = $self->consolidate_loci();
+	my $fail = undef;
+	if ($num_consolidated ne '2')  { 
+		$fail = 1;
+		die   "\n\t  Consolidation test: ** FAILED ($fail) ** Wrong number of rows\n";
+	}
+	
+	unless ($fail) {
+		print "\n\n\t  Consolidation test: ** PASSED **\n";
+	}
 
 	sleep 2;
-
 }
 
 #***************************************************************************
