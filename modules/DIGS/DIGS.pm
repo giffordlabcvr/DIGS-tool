@@ -2993,10 +2993,10 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	#$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
+	$self->run_test_1();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
 	$self->run_test_5();
 	$self->run_test_6();
 	#$self->run_test_7();
@@ -3276,7 +3276,7 @@ sub run_test_7 {
 
 
 	# Test short match screen
-	print "\n\t ### TEST 7: Live test blastn screen using short probes ~ + ~ + ~ \n";
+	print "\n\t ### TEST 7: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
 	sleep 2;
 
 }
@@ -3290,11 +3290,14 @@ sub run_test_8 {
 	my ($self) = @_;
 
 	# Test the reassign function
-	print "\n\t ### TEST 8: Reassigning all hits from tBLASTn ~ + ~ + ~ \n";
-
+	print "\n\t ### TEST 8: Live test blastn screen using short probes ~ + ~ + ~ \n";
 	sleep 2;
 
 }
+
+############################################################################
+# Development
+############################################################################
 
 #***************************************************************************
 # Subroutine:  show_translations
