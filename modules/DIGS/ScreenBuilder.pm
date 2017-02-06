@@ -527,7 +527,7 @@ sub read_genome_files {
 			my $type     = pop @path;
 			my $organism = pop @path;
 			my $group    = pop @path;
-			unless ($organism and $type and $version) { die; }
+			unless ($group and $organism and $type and $version) { die; }
 			my @target = ( $organism , $type, $version, $file );
 			my $target_id = join ('|', @target);
 
@@ -558,7 +558,7 @@ sub read_genome_files {
 				$data{path}      = $path;
 				$data{organism}  = $organism;
 				$data{version}   = $version;
-				$data{datatype} = $type;
+				$data{datatype}  = $type;
 				$data{group}     = $group;
 				$targets_ref->{$target_id} = \%data;	
 				#print "\n\t STORING TARGET $path";

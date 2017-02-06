@@ -362,6 +362,7 @@ sub interactive_defragment {
 			my @genome = ( $organism , $target_datatype, $target_version );
 			my $target_id       = join ('|', @genome);
 			my $target_group    = $target_group_ref->{$target_id};
+			unless ($target_group) { die; }
 			print "\n\t\t # Defragmenting hits in '$target_name'";
 
 			# Construct WHERE statement
@@ -1062,7 +1063,8 @@ sub update_db {
 	my ($self, $extracted_ref, $table_name) = @_;
 		
 	# Get parameters from self
-	my $db_ref = $self->{db};
+	my $db_ref              = $self->{db};
+	my $verbose             = $self->{verbose};
 	my $digs_results_table  = $db_ref->{$table_name}; 
 	my $active_set_table    = $db_ref->{active_set_table}; 
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
@@ -1100,6 +1102,9 @@ sub update_db {
 			
 			# Delete superfluous extract rows
 			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
+			if ($verbose) {
+				print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'";
+			}
 			$digs_results_table->delete_rows($extracted_where);
 			
 			# Update extract IDs			
