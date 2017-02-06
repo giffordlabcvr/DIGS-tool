@@ -305,11 +305,11 @@ sub create_reference_library {
 	if ($num_fasta) {
 		if ($self->{reference_library_type} eq 'aa') {
 			$self->create_blast_lib(\@references, 'aa');
-			$pipeline_obj->{aa_lib_name} = $self->{$lib_file};
+			$pipeline_obj->{aa_reference_library} = $lib_file;
 		}
 		if ($self->{reference_library_type} eq 'na') {
 			$self->create_blast_lib(\@references, 'na');
-			$pipeline_obj->{na_lib_name} = $self->{$lib_file};
+			$pipeline_obj->{na_reference_library} = $lib_file;
 		}
 	}
 

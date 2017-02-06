@@ -56,24 +56,30 @@ sub new {
 		process_id             => $parameter_ref->{process_id},
 		program_version        => $parameter_ref->{program_version},
 		
-		# Paths and member variables
-		genome_use_path        => $parameter_ref->{genome_use_path},
-		output_path            => $parameter_ref->{output_path},
+		# Member classes 
+		blast_obj              => $parameter_ref->{blast_obj},
 
-		# Database variables
+		# MySQL database connection parameters
 		db_name                => '',   # Obtained from control file
 		server                 => '',   # Obtained from control file
 		username               => '',   # Obtained from control file
 		password               => '',   # Obtained from control file
-	
-		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
 
-		# Parameters for screening
+		# Parameters for DIGS
 		query_na_fasta         => '',   # Obtained from control file
 		query_aa_fasta         => '',   # Obtained from control file
-		reference_na_fasta     => '',   # Obtained from control file
-		reference_aa_fasta     => '',   # Obtained from control file
+		aa_reference_library   => '',   # Obtained from control file
+		na_reference_library   => '',   # Obtained from control file
+		bitscore_min_tblastn   => '',   # Obtained from control file
+		bitscore_min_blastn    => '',   # Obtained from control file
+		seq_length_minimum     => '',   # Obtained from control file
+
+		# Paths used in DIGS process
+		genome_use_path        => $parameter_ref->{genome_use_path},
+		output_path            => $parameter_ref->{output_path},
+		reference_na_fasta     => '',   
+		reference_aa_fasta     => '',   
+		blast_threads          => '',   # Obtained from control file
 
 	};
 	
@@ -215,36 +221,33 @@ sub reassign {
 	my $count = 0;
 	my %reassign_matrix;
 	my %unique_keys;
-	foreach my $hit_ref (@$extracted_seqs_ref) {
+	foreach my $locus_ref (@$extracted_seqs_ref) {
 		
 		# Set the linking to the BLAST result table
-		my $record_id       = $hit_ref->{record_id};	
-		my $extract_start   = $hit_ref->{extract_start};
-		my $extract_end     = $hit_ref->{extract_end};
-		$hit_ref->{subject_start} = $extract_start;
-		$hit_ref->{subject_end}   = $extract_end;
-		delete $hit_ref->{extract_start};
-		delete $hit_ref->{extract_end};
-		$hit_ref->{organism} = $hit_ref->{organism} ;
+		my $record_id       = $locus_ref->{record_id};	
+		my $extract_start   = $locus_ref->{extract_start};
+		my $extract_end     = $locus_ref->{extract_end};
+		$locus_ref->{subject_start} = $extract_start;
+		$locus_ref->{subject_end}   = $extract_end;
+		delete $locus_ref->{extract_start};
+		delete $locus_ref->{extract_end};
 	
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
-		my $previous_assign = $hit_ref->{assigned_name};
-		my $previous_gene   = $hit_ref->{assigned_gene};
-		print "\n\t\t # Redoing assign for record ID $record_id assigned to $previous_assign ($previous_gene)";
-		print "\n\t\t # coordinates: $extract_start-$extract_end";
-		$self->do_blast_genotyping($hit_ref);
+		my $previous_assign = $locus_ref->{assigned_name};
+		my $previous_gene   = $locus_ref->{assigned_gene};
+		my $blast_alg = $self->do_blast_genotyping($locus_ref);
 		
 		$count++;
 		if (($count % 100) eq 0) { print "\n\t  Checked $count rows"; }
 
-		my $assigned_name = $hit_ref->{assigned_name};
-		my $assigned_gene = $hit_ref->{assigned_gene};
-		if ($verbose) { print "\n\t\t # Sequence assigned as $assigned_name ($assigned_gene) using "; }
+		my $assigned_name = $locus_ref->{assigned_name};
+		my $assigned_gene = $locus_ref->{assigned_gene};
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 			
 			# Show the results
-			print "\n\t\t # Reassigned $record_id from $previous_assign ($previous_gene)";
-			print " to $assigned_name ($assigned_gene)";
+			if ($verbose) { 
+				print " (Reassigned locus '$record_id')";
+			}
 			my $where = " WHERE record_id = $record_id ";
 			
 			# Update the matrix
@@ -267,9 +270,9 @@ sub reassign {
 				$reassign_matrix{$previous_key} = \%hash; 
 			}
 			# Insert the data
-			delete $hit_ref->{record_id}; 
-			delete $hit_ref->{organism}; 
-			$digs_results_table->update($hit_ref, $where);
+			delete $locus_ref->{record_id}; 
+			delete $locus_ref->{organism}; # TODO - why?
+			$digs_results_table->update($locus_ref, $where);
 		}
 	}
 	
@@ -810,9 +813,10 @@ sub do_blast_genotyping {
 	my $blast_alg = $self->get_blast_algorithm($probe_type);
 	my $lib_path  = $self->get_blast_library_path($probe_type);
 	my $lib_file;
-	if    ($probe_type eq 'ORF') {  $lib_file = $self->{aa_lib_name}; }
-	elsif ($probe_type eq 'UTR') {  $lib_file = $self->{na_lib_name}; }
+	if    ($probe_type eq 'ORF') {  $lib_file = $self->{aa_reference_library}; }
+	elsif ($probe_type eq 'UTR') {  $lib_file = $self->{na_reference_library}; }
 	else  { die; }
+	unless ($lib_file)  { die; }
 
 	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
@@ -853,7 +857,10 @@ sub do_blast_genotyping {
 		$hit_ref->{query_start}    = $query_start;
 		$hit_ref->{subject_end}    = $subject_end;
 		$hit_ref->{subject_start}  = $subject_start;
-		if ($verbose) { print "\n\t\t    - Classified as '$assigned_name ($assigned_gene)' via $blast_alg comparison to $lib_file"; }
+		if ($verbose) { 
+			print "\n\t\t    - Classified as '$assigned_name ($assigned_gene)'";
+		 	print " via $blast_alg comparison to $lib_file";
+		 }
 		$assigned = $assigned_name . '_' . $assigned_gene;
 	}
 
@@ -1174,7 +1181,7 @@ sub defragment_target {
 	my @cluster_ids  = keys %target_defragmented;
 	my $num_clusters = scalar @combined;
 	if ($num_clusters < $num_hits) {
-		$self->show_clusters(\%target_defragmented);  # Show clusters
+		#$self->show_clusters(\%target_defragmented);  # Show clusters
 		print "...compressed to $num_clusters overlapping/contiguous clusters";
 	}
 	
@@ -1196,14 +1203,14 @@ sub defragment_target {
 	if ($num_extracted) {
 		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
 		foreach my $hit_ref (@extracted) { # Iterate through loci		
-			my $assigned  = $self->do_blast_genotyping($hit_ref);
-			if ($assigned) { $assigned_count++; }
+			$self->do_blast_genotyping($hit_ref);
+			$assigned_count++;
 			my $remainder = $assigned_count % 100;
 			if ($remainder eq 0) {
-				print "\n\t\t\t # Done $assigned_count";
+				print "\n\t\t\t # $assigned_count sequences classified ";
 			}
 		}
-		print "\n\t\t\t # Done $assigned_count\n";
+		print "\n\t\t\t # $assigned_count sequences classified\n";
 	}
 	
 	# Update DB
@@ -2995,7 +3002,6 @@ sub run_tests {
 
  	# Show title
 	$self->show_title();  
-	$self->{defragment_mode} = 'defragment';
 
 	# Read the control file for the test run
 	my $test_ctl_file1 = './test/test1_erv_na.ctl';
@@ -3012,16 +3018,16 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
-	$self->run_test_5();
-	$self->run_test_6();
+	#$self->run_test_1();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
+	#$self->run_test_5();
+	#$self->run_test_6();
 	$self->run_test_7();
 
 	# Print finished message
-	print "\n\n\t ### TESTING process completed ~ + ~ + ~\n\n\n";
+	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
 	sleep 2;
 
 	# Remove the output directory
@@ -3083,7 +3089,7 @@ sub run_test_2 {
 
 	## Check that defragment gives expected result	(negative)
 	print "\n\t ### TEST 2: Try to defragment results (nothing should be merged) ~ + ~ + ~ \n";	
-
+	$self->{defragment_mode} = 'defragment';
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
 	$where    .= " AND target_datatype = 'fake_datatype' ";
@@ -3151,6 +3157,7 @@ sub run_test_4 {
 
 	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
 	print "\n\t ### TEST 4: Try to defragment results (should work) ~ + ~ + ~ \n";
+	$self->{defragment_mode} = 'defragment';
 
 	# Construct WHERE statement
 	my $where  = " WHERE probe_type = 'ORF' ";
@@ -3187,7 +3194,7 @@ sub run_test_4 {
 		print "\n\t  Defragment positive test: ** PASSED **\n";
 	}
 	
-	#sleep 2;
+	sleep 2;
 }
 
 #***************************************************************************
@@ -3258,7 +3265,7 @@ sub run_test_5 {
 	else {
 		die   "\n\t  tBLASTn screen, gag + env peptides: ** FAILED ($fail) **\n";
 	}
-	#sleep 2;
+	sleep 2;
 }
 
 #***************************************************************************
@@ -3276,11 +3283,11 @@ sub run_test_6 {
 	my $fail = undef;
 	if ($num_consolidated ne '2')  { 
 		$fail = 1;
-		die   "\n\t  Consolidation test: ** FAILED ($fail) ** Wrong number of rows\n";
+		die   "\n\t  Consolidation +ve orientation test: ** FAILED ($fail) ** Wrong number of rows\n";
 	}
 	
 	unless ($fail) {
-		print "\n\n\t  Consolidation test: ** PASSED **\n";
+		print "\n\n\t  Consolidation +ve orientation test: ** PASSED **\n";
 	}
 
 	sleep 2;
@@ -3294,8 +3301,8 @@ sub run_test_7 {
 
 	my ($self) = @_;
 
-	# Test short match screen
-	print "\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
+	# Reassign test
+	print "\n\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
 
 	# Upload a data set
 	my $db = $self->{db}; # Get the database reference
@@ -3304,7 +3311,7 @@ sub run_test_7 {
 	my $test7_path = './test/test7.txt';;
 	print "\n\t ### Flushed digs_results table & now uploading data from file '$test7_path'";
 	$db->upload_data_to_digs_results($test7_path);
-	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
+	print "\n\t ### Data uploaded\n";
 
 	# Defragment - Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
@@ -3317,9 +3324,11 @@ sub run_test_7 {
 	$settings{range} = 100;
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
-	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	$self->{defragment_mode} = 'defragment';
+	$self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
 
 	# Do the reassign
+	print "\n\n\t ### Now reassigning the ORF hits to an MLV reference library\n";
 	my $test_ctl_file7 = './test/test7_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file7, $self, 2);
@@ -3340,7 +3349,7 @@ sub run_test_7 {
 	
 	# Final message
 	unless ($fail) { print "\n\n\t  Test 7: Reassign test  ** PASSED **\n"; }
-	else           { die   "\n\t  Test 7: Reassign test  ** FAILED ($fail) **\n"; }
+	else           { die   "\n\n\t  Test 7: Reassign test  ** FAILED ($fail) **\n"; }
 		
 	sleep 2;
 
@@ -3354,7 +3363,7 @@ sub run_test_8 {
 
 	my ($self) = @_;
 
-	# Test the reassign function
+	# Test reverse complemente hit
 	print "\n\t ### TEST 8: Reverse complement screen ~ + ~ + ~ \n";
 	sleep 2;
 

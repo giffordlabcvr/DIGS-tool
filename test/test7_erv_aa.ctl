@@ -15,7 +15,6 @@ BEGIN SCREENSETS;
     output_path=./../tmp/;
     seq_length_minimum=50;
     defragment_range=200;
-    redundancy_mode=2;
     blast_threads=8;
 ENDBLOCK;
 
