@@ -1153,12 +1153,14 @@ sub upload_data_to_digs_results {
 
 	# Get the data
 	my @data;
-	$fileio->read_file($data_path, \@data);
-
+	my $read = $fileio->read_file($data_path, \@data);
+	unless ($read) { die "\n\t\t Couldn't open file '$data_path'\n\n"; }
+	
 	# Remove header
 	shift @data;
 
 	# Iterate through the data and insert to the table
+	my $rows = '0';
 	foreach my $line (@data) {
 
 		chomp $line;
@@ -1192,8 +1194,9 @@ sub upload_data_to_digs_results {
 		$data{gap_openings}    = shift @line;
 		$data{mismatches}      = shift @line;
 		$digs_results_table->insert_row(\%data);	
-
+		$rows++;
 	}	
+	return $rows;
 }
 
 ############################################################################

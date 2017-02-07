@@ -527,7 +527,7 @@ sub read_genome_files {
 			my $type     = pop @path;
 			my $organism = pop @path;
 			my $group    = pop @path;
-			unless ($group and $organism and $type and $version) { die; }
+			unless ($organism and $type and $version) { die; }
 			my @target = ( $organism , $type, $version, $file );
 			my $target_id = join ('|', @target);
 

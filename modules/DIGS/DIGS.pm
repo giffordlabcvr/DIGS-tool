@@ -177,7 +177,7 @@ sub perform_digs {
 			$self->{completed} = $completed;
 
 			# Do the 1st BLAST (probe vs target)
-			$self->search_target_using_blast($query_ref);
+			$self->search_target_file_using_blast($query_ref);
 		
 			# For this target, create a non-redundant locus set
 			my @new_hits;
@@ -192,7 +192,7 @@ sub perform_digs {
 			$self->classify_sequences_using_blast(\@extracted, $query_ref);
 			
 			# Update DB
-			$self->update_db(\@extracted, 'digs_results_table');
+			my $num_deleted = $self->update_db(\@extracted, 'digs_results_table', 1);
 			
 			# Show progress
 			$self->show_digs_progress();
@@ -236,7 +236,7 @@ sub reassign {
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $locus_ref->{assigned_name};
 		my $previous_gene   = $locus_ref->{assigned_gene};
-		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
+		$self->classify_sequence_using_blast($locus_ref);
 		
 		$count++;
 		if (($count % 100) eq 0) { print "\n\t  Checked $count rows"; }
@@ -244,9 +244,10 @@ sub reassign {
 		my $assigned_name = $locus_ref->{assigned_name};
 		my $assigned_gene = $locus_ref->{assigned_gene};
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
-			
-			# Show the results
-			if ($verbose) {  print " (Reassigned locus '$record_id')"; }
+				
+			if ($verbose) {  # Report the outcome
+				print "\n\t\t      - row $record_id reassigned: was previously '$previous_assign ($previous_gene)'";
+			}
 			
 			# Update the matrix
 			my $previous_key = $previous_assign . '_' . $previous_gene;
@@ -255,7 +256,8 @@ sub reassign {
 				
 			# Insert the data
 			my $where = " WHERE record_id = $record_id ";
-			delete $locus_ref->{record_id}; 
+			delete $locus_ref->{record_id}; # Required to remove this
+			delete $locus_ref->{organism};  # Update not required for this field
 			$digs_results_table->update($locus_ref, $where);
 		}
 	}
@@ -287,7 +289,7 @@ sub interactive_defragment {
 
 	# Settings for clustering
 	my %settings;
-	$settings{total_hits}     = '0';
+	$settings{total_loci}     = '0';
 	$settings{total_clusters} = '0';
 	$settings{range}          = undef;
 
@@ -295,11 +297,11 @@ sub interactive_defragment {
 	my $choice = undef;
 	do    { 
 		$choice = $self->preview_defragment(\@targets, \%settings);
-	}  until ($choice > 1);
+	}   until ($choice > 1);
 
     # Apply the changes	if option is chosen
 	if    ($choice eq 2) { 
-		$self->implement_defragment(\@targets, \%settings);
+		$self->defragment_target_files(\@targets, \%settings);
 	}
 	elsif ($choice eq 3) { 
 		print "\n"; exit;
@@ -322,16 +324,16 @@ sub consolidate_loci {
 	# Get the digs results sorted by scaffold and extract start
 	my @sorted;
 	$self->get_sorted_digs_results(\@sorted);
-	my $total_hits = scalar @sorted;
+	my $total_loci = scalar @sorted;
 
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	print "\n\t  Consolidating assigned extracted sequences into loci";
-	print "\n\t  $total_hits loci in the digs_results table prior to consolidation'";
+	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
 	my %consolidated;
 	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
-	if ($total_hits > $num_clusters) {
+	if ($total_loci > $num_clusters) {
 		print   "\n\t  ...consolidated to $num_clusters overlapping/contiguous clusters";
 	}
 	
@@ -403,10 +405,10 @@ sub create_standard_locus_ids {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  search_target_using_blast
+# Subroutine:  search_target_file_using_blast
 # Description: execute a similarity search and parse the results
 #***************************************************************************
-sub search_target_using_blast {
+sub search_target_file_using_blast {
 	
 	my ($self, $query_ref) = @_;
 
@@ -560,10 +562,10 @@ sub compile_nonredundant_locus_set {
 	# Get sorted list of digs results and BLAST hits from active_set table
 	my @combined;
 	$self->get_sorted_active_set(\@combined);
-	my $total_hits = scalar @combined;
+	my $total_loci = scalar @combined;
 	if ($verbose) {
-		if ($total_hits > 0) {
-			print "\n\t\t # $total_hits rows in active set (including $num_loci previously extracted) ";
+		if ($total_loci > 0) {
+			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
 		}
 	}
 	
@@ -578,7 +580,7 @@ sub compile_nonredundant_locus_set {
 	my @cluster_ids  = keys %defragmented;
 	my $num_clusters = scalar @combined;
 	if ($verbose) {
-		if ($total_hits > $num_clusters) {
+		if ($total_loci > $num_clusters) {
 			print "\n\t ...compressed to $num_clusters overlapping/contiguous clusters ";
 		}
 	}
@@ -637,13 +639,13 @@ sub extract_sequences_from_target_file {
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
 		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {
-				
+			
+			# If we extracted a sequence, update the data for this locus
 			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
 			$hit_ref->{extract_start}   = $hit_ref->{start};
 			$hit_ref->{extract_end}     = $hit_ref->{end};
 			$hit_ref->{sequence}        = $sequence;
 			$hit_ref->{sequence_length} = $seq_length;
-			#print "\n\t Sequence $sequence\n\n";	die;
 			push (@$extracted_ref, $hit_ref);
 			$new_loci++;
 		}
@@ -754,7 +756,7 @@ sub classify_sequence_using_blast {
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
 	unless ($assigned_key) {
-		$self->set_default_values_for_unassigned_seq($hit_ref);	
+		$self->set_default_values_for_unassigned_locus($hit_ref);	
 		$assigned = undef;
 	}
 	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
@@ -791,49 +793,6 @@ sub classify_sequence_using_blast {
 	system $command2;
 	
 	return $blast_alg;
-}
-
-#***************************************************************************
-# Subroutine:  update_locus_data
-# Description: insert new data about consolidated loci into relevant tables
-#***************************************************************************
-sub update_locus_data {
-
-	my ($self, $consolidated_ref) = @_;
-
-	unless ($consolidated_ref) { die; }
-
-	# Get parameters and data structures
-	my $verbose           = $self->{verbose};
-	my $db_ref            = $self->{db};
-	my $loci_table        = $db_ref->{loci_table};
-	my $loci_chains_table = $db_ref->{loci_chains_table};
-	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
-	
-	my @cluster_ids  = keys %$consolidated_ref;
-	foreach my $cluster_id (@cluster_ids) {
-
-		# Get the loci in this cluster
-		my $loci_ref = $consolidated_ref->{$cluster_id};
-		my $cluster_size = scalar @$loci_ref;
-		if ($verbose and $cluster_size > 1) {
-			#$self->show_cluster($hits_ref, $cluster_id);
-		}	
-
-		# Insert the consolidated locus information
-		my %locus;		
-		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
-		my $locus_id  = $loci_table->insert_row(\%locus);
-		
-		# Create the links between the loci and digs_results tables
-		foreach my $hit_ref (@$loci_ref) {
-			my $digs_result_id = $hit_ref->{record_id};
-			my %chain_data;
-			$chain_data{digs_result_id} = $digs_result_id;
-			$chain_data{locus_id}       = $locus_id;
-			$loci_chains_table->insert_row(\%chain_data);
-		}		
-	}
 }
 
 #***************************************************************************
@@ -906,10 +865,53 @@ sub create_consolidated_locus {
 }
 
 #***************************************************************************
-# Subroutine:  set_default_values_for_unassigned_seq
+# Subroutine:  update_locus_data
+# Description: insert new data about consolidated loci into relevant tables
+#***************************************************************************
+sub update_locus_data {
+
+	my ($self, $consolidated_ref) = @_;
+
+	unless ($consolidated_ref) { die; }
+
+	# Get parameters and data structures
+	my $verbose           = $self->{verbose};
+	my $db_ref            = $self->{db};
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
+	
+	my @cluster_ids  = keys %$consolidated_ref;
+	foreach my $cluster_id (@cluster_ids) {
+
+		# Get the loci in this cluster
+		my $loci_ref = $consolidated_ref->{$cluster_id};
+		my $cluster_size = scalar @$loci_ref;
+		if ($verbose and $cluster_size > 1) {
+			#$self->show_cluster($hits_ref, $cluster_id);
+		}	
+
+		# Insert the consolidated locus information
+		my %locus;		
+		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
+		my $locus_id  = $loci_table->insert_row(\%locus);
+		
+		# Create the links between the loci and digs_results tables
+		foreach my $hit_ref (@$loci_ref) {
+			my $digs_result_id = $hit_ref->{record_id};
+			my %chain_data;
+			$chain_data{digs_result_id} = $digs_result_id;
+			$chain_data{locus_id}       = $locus_id;
+			$loci_chains_table->insert_row(\%chain_data);
+		}		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  set_default_values_for_unassigned_locus
 # Description: set default values for an unassigned extracted sequence
 #***************************************************************************
-sub set_default_values_for_unassigned_seq {
+sub set_default_values_for_unassigned_locus {
 
 	my ($self, $hit_ref) = @_;
 
@@ -976,7 +978,7 @@ sub get_blast_library_path {
 #***************************************************************************
 sub update_db {
 
-	my ($self, $extracted_ref, $table_name) = @_;
+	my ($self, $extracted_ref, $table_name, $update) = @_;
 		
 	# Get parameters from self
 	my $db_ref              = $self->{db};
@@ -985,52 +987,63 @@ sub update_db {
 	my $active_set_table    = $db_ref->{active_set_table}; 
 	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
 
-	# Flush the active set table
-	#print "\n # Flushing 'active_set' table";
-	$active_set_table->flush();
-	
-
 	# Iterate through the extracted sequences
+	my $deleted = '0';
 	foreach my $hit_ref (@$extracted_ref) {
-
-		# Insert the data to the Extracted_sequences table
-		$hit_ref->{organism} = $hit_ref->{organism}; # Translate field name
-		my $digs_result_id = $digs_results_table->insert_row($hit_ref);
-		#$devtools->print_hash($hit_ref); die;
+		
+		# Insert the data to the digs_results table
+		my $digs_result_id;
+		if ($update) {
+			$digs_result_id = $digs_results_table->insert_row($hit_ref);
+		}
+		else {
+			$digs_result_id = $hit_ref->{digs_result_id};
+			my $where = " WHERE record_id = $digs_result_id ";
+			my %update;
+			$update{extract_start} = $hit_ref->{extract_start};
+			$update{extract_end}   = $hit_ref->{extract_end};
+			$digs_results_table->update(\%update, $where);		
+		}
 		
 		# Insert the data to the BLAST_chains table
 		my $blast_chains = $hit_ref->{blast_chains};
-		#$devtools->print_hash($blast_chains);
-
 		if ($blast_chains) {		
 			my @blast_ids = keys %$blast_chains;
 			foreach my $blast_id (@blast_ids) {							
 				my $data_ref = $blast_chains->{$blast_id};
 				$data_ref->{digs_result_id} = $digs_result_id;	
-				#$devtools->print_hash($data_ref); exit;
 				$blast_chains_table->insert_row($data_ref);
 			}
 		}
-
+		unless ($digs_result_id) { die; }
+		
 		# Delete superfluous data from the digs_results table
 		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
 		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
 			
-			# Delete superfluous extract rows
-			my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
-			if ($verbose) {
-				print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'";
+			# Where we updated an existing record, keep that record
+			unless ($old_digs_result_id eq $digs_result_id) {
+
+				# Delete superfluous extract rows
+				my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
+				if ($verbose) { print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'"; }
+				$digs_results_table->delete_rows($extracted_where);
+				$deleted++;
+
+				# Update extract IDs			
+				my $chains_where = " WHERE record_id = $old_digs_result_id ";
+				my %new_id;
+				$new_id{digs_result_id} = $digs_result_id;	
+				$blast_chains_table->update(\%new_id, $chains_where);
 			}
-			$digs_results_table->delete_rows($extracted_where);
-			
-			# Update extract IDs			
-			my $chains_where = " WHERE digs_result_id = $old_digs_result_id ";
-			my %new_id;
-			$new_id{digs_result_id} = $digs_result_id;	
-			$blast_chains_table->update(\%new_id, $chains_where);
-			#$devtools->print_hash($data_ref); exit;	
 		}
 	}
+
+	# Flush the active set table
+	$active_set_table->flush();
+
+	# Return the number
+	return $deleted;
 }
 
 #***************************************************************************
@@ -1099,16 +1112,16 @@ sub preview_defragment {
 
 	# Get the range	
 	my $question1 = "\n\n\t # Set the range for merging hits";
-	#my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
-	my $t_range = 1000;
+	my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+	#my $t_range = 1000;
 
 	# Preview this defragment
 	$self->defragment_digs_results($targets_ref, $settings_ref, $t_range);
 
 	# Summarise results
-	my $total_hits     = $settings_ref->{total_hits};
+	my $total_loci     = $settings_ref->{total_loci};
 	my $total_clusters = $settings_ref->{total_clusters};
-	print "\n\t\t\t TOTAL HITS:     $total_hits";
+	print "\n\t\t\t TOTAL LOCI:     $total_loci";
 	print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
 	print "\n\n\t\t Option 1: preview new parameters";
 	print "\n\t\t Option 2: apply these parameters";
@@ -1116,31 +1129,84 @@ sub preview_defragment {
 
 	# Prompt for what to do next
 	my $list_question = "\n\n\t # Choose an option:";
-	#my $choice = $console->ask_list_question($list_question, 3);
+	my $choice = $console->ask_list_question($list_question, 3);
 	$settings_ref->{range} = $t_range;
-	my $choice = 2;
+	#my $choice = 2;
 
 	return $choice;
 }
 
 #***************************************************************************
-# Subroutine:  implement_defragment
+# Subroutine:  defragment_digs_results
+# Description: preview results of a defragment process (for interactive defragment)
+#***************************************************************************
+sub defragment_digs_results {
+
+    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
+   
+	# Apply the settings
+	my $verbose = $self->{verbose};
+	my $total_loci = '0';
+	my $total_clusters = '0';
+	foreach my $target_ref (@$targets_ref) {
+
+		my $organism        = $target_ref->{organism};
+		my $target_name     = $target_ref->{target_name};
+		my $target_datatype = $target_ref->{target_datatype};
+		my $target_version  = $target_ref->{target_version};
+			
+		# Create the relevant set of previously extracted loci
+		my @loci;
+		my $where  = " WHERE organism      = '$organism' ";
+		$where    .= " AND target_datatype = '$target_datatype' ";
+		$where    .= " AND target_version  = '$target_version' ";
+		$where    .= " AND target_name     = '$target_name' "; 
+
+		$self->get_sorted_digs_results(\@loci, $where);
+		my $num_hits = scalar @loci;
+		
+		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+		my %settings;
+		my %target_defragmented;
+		$settings{range} = $t_range;
+		$settings{start} = 'extract_start';
+		$settings{end}   = 'extract_end';
+		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
+		
+		# Get number of clusters
+		my @cluster_ids  = keys %target_defragmented;
+		my $num_clusters = scalar @cluster_ids;
+
+		# Show clusters if verbose flag is set
+		if ($verbose) { print "\n\n\t\t Interactive defrag: $num_hits hits in target $target_name"; }
+		$total_loci     = $total_loci + $num_hits;
+		$total_clusters = $total_clusters + $num_clusters;
+	}
+
+	$cluster_params->{total_loci}     = $total_loci;
+	$cluster_params->{total_clusters} = $total_clusters;
+		
+}
+
+#***************************************************************************
+# Subroutine:  defragment_target_files
 # Description: implement a defragmentation process for a set of target files
 #***************************************************************************
-sub implement_defragment {
+sub defragment_target_files {
 
 	my ($self, $targets_ref,  $settings_ref) = @_;
 
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_group_ref = $self->{target_groups};
 	my $db               = $self->{db};
-	my $t_range = $settings_ref->{range};
+	my $t_range          = $settings_ref->{range};
 	my $reextract        = $settings_ref->{reextract};
 	if ($reextract) {
 		unless ($genome_use_path and $target_group_ref)  { die; }
 	}
 
 	# Create a copy of the digs_results table (changes will be applied to copy)
+	# TODO: fix this
 	print "\n\t # Defragmenting using range '$t_range'\n";
 	my $copy_name = $db->backup_digs_results_table();
 	print "\n\t # Copied DIGS results to '$copy_name'\n";
@@ -1151,7 +1217,8 @@ sub implement_defragment {
 	# Iterate through the target files, applying the defragment process to each		
 	foreach my $target_ref (@$targets_ref) {
 
-		# Create a unique key for this genome
+		# Get the target details (and thus the target path)
+		#my $target_path = $self->get_target_file_path($target_ref);
 		my $organism        = $target_ref->{organism};
 		my $target_name     = $target_ref->{target_name};
 		my $target_datatype = $target_ref->{target_datatype};
@@ -1237,86 +1304,25 @@ sub defragment_target {
 		my $assigned_count   = 0;
 		my $crossmatch_count = 0;
 		my $num_extracted = scalar @extracted;
-		if ($num_extracted) {
-			print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
-			foreach my $hit_ref (@extracted) { # Iterate through loci		
-				$self->classify_sequence_using_blast($hit_ref);
-				$assigned_count++;
-				my $remainder = $assigned_count % 100;
-				if ($remainder eq 0) {
-					print "\n\t\t\t # $assigned_count sequences classified ";
-				}
-			}
-			print "\n\t\t\t # $assigned_count sequences classified\n";
+		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+		foreach my $hit_ref (@extracted) { # Iterate through loci		
+			$self->classify_sequence_using_blast($hit_ref);
+			$assigned_count++;
+			my $remainder = $assigned_count % 100;
+			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
 		}
-	
+		print "\n\t\t\t # $assigned_count sequences classified\n";
+
 		# Update DB
-		$self->update_db(\@extracted, $copy_table_name);
+		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
+		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
 	}
-	else {
+	else { # DEBUG
 		# Update DB
+		$self->prepare_locus_update(\@loci);
 		$self->update_db(\@loci, $copy_table_name);
 	}
 	return $num_new;
-}
-
-#***************************************************************************
-# Subroutine:  defragment_digs_results
-# Description: preview results of a defragment process (for interactive defragment)
-#***************************************************************************
-sub defragment_digs_results {
-
-    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
-   
-	# Apply the settings
-	my $total_hits     = $cluster_params->{total_hits};
-	my $total_clusters = $cluster_params->{total_clusters};
-   
-	foreach my $target_ref (@$targets_ref) {
-
-		my $organism        = $target_ref->{organism};
-		my $target_name     = $target_ref->{target_name};
-		my $target_datatype = $target_ref->{target_datatype};
-		my $target_version  = $target_ref->{target_version};
-			
-		# Create the relevant set of previously extracted loci
-		my @loci;
-		my $where  = " WHERE organism      = '$organism' ";
-		$where    .= " AND target_datatype = '$target_datatype' ";
-		$where    .= " AND target_version  = '$target_version' ";
-		$where    .= " AND target_name     = '$target_name' "; 
-
-		$self->get_sorted_digs_results(\@loci, $where);
-		my $num_hits = scalar @loci;
-		
-		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-		my %settings;
-		my %target_defragmented;
-		$settings{range} = $t_range;
-		$settings{start} = 'extract_start';
-		$settings{end}   = 'extract_end';
-		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
-		
-		# Get number of clusters
-		my @cluster_ids  = keys %target_defragmented;
-		my $num_clusters = scalar @cluster_ids;
-
-		# Show clusters if verbose flag is set
-	    my $verbose = $self->{verbose};
-		if ($verbose) {
-			print "\n\n\t\t $num_hits hits in target $target_name";
-			if ($num_hits > $num_clusters) {
-				print "\n\t\t   > $num_clusters overlapping/contiguous clusters";
-				#$self->show_clusters(\%target_defragmented);
-			}
-		}
-		$total_hits = $total_hits + $num_hits;
-		$total_clusters = $total_clusters + $num_clusters;
-	}
-
-	$cluster_params->{total_hits}     = $total_hits;
-	$cluster_params->{total_clusters} = $total_clusters;
-		
 }
 
 #***************************************************************************
@@ -1433,7 +1439,7 @@ sub compare_adjacent_loci {
 
 	
 	# Exclude the obvious cases
-	if ($scaffold ne $last_scaffold)       { return 0; }  # different scaffolds
+	if ($scaffold ne $last_scaffold) { return 0; }  # different scaffolds
 
 	# Check orientation
 	if ($orientation ne $last_orientation) {
@@ -1472,7 +1478,7 @@ sub compare_adjacent_loci {
 	}
 
 	# Test whether to combine this pair of loci into a single merged locus
-	if ($gap < $range) {  # Combine
+	if ($gap <= $range) {  # Combine
 		if ($verbose) {
 			if ($last_name and $last_gene) {
 				print "\n\t\t      - Added pair to cluster: $last_name";
@@ -1575,7 +1581,7 @@ sub merge_cluster {
 	my $num_cluster_loci = scalar @$cluster_ref;		
 	if ($verbose) {
 		if ($num_cluster_loci > 1) {
-			print "\n\t\t   ## Merging $num_cluster_loci loci in cluster";
+			print "\n\t\t    - Merging $num_cluster_loci loci in cluster";
 			#$self->show_cluster($cluster_ref, $cluster_id);
 		}
 	}
@@ -2007,8 +2013,8 @@ sub create_nomenclature_track {
 	my @sorted;
 	$self->get_sorted_nomenclature_tracks(\@sorted);
 	#$devtools->print_array(\@sorted); die;
-	my $total_hits = scalar @sorted;
-	print "\n\n\t # $total_hits rows in the nomenclature table";
+	my $total_loci = scalar @sorted;
+	print "\n\n\t # $total_loci rows in the nomenclature table";
 
 	# Compose clusters of related sequences
 	my %settings;
@@ -3005,14 +3011,14 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
-	$self->run_test_5();
-	$self->run_test_6();
+	#$self->run_test_1();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
+	#$self->run_test_5();
+	#$self->run_test_6();
 	$self->run_test_7();
-	$self->run_test_10();
+	#$self->run_test_10();
 
 	# Print finished message
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
@@ -3076,8 +3082,8 @@ sub run_test_2 {
 
 	my ($self) = @_;
 
-	## Check that defragment gives expected result	(negative)
-	print "\n\t ### TEST 2: Try to defragment results (nothing should be merged) ~ + ~ + ~ \n";	
+	## Check that defragment gives expected result (negative)
+	print "\n\t ### TEST 2: Defragment results test negative  ~ + ~ + ~ \n";	
 	$self->{defragment_mode} = 'defragment';
 	# Construct WHERE statement
 	my $where  = " WHERE organism      = 'fake_species' ";
@@ -3147,7 +3153,7 @@ sub run_test_4 {
 	my ($self) = @_;
 
 	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
-	print "\n\t ### TEST 4: Try to defragment results (should work) ~ + ~ + ~ \n";
+	print "\n\t ### TEST 4: Defragment results test positive  ~ + ~ + ~ \n";
 
 	# Set to defragment
 	$self->{defragment_mode} = 'defragment';
@@ -3401,9 +3407,8 @@ sub run_test_10 {
 	# Upload the data
 	my $test10_path = './test/test10.txt';;
 	print "\n\t ### Flushed digs_results table & now uploading data from file '$test10_path'";
-	$db->upload_data_to_digs_results($test10_path);
+	my $original_num_rows = $db->upload_data_to_digs_results($test10_path);
 	print "\n\t ### EVE data uploaded\n";
-	#die;
 
 	# Execute the defragment procedure
 	$self->interactive_defragment();
@@ -3414,7 +3419,7 @@ sub run_test_10 {
 	my $sort = " ORDER BY scaffold, extract_start ";
 	$results_table->select_rows(\@fields, \@result, $sort);
 	my $num_rows = scalar @result;
-	print "\n\t ### Compressed to $num_rows rows\n\n\n";
+	print "\n\t ### Compressed from $original_num_rows to $num_rows rows\n\n\n";
 
 	exit;
 }
@@ -3444,6 +3449,25 @@ sub show_translations {
 		}
 	}
 }		
+
+#***************************************************************************
+# Subroutine:  prepare_locus_update 
+# Description: 
+#***************************************************************************
+sub prepare_locus_update {
+
+	my ($self, $loci_ref) = @_;
+
+	# Get parameters from self
+	foreach my $hit_ref (@$loci_ref) {
+	
+		$hit_ref->{extract_start}   = $hit_ref->{start};
+		$hit_ref->{extract_end}     = $hit_ref->{end};
+		$hit_ref->{sequence}        = 'NULL';
+		$hit_ref->{sequence_length} = 0;
+		#$devtools->print_hash($hit_ref); die;
+	}
+}
 
 ############################################################################
 # EOF
