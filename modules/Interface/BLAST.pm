@@ -154,11 +154,6 @@ sub extract_sequence {
 	shift @sequence;  # Remove header
 	my $sequence = join ('', @sequence);
 	$sequence =~ s/\n//g;
-
-	# Check we got sequences
-	unless ($sequence) {
-		print "\n\t ## FAILED TO EXTRACT sequence using command '$command'\n";
-	}
 	
 	return $sequence;
 }

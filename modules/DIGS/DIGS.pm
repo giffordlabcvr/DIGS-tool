@@ -186,10 +186,10 @@ sub perform_digs {
 			# Extract newly identified or extended sequences
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
-			$self->extract_locus_sequences($target_path, \@new_hits, \@extracted);	
+			$self->extract_sequences_from_target_file($target_path, \@new_hits, \@extracted);	
 			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$self->classify_using_blast(\@extracted, $query_ref);
+			$self->classify_sequences_using_blast(\@extracted, $query_ref);
 			
 			# Update DB
 			$self->update_db(\@extracted, 'digs_results_table');
@@ -202,7 +202,7 @@ sub perform_digs {
 
 #***************************************************************************
 # Subroutine:  reassign
-# Description: reassign sequences in the digs_results_table 
+# Description: classify sequences already in the digs_results_table 
 #***************************************************************************
 sub reassign {
 	
@@ -211,8 +211,8 @@ sub reassign {
 	# Get data structures and variables from self
 	my $blast_obj   = $self->{blast_obj};
 	my $result_path = $self->{report_dir};
-	my $db          = $self->{db};
 	my $verbose     = $self->{verbose};
+	my $db          = $self->{db};
 	my $digs_results_table = $db->{digs_results_table};
 	unless ($digs_results_table) { die; }
 	
@@ -220,7 +220,8 @@ sub reassign {
 	print "\n\n\t  Reassigning hits in the digs_results table\n";
 	my $count = 0;
 	my %reassign_matrix;
-	my %unique_keys;
+	$self->{crossmatching} = \%reassign_matrix;
+
 	foreach my $locus_ref (@$extracted_seqs_ref) {
 		
 		# Set the linking to the BLAST result table
@@ -235,7 +236,7 @@ sub reassign {
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
 		my $previous_assign = $locus_ref->{assigned_name};
 		my $previous_gene   = $locus_ref->{assigned_gene};
-		my $blast_alg = $self->do_blast_genotyping($locus_ref);
+		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
 		
 		$count++;
 		if (($count % 100) eq 0) { print "\n\t  Checked $count rows"; }
@@ -245,39 +246,22 @@ sub reassign {
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 			
 			# Show the results
-			if ($verbose) { 
-				print " (Reassigned locus '$record_id')";
-			}
-			my $where = " WHERE record_id = $record_id ";
+			if ($verbose) {  print " (Reassigned locus '$record_id')"; }
 			
 			# Update the matrix
 			my $previous_key = $previous_assign . '_' . $previous_gene;
-			my $assigned_key = $assigned_name . '_' . $assigned_gene;
-			$unique_keys{$assigned_key} = 1;
-			$unique_keys{$previous_key} = 1;
-			if ($reassign_matrix{$previous_key}) {
-				my $hash_ref = $reassign_matrix{$previous_key};
-				if ($hash_ref->{$assigned_key}) {
-					$hash_ref->{$assigned_key}++;
-				}
-				else {
-					$hash_ref->{$assigned_key} = 1;
-				}
-			}
-			else {
-				my %hash;
-				$hash{$assigned_key} = 1;
-				$reassign_matrix{$previous_key} = \%hash; 
-			}
+			my $assigned_key = $assigned_name . '_' . $assigned_gene;	
+			$self->update_cross_matching($previous_key, $assigned_key);
+				
 			# Insert the data
+			my $where = " WHERE record_id = $record_id ";
 			delete $locus_ref->{record_id}; 
-			delete $locus_ref->{organism}; # TODO - why?
 			$digs_results_table->update($locus_ref, $where);
 		}
 	}
 	
 	# Write out the cross-matching matrix
-	$self->write_crossmatching_data_to_file(\%reassign_matrix, \%unique_keys);
+	$self->show_cross_matching();;
 
 	# Cleanup
 	my $output_dir = $self->{report_dir};
@@ -287,108 +271,40 @@ sub reassign {
 
 #***************************************************************************
 # Subroutine:  interactive_defragment 
-# Description: console driven menu options for interactive defragment
+# Description: interactively defragment via the console
 #***************************************************************************
 sub interactive_defragment {
 
 	my ($self) = @_;
 
-	my $defragment_range = $self->{defragment_range};
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_group_ref = $self->{target_groups};
-	unless ($genome_use_path)    { die; }
-	unless ($target_group_ref)   { die; }
-	unless ($defragment_range )  { die; } 
-	unless ($genome_use_path)    { die; } 
-
-	# Display current settings	
-	print "\n\n\t\t Current settings (based on control file)";
-	print "\n\t\t defragment range: $defragment_range";
-	$self->{defragment_mode} = 'defragment';
-
 	# Get a list of all the target files from the screening DB
+	$self->{defragment_mode} = 'defragment';
 	my $db = $self->{db};
 	my $digs_results_table = $db->{digs_results_table};
 	my @fields = qw [ organism target_datatype target_version target_name ];
 	my @targets;
 	$digs_results_table->select_distinct(\@fields, \@targets);
 
-	# Settings
-	my $choice;
-	my %cluster_info;
-	$cluster_info{total_hits} = '0';
-	$cluster_info{total_clusters} = '0';
-	my $t_range;
-	
-	# Question loop
-	do {
-		my $question1 = "\n\n\t # Set the range for merging hits";
-		$t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+	# Settings for clustering
+	my %settings;
+	$settings{total_hits}     = '0';
+	$settings{total_clusters} = '0';
+	$settings{range}          = undef;
 
-		# Apply the settings
-		$self->defragment_digs_results(\@targets, \%cluster_info, $t_range);
-		my $total_hits     = $cluster_info{total_hits};
-		my $total_clusters = $cluster_info{total_clusters};
-	
-		# Prompt for what to do next
-		print "\n\t\t\t TOTAL HITS:     $total_hits";
-		print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
-		print "\n\n\t\t Option 1: preview new parameters";
-		print "\n\t\t Option 2: apply these parameters";
-		print "\n\t\t Option 3: exit";
-		my $list_question = "\n\n\t # Choose an option:";
-		$choice = $console->ask_list_question($list_question, 3);
-		
-	} until ($choice > 1);
-	
-	if ($choice eq 2) { # Apply the changes
+	# Preview changes 
+	my $choice = undef;
+	do    { 
+		$choice = $self->preview_defragment(\@targets, \%settings);
+	}  until ($choice > 1);
 
-		# Create a copy of the digs_results table (changes will be applied to copy)
-		print "\n\t # Defragmenting using range '$t_range'\n";
-		my $copy_name = $db->backup_digs_results_table();
-		print "\n\t # Copied DIGS results to '$copy_name'\n";
-		my $dbh = $db->{dbh};
-		$db->load_digs_results_table($dbh, 'digs_results');	
-		unless ($db->{digs_results_table}) { die; }
-		
-		# Iterate through the target files, applying the defragment process to each		
-		foreach my $target_ref (@targets) {
-
-			# Create a unique key for this genome
-			my $organism        = $target_ref->{organism};
-			my $target_name     = $target_ref->{target_name};
-			my $target_datatype = $target_ref->{target_datatype};
-			my $target_version  = $target_ref->{target_version};
-			my @genome = ( $organism , $target_datatype, $target_version );
-			my $target_id       = join ('|', @genome);
-			my $target_group    = $target_group_ref->{$target_id};
-			unless ($target_group) { die; }
-			print "\n\t\t # Defragmenting hits in '$target_name'";
-
-			# Construct WHERE statement
-			my $where  = " WHERE organism      = '$organism' ";
-			$where    .= " AND target_datatype = '$target_datatype' ";
-			$where    .= " AND target_version  = '$target_version' ";
-			$where    .= " AND target_name     = '$target_name' "; 
-
-			# Construct the path to this target file
-			my @path;
-			push (@path, $genome_use_path);
-			push (@path, $target_group);
-			push (@path, $organism);
-			push (@path, $target_datatype);
-			push (@path, $target_version);
-			push (@path, $target_name);
-			my $target_path = join ('/', @path);
-
-			my %settings;
-			$settings{range} = $t_range;
-			$settings{start} = 'extract_start';
-			$settings{end}   = 'extract_end';
-			$self->defragment_target(\%settings, $where, $target_path, 'digs_results');
-		}
+    # Apply the changes	if option is chosen
+	if    ($choice eq 2) { 
+		$self->implement_defragment(\@targets, \%settings);
 	}
-	elsif ($choice eq 3) { print "\n"; exit; }
+	elsif ($choice eq 3) { 
+		print "\n"; exit;
+	}
+	else { die; } # Should never get here
 }
 
 #***************************************************************************
@@ -449,8 +365,6 @@ sub create_standard_locus_ids {
 	unless ($nom_chains_exists) {
 		$db_ref->create_nomenclature_chains_table($dbh);
 	}
-
-
 
 	# Load nomenclature tables
 	$db_ref->load_nomenclature_tracks_table($dbh);
@@ -681,10 +595,10 @@ sub compile_nonredundant_locus_set {
 }
 
 #***************************************************************************
-# Subroutine:  extract_locus_sequences
+# Subroutine:  extract_sequences_from_target_file
 # Description: extract sequences from target databases
 #***************************************************************************
-sub extract_locus_sequences {
+sub extract_sequences_from_target_file {
 
 	my ($self, $target_path, $hits_ref, $extracted_ref) = @_;
 
@@ -694,8 +608,8 @@ sub extract_locus_sequences {
 	my $verbose     = $self->{verbose};
 
 	# Iterate through the list of sequences to extract
-	my $new_hits = scalar @$hits_ref;
 	my $i;
+	my $new_loci = 0;
 	foreach my $hit_ref (@$hits_ref) {
 				
 		# Add any buffer 
@@ -722,7 +636,8 @@ sub extract_locus_sequences {
 		# Extract the sequence
 		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
 		my $seq_length = length $sequence; # Set sequence length
-		if ($sequence) {	
+		if ($sequence) {
+				
 			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
 			$hit_ref->{extract_start}   = $hit_ref->{start};
 			$hit_ref->{extract_end}     = $hit_ref->{end};
@@ -730,19 +645,20 @@ sub extract_locus_sequences {
 			$hit_ref->{sequence_length} = $seq_length;
 			#print "\n\t Sequence $sequence\n\n";	die;
 			push (@$extracted_ref, $hit_ref);
+			$new_loci++;
 		}
 		elsif ($verbose) { 
 			print "\n\t\t    # Sequence extraction failed ";
 		}
 	}	
-	return $new_hits;
+	return $new_loci;
 }
 
 #***************************************************************************
-# Subroutine:  classify_using_blast
-# Description: classify a sequence by blast comparison to the reference library
+# Subroutine:  classify_sequences_using_blast
+# Description: classify a set of sequences using blast
 #***************************************************************************
-sub classify_using_blast {
+sub classify_sequences_using_blast {
 
 	my ($self, $extracted_ref, $query_ref) = @_;
 
@@ -754,7 +670,7 @@ sub classify_using_blast {
 	foreach my $hit_ref (@$extracted_ref) { # Iterate through the matches
 
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-		my $blast_alg = $self->do_blast_genotyping($hit_ref);
+		my $blast_alg = $self->classify_sequence_using_blast($hit_ref);
 		my $assigned  = $hit_ref->{assigned_name};
 		unless ($assigned) { die; }
 		if ($assigned) { $assigned_count++; }
@@ -779,10 +695,10 @@ sub classify_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  do_blast_genotyping
-# Description: genotype a nucleotide sequence
+# Subroutine:  classify_sequence_using_blast
+# Description: classify a nucleotide sequence using blast 
 #***************************************************************************
-sub do_blast_genotyping {
+sub classify_sequence_using_blast {
 
 	my ($self, $hit_ref) = @_;
 	
@@ -922,7 +838,7 @@ sub update_locus_data {
 
 #***************************************************************************
 # Subroutine:  create_consolidated_locus
-# Description: 
+# Description: derive data fields for a consolidated locus
 #***************************************************************************
 sub create_consolidated_locus {
 
@@ -1168,20 +1084,130 @@ sub wrap_up {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  preview_defragment
+# Description: preview a defragmentation process
+#***************************************************************************
+sub preview_defragment {
+
+	my ($self, $targets_ref, $settings_ref) = @_;
+
+	# Display current settings	
+	my $defragment_range = $self->{defragment_range};
+	unless ($defragment_range )  { die; } 
+	print "\n\n\t\t Current settings (based on control file)";
+	print "\n\t\t defragment range: $defragment_range";
+
+	# Get the range	
+	my $question1 = "\n\n\t # Set the range for merging hits";
+	#my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+	my $t_range = 1000;
+
+	# Preview this defragment
+	$self->defragment_digs_results($targets_ref, $settings_ref, $t_range);
+
+	# Summarise results
+	my $total_hits     = $settings_ref->{total_hits};
+	my $total_clusters = $settings_ref->{total_clusters};
+	print "\n\t\t\t TOTAL HITS:     $total_hits";
+	print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+	print "\n\n\t\t Option 1: preview new parameters";
+	print "\n\t\t Option 2: apply these parameters";
+	print "\n\t\t Option 3: exit";
+
+	# Prompt for what to do next
+	my $list_question = "\n\n\t # Choose an option:";
+	#my $choice = $console->ask_list_question($list_question, 3);
+	$settings_ref->{range} = $t_range;
+	my $choice = 2;
+
+	return $choice;
+}
+
+#***************************************************************************
+# Subroutine:  implement_defragment
+# Description: implement a defragmentation process for a set of target files
+#***************************************************************************
+sub implement_defragment {
+
+	my ($self, $targets_ref,  $settings_ref) = @_;
+
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	my $db               = $self->{db};
+	my $t_range = $settings_ref->{range};
+	my $reextract        = $settings_ref->{reextract};
+	if ($reextract) {
+		unless ($genome_use_path and $target_group_ref)  { die; }
+	}
+
+	# Create a copy of the digs_results table (changes will be applied to copy)
+	print "\n\t # Defragmenting using range '$t_range'\n";
+	my $copy_name = $db->backup_digs_results_table();
+	print "\n\t # Copied DIGS results to '$copy_name'\n";
+	my $dbh = $db->{dbh};
+	$db->load_digs_results_table($dbh, 'digs_results');	
+	unless ($db->{digs_results_table}) { die; }
+	
+	# Iterate through the target files, applying the defragment process to each		
+	foreach my $target_ref (@$targets_ref) {
+
+		# Create a unique key for this genome
+		my $organism        = $target_ref->{organism};
+		my $target_name     = $target_ref->{target_name};
+		my $target_datatype = $target_ref->{target_datatype};
+		my $target_version  = $target_ref->{target_version};
+		my @genome = ( $organism , $target_datatype, $target_version );
+		my $target_id       = join ('|', @genome);
+		print "\n\t\t # Defragmenting hits in '$target_name'";
+
+		my $target_path = 'NULL';
+		if ($reextract) {
+			my $target_group = $target_group_ref->{$target_id};
+			unless ($target_group) { die; }
+			# Construct the path to this target file
+			my @path;
+			push (@path, $genome_use_path);
+			push (@path, $target_group);
+			push (@path, $organism);
+			push (@path, $target_datatype);
+			push (@path, $target_version);
+			push (@path, $target_name);
+			$target_path = join ('/', @path);
+		}
+
+		# Construct WHERE statement
+		my $where  = " WHERE organism      = '$organism' ";
+		$where    .= " AND target_datatype = '$target_datatype' ";
+		$where    .= " AND target_version  = '$target_version' ";
+		$where    .= " AND target_name     = '$target_name' "; 
+		$settings_ref->{start}     = 'extract_start';
+		$settings_ref->{end}       = 'extract_end';
+		$settings_ref->{reextract} = undef;
+		$settings_ref->{where_sql} = $where;
+		$self->defragment_target($settings_ref, $target_path, 'digs_results');
+	}
+}
+
+#***************************************************************************
 # Subroutine:  defragment_target 
-# Description: similar to compile_nonredundant_locus_set fxn, diff details
+# Description: implement a defragmentation process for a single target file
+# Note: similar to compile_nonredundant_locus_set fxn, diff details
 #***************************************************************************
 sub defragment_target {
 
-	my ($self, $settings_ref, $where, $target_path, $copy_name, $flag) = @_;
+	my ($self, $settings_ref, $target_path, $copy_name) = @_;
 	
 	# Create the relevant set of previously extracted loci
 	my @combined;
 	my %target_defragmented;
+	my $where     = $settings_ref->{where_sql};
+	my $reextract = $settings_ref->{reextract};
+    my $copy_table_name = $copy_name . '_table';
+
+	# Get digs results
 	$self->get_sorted_digs_results(\@combined, $where);
 	my $num_hits = scalar @combined;
 	print "\n\t\t # $num_hits digs results to defragment ";
-
 	#$devtools->print_array(\@combined); die;
 		
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
@@ -1195,36 +1221,42 @@ sub defragment_target {
 	
 	# Determine what to extract, and extract it
 	my @loci;
+	my $flag     = $settings_ref->{reextract};
 	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
 	print "\n\t\t # $extended extensions to previously extracted sequences ";
 	my $num_new = scalar @loci;
 	print "\n\t\t # $num_new loci to extract after defragment ";
-	
-	# Extract newly identified or extended sequences
-	my @extracted;
-	$self->extract_locus_sequences($target_path, \@loci, \@extracted);
+
+	if ($reextract) {
+
+		# Extract newly identified or extended sequences
+		my @extracted;
+		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
 				
-	# Do the genotyping step for the newly extracted locus sequences
-	my $assigned_count   = 0;
-	my $crossmatch_count = 0;
-	my $num_extracted = scalar @extracted;
-	if ($num_extracted) {
-		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
-		foreach my $hit_ref (@extracted) { # Iterate through loci		
-			$self->do_blast_genotyping($hit_ref);
-			$assigned_count++;
-			my $remainder = $assigned_count % 100;
-			if ($remainder eq 0) {
-				print "\n\t\t\t # $assigned_count sequences classified ";
+		# Do the genotyping step for the newly extracted locus sequences
+		my $assigned_count   = 0;
+		my $crossmatch_count = 0;
+		my $num_extracted = scalar @extracted;
+		if ($num_extracted) {
+			print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+			foreach my $hit_ref (@extracted) { # Iterate through loci		
+				$self->classify_sequence_using_blast($hit_ref);
+				$assigned_count++;
+				my $remainder = $assigned_count % 100;
+				if ($remainder eq 0) {
+					print "\n\t\t\t # $assigned_count sequences classified ";
+				}
 			}
+			print "\n\t\t\t # $assigned_count sequences classified\n";
 		}
-		print "\n\t\t\t # $assigned_count sequences classified\n";
+	
+		# Update DB
+		$self->update_db(\@extracted, $copy_table_name);
 	}
-	
-	# Update DB
-	my $copy_table_name = $copy_name . '_table';
-	$self->update_db(\@extracted, $copy_table_name);
-	
+	else {
+		# Update DB
+		$self->update_db(\@loci, $copy_table_name);
+	}
 	return $num_new;
 }
 
@@ -1726,7 +1758,7 @@ sub show_cluster {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: recording cross-matching during DIGS
+# INTERNAL FUNCTIONS: recording cross-matching
 ###########################################################################
 
 #***************************************************************************
@@ -1753,6 +1785,7 @@ sub update_cross_matching {
 		$crossmatch{$assigned} = 1;
 		$crossmatch_ref->{$probe_key} = \%crossmatch;
 	}
+
 }
 
 #***************************************************************************
@@ -1775,61 +1808,6 @@ sub show_cross_matching {
 			print "\n\t\t #   $count x $probe_name to $cross_match";
 		}
 	}
-}
-
-#***************************************************************************
-# Subroutine:  write_crossmatching_data_to_file 
-# Description: write cross-matching results as a matrix
-#***************************************************************************
-sub write_crossmatching_data_to_file {
-
-    my ($self, $matrix_ref, $keys_ref) = @_;
-
-    my @matrix;
-    my @keys = sort keys %$keys_ref;
-	
-	# Reformat the keys - split into the two separate elements
-	my %reformatted;
-    my @horizontal;
-	foreach my $key (@keys) {
-    
-		my @key = split('_', $key);
-		my $second_part = pop @key;
-		my $first_part = shift @key;
-		my $reformatted_key = $first_part . " ($second_part)";
-		$reformatted{$key} = $reformatted_key;
-		push (@horizontal, $reformatted_key);
-	}
-
-	# Create the header row for the matrix
-    my $horizontal = join("\t", @horizontal);
-	push (@matrix, "\t$horizontal\n");
-
-	foreach my $key (@keys) {
-		
-		# Write the name
-		my @line;
-		my $f_key = $reformatted{$key};
-		push (@line, $f_key);
-		
-		# Write the numbers (internal part of the matrix)
-		foreach my $comparison_key (@keys) {
-			
-			my $count;
-			my $hash_ref = $matrix_ref->{$key};
-			$count = $hash_ref->{$comparison_key};
-			unless ($count) { $count = '0'; }
-			push (@line, $count);
-		}
-		# Create matrix row
-    	my $line = join("\t", @line);
-		push (@matrix, "$line\n");
-	}
-
-	my $file = 'reassign_matrix.txt';
-	my $file_path = $self->{tmp_path} . $file;
-	$fileio->write_file($file_path, \@matrix);
-	#$devtools->print_hash($matrix_ref);
 }
 
 ############################################################################
@@ -3034,6 +3012,7 @@ sub run_tests {
 	$self->run_test_5();
 	$self->run_test_6();
 	$self->run_test_7();
+	$self->run_test_10();
 
 	# Print finished message
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
@@ -3091,7 +3070,7 @@ sub run_test_1 {
 
 #***************************************************************************
 # Subroutine:  run_test_2
-# Description: Defragment results test negative (i.e. will not merge loci)
+# Description: Defragment results test negative (i.e. do not merge loci)
 #***************************************************************************
 sub run_test_2 {
 
@@ -3108,10 +3087,12 @@ sub run_test_2 {
 	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
 	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
 	my %settings;
-	$settings{range} = 100;
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
-	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	$settings{range}     = 100;
+	$settings{start}     = 'extract_start';
+	$settings{end}       = 'extract_end';
+	$settings{where_sql} = $where;
+	
+	my $num_new = $self->defragment_target(\%settings, $target_path, 'digs_results');
 	if ($num_new eq '0' )  { print "\n\n\t  Defragment negative test: ** PASSED **\n" }
 	else                   { die   "\n\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
@@ -3159,7 +3140,7 @@ sub run_test_3 {
 
 #***************************************************************************
 # Subroutine:  run_test_4
-# Description: Defragment results test positive (i.e. will merge loci)
+# Description: Defragment results test positive (i.e. do merge loci)
 #***************************************************************************
 sub run_test_4 {
 
@@ -3167,6 +3148,8 @@ sub run_test_4 {
 
 	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
 	print "\n\t ### TEST 4: Try to defragment results (should work) ~ + ~ + ~ \n";
+
+	# Set to defragment
 	$self->{defragment_mode} = 'defragment';
 
 	# Construct WHERE statement
@@ -3174,11 +3157,12 @@ sub run_test_4 {
 	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
 	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
 	my %settings;
-	$settings{range} = 500;
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
+	$settings{range}     = 500;
+	$settings{start}     = 'extract_start';
+	$settings{end}       = 'extract_end';
+	$settings{where_sql} = $where;
 
-	my $num_new = $self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	my $num_new = $self->defragment_target(\%settings, $target_path, 'digs_results');
 	my $db = $self->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};	
 	my @data;
@@ -3331,11 +3315,13 @@ sub run_test_7 {
 	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
 	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
 	my %settings;
-	$settings{range} = 100;
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
+	$settings{range}     = 100;
+	$settings{start}     = 'extract_start';
+	$settings{end}       = 'extract_end';
+	$settings{where_sql} = $where;
+
 	$self->{defragment_mode} = 'defragment';
-	$self->defragment_target(\%settings, $where, $target_path, 'digs_results', 1);
+	$self->defragment_target(\%settings, $target_path, 'digs_results');
 
 	# Do the reassign
 	print "\n\n\t ### Now reassigning the ORF hits to an MLV reference library\n";
@@ -3391,6 +3377,46 @@ sub run_test_9 {
 	print "\n\t ### TEST 9: blastn screen using short probes ~ + ~ + ~ \n";
 	sleep 2;
 
+}
+
+#***************************************************************************
+# Subroutine:  run_test_10
+# Description:  big defragment with re-extract and genotype disabled
+#***************************************************************************
+sub run_test_10 {
+
+	my ($self) = @_;
+
+	# Run the second peptide screen
+	print "\n\t ### TEST 10: Running big defragment with re-extract and genotype disabled ~ + ~ + ~ ";
+
+	# Set to defragment
+	$self->{defragment_mode} = 'defragment';
+
+	# Get digs_results table handle and flush the table
+	my $db = $self->{db}; # Get the database reference
+	my $results_table = $db->{digs_results_table}; # Get the database reference
+	$results_table->flush();
+
+	# Upload the data
+	my $test10_path = './test/test10.txt';;
+	print "\n\t ### Flushed digs_results table & now uploading data from file '$test10_path'";
+	$db->upload_data_to_digs_results($test10_path);
+	print "\n\t ### EVE data uploaded\n";
+	#die;
+
+	# Execute the defragment procedure
+	$self->interactive_defragment();
+	
+	# Check result
+	my @result;
+	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
+	my $sort = " ORDER BY scaffold, extract_start ";
+	$results_table->select_rows(\@fields, \@result, $sort);
+	my $num_rows = scalar @result;
+	print "\n\t ### Compressed to $num_rows rows\n\n\n";
+
+	exit;
 }
 
 ############################################################################

@@ -6,6 +6,7 @@
 # History:     Version 1.12 December 2016
 ############################################################################
 
+
 # Check the required environment variable are defined
 unless ($ENV{DIGS_GENOMES}) {
 	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
@@ -15,6 +16,10 @@ unless ($ENV{DIGS_HOME}) {
 	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
+
+#print "\n\t DIGS HOME PATH:    $ENV{DIGS_HOME} ";
+#print "\n\t DIGS GENOMES PATH: $ENV{DIGS_GENOMES}\n\n ";
+#sleep 1;
 
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME}) . '/modules/'; 
