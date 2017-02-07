@@ -135,9 +135,6 @@ sub run_digs_process {
 			$self->{defragment_mode} = 'consolidate';
 			$self->consolidate_loci();
 		}
-		elsif ($option eq 6) { # Standardised locus naming
-			$self->create_standard_locus_ids();
-		}
 		else {
 			print "\n\t  Unrecognized option '-m=$option'\n";
 		}
@@ -334,7 +331,8 @@ sub consolidate_loci {
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_loci > $num_clusters) {
-		print   "\n\t  ...consolidated to $num_clusters overlapping/contiguous clusters";
+		my $range = $settings{range};
+		print "\n\t ...consolidated to $num_clusters overlapping/contiguous clusters within '$range' bp of one another ";
 	}
 	
 	# Update locus data based on consolidated results
@@ -581,7 +579,6 @@ sub compile_nonredundant_locus_set {
 	my $num_clusters = scalar @combined;
 	if ($verbose) {
 		if ($total_loci > $num_clusters) {
-			print "\n\t ...compressed to $num_clusters overlapping/contiguous clusters ";
 		}
 	}
 
@@ -829,10 +826,13 @@ sub create_consolidated_locus {
 
 		unless ($feature and $orientation) { die; }
 		if ($orientation eq '+') {
-			push(@locus_structure, $feature);
+			#my $record = "$feature ($orientation)";
+			my $record = $feature;
+			push(@locus_structure, $record);
 		}
 		elsif ($orientation eq '-') {
-			unshift(@locus_structure, $feature);			
+			my $record = "$feature($orientation)";
+			unshift(@locus_structure, $record);			
 		}
 
 		if ($initialised) {
@@ -1283,7 +1283,8 @@ sub defragment_target {
 	my $num_clusters = scalar @combined;
 	if ($num_clusters < $num_hits) {
 		#$self->show_clusters(\%target_defragmented);  # Show clusters
-		print "...compressed to $num_clusters overlapping/contiguous clusters";
+		my $range = $settings_ref->{range};
+		print "...compressed to $num_clusters overlapping/contiguous clusters within '$range' bp of one another";
 	}
 	
 	# Determine what to extract, and extract it
@@ -1444,7 +1445,9 @@ sub compare_adjacent_loci {
 	# Check orientation
 	if ($orientation ne $last_orientation) {
 		unless ($mode eq 'consolidate2') { 
-			#print "\n\t\t Two hits in range but different orientation";
+			if ($verbose) {
+				print "\n\t\t Identified pair of loci that are in range, but different orientations";
+			}
 			return 0;
 		}
 		else {
@@ -2547,12 +2550,11 @@ sub show_help_page {
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
-	   $HELP  .= "\n\t -m=1  Prepare nucleotide FASTA targets (index for BLAST)";		
-	   $HELP  .= "\n\t -m=2  Screen"; 
-	   $HELP  .= "\n\t -m=3  Reassign"; 
-	   $HELP  .= "\n\t -m=4  Defragment"; 
-	   $HELP  .= "\n\t -m=5  Consolidate"; 
-	   $HELP  .= "\n\t -m=6  Create standard locus IDs\n"; 
+	   $HELP  .= "\n\t -m=1  Prepare  FASTA target files (i.e. index for BLAST)";		
+	   $HELP  .= "\n\t -m=2  Do DIGS"; 
+	   $HELP  .= "\n\t -m=3  Reassign loci"; 
+	   $HELP  .= "\n\t -m=4  Defragment loci"; 
+	   $HELP  .= "\n\t -m=5  Consolidate loci\n"; 
 	   $HELP  .= "\n\t Genome path = '$ENV{DIGS_GENOMES}'";
 
 	   $HELP  .= "\n\t Run  $0 -e to see information on utility functions\n\n"; 
@@ -2588,7 +2590,8 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
 	   $HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
 	   $HELP  .= "\n\t -u=9  Translate DB schema\n"; 
-	   #$HELP  .= "\n\t -u=10  Extract sequences using track";
+	   $HELP  .= "\n\t -u=10 Create standard locus IDs\n"; 
+	   #$HELP  .= "\n\t -u=11  Extract sequences using track";
 	   $HELP  .= "\n\n"; 
 
 	print $HELP;
@@ -2648,7 +2651,10 @@ sub run_utility_process {
 		my $db_obj = $self->{db};
 		$db_obj->translate_schema();
 	}
-	elsif ($option eq 10) {
+	elsif ($option eq 10) { # Standardised locus naming
+		$self->create_standard_locus_ids();
+	}
+	elsif ($option eq 11) {
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		my $loader_obj = ScreenBuilder->new($self);
 		my @extracted;
@@ -3011,18 +3017,17 @@ sub run_tests {
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
-	#$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
-	#$self->run_test_5();
-	#$self->run_test_6();
+	$self->run_test_1();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
+	$self->run_test_5();
+	$self->run_test_6();
 	$self->run_test_7();
 	#$self->run_test_10();
 
 	# Print finished message
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
-	sleep 2;
 
 	# Remove the output directory
 	my $output_dir = $self->{report_dir};
@@ -3030,6 +3035,7 @@ sub run_tests {
 		my $command1 = "rm -rf $output_dir";
 		system $command1;
 	}
+	else { die; }
 }
 
 #***************************************************************************
