@@ -156,6 +156,10 @@ sub perform_digs {
 
 	my ($self, $mode) = @_;
 
+	# Get handle for the 'searches_performed' table, updated in this loop
+	my $db_ref         = $self->{db};
+	my $searches_table = $db_ref->{searches_table};
+
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
 	my $completed = 0;
@@ -190,9 +194,13 @@ sub perform_digs {
 			
 			# Update DB
 			my $num_deleted = $self->update_db(\@extracted, 'digs_results_table', 1);
-			
+	
+			# Update the searches table, to indicate this search has been performed
+			$searches_table->insert_row($query_ref);
+		
 			# Show progress
 			$self->show_digs_progress();
+
 		}	
 	}
 }
@@ -424,7 +432,6 @@ sub search_target_file_using_blast {
 
 	# Get screening database table objects
 	my $db_ref           = $self->{db};
-	my $searches_table   = $db_ref->{searches_table};
 	my $active_set_table = $db_ref->{active_set_table};
 	unless ($db_ref)          { die; } 
 
@@ -518,9 +525,6 @@ sub search_target_file_using_blast {
 		print "\n\t\t # $num_retained_hits matches above threshold ";
 		print "(excluded: $length_exclude_count < length; $score_exclude_count < bitscore)";
 	}
-
-	# Update the searches table, to indicate this search has been performed
-	$searches_table->insert_row($query_ref);
 	
 	return $num_hits;
 }
@@ -699,27 +703,24 @@ sub classify_sequences_using_blast {
 #***************************************************************************
 sub classify_sequence_using_blast {
 
-	my ($self, $hit_ref) = @_;
+	my ($self, $locus_ref) = @_;
 	
 	# Get paths and objects from self
-	#$devtools->print_hash($hit_ref);
 	my $result_path = $self->{tmp_path};
 	my $blast_obj   = $self->{blast_obj};
 	my $verbose     = $self->{verbose};
-	unless ($blast_obj)   { die; }
+	unless ($blast_obj)   { die; } 
 	unless ($result_path) { die; }
 	
-	# Get required data about the hit, prior to performing reverse BLAST
-	my $sequence   = $hit_ref->{sequence};
-	my $organism   = $hit_ref->{organism};
-	my $probe_type = $hit_ref->{probe_type};
+	# Get required data about the query sequence
+	my $sequence   = $locus_ref->{sequence};
+	my $organism   = $locus_ref->{organism};
+	my $probe_type = $locus_ref->{probe_type};
+	unless ($organism)   { die; } # Sanity checking
+	unless ($probe_type) { die; } # Sanity checking
+	unless ($sequence)   { die; } # Sanity checking
 
-	# Sanity checking
-	unless ($organism)   { die; }
-	unless ($probe_type) { die; }
-	unless ($sequence)   { die "\n\t # ERROR: No sequence found for reverse BLAST"; } 
-
-	# Make a FASTA query file for the reverse BLAST procedure
+	# Make a FASTA query file
 	$sequence =~ s/-//g;   # Remove any gaps that might happen to be there
 	$sequence =~ s/~//g;   # Remove any gaps that might happen to be there
 	$sequence =~ s/\s+//g; # Remove any gaps that might happen to be there
@@ -737,7 +738,7 @@ sub classify_sequence_using_blast {
 	else  { die; }
 	unless ($lib_file)  { die; }
 
-	# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
+	# Execute the call to BLAST and parse the results
 	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
 	my @results;
 	$blast_obj->parse_tab_format_results($result_file, \@results);
@@ -753,7 +754,7 @@ sub classify_sequence_using_blast {
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
 	unless ($assigned_key) {
-		$self->set_default_values_for_unassigned_locus($hit_ref);	
+		$self->set_default_values_for_unassigned_locus($locus_ref);	
 		$assigned = undef;
 	}
 	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
@@ -763,19 +764,19 @@ sub classify_sequence_using_blast {
 		my $assigned_gene = pop @assigned_key;
 		my $assigned_name = shift @assigned_key;
 		#$assigned_name = join ('_', @assigned_name);
-		$hit_ref->{assigned_name}  = $assigned_name;
-		$hit_ref->{assigned_gene}  = $assigned_gene;
-		$hit_ref->{identity}       = $top_match->{identity};
-		$hit_ref->{bitscore}       = $top_match->{bitscore};
-		$hit_ref->{evalue_exp}     = $top_match->{evalue_exp};
-		$hit_ref->{evalue_num}     = $top_match->{evalue_num};
-		$hit_ref->{mismatches}     = $top_match->{mismatches};
-		$hit_ref->{align_len}      = $top_match->{align_len};
-		$hit_ref->{gap_openings}   = $top_match->{gap_openings};
-		$hit_ref->{query_end}      = $query_end;
-		$hit_ref->{query_start}    = $query_start;
-		$hit_ref->{subject_end}    = $subject_end;
-		$hit_ref->{subject_start}  = $subject_start;
+		$locus_ref->{assigned_name}  = $assigned_name;
+		$locus_ref->{assigned_gene}  = $assigned_gene;
+		$locus_ref->{identity}       = $top_match->{identity};
+		$locus_ref->{bitscore}       = $top_match->{bitscore};
+		$locus_ref->{evalue_exp}     = $top_match->{evalue_exp};
+		$locus_ref->{evalue_num}     = $top_match->{evalue_num};
+		$locus_ref->{mismatches}     = $top_match->{mismatches};
+		$locus_ref->{align_len}      = $top_match->{align_len};
+		$locus_ref->{gap_openings}   = $top_match->{gap_openings};
+		$locus_ref->{query_end}      = $query_end;
+		$locus_ref->{query_start}    = $query_start;
+		$locus_ref->{subject_end}    = $subject_end;
+		$locus_ref->{subject_start}  = $subject_start;
 		if ($verbose) { 
 			print "\n\t\t    - Classified as '$assigned_name ($assigned_gene)'";
 		 	print " via $blast_alg comparison to $lib_file";
@@ -1268,7 +1269,6 @@ sub defragment_target {
 	my @combined;
 	my %target_defragmented;
 	my $where     = $settings_ref->{where_sql};
-	my $reextract = $settings_ref->{reextract};
     my $copy_table_name = $copy_name . '_table';
 
 	# Get digs results
@@ -1289,6 +1289,7 @@ sub defragment_target {
 	
 	# Determine what to extract, and extract it
 	my @loci;
+	my $reextract = $settings_ref->{reextract};
 	my $flag     = $settings_ref->{reextract};
 	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
 	print "\n\t\t # $extended extensions to previously extracted sequences ";
