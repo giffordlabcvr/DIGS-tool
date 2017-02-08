@@ -428,13 +428,13 @@ sub set_targets {
 
 	# Initialise target sequence library
 	my $genome_obj = TargetDB->new($self);
-	
-	# Iterate through the list of paths 
-	my %paths;
-	my %target_data;
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_paths_ref = $self->{target_paths};
 	unless ($target_paths_ref) { die; } 
+	
+	# Iterate through the list of paths 
+	my %paths;
+	my %target_data;	
 	my @targets;	
 	foreach my $path (@$target_paths_ref) {
 				
@@ -459,23 +459,50 @@ sub set_targets {
 		push (@targets, @leaves);
 				
 	}
-	my @keys = keys %$targets_ref;
-	my $unique_targets = scalar @keys;
-	unless ($unique_targets) {
-		print "\n\n\t No target databases found";
-		print " - check target paths are correctly specified in control file\n";
-		print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
-		print "\n\t  TARGETS block from control file has these paths:";
-		my $i = 0;
-		foreach my $path (@$target_paths_ref) {
-			$i++;
-			print "\n\t\t PATH 1: '$path'";
-		}
-		print "\n\n";
-		exit;
+
+	# Show error and exit if no targets found
+	my $targets = scalar @targets;
+	unless ($targets) {
+		$self->show_no_targets_found_error($target_paths_ref);
 	}
 	
+	# Record the 'group'
+	$self->set_target_groups($targets_ref, $target_groups_ref);
+	
+}
+
+#***************************************************************************
+# Subroutine:  show_no_targets_found_error
+# Description: show 'no_targets_found' error
+#***************************************************************************
+sub show_no_targets_found_error {
+
+	my ($self, $target_paths_ref) = @_;
+
+	print "\n\n\t No target databases found";
+	print " - check target paths are correctly specified in control file\n";
+	print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
+	print "\n\t  TARGETS block from control file has these paths:";
+	my $i = 0;
+	foreach my $path (@$target_paths_ref) {
+		$i++;
+		print "\n\t\t PATH 1: '$path'";
+	}
+	print "\n\n";
+	exit;
+
+}
+
+#***************************************************************************
+# Subroutine:  set_target_groups
+# Description: Record the top-level 'group' part of the path to a target file
+#***************************************************************************
+sub set_target_groups {
+
+	my ($self, $targets_ref, $target_groups_ref) = @_;
+	
 	# Iterate through targets
+	my @keys = keys %$targets_ref;
 	foreach my $target_name (@keys) {
 			
 		# Get target data
