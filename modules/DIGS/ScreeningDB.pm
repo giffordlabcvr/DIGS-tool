@@ -311,6 +311,23 @@ sub load_loci_chains_table {
 }
 
 #***************************************************************************
+# Subroutine:  load_contigs_table
+# Description: create MySQL 'contigs' table
+#***************************************************************************
+sub load_contigs_table {
+
+    my ($self, $dbh) = @_;
+
+    # Definition of the loci table
+    my %loci_fields = (
+        contig_id    => 'varchar',
+        seq_length   => 'int',
+    );   
+    my $contigs_table = MySQLtable->new('contigs', $dbh, \%loci_fields);
+    $self->{contigs_table} = $contigs_table;
+}     
+
+#***************************************************************************
 # Subroutine:  load_nomenclature_tracks_table
 # Description: load screening database table 'nomenclature'
 #***************************************************************************
@@ -622,6 +639,28 @@ sub create_loci_chains_table {
     ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
     my $sth = $dbh->prepare($loci);
     unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
+}
+
+#***************************************************************************
+# Subroutine:  create_contigs_table
+# Description: create MySQL 'loci_chains' table
+#***************************************************************************
+sub create_contigs_table {
+
+    my ($self, $dbh) = @_;
+
+    # consolidated contigs table 
+    my $contigs = "CREATE TABLE `contigs`  (
+    
+        `record_id`       int(11) NOT NULL auto_increment,
+        `contig_id`       varchar(100) NOT NULL default '0',
+        `seq_length`      int(11) NOT NULL default '0',
+     
+        `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+      PRIMARY KEY  (`record_id`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
+    my $sth = $dbh->prepare($contigs);
+    unless ($sth->execute()) { print "\n\t$contigs\n\n\n"; exit;}
 }
 
 #***************************************************************************
