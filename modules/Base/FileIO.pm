@@ -195,6 +195,10 @@ sub read_standard_field_value_block {
 	return $captured;
 }
 
+############################################################################
+# Reading from directories
+############################################################################
+
 #***************************************************************************
 # Subroutine:  read_directory_to_array
 # Description: read a directory and copy the names of all the files in it 
@@ -280,6 +284,78 @@ sub read_directory_tree_leaves {
 		if (opendir(DIR, $file_path)) {
 			$self->recursive_read($file_path, $leaves, \%branch_data, $level, $level_codes, $file_code); 
 		}
+	}
+}
+
+############################################################################
+# FASTA IO
+############################################################################
+
+#***************************************************************************
+# Subroutine:  read_fasta
+# Description: read a fasta file into an array of hashes. 
+#***************************************************************************
+sub read_fasta {
+
+	my ($self, $file, $array_ref, $length_only) = @_;
+	
+	# Read in the file or else return
+	unless (open(INFILE, $file)) {
+		print "\n\t Cannot open file \"$file\"\n\n";
+		return undef;
+	}
+
+	# Iterate through lines in the file
+	my @raw_fasta = <INFILE>;
+	close INFILE;
+	my $header;
+    my $sequence;
+	foreach my $line (@raw_fasta) {
+		
+		chomp $line;
+		if    ($line =~ /^\s*$/)   { next; } # discard blank line
+		elsif ($line =~ /^\s*#/)   { next; } # discard comment line 
+		elsif ($line =~ /^>/) {
+			
+			$line =~ s/^>//g;
+					
+			# new header, store any sequence held in the buffer
+			if ($header and $sequence) {
+				$sequence = uc $sequence;
+				my $length = length $sequence;
+				my %seq;
+				$seq{header} = $header;
+				unless ($length_only) {
+					$seq{sequence} = $sequence;			
+				}
+				$seq{seq_length} = $length;				
+				push(@$array_ref, \%seq);
+			}
+		
+			# reset the variables 
+			$line =~ s/^>//;
+			$header = $line;
+			$sequence = undef;
+		}
+		else {
+			# keep line, add to sequence string
+            $sequence .= $line;
+     	}
+    }
+	
+	# Before exit, store any sequence held in the buffer
+	if ($header and $sequence) {
+		$sequence =~ s/\s+//g; # Remove whitespace
+		$sequence = uc $sequence;
+		my $length = length $sequence;
+		my %seq;
+		$seq{header} = $header;
+		unless ($length_only) {
+			$seq{sequence} = $sequence;			
+		}
+		$seq{seq_length} = $length;				
+		push(@$array_ref, \%seq);
+	
 	}
 }
 
@@ -412,65 +488,6 @@ sub create_unique_directory {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  read_fasta
-# Description: read a fasta file into an array of hashes. 
-#***************************************************************************
-sub read_fasta {
-
-	my ($self, $file, $array_ref) = @_;
-	
-	# Read in the file or else return
-	unless (open(INFILE, $file)) {
-		print "\n\t Cannot open file \"$file\"\n\n";
-		return undef;
-	}
-
-	# Iterate through lines in the file
-	my @raw_fasta = <INFILE>;
-	close INFILE;
-	my $header;
-    my $sequence;
-	foreach my $line (@raw_fasta) {
-		
-		chomp $line;
-		if    ($line =~ /^\s*$/)   { next; } # discard blank line
-		elsif ($line =~ /^\s*#/)   { next; } # discard comment line 
-		elsif ($line =~ /^>/) {
-			
-			$line =~ s/^>//g;
-					
-			# new header, store any sequence held in the buffer
-			if ($header and $sequence) {
-				$sequence = uc $sequence;
-				my %seq;
-				$seq{header} = $header;
-				$seq{sequence} = $sequence;				
-				push(@$array_ref, \%seq);
-			}
-		
-			# reset the variables 
-			$line =~ s/^>//;
-			$header = $line;
-			$sequence = undef;
-		}
-		else {
-			# keep line, add to sequence string
-            $sequence .= $line;
-     	}
-    }
-	
-	# Before exit, store any sequence held in the buffer
-	if ($header and $sequence) {
-		$sequence =~ s/\s+//g; # Remove whitespace
-		$sequence = uc $sequence;
-		my %seq;
-		$seq{header} = $header;
-		$seq{sequence} = $sequence;				
-		push(@$array_ref, \%seq);
-	
-	}
-}
 
 ############################################################################
 # EOF
