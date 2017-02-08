@@ -17,12 +17,14 @@ use strict;
 
 # Base classes
 use Base::FileIO;
+use Base::DevTools;
 
 ############################################################################
 # Globals
 ############################################################################
 
 my $fileio   = FileIO->new();
+my $devtools = DevTools->new();
 1;
 
 ############################################################################
@@ -127,12 +129,14 @@ sub extract_sequence {
 	# Get path to BLAST binary
 	my $blast_path  = $self->{blast_bin_path};
 	
-	# Get hit parameters
+	# Get extraction parameters
 	my $start       = $data_ref->{start};
 	my $end         = $data_ref->{end};
 	my $orientation = $data_ref->{orientation};
 	my $scaffold    = $data_ref->{scaffold};
-	unless ($start and $end and $orientation and $scaffold and $target_path) { die; }
+	unless ($start and $end and $orientation and $scaffold and $target_path) {
+		$devtools->print_hash($data_ref); die; 
+	}
 
 	# Parsing for blastdbcmd
 	my @gi = split(/\|/,$scaffold);	

@@ -284,7 +284,9 @@ sub load_loci_table {
         extract_start    => 'int',
         extract_end      => 'int',
         locus_structure  => 'text',
-
+        sequence_length  => 'int',
+        sequence         => 'text',
+        
     );   
     my $loci_table = MySQLtable->new('loci', $dbh, \%loci_fields);
     $self->{loci_table} = $loci_table;
@@ -574,7 +576,7 @@ sub create_loci_table {
 
     my ($self, $dbh) = @_;
 
-    # consolidated loci table 
+    # Consolidated loci table 
     my $loci = "CREATE TABLE `loci` (
     
         `record_id`         int(11) NOT NULL auto_increment,
@@ -590,6 +592,8 @@ sub create_loci_table {
         `extract_start`     int(11) NOT NULL default '0',
         `extract_end`       int(11) NOT NULL default '0',
         `locus_structure`   text NOT NULL,
+        `sequence_length`   int(11) NOT NULL default '0',
+        `sequence`          text NOT NULL,
       
         `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
       PRIMARY KEY  (`record_id`)

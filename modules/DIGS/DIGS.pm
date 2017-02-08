@@ -603,51 +603,35 @@ sub compile_nonredundant_locus_set {
 #***************************************************************************
 sub extract_sequences_from_target_file {
 
-	my ($self, $target_path, $hits_ref, $extracted_ref) = @_;
+	my ($self, $target_path, $loci_ref, $extracted_ref) = @_;
 
 	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-	my $buffer      = $self->{extract_buffer};
-	my $verbose     = $self->{verbose};
+	my $blast_obj = $self->{blast_obj};
+	my $verbose   = $self->{verbose};
+	my $buffer    = $self->{extract_buffer};
 
 	# Iterate through the list of sequences to extract
-	my $i;
 	my $new_loci = 0;
-	foreach my $hit_ref (@$hits_ref) {
+	foreach my $locus_ref (@$loci_ref) {
 				
 		# Add any buffer 
-		$i++;
-		#print "\n\t Extract $i";
-		my $orientation   = $hit_ref->{orientation};
-		if ($buffer) {
-			if ($orientation eq '-') {
-				$hit_ref->{start} = $hit_ref->{start} + $buffer;
-				$hit_ref->{end}   = $hit_ref->{end} - $buffer;
-				if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
-					$hit_ref->{end} = 1;
-				}	
-			}
-			else {
-				$hit_ref->{start} = $hit_ref->{start} - $buffer;
-				if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
-					$hit_ref->{start} = 1;
-				}	
-				$hit_ref->{end}   = $hit_ref->{end} + $buffer;
-			}
+		if ($buffer) { 
+			my $orientation = $locus_ref->{orientation};
+			$self->add_buffer_to_sequence($locus_ref, $orientation); 
 		}
-		
+	
 		# Extract the sequence
-		my $sequence = $blast_obj->extract_sequence($target_path, $hit_ref);
+		my $sequence   = $blast_obj->extract_sequence($target_path, $locus_ref);
 		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {
 			
 			# If we extracted a sequence, update the data for this locus
 			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
-			$hit_ref->{extract_start}   = $hit_ref->{start};
-			$hit_ref->{extract_end}     = $hit_ref->{end};
-			$hit_ref->{sequence}        = $sequence;
-			$hit_ref->{sequence_length} = $seq_length;
-			push (@$extracted_ref, $hit_ref);
+			$locus_ref->{extract_start}   = $locus_ref->{start};
+			$locus_ref->{extract_end}     = $locus_ref->{end};
+			$locus_ref->{sequence}        = $sequence;
+			$locus_ref->{sequence_length} = $seq_length;
+			push (@$extracted_ref, $loci_ref);
 			$new_loci++;
 		}
 		elsif ($verbose) { 
@@ -655,6 +639,32 @@ sub extract_sequences_from_target_file {
 		}
 	}	
 	return $new_loci;
+}
+
+#***************************************************************************
+# Subroutine:  add_buffer_to_sequence
+# Description: extract sequences from target databases
+#***************************************************************************
+sub add_buffer_to_sequence {
+
+	my ($self, $hit_ref, $orientation) = @_;
+
+	my $buffer = $self->{extract_buffer};
+		
+	if ($orientation eq '-') {
+		$hit_ref->{start} = $hit_ref->{start} + $buffer;
+		$hit_ref->{end}   = $hit_ref->{end} - $buffer;
+		if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
+			$hit_ref->{end} = 1;
+		}	
+	}
+	else {
+		$hit_ref->{start} = $hit_ref->{start} - $buffer;
+		if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
+			$hit_ref->{start} = 1;
+		}	
+		$hit_ref->{end}   = $hit_ref->{end} + $buffer;
+	}
 }
 
 #***************************************************************************
@@ -799,10 +809,15 @@ sub classify_sequence_using_blast {
 #***************************************************************************
 sub create_consolidated_locus {
 
-	my ($self, $consolidated_ref, $hits_ref, $cluster_id) = @_;
+	my ($self, $consolidated_ref, $locus_elements_ref, $cluster_id) = @_;
+
+	my $initialised = undef;
+	my $verbose   = $self->{verbose};
+	my $blast_obj = $self->{blast_obj};
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
 
 	my @locus_structure;
-	my $initialised = undef;
 	my $lowest;
 	my $highest;
 	my $scaffold;
@@ -812,23 +827,35 @@ sub create_consolidated_locus {
 	my $organism;
 	my $target_name;
 	my $assigned_name;
-
-	foreach my $hit_ref (@$hits_ref) {
+	my $target_id; 
+	my $target_datatype;
+	my $target_version;
+	foreach my $element_ref (@$locus_elements_ref) {
 			
-		my $feature     = $hit_ref->{assigned_gene};
-		my $start       = $hit_ref->{extract_start};
-		my $end         = $hit_ref->{extract_end};
-		$version        = $hit_ref->{target_version};
-		$datatype       = $hit_ref->{target_datatype};
-		$orientation    = $hit_ref->{orientation};
-		$scaffold       = $hit_ref->{scaffold};
-		$organism       = $hit_ref->{organism};
-		$target_name    = $hit_ref->{target_name};
+		my $feature     = $element_ref->{assigned_gene};
+		my $start       = $element_ref->{extract_start};
+		my $end         = $element_ref->{extract_end};
+		$version        = $element_ref->{target_version};
+		$datatype       = $element_ref->{target_datatype};
+		$orientation    = $element_ref->{orientation};
+		$scaffold       = $element_ref->{scaffold};
+		$organism       = $element_ref->{organism};
+		$target_name    = $element_ref->{target_name};
+
+		# Get the target details (and thus the target path)
+		#my $target_path = $self->get_target_file_path($target_ref);
+		$organism        = $element_ref->{organism};
+		$target_name     = $element_ref->{target_name};
+		$target_datatype = $element_ref->{target_datatype};
+		$target_version  = $element_ref->{target_version};
+		my @genome = ( $organism , $target_datatype, $target_version );
+		$target_id       = join ('|', @genome);
+		print "\n\t\t # Defragmenting hits in '$target_name'";
 
 		unless ($feature and $orientation) { die; }
 		if ($orientation eq '+') {
-			#my $record = "$feature ($orientation)";
-			my $record = $feature;
+			my $record = "$feature($orientation)";
+			#my $record = $feature;
 			push(@locus_structure, $record);
 		}
 		elsif ($orientation eq '-') {
@@ -850,16 +877,56 @@ sub create_consolidated_locus {
 			$initialised = 'true';								
 		}
 	}
+
+	my $reextract = 1;
+	my $sequence = '';
+	my $seq_len  = 0;
+	if ($reextract) {
+
+		my $target_group = $target_group_ref->{$target_id};
+		my $target_group = 'Mammalia';
+		unless ($target_group) {
+			die " \n\t TARGET ID $target_id\n\n"; 
+		}
+		# Construct the path to this target file
+		my @path;
+		push (@path, $genome_use_path);
+		push (@path, $target_group);
+		push (@path, $organism);
+		push (@path, $target_datatype);
+		push (@path, $target_version);
+		push (@path, $target_name);
+		my $target_path = join ('/', @path);
+
+		$consolidated_ref->{extract_start}   = $lowest;
+		$consolidated_ref->{extract_end}     = $highest;
+		$consolidated_ref->{start}           = $lowest;
+		$consolidated_ref->{end}             = $highest;
+		$consolidated_ref->{scaffold}        = $scaffold;
+		$consolidated_ref->{orientation}     = $orientation;
+
+		# Extract the sequence
+		my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
+		my $seq_length = length $sequence; # Set sequence length
+		if ($sequence) {
+			
+			# If we extracted a sequence, update the data for this locus
+			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
+			$consolidated_ref->{sequence}        = $sequence;
+			$consolidated_ref->{sequence_length} = $seq_length;
+		}
+		elsif ($verbose) { 
+			print "\n\t\t    # Sequence extraction failed ";
+		}
+	}
+
 	
 	my $locus_structure = join('-', @locus_structure);
 	$consolidated_ref->{organism}        = $organism;
 	$consolidated_ref->{target_version}  = $version;
 	$consolidated_ref->{target_name}     = $target_name;
 	$consolidated_ref->{target_datatype} = $datatype;
-	$consolidated_ref->{scaffold}        = $scaffold;
-	$consolidated_ref->{orientation}     = $orientation;
-	$consolidated_ref->{extract_start}   = $lowest;
-	$consolidated_ref->{extract_end}     = $highest;
+
 	$consolidated_ref->{assigned_name}   = $assigned_name;
 	$consolidated_ref->{locus_structure} = $locus_structure;
 
@@ -1445,7 +1512,7 @@ sub compare_adjacent_loci {
 
 	# Check orientation
 	if ($orientation ne $last_orientation) {
-		unless ($mode eq 'consolidate2') { 
+		unless ($mode eq 'consolidate') { 
 			if ($verbose) {
 				print "\n\t\t Identified pair of loci that are in range, but different orientations";
 			}
