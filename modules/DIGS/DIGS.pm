@@ -350,62 +350,6 @@ sub consolidate_loci {
 	return $num_clusters;
 }
 
-#***************************************************************************
-# Subroutine:  create_standard_locus_ids
-# Description: apply standard ids to a set of loci from one or more genomes
-#***************************************************************************
-sub create_standard_locus_ids {
-
-	my ($self, $infile) = @_;
-
-	# Create nomenclature tables if they don't exist already
-	my $db_ref = $self->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_track_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
-
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);
-	my $tracks_table = $db_ref->{nomenclature_tracks_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	unless ($nom_table and $tracks_table and $chains_table) { die; }
-
-	# Check whether to flush the table
-	my $question = "\n\n\t  Flush the tables before uploading tracks?";
-	my $flush = $console->ask_yes_no_question($question);
-	if ($flush eq 'y') { 
-		$tracks_table->flush();
-		$chains_table->flush();
-		$nom_table->flush();
-	}
-
-	# Load tracks into table in a DIGS locus format
-	$self->load_nomenclature_tracks();
-
-	# Cluster tracks
-	$self->create_nomenclature_track();
-
-	# Apply standard names to locus clusters
-	my $organism_code = $self->{organism_code};
-	my $locus_class   = $self->{locus_class};
-	unless ($organism_code and $locus_class) { die; } # Sanity checking
-	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
-
-}
-
 ############################################################################
 # INTERNAL FUNCTIONS: MAIN DIGS SCREENING LOOP
 ############################################################################
@@ -631,7 +575,7 @@ sub extract_sequences_from_target_file {
 			$locus_ref->{extract_end}     = $locus_ref->{end};
 			$locus_ref->{sequence}        = $sequence;
 			$locus_ref->{sequence_length} = $seq_length;
-			push (@$extracted_ref, $loci_ref);
+			push (@$extracted_ref, $locus_ref);
 			$new_loci++;
 		}
 		elsif ($verbose) { 
@@ -680,11 +624,11 @@ sub classify_sequences_using_blast {
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
 	unless ($query_ref) { die; }
-	foreach my $hit_ref (@$extracted_ref) { # Iterate through the matches
+	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
 
 		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
-		my $blast_alg = $self->classify_sequence_using_blast($hit_ref);
-		my $assigned  = $hit_ref->{assigned_name};
+		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
+		my $assigned  = $locus_ref->{assigned_name};
 		unless ($assigned) { die; }
 		if ($assigned) { $assigned_count++; }
 
@@ -814,8 +758,6 @@ sub create_consolidated_locus {
 	my $initialised = undef;
 	my $verbose   = $self->{verbose};
 	my $blast_obj = $self->{blast_obj};
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_group_ref = $self->{target_groups};
 
 	my @locus_structure;
 	my $lowest;
@@ -850,7 +792,6 @@ sub create_consolidated_locus {
 		$target_version  = $element_ref->{target_version};
 		my @genome = ( $organism , $target_datatype, $target_version );
 		$target_id       = join ('|', @genome);
-		print "\n\t\t # Defragmenting hits in '$target_name'";
 
 		unless ($feature and $orientation) { die; }
 		if ($orientation eq '+') {
@@ -881,10 +822,12 @@ sub create_consolidated_locus {
 	my $reextract = 1;
 	my $sequence = '';
 	my $seq_len  = 0;
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
 	if ($reextract) {
 
 		my $target_group = $target_group_ref->{$target_id};
-		my $target_group = 'Mammalia';
+		$target_group = 'Mammalia';
 		unless ($target_group) {
 			die " \n\t TARGET ID $target_id\n\n"; 
 		}
@@ -2069,331 +2012,6 @@ sub get_sorted_nomenclature_tracks {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: nomenclature
-############################################################################
-
-#***************************************************************************
-# Subroutine:  create_nomenclature_track
-# Description: cluster nomenclature tracks
-#***************************************************************************
-sub create_nomenclature_track {
-
-	my ($self) = @_;
-	
-	# Get sorted tracks from nomenclature table
-	my @sorted;
-	$self->get_sorted_nomenclature_tracks(\@sorted);
-	#$devtools->print_array(\@sorted); die;
-	my $total_loci = scalar @sorted;
-	print "\n\n\t # $total_loci rows in the nomenclature table";
-
-	# Compose clusters of related sequences
-	my %settings;
-	$settings{range} = '0';
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
-	my %clusters;
-	$self->compose_clusters(\%clusters, \@sorted, \%settings);
-	#$devtools->print_hash(\%clusters); die;
-
-	# Cluster IDs
-	my @cluster_ids  = keys %clusters;
-	my $num_clusters = scalar @cluster_ids;
-	print "\n\t # $num_clusters locus groups in total";
-	$self->{nomenclature_clusters} = \%clusters;	
-
-	# Set the organism and version fields (a convenience), & configure namespace
-	my %namespace;
-	my $organism       = $self->{nomenclature_organism};
-	my $target_version = $self->{nomenclature_version};
-	foreach my $cluster_id (@cluster_ids) {
-		
-		my $cluster_ref = $clusters{$cluster_id};
-		#$devtools->print_array($cluster_ref); exit;
-		foreach my $locus_ref (@$cluster_ref) {		
-			
-			# Set organism and target version
-			$locus_ref->{organism}       = $organism;
-			$locus_ref->{target_version} = $target_version;			
-
-			# Check namespace
-			my $assigned_name = $locus_ref->{assigned_name};
-			my $namespace_id  = $locus_ref->{namespace_id};
-			if ($namespace_id ne 'NULL') {
-				
-				if ($namespace{$assigned_name}) {			
-					my $taxon_namespace_ref = $namespace{$assigned_name};
-					$taxon_namespace_ref->{$namespace_id} = 1;
-				}
-				else{
-					my %taxon_namespace;
-					$taxon_namespace{$namespace_id} = 1;
-					$namespace{$assigned_name} = \%taxon_namespace;
-				}				
-			}
-		}
-	}
-	$self->{namespace} = \%namespace;
-}
-
-#***************************************************************************
-# Subroutine:  apply_standard_names_to_clusters
-# Description: apply standard names to clusters  
-#***************************************************************************
-sub apply_standard_names_to_clusters {
-
-	my ($self, $locus_class, $organism_code) = @_;
-
-	my $db_ref        = $self->{db};
-	my $chains_table  = $db_ref->{nomenclature_chains_table};
-	my $nom_table     = $db_ref->{nomenclature_table};
-	unless ($nom_table and $chains_table) { die; }
-
-	# Load translations
-	my %translations;
-	$self->load_translations(\%translations);
-
-	# Iterate through the clusters
-	my %counter;
-	my @nomenclature;
-	my $clusters_ref = $self->{nomenclature_clusters};	
-	my @cluster_ids  = keys %$clusters_ref;
-	#$self->show_clusters($clusters_ref);
-	foreach my $cluster_id (@cluster_ids) {
-
-		my $mixed;
-		my $skip;
-		my $lowest;
-		my $highest;
-		my $taxname_final;
-		my $scaffold_final;
-		my $orientation_final;
-		my $namespace_id_final = undef;
-		
-		# Get the array of loci
-		my $cluster_ref = $clusters_ref->{$cluster_id};
-		my %last_locus;
-		my %composite;
-		foreach my $locus_ref (@$cluster_ref) {
-		
-			#$devtools->print_hash($locus_ref);
-			my $start        = $locus_ref->{extract_start};
-			my $end          = $locus_ref->{extract_end};
-			my $track        = $locus_ref->{track_name};
-			my $taxname      = $locus_ref->{assigned_name};
-			my $namespace_id = $locus_ref->{namespace_id};
-			my $orientation  = $locus_ref->{orientation};
-			my $scaffold     = $locus_ref->{scaffold};
-			if ($namespace_id ne 'NULL') {	
-				$namespace_id_final = $namespace_id;
-			}
-
-			# Set coordinates
-			my $last_start   = $last_locus{extract_start};
-			my $last_end     = $last_locus{extract_end};
-			
-			if ($last_start) {
-				if ($start < $last_start) { $lowest = $start; }
-				if ($end > $last_end)     { $highest = $end;  }
-			}
-			else {
-				$lowest = $start;
-				$highest = $end;
-			}
-			
-			$taxname_final = $taxname;
-			$scaffold_final = $scaffold;
-			$orientation_final = $orientation;
-		}
-		
-		# Create numeric ID
-		$composite{track_name}    = 'MASTER';
-		$composite{assigned_name} = $taxname_final;
-		$composite{scaffold}      = $scaffold_final;
-		$composite{extract_start} = $lowest;
-		$composite{extract_end}   = $highest;
-		$composite{orientation}   = $orientation_final;
-		$composite{locus_class}   = $locus_class;
-		$composite{organism_code} = $organism_code;
-		$composite{namespace_id}  = $namespace_id_final;
-		my $numeric_id = $self->create_numeric_id(\%composite, \%counter);
-
-		# Create the locus ID		
-		my @id;
-		push (@id, $locus_class);
-		push (@id, $taxname_final);
-		push (@id, $numeric_id);
-		push (@id, $organism_code);	 
-		my $id = join('.', @id);
-		print "\n\t # ID: $id";
-
-		# Update the nomenclature table
-		$composite{full_id} = $id;
-		$composite{namespace_id} = $numeric_id;
-		my $nom_id = $nom_table->insert_row(\%composite);
-	
-		# Update chains table
-		foreach my $locus_ref (@$cluster_ref) {			
-			my $locus_id = $locus_ref->{record_id};
-			my %data;
-			$data{track_id}             = $locus_id;
-			$data{nomenclature_locus_id} = $nom_id;
-			$chains_table->insert_row(\%data);
-		}
-	}	
-}
-
-#***************************************************************************
-# Subroutine:  create_numeric_id
-# Description: create a unique ID for a locus (tracking an ID namespace)
-#***************************************************************************
-sub create_numeric_id {
-
-	my ($self, $locus_ref, $counter_ref) = @_;
-
-	# Get data structures and values
-	my $taxname       = $locus_ref->{assigned_name};
-	my $namespace_id  = $locus_ref->{namespace_id};
-	my $namespace_ref = $self->{namespace};
-
-	# Create numeric ID
-	my $numeric_id;			
-	if ($namespace_id) {	
-		$numeric_id = $namespace_id;
-	}
-	else {			
-
-		# Get namespace for this taxon
-		my $taxon_namespace = $namespace_ref->{$taxname};
-		
-		# Create new numeric ID that does not infringe the current namespace
-		my $unique = undef;
-		
-		if ($counter_ref->{$taxname}) {
-			$numeric_id = $counter_ref->{$taxname};	
-		}
-		else {
-			$numeric_id = '0';
-		}
-						
-		do { # Increment until we get a number that doesn't infringe the namespace
-			$numeric_id++;
-			unless ($taxon_namespace->{$numeric_id}) {
-				$unique = 'true';
-			}
-		} until ($unique);
-			
-		$counter_ref->{$taxname} = $numeric_id;
-	}	
-	return $numeric_id;
-}
-
-#***************************************************************************
-# Subroutine:  load_translations
-# Description: load translation tables
-#***************************************************************************
-sub load_translations {
-
-	my ($self, $translations_ref) = @_;
-
-	# Read translation from file
-	my $translations_path = $self->{translation_path};
-	unless ($translations_path) { die; }
-	my @file;
-	$fileio->read_file($translations_path, \@file);
-	my $header = shift @file;
-	chomp $header;
-	my @header = split("\t", $header); 
-	my %levels;
-	my $i = 0;
-	foreach my $element (@header) {
-		$i++;
-		$levels{$i} = $element;
-	}
-
-	# Set up the translations
-	foreach my $line (@file) {
-
-		chomp $line;
-		my @line  = split("\t", $line);
-		my $j = 0;
-		my %taxonomy;
-		foreach my $value (@line) {
-			$j++;
-			my $level = $levels{$j};
-			unless ($level) { die; }		
-			$taxonomy{$level} = $value;			
-		}
-		my $id = shift @line;
-		$translations_ref->{$id} = \%taxonomy;		
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_nomenclature_tracks
-# Description: load input tracks into table, in a DIGS locus format
-#***************************************************************************
-sub load_nomenclature_tracks {
-
-	my ($self) = @_;
-	
-	# Load nomenclature table
-	my $db_ref = $self->{db};
-	my $nom_table = $db_ref->{nomenclature_tracks_table};
-	unless ($nom_table) { die; }
-
-	# Read tracks from file path
-	my @new_track;
-	my $new_track_path = $self->{new_track_path};
-	unless ($new_track_path) { die; }
-	$fileio->read_file($new_track_path, \@new_track);
-	
-	# Load tracks into table
-	foreach my $line (@new_track) {
-	
-		#print $line;
-		chomp $line;
-		my @line = split("\t", $line);
-		my $track_name    = shift @line;
-		my $assigned_name = shift @line;
-		my $scaffold      = shift @line;
-		my $extract_start = shift @line;
-		my $extract_end   = shift @line;
-		my $assigned_gene = shift @line;
-		my $namespace_id  = shift @line;		
-		my $span;
-		my $orientation;
-
-		#
-		if ($extract_end > $extract_start) {
-			$orientation = '+';
-			$span = $extract_end - $extract_start;
-		}
-		else {
-			$orientation = '-';
-			$span = $extract_start - $extract_end;		
-			my $start = $extract_start;
-			$extract_start = $extract_end;
-			$extract_end   = $start;
-		}
-
-		my %data;
-		$data{track_name}      = $track_name;
-		$data{assigned_name}   = $assigned_name;
-		$data{scaffold}        = $scaffold;
-		$data{extract_start}   = $extract_start;
-		$data{extract_end}     = $extract_end;
-		$data{sequence_length} = $span;
-		$data{orientation}     = $orientation;
-		$data{assigned_gene}   = $assigned_gene;
-		unless ($namespace_id) { $namespace_id = 'NULL'; }
-		$data{namespace_id}    = $namespace_id;		
-		$nom_table->insert_row(\%data);	
-
-	}
-}
-
-############################################################################
 # INTERNAL FUNCTIONS: initialisation
 ############################################################################
 
@@ -2485,12 +2103,26 @@ sub initialise_consolidation {
 	unless ($loci_chains_exists) {
 		$db_ref->create_loci_chains_table($dbh);
 	}
+	my $contigs_exists = $db_ref->does_table_exist('contigs');
+	unless ($contigs_exists) {
+		$db_ref->create_contigs_table($dbh);
+	}
+
+	# Load tables
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
+	$db_ref->load_contigs_table($dbh);
+
+	# Get table references and set up for this consolidation process
 	my $loci_table        = $db_ref->{loci_table};
 	my $loci_chains_table = $db_ref->{loci_chains_table};
+	my $contigs_table     = $db_ref->{contigs_table};
 	$loci_table->flush();
 	$loci_chains_table->flush();
+	$contigs_table->flush();
+
+	# Get contig lengths and capture in a table
+	$self->calculate_contig_lengths();	
 
 	# Get the parameters for consolidation
 	my $range = $self->{consolidate_range};
@@ -2506,6 +2138,77 @@ sub initialise_consolidation {
 	# Set mode for comparing adjacent loci
 	$self->{defragment_mode} = 'consolidate';
 
+}
+
+#***************************************************************************
+# Subroutine:  calculate_contig_lengths
+# Description: 
+#***************************************************************************
+sub calculate_contig_lengths {
+
+	my ($self, $contigs_ref) = @_;
+
+	# Set target sequence files for screening
+	my %targets;
+	my %target_groups;
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->set_targets(\%targets, \%target_groups);
+	
+	my $db_ref = $self->{db};
+	my $digs_results     = $db_ref->{digs_results_table};
+	my $contigs_table    = $db_ref->{contigs_table};
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	
+	my $question1 = "\n\n\t # Refresh contig length table";
+	my $refresh = $console->ask_yes_no_question($question1);		
+
+	if ($refresh eq 'y') {
+	
+		my @targets;
+		my @fields = qw [ organism target_datatype target_version target_name ];
+		$digs_results->select_distinct(\@fields, \@targets);
+		foreach my $target_ref(@targets) {
+			
+			# Read the file and get the lengths of each contig	
+			# Get the target details (and thus the target path)	
+			#my $target_path = $self->get_target_file_path($target_ref);
+			my $organism        = $target_ref->{organism};
+			my $target_name     = $target_ref->{target_name};
+			my $target_datatype = $target_ref->{target_datatype};
+			my $target_version  = $target_ref->{target_version};
+			my @genome = ( $organism , $target_datatype, $target_version );
+			my $target_id       = join ('|', @genome);
+			my $target_group = $target_groups{$target_id};
+			unless ($target_group) { die; }
+		
+			# Construct the path to this target file
+			my @path;
+			push (@path, $genome_use_path);
+			push (@path, $target_group);
+			push (@path, $organism);
+			push (@path, $target_datatype);
+			push (@path, $target_version);
+			push (@path, $target_name);
+			my $target_path = join ('/', @path);
+			my @contigs;
+			$fileio->read_fasta($target_path, \@contigs, 'true');
+			
+			foreach my $contig_ref (@contigs) {
+			
+				my $header = $contig_ref->{header};
+				my $length = $contig_ref->{seq_length};
+				$contig_ref->{contig_id} = $contig_ref->{header};;
+				unless ($length) {
+					$devtools->print_hash($contig_ref); die;
+				}
+				#print "\n\t # $header: $length";
+				
+				$contigs_table->insert_row($contig_ref);
+			}
+			
+		}
+	}
 }
 
 #***************************************************************************
@@ -3056,7 +2759,388 @@ sub show_nomenclature_chains {
 }
 
 ############################################################################
-# VALIDATE FUNCTIONS
+# INTERNAL FUNCTIONS: nomenclature
+############################################################################
+
+#***************************************************************************
+# Subroutine:  create_standard_locus_ids
+# Description: apply standard ids to a set of loci from one or more genomes
+#***************************************************************************
+sub create_standard_locus_ids {
+
+	my ($self, $infile) = @_;
+
+	# Create nomenclature tables if they don't exist already
+	my $db_ref = $self->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	unless ($nom_tracks_exists) {
+		$db_ref->create_nomenclature_track_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_tracks_table($dbh);
+	$db_ref->load_nomenclature_chains_table($dbh);
+	$db_ref->load_nomenclature_table($dbh);
+	my $tracks_table = $db_ref->{nomenclature_tracks_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	unless ($nom_table and $tracks_table and $chains_table) { die; }
+
+	# Check whether to flush the table
+	my $question = "\n\n\t  Flush the tables before uploading tracks?";
+	my $flush = $console->ask_yes_no_question($question);
+	if ($flush eq 'y') { 
+		$tracks_table->flush();
+		$chains_table->flush();
+		$nom_table->flush();
+	}
+
+	# Load tracks into table in a DIGS locus format
+	$self->load_nomenclature_tracks();
+
+	# Cluster tracks
+	$self->create_nomenclature_track();
+
+	# Apply standard names to locus clusters
+	my $organism_code = $self->{organism_code};
+	my $locus_class   = $self->{locus_class};
+	unless ($organism_code and $locus_class) { die; } # Sanity checking
+	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
+
+}
+
+#***************************************************************************
+# Subroutine:  create_nomenclature_track
+# Description: cluster nomenclature tracks
+#***************************************************************************
+sub create_nomenclature_track {
+
+	my ($self) = @_;
+	
+	# Get sorted tracks from nomenclature table
+	my @sorted;
+	$self->get_sorted_nomenclature_tracks(\@sorted);
+	#$devtools->print_array(\@sorted); die;
+	my $total_loci = scalar @sorted;
+	print "\n\n\t # $total_loci rows in the nomenclature table";
+
+	# Compose clusters of related sequences
+	my %settings;
+	$settings{range} = '0';
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
+	my %clusters;
+	$self->compose_clusters(\%clusters, \@sorted, \%settings);
+	#$devtools->print_hash(\%clusters); die;
+
+	# Cluster IDs
+	my @cluster_ids  = keys %clusters;
+	my $num_clusters = scalar @cluster_ids;
+	print "\n\t # $num_clusters locus groups in total";
+	$self->{nomenclature_clusters} = \%clusters;	
+
+	# Set the organism and version fields (a convenience), & configure namespace
+	my %namespace;
+	my $organism       = $self->{nomenclature_organism};
+	my $target_version = $self->{nomenclature_version};
+	foreach my $cluster_id (@cluster_ids) {
+		
+		my $cluster_ref = $clusters{$cluster_id};
+		#$devtools->print_array($cluster_ref); exit;
+		foreach my $locus_ref (@$cluster_ref) {		
+			
+			# Set organism and target version
+			$locus_ref->{organism}       = $organism;
+			$locus_ref->{target_version} = $target_version;			
+
+			# Check namespace
+			my $assigned_name = $locus_ref->{assigned_name};
+			my $namespace_id  = $locus_ref->{namespace_id};
+			if ($namespace_id ne 'NULL') {
+				
+				if ($namespace{$assigned_name}) {			
+					my $taxon_namespace_ref = $namespace{$assigned_name};
+					$taxon_namespace_ref->{$namespace_id} = 1;
+				}
+				else{
+					my %taxon_namespace;
+					$taxon_namespace{$namespace_id} = 1;
+					$namespace{$assigned_name} = \%taxon_namespace;
+				}				
+			}
+		}
+	}
+	$self->{namespace} = \%namespace;
+}
+
+#***************************************************************************
+# Subroutine:  apply_standard_names_to_clusters
+# Description: apply standard names to clusters  
+#***************************************************************************
+sub apply_standard_names_to_clusters {
+
+	my ($self, $locus_class, $organism_code) = @_;
+
+	my $db_ref        = $self->{db};
+	my $chains_table  = $db_ref->{nomenclature_chains_table};
+	my $nom_table     = $db_ref->{nomenclature_table};
+	unless ($nom_table and $chains_table) { die; }
+
+	# Load translations
+	my %translations;
+	$self->load_translations(\%translations);
+
+	# Iterate through the clusters
+	my %counter;
+	my @nomenclature;
+	my $clusters_ref = $self->{nomenclature_clusters};	
+	my @cluster_ids  = keys %$clusters_ref;
+	#$self->show_clusters($clusters_ref);
+	foreach my $cluster_id (@cluster_ids) {
+
+		my $mixed;
+		my $skip;
+		my $lowest;
+		my $highest;
+		my $taxname_final;
+		my $scaffold_final;
+		my $orientation_final;
+		my $namespace_id_final = undef;
+		
+		# Get the array of loci
+		my $cluster_ref = $clusters_ref->{$cluster_id};
+		my %last_locus;
+		my %composite;
+		foreach my $locus_ref (@$cluster_ref) {
+		
+			#$devtools->print_hash($locus_ref);
+			my $start        = $locus_ref->{extract_start};
+			my $end          = $locus_ref->{extract_end};
+			my $track        = $locus_ref->{track_name};
+			my $taxname      = $locus_ref->{assigned_name};
+			my $namespace_id = $locus_ref->{namespace_id};
+			my $orientation  = $locus_ref->{orientation};
+			my $scaffold     = $locus_ref->{scaffold};
+			if ($namespace_id ne 'NULL') {	
+				$namespace_id_final = $namespace_id;
+			}
+
+			# Set coordinates
+			my $last_start   = $last_locus{extract_start};
+			my $last_end     = $last_locus{extract_end};
+			
+			if ($last_start) {
+				if ($start < $last_start) { $lowest = $start; }
+				if ($end > $last_end)     { $highest = $end;  }
+			}
+			else {
+				$lowest = $start;
+				$highest = $end;
+			}
+			
+			$taxname_final = $taxname;
+			$scaffold_final = $scaffold;
+			$orientation_final = $orientation;
+		}
+		
+		# Create numeric ID
+		$composite{track_name}    = 'MASTER';
+		$composite{assigned_name} = $taxname_final;
+		$composite{scaffold}      = $scaffold_final;
+		$composite{extract_start} = $lowest;
+		$composite{extract_end}   = $highest;
+		$composite{orientation}   = $orientation_final;
+		$composite{locus_class}   = $locus_class;
+		$composite{organism_code} = $organism_code;
+		$composite{namespace_id}  = $namespace_id_final;
+		my $numeric_id = $self->create_numeric_id(\%composite, \%counter);
+
+		# Create the locus ID		
+		my @id;
+		push (@id, $locus_class);
+		push (@id, $taxname_final);
+		push (@id, $numeric_id);
+		push (@id, $organism_code);	 
+		my $id = join('.', @id);
+		print "\n\t # ID: $id";
+
+		# Update the nomenclature table
+		$composite{full_id} = $id;
+		$composite{namespace_id} = $numeric_id;
+		my $nom_id = $nom_table->insert_row(\%composite);
+	
+		# Update chains table
+		foreach my $locus_ref (@$cluster_ref) {			
+			my $locus_id = $locus_ref->{record_id};
+			my %data;
+			$data{track_id}             = $locus_id;
+			$data{nomenclature_locus_id} = $nom_id;
+			$chains_table->insert_row(\%data);
+		}
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  create_numeric_id
+# Description: create a unique ID for a locus (tracking an ID namespace)
+#***************************************************************************
+sub create_numeric_id {
+
+	my ($self, $locus_ref, $counter_ref) = @_;
+
+	# Get data structures and values
+	my $taxname       = $locus_ref->{assigned_name};
+	my $namespace_id  = $locus_ref->{namespace_id};
+	my $namespace_ref = $self->{namespace};
+
+	# Create numeric ID
+	my $numeric_id;			
+	if ($namespace_id) {	
+		$numeric_id = $namespace_id;
+	}
+	else {			
+
+		# Get namespace for this taxon
+		my $taxon_namespace = $namespace_ref->{$taxname};
+		
+		# Create new numeric ID that does not infringe the current namespace
+		my $unique = undef;
+		
+		if ($counter_ref->{$taxname}) {
+			$numeric_id = $counter_ref->{$taxname};	
+		}
+		else {
+			$numeric_id = '0';
+		}
+						
+		do { # Increment until we get a number that doesn't infringe the namespace
+			$numeric_id++;
+			unless ($taxon_namespace->{$numeric_id}) {
+				$unique = 'true';
+			}
+		} until ($unique);
+			
+		$counter_ref->{$taxname} = $numeric_id;
+	}	
+	return $numeric_id;
+}
+
+#***************************************************************************
+# Subroutine:  load_translations
+# Description: load translation tables
+#***************************************************************************
+sub load_translations {
+
+	my ($self, $translations_ref) = @_;
+
+	# Read translation from file
+	my $translations_path = $self->{translation_path};
+	unless ($translations_path) { die; }
+	my @file;
+	$fileio->read_file($translations_path, \@file);
+	my $header = shift @file;
+	chomp $header;
+	my @header = split("\t", $header); 
+	my %levels;
+	my $i = 0;
+	foreach my $element (@header) {
+		$i++;
+		$levels{$i} = $element;
+	}
+
+	# Set up the translations
+	foreach my $line (@file) {
+
+		chomp $line;
+		my @line  = split("\t", $line);
+		my $j = 0;
+		my %taxonomy;
+		foreach my $value (@line) {
+			$j++;
+			my $level = $levels{$j};
+			unless ($level) { die; }		
+			$taxonomy{$level} = $value;			
+		}
+		my $id = shift @line;
+		$translations_ref->{$id} = \%taxonomy;		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_tracks
+# Description: load input tracks into table, in a DIGS locus format
+#***************************************************************************
+sub load_nomenclature_tracks {
+
+	my ($self) = @_;
+	
+	# Load nomenclature table
+	my $db_ref = $self->{db};
+	my $nom_table = $db_ref->{nomenclature_tracks_table};
+	unless ($nom_table) { die; }
+
+	# Read tracks from file path
+	my @new_track;
+	my $new_track_path = $self->{new_track_path};
+	unless ($new_track_path) { die; }
+	$fileio->read_file($new_track_path, \@new_track);
+	
+	# Load tracks into table
+	foreach my $line (@new_track) {
+	
+		#print $line;
+		chomp $line;
+		my @line = split("\t", $line);
+		my $track_name    = shift @line;
+		my $assigned_name = shift @line;
+		my $scaffold      = shift @line;
+		my $extract_start = shift @line;
+		my $extract_end   = shift @line;
+		my $assigned_gene = shift @line;
+		my $namespace_id  = shift @line;		
+		my $span;
+		my $orientation;
+
+		#
+		if ($extract_end > $extract_start) {
+			$orientation = '+';
+			$span = $extract_end - $extract_start;
+		}
+		else {
+			$orientation = '-';
+			$span = $extract_start - $extract_end;		
+			my $start = $extract_start;
+			$extract_start = $extract_end;
+			$extract_end   = $start;
+		}
+
+		my %data;
+		$data{track_name}      = $track_name;
+		$data{assigned_name}   = $assigned_name;
+		$data{scaffold}        = $scaffold;
+		$data{extract_start}   = $extract_start;
+		$data{extract_end}     = $extract_end;
+		$data{sequence_length} = $span;
+		$data{orientation}     = $orientation;
+		$data{assigned_gene}   = $assigned_gene;
+		unless ($namespace_id) { $namespace_id = 'NULL'; }
+		$data{namespace_id}    = $namespace_id;		
+		$nom_table->insert_row(\%data);	
+
+	}
+}
+
+############################################################################
+# TESTS
 ############################################################################
 
 #***************************************************************************
