@@ -1131,9 +1131,11 @@ sub wrap_up {
 
 	# Remove the output directory
 	my $output_dir = $self->{report_dir};
-	my $command1 = "rm -rf $output_dir";
-	system $command1;
-
+	if ($output_dir) {
+		my $command1 = "rm -rf $output_dir";
+		system $command1;
+	}
+	
 	# Show cross matching at end if verbose output setting is on
 	my $verbose = $self->{verbose};
 	if ($verbose) { $self->show_cross_matching(); }
