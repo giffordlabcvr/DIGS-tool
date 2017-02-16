@@ -827,7 +827,7 @@ sub create_consolidated_locus {
 	if ($reextract) {
 
 		my $target_group = $target_group_ref->{$target_id};
-		$target_group = 'Mammalia';
+		$target_group = 'test';
 		unless ($target_group) {
 			die " \n\t TARGET ID $target_id\n\n"; 
 		}
@@ -854,7 +854,7 @@ sub create_consolidated_locus {
 		if ($sequence) {
 			
 			# If we extracted a sequence, update the data for this locus
-			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
+			if ($verbose) { print "\n\t\t    - Re-extracted sequence: $seq_length nucleotides "; }
 			$consolidated_ref->{sequence}        = $sequence;
 			$consolidated_ref->{sequence_length} = $seq_length;
 		}
@@ -862,14 +862,12 @@ sub create_consolidated_locus {
 			print "\n\t\t    # Sequence extraction failed ";
 		}
 	}
-
 	
 	my $locus_structure = join('-', @locus_structure);
 	$consolidated_ref->{organism}        = $organism;
 	$consolidated_ref->{target_version}  = $version;
 	$consolidated_ref->{target_name}     = $target_name;
 	$consolidated_ref->{target_datatype} = $datatype;
-
 	$consolidated_ref->{assigned_name}   = $assigned_name;
 	$consolidated_ref->{locus_structure} = $locus_structure;
 
@@ -3158,6 +3156,7 @@ sub run_tests {
 	my $test_ctl_file1 = './test/test1_erv_na.ctl';
 	$self->initialise($test_ctl_file1, '2');
 
+	
 	# Load the 'digs_test' database
 	$self->load_screening_db($test_ctl_file1);
 	my $db = $self->{db}; # Get the database reference
@@ -3525,20 +3524,6 @@ sub run_test_8 {
 
 	# Test reverse complemente hit
 	print "\n\t ### TEST 8: Reverse complement screen ~ + ~ + ~ \n";
-	sleep 2;
-
-}
-
-#***************************************************************************
-# Subroutine:  run_test_9
-# Description:  
-#***************************************************************************
-sub run_test_9 {
-
-	my ($self) = @_;
-
-	# Test the reassign function
-	print "\n\t ### TEST 9: blastn screen using short probes ~ + ~ + ~ \n";
 	sleep 2;
 
 }
