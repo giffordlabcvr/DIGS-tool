@@ -45,10 +45,12 @@ sub new {
 	my ($invocant, $parameter_ref) = @_;
 	my $class = ref($invocant) || $invocant;
 	my $self = {
+	
 		# Member variables
 		process_id           => $parameter_ref->{process_id},
 		
 		# Flags
+		verbose              => $parameter_ref->{verbose},
 		refresh_genomes      => $parameter_ref->{refresh_genomes},
 
 		# Paths
@@ -78,13 +80,6 @@ sub setup_screen  {
 	
 	my ($self, $pipeline_obj, $queries_ref) = @_;
 	
-	# Create log file
-	my $report_dir = $self->{report_dir};
-	my $process_id = $self->{process_id};
-	my $log_file   = $report_dir . "/log.txt";
-	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
-	$pipeline_obj->{log_file} = $log_file;
-
 	# Import the probes
 	my @probes;
 	$self->setup_blast_probes(\@probes);
@@ -103,12 +98,10 @@ sub setup_screen  {
 	my @keys        = keys %targets;
 	my $unique      = scalar @keys;
 	
-	# Show number of oustanding targets and number of queries loaded
+	# Show output about the number of oustanding targets and number of queries loaded
 	print "\n\t  Targets:           $unique target files";
 	unless ($num_queries) { print "\n\n\t ### No outstanding searches were loaded\n"; }
 	else { print "\n\t  Searches to run    $num_queries\n"; }
-
-
 	return $num_queries;
 }
 
@@ -516,7 +509,7 @@ sub set_target_groups {
 		
 		# Sanity checking	
 		unless ($organism and $version and $datatype and $target_name) { die; }
-			
+		
 		# Create a unique key for this genome
 		my @genome = ( $organism , $datatype, $version );
 		my $target_id = join ('|', @genome);

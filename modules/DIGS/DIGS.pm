@@ -49,6 +49,9 @@ sub new {
 	my ($invocant, $parameter_ref) = @_;
 	my $class = ref($invocant) || $invocant;
 
+	# Declare empty data structures
+	my %crossmatching;
+
 	# Set member variables
 	my $self = {
 		
@@ -81,6 +84,9 @@ sub new {
 		reference_aa_fasta     => '',   
 		blast_threads          => '',   # Obtained from control file
 
+		# Data structures
+		crossmatching          => \%crossmatching,
+
 	};
 	
 	bless ($self, $class);
@@ -99,45 +105,40 @@ sub run_digs_process {
 
 	my ($self, $option, $ctl_file) = @_;
 
- 	# Show title
+	# Initialise
 	$self->show_title();  
+	$self->initialise($option, $ctl_file);
 
-	# Hand off to functions 
-	if ($option eq 1) { # Format targets files for BLAST searching
-		my $target_db_obj = TargetDB->new($self);
-		$target_db_obj->format_targets_for_blast();
+	# Hand off to DIGS functions
+	if ($option eq 1) { 
+			
+		# Check the target sequences are formatted for BLAST
+		$self->prepare_targets();
+	}
+	elsif ($option eq 2) { 
+	
+		# Run a DIGS process
+		$self->perform_digs();	
+	}
+	elsif ($option eq 3) { 
+	
+		# Reassign data in digs_results table
+		$self->reassign();	
+	}
+	elsif ($option eq 4) {
+	
+		# Interactively defragment results 	
+		$self->interactive_defragment();	
+	}
+	elsif ($option eq 5) { 
+	
+		# Combine digs_results into higher order locus structures 
+		$self->consolidate_loci();
 	}
 	else {
 		
-		# Initialise (an control file argument must be defined)
-		unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
-		$self->initialise($ctl_file, $option);
-	
-		# Load/create the screening
-		$self->load_screening_db($ctl_file);
-
-		# Hand off to DIGS functions
-		if ($option eq 2) { # Screen;
-			$self->setup_digs();
-			$self->perform_digs();	
-		}
-		elsif ($option eq 3) { # Reassign data in digs_results table
-			my @digs_results;
-			$self->initialise_reassign(\@digs_results); # Set up 
-			$self->reassign(\@digs_results);	
-		}
-		elsif ($option eq 4) { # Interactively defragment results 	
-			my @digs_results;
-			$self->initialise_reassign(\@digs_results); # Set up 
-			$self->interactive_defragment();	
-		}
-		elsif ($option eq 5) { # Consolidate results into higher level structures 
-			$self->{defragment_mode} = 'consolidate';
-			$self->consolidate_loci();
-		}
-		else {
-			print "\n\t  Unrecognized option '-m=$option'\n";
-		}
+		# Show error
+		print "\n\t  Unrecognized option '-m=$option'\n";
 	}
 
 	# Show final summary and exit message
@@ -147,6 +148,19 @@ sub run_digs_process {
 ############################################################################
 # PRIMARY FUNCTIONS
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  prepare_targets
+# Description: index target files for BLAST
+#***************************************************************************
+sub prepare_targets {
+
+	my ($self) = @_;
+
+	# Format targets files for BLAST searching
+	my $target_db_obj = TargetDB->new($self);
+	$target_db_obj->format_targets_for_blast();
+}
 
 #***************************************************************************
 # Subroutine:  perform_digs
@@ -211,23 +225,26 @@ sub perform_digs {
 #***************************************************************************
 sub reassign {
 	
-	my ($self, $extracted_seqs_ref) = @_;
+	my ($self) = @_;
 
-	# Get data structures and variables from self
+	# Get data structures, paths and flags from self
 	my $blast_obj   = $self->{blast_obj};
 	my $result_path = $self->{report_dir};
 	my $verbose     = $self->{verbose};
+
+	# Get the connection to the digs_results table (so we can update it)
 	my $db          = $self->{db};
 	my $digs_results_table = $db->{digs_results_table};
 	unless ($digs_results_table) { die; }
 	
-	# Iterate through the matches
+	# Get the sequences to reassign 
 	print "\n\n\t  Reassigning hits in the digs_results table\n";
-	my $count = 0;
-	my %reassign_matrix;
-	$self->{crossmatching} = \%reassign_matrix;
+	my $reassign_loci = $self->{reassign_loci};
+	unless ($reassign_loci) { die; }
 
-	foreach my $locus_ref (@$extracted_seqs_ref) {
+	# Iterate through the loci, doing the reassign process for each
+	my $count = 0;
+	foreach my $locus_ref (@$reassign_loci) {
 		
 		# Set the linking to the BLAST result table
 		my $record_id       = $locus_ref->{record_id};	
@@ -268,7 +285,7 @@ sub reassign {
 	}
 	
 	# Write out the cross-matching matrix
-	$self->show_cross_matching();;
+	$self->show_cross_matching();
 
 	# Cleanup
 	my $output_dir = $self->{report_dir};
@@ -322,10 +339,6 @@ sub consolidate_loci {
 
 	my ($self) = @_;
 
-   # First, set up for consolidation
-	my %settings;
-	$self->initialise_consolidation(\%settings);
-
 	# Get the digs results sorted by scaffold and extract start
 	my @sorted;
 	$self->get_sorted_digs_results(\@sorted);
@@ -334,12 +347,16 @@ sub consolidate_loci {
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	print "\n\t  Consolidating assigned extracted sequences into loci";
 	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
+	my $settings_ref = $self->{consolidate_settings};
+	unless ($settings_ref) { die; }
 	my %consolidated;
-	$self->compose_clusters(\%consolidated, \@sorted, \%settings);
+	$self->compose_clusters(\%consolidated, \@sorted, $settings_ref);
+	
+	# Check the output of the consolidation process
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_loci > $num_clusters) {
-		my $range = $settings{range};
+		my $range = $settings_ref->{range};
 		print "\n\t ...consolidated to $num_clusters overlapping/contiguous clusters within '$range' bp of one another ";
 	}
 	
@@ -348,6 +365,287 @@ sub consolidate_loci {
 	
 	# Return the number of clusters
 	return $num_clusters;
+}
+
+############################################################################
+# INTERNAL FUNCTIONS: initialisation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise 
+# Description: set up, depending on what option we are running
+#***************************************************************************
+sub initialise {
+
+	my ($self, $option, $ctl_file) = @_;
+
+	# Don't need to do anything if we're just preparing target files (option 1)
+	if ($option eq 1) { return }
+	
+	# If we're doing anything else we need a control file as input
+	unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
+
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+	}
+
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $ctl_file;
+	my $loader_obj = ScreenBuilder->new($self);
+	$loader_obj->parse_control_file($ctl_file, $self, $option);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Create the output directories
+	$loader_obj->create_output_directories($self);
+
+	# Load/create the screening database
+	$self->load_screening_db($ctl_file);
+
+	# SET-UP FOR DIGS SCREENING
+	if ($option eq 2) { 
+	
+		# If we're doing a screen, set up for the screen 
+		$self->setup_for_digs();
+		$self->{defragment_mode} = 'defragment';
+	}
+	
+	# SET-UP FOR REASSIGN
+	if ($option eq 3) { 
+	
+		# If we're doing a reassign, get the assigned digs_results
+		my @reassign_loci;
+		$self->get_sorted_digs_results(\@reassign_loci);
+		$self->{reassign_loci} = \@reassign_loci;
+
+		# Set up the reference library
+		$loader_obj->setup_reference_libraries($self);
+	}
+	
+	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
+	if ($option eq 4 or $option eq 5) { 
+	
+		# Set target sequence files for screening
+		my %targets;
+		my %target_groups;
+		$loader_obj->set_targets(\%targets, \%target_groups);
+		$self->{target_groups} = \%target_groups; 
+	}
+
+	# DO SET-UP NEEDED FOR DEFRAGMENT
+	if ($option eq 4) { 
+		$self->{defragment_mode} = 'defragment';	
+	}
+	# DO SET-UP NEEDED FOR CONSOLIDATE
+	elsif ($option eq 5) { 
+		$self->set_up_consolidate_tables();
+		$self->{defragment_mode} = 'consolidate';
+
+		# Get contig lengths and capture in a table
+		$self->calculate_contig_lengths();	
+
+		# Get the parameters for consolidation
+		my $range = $self->{consolidate_range};
+		my $d_range = $self->{defragment_range};
+		unless ($range) { 
+			my $question1 = "\n\n\t # Set the range for consolidating digs results";
+			$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
+		}
+	
+		# Set the parameters for consolidation
+		my %consolidate_settings;
+		$consolidate_settings{range} = $range;
+		$consolidate_settings{start} = 'extract_start';
+		$consolidate_settings{end}   = 'extract_end';
+	}
+
+	# Create log file
+	my $report_dir = $self->{report_dir};
+	my $process_id = $self->{process_id};
+	my $log_file   = $report_dir . "/log.txt";
+	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
+	$self->{log_file} = $log_file;
+
+}
+
+#***************************************************************************
+# Subroutine:  setup_for_digs
+# Description: prepare database and DIGS query list to commence screening
+#***************************************************************************
+sub setup_for_digs {
+
+	my ($self) = @_;
+
+	# Flush active set
+	my $db  = $self->{db};
+	unless ($db) { die "\n\t Error: no DB defined \n\n\n"; }
+
+	#print "\n\t  Flushing 'active_set' table\n";
+	my $active_set_table = $db->{active_set_table};
+	$active_set_table->flush();
+	
+	# Index previously executed searches
+	my %done;
+	$self->index_previously_executed_searches(\%done);
+	
+	# Get the list of queries that have been completed 
+	my %queries;
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
+	$loader_obj->{previously_executed_searches} = \%done;
+
+	# Set up the DIGS screen
+	my $total_queries = $loader_obj->setup_screen($self, \%queries);
+	unless ($total_queries)  { 
+		print "\n\t  Exiting without screening.\n\n";	
+		exit;
+	}
+		
+	# Record queries 
+	$self->{queries}       = \%queries;
+	$self->{total_queries} = $total_queries;
+}
+
+#***************************************************************************
+# Subroutine:  load_screening_db
+# Description: load a DIGS screening database, create if doesn't exist 
+#***************************************************************************
+sub load_screening_db {
+
+	my ($self) = @_;
+
+	# Get required objects and info from self, check everything looks OK
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; } 
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+
+	# Create the screening DB object
+	my $db_obj = ScreeningDB->new($loader_obj);
+
+	# Check if this screening DB exists, if not then create it
+	my $db_exists = $db_obj->does_db_exist($db_name);
+	unless ($db_exists) {
+		$db_obj->create_screening_db($db_name);	
+	}
+	
+	# Load the table handles into screening database object
+	print   "\t  Connecting to DB:  $db_name";
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # Store the database object reference 
+}
+
+#***************************************************************************
+# Subroutine:  set_up_consolidate_tables
+# Description:
+#***************************************************************************
+sub set_up_consolidate_tables {
+
+	my ($self) = @_;
+
+ 	# Create tables if they don't exist already
+	my $db_ref = $self->{db};
+	my $dbh = $db_ref->{dbh};
+	my $loci_exists = $db_ref->does_table_exist('loci');
+	unless ($loci_exists) {
+		$db_ref->create_loci_table($dbh);
+	}
+	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
+	unless ($loci_chains_exists) {
+		$db_ref->create_loci_chains_table($dbh);
+	}
+	my $contigs_exists = $db_ref->does_table_exist('contigs');
+	unless ($contigs_exists) {
+		$db_ref->create_contigs_table($dbh);
+	}
+
+	# Load tables
+	$db_ref->load_loci_table($dbh);
+	$db_ref->load_loci_chains_table($dbh);
+	$db_ref->load_contigs_table($dbh);
+
+	# Get table references and set up for this consolidation process
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+	my $contigs_table     = $db_ref->{contigs_table};
+	$loci_table->flush();
+	$loci_chains_table->flush();
+	$contigs_table->flush();
+
+}
+
+#***************************************************************************
+# Subroutine:  calculate_contig_lengths
+# Description: 
+#***************************************************************************
+sub calculate_contig_lengths {
+
+	my ($self, $contigs_ref) = @_;
+
+	# Set target sequence files for screening
+	my %targets;
+	my %target_groups;
+	my $loader_obj = $self->{loader_obj};
+	$loader_obj->set_targets(\%targets, \%target_groups);
+	
+	my $db_ref = $self->{db};
+	my $digs_results     = $db_ref->{digs_results_table};
+	my $contigs_table    = $db_ref->{contigs_table};
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	
+	my $question1 = "\n\n\t # Refresh contig length table";
+	my $refresh = $console->ask_yes_no_question($question1);		
+
+	if ($refresh eq 'y') {
+	
+		my @targets;
+		my @fields = qw [ organism target_datatype target_version target_name ];
+		$digs_results->select_distinct(\@fields, \@targets);
+		foreach my $target_ref(@targets) {
+			
+			# Read the file and get the lengths of each contig	
+			# Get the target details (and thus the target path)	
+			#my $target_path = $self->get_target_file_path($target_ref);
+			my $organism        = $target_ref->{organism};
+			my $target_name     = $target_ref->{target_name};
+			my $target_datatype = $target_ref->{target_datatype};
+			my $target_version  = $target_ref->{target_version};
+			my @genome = ( $organism , $target_datatype, $target_version );
+			my $target_id       = join ('|', @genome);
+			my $target_group = $target_groups{$target_id};
+			unless ($target_group) { die; }
+		
+			# Construct the path to this target file
+			my @path;
+			push (@path, $genome_use_path);
+			push (@path, $target_group);
+			push (@path, $organism);
+			push (@path, $target_datatype);
+			push (@path, $target_version);
+			push (@path, $target_name);
+			my $target_path = join ('/', @path);
+			my @contigs;
+			$fileio->read_fasta($target_path, \@contigs, 'true');
+			
+			foreach my $contig_ref (@contigs) {
+			
+				my $header = $contig_ref->{header};
+				my $length = $contig_ref->{seq_length};
+				$contig_ref->{contig_id} = $contig_ref->{header};;
+				unless ($length) {
+					$devtools->print_hash($contig_ref); die;
+				}
+				#print "\n\t # $header: $length";
+				
+				$contigs_table->insert_row($contig_ref);
+			}			
+		}
+	}
 }
 
 ############################################################################
@@ -1945,6 +2243,7 @@ sub get_sorted_digs_results {
                       extract_start extract_end sequence_length ];
 	$digs_results_table->select_rows(\@fields, $data_ref, $where);
 	
+	# Set record_ID as 'digs_result_id' in all results
 	foreach my $row_ref (@$data_ref) {
 		$row_ref->{digs_result_id} = $row_ref->{record_id};
 	}
@@ -2007,277 +2306,6 @@ sub get_sorted_nomenclature_tracks {
 	                  scaffold orientation namespace_id
                       extract_start extract_end sequence_length ];
 	$nomenclature_table->select_rows(\@fields, $data_ref, $where);
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: initialisation
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise 
-# Description: initialise module for interacting with screening database
-#              and perform basic validation of options and input file 
-#***************************************************************************
-sub initialise {
-
-	my ($self, $ctl_file, $option) = @_;
-
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-	}
-
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file}   = $ctl_file;
-	my $loader_obj = ScreenBuilder->new($self);
-	$loader_obj->parse_control_file($ctl_file, $self, $option);
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-
-	# Create the output directories
-	$loader_obj->create_output_directories($self);
-
-	# Set up hash for recording cross_matching during DIGS
-	my %crossmatching;
-	$self->{crossmatching} = \%crossmatching;
-}
-
-#***************************************************************************
-# Subroutine:  initialise_reassign 
-# Description: set up for reassign process
-#***************************************************************************
-sub initialise_reassign {
-
-	my ($self, $extracted_seqs_ref) = @_;
-
-	# Create a unique ID and report directory for this run
-	my $output_path = $self->{output_path};
-	my $process_id  = $self->{process_id};
-	my $db          = $self->{db};
-	my $db_name     = $db->{db_name};
-	unless ($db and $db_name and $process_id and $output_path) { die; }
-
-	# Set up the reference library
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->setup_reference_libraries($self);
-	my $where;
-	#if    ($self->{blast_utr_lib_path}) { $where = " WHERE probe_type = 'UTR'"; }
-	#elsif ($self->{blast_orf_lib_path}) { $where = " WHERE probe_type = 'ORF'"; }
-
-	# Get the assigned data
-	my $digs_results_table = $db->{digs_results_table};
-	my @fields  = qw [ record_id probe_type 
-	                   assigned_name assigned_gene
-	                   organism 
-	                   extract_start extract_end sequence ];
-	$digs_results_table->select_rows(\@fields, $extracted_seqs_ref, $where);
-
-	# Set target sequence files for screening
-	my %targets;
-	my %target_groups;
-	$loader_obj->set_targets(\%targets, \%target_groups);
-	$self->{target_groups} = \%target_groups; 
-}
-
-#***************************************************************************
-# Subroutine:  initialise_consolidation
-# Description: set up for consolidation process
-#***************************************************************************
-sub initialise_consolidation {
-
-	my ($self, $settings_ref) = @_;
-
- 	# Create tables if they don't exist already
-	my $db_ref = $self->{db};
-	my $dbh = $db_ref->{dbh};
-	my $loci_exists = $db_ref->does_table_exist('loci');
-	unless ($loci_exists) {
-		$db_ref->create_loci_table($dbh);
-	}
-	my $loci_chains_exists = $db_ref->does_table_exist('loci_chains');
-	unless ($loci_chains_exists) {
-		$db_ref->create_loci_chains_table($dbh);
-	}
-	my $contigs_exists = $db_ref->does_table_exist('contigs');
-	unless ($contigs_exists) {
-		$db_ref->create_contigs_table($dbh);
-	}
-
-	# Load tables
-	$db_ref->load_loci_table($dbh);
-	$db_ref->load_loci_chains_table($dbh);
-	$db_ref->load_contigs_table($dbh);
-
-	# Get table references and set up for this consolidation process
-	my $loci_table        = $db_ref->{loci_table};
-	my $loci_chains_table = $db_ref->{loci_chains_table};
-	my $contigs_table     = $db_ref->{contigs_table};
-	$loci_table->flush();
-	$loci_chains_table->flush();
-	$contigs_table->flush();
-
-	# Get contig lengths and capture in a table
-	$self->calculate_contig_lengths();	
-
-	# Get the parameters for consolidation
-	my $range = $self->{consolidate_range};
-	my $d_range = $self->{defragment_range};
-	unless ($range) { 
-		my $question1 = "\n\n\t # Set the range for consolidating digs results";
-		$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
-	}
-	$settings_ref->{range} = $range;
-	$settings_ref->{start} = 'extract_start';
-	$settings_ref->{end}   = 'extract_end';
-
-	# Set mode for comparing adjacent loci
-	$self->{defragment_mode} = 'consolidate';
-
-}
-
-#***************************************************************************
-# Subroutine:  calculate_contig_lengths
-# Description: 
-#***************************************************************************
-sub calculate_contig_lengths {
-
-	my ($self, $contigs_ref) = @_;
-
-	# Set target sequence files for screening
-	my %targets;
-	my %target_groups;
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->set_targets(\%targets, \%target_groups);
-	
-	my $db_ref = $self->{db};
-	my $digs_results     = $db_ref->{digs_results_table};
-	my $contigs_table    = $db_ref->{contigs_table};
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_group_ref = $self->{target_groups};
-	
-	my $question1 = "\n\n\t # Refresh contig length table";
-	my $refresh = $console->ask_yes_no_question($question1);		
-
-	if ($refresh eq 'y') {
-	
-		my @targets;
-		my @fields = qw [ organism target_datatype target_version target_name ];
-		$digs_results->select_distinct(\@fields, \@targets);
-		foreach my $target_ref(@targets) {
-			
-			# Read the file and get the lengths of each contig	
-			# Get the target details (and thus the target path)	
-			#my $target_path = $self->get_target_file_path($target_ref);
-			my $organism        = $target_ref->{organism};
-			my $target_name     = $target_ref->{target_name};
-			my $target_datatype = $target_ref->{target_datatype};
-			my $target_version  = $target_ref->{target_version};
-			my @genome = ( $organism , $target_datatype, $target_version );
-			my $target_id       = join ('|', @genome);
-			my $target_group = $target_groups{$target_id};
-			unless ($target_group) { die; }
-		
-			# Construct the path to this target file
-			my @path;
-			push (@path, $genome_use_path);
-			push (@path, $target_group);
-			push (@path, $organism);
-			push (@path, $target_datatype);
-			push (@path, $target_version);
-			push (@path, $target_name);
-			my $target_path = join ('/', @path);
-			my @contigs;
-			$fileio->read_fasta($target_path, \@contigs, 'true');
-			
-			foreach my $contig_ref (@contigs) {
-			
-				my $header = $contig_ref->{header};
-				my $length = $contig_ref->{seq_length};
-				$contig_ref->{contig_id} = $contig_ref->{header};;
-				unless ($length) {
-					$devtools->print_hash($contig_ref); die;
-				}
-				#print "\n\t # $header: $length";
-				
-				$contigs_table->insert_row($contig_ref);
-			}
-			
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  setup_digs
-# Description: prepare database and DIGS query list to commence screening
-#***************************************************************************
-sub setup_digs {
-
-	my ($self) = @_;
-
-	# Flush active set
-	my $db  = $self->{db};
-	unless ($db) { die "\n\t Error: no DB defined \n\n\n"; }
-
-	#print "\n\t  Flushing 'active_set' table\n";
-	my $active_set_table = $db->{active_set_table};
-	$active_set_table->flush();
-	
-	# Index previously executed searches
-	my %done;
-	$self->index_previously_executed_searches(\%done);
-	
-	# Set up the screening queries
-	my %queries;
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	#$devtools->print_hash(\%done);
-	$loader_obj->{previously_executed_searches} = \%done;
-
-	my $total_queries = $loader_obj->setup_screen($self, \%queries);
-	unless ($total_queries)  { 
-		print "\n\t  Exiting without screening.\n\n";	
-		exit;
-	}
-		
-	# Record queries 
-	$self->{queries}       = \%queries;
-	$self->{total_queries} = $total_queries;
-
-	# Set defragment mode
-	$self->{defragment_mode} = 'defragment';
-
-}
-
-#***************************************************************************
-# Subroutine:  load_screening_db
-# Description: load a DIGS screening database, create if doesn't exist 
-#***************************************************************************
-sub load_screening_db {
-
-	my ($self, $ctl_file) = @_;
-
-	# Get required objects and info from self, check everything looks OK
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; } 
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-
-	# Create the screening DB object
-	my $db_obj = ScreeningDB->new($loader_obj);
-
-	# Check if this screening DB exists, if not then create it
-	my $db_exists = $db_obj->does_db_exist($db_name);
-	unless ($db_exists) {
-		$db_obj->create_screening_db($db_name);	
-	}
-	
-	# Load the table handles into screening database object
-	print   "\t  Connecting to DB:  $db_name";
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
 }
 
 ############################################################################
@@ -3154,27 +3182,25 @@ sub run_tests {
 
 	# Read the control file for the test run
 	my $test_ctl_file1 = './test/test1_erv_na.ctl';
-	$self->initialise($test_ctl_file1, '2');
-
+	$self->initialise('2', $test_ctl_file1);
+	die;
 	
 	# Load the 'digs_test' database
-	$self->load_screening_db($test_ctl_file1);
+	$self->load_screening_db();
 	my $db = $self->{db}; # Get the database reference
 	$db->flush_screening_db();
-	#my $searches_table = $db->{searches_table}; # Get the database reference
-	#$searches_table->flush();
 	
 	# Display current settings	
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
 	# Do a live screen using test control file and synthetic target data
 	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
-	$self->run_test_5();
-	$self->run_test_6();
-	$self->run_test_7();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
+	#$self->run_test_5();
+	#$self->run_test_6();
+	#$self->run_test_7();
 	#$self->run_test_10();
 
 	# Print finished message
@@ -3200,7 +3226,7 @@ sub run_test_1 {
 	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
 
 	# Do a DIGS run against synthetic data (included in repo)
-	$self->setup_digs();
+	$self->setup_for_digs();
 	$self->perform_digs();
 	#$devtools->print_hash($self); die;
 
@@ -3274,7 +3300,7 @@ sub run_test_3 {
 	my $test_ctl_file2 = './test/test3_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
-	$self->setup_digs();
+	$self->setup_for_digs();
 	$self->perform_digs();
 
 	my $db = $self->{db}; # Get the database reference
@@ -3376,7 +3402,7 @@ sub run_test_5 {
 	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
 	my $loader_obj     = $self->{loader_obj};
 	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
-	$self->setup_digs();
+	$self->setup_for_digs();
 	$self->perform_digs();
 
 	my @data;
