@@ -643,7 +643,7 @@ sub classify_sequences_using_blast {
 	unless ($query_ref) { die; }
 	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
 
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)				
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)
 		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
 		my $assigned  = $locus_ref->{assigned_name};
 		unless ($assigned) { die; }
@@ -675,7 +675,7 @@ sub classify_sequences_using_blast {
 sub classify_sequence_using_blast {
 
 	my ($self, $locus_ref) = @_;
-	
+
 	# Get paths and objects from self
 	my $result_path = $self->{tmp_path};
 	my $blast_obj   = $self->{blast_obj};
@@ -685,9 +685,7 @@ sub classify_sequence_using_blast {
 	
 	# Get required data about the query sequence
 	my $sequence   = $locus_ref->{sequence};
-	my $organism   = $locus_ref->{organism};
 	my $probe_type = $locus_ref->{probe_type};
-	unless ($organism)   { die; } # Sanity checking
 	unless ($probe_type) { die; } # Sanity checking
 	unless ($sequence)   { die; } # Sanity checking
 
@@ -1969,6 +1967,26 @@ sub get_sorted_digs_results {
 }
 
 #***************************************************************************
+# Subroutine:  get digs results sequences
+# Description: get digs_results table sequences
+#***************************************************************************
+sub get_digs_results_sequences {
+
+	my ($self, $data_ref) = @_;;
+	
+	# Get database tables
+	my $db = $self->{db};
+	my $digs_results_table  = $db->{digs_results_table};
+		
+	# Set the fields to get values for
+	my $where  = " ORDER BY record_id ";
+	my @fields = qw [ record_id assigned_name assigned_gene 
+	                  probe_type sequence ];
+	$digs_results_table->select_rows(\@fields, $data_ref, $where);
+	
+}
+
+#***************************************************************************
 # Subroutine:  get sorted active set 
 # Description: get active set rows, sorted by scaffold, in order of location
 #***************************************************************************
@@ -2936,7 +2954,7 @@ sub initialise {
 	
 		# If we're doing a reassign, get the assigned digs_results
 		my @reassign_loci;
-		$self->get_sorted_digs_results(\@reassign_loci);
+		$self->get_digs_results_sequences(\@reassign_loci);
 		$self->{reassign_loci} = \@reassign_loci;
 
 		# Set up the reference library
