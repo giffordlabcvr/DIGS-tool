@@ -54,7 +54,6 @@ sub new {
 
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
-		blast_bin_path       => $parameter_ref->{blast_bin_path},
 		
 		# Member classes 
 		blast_obj            => $parameter_ref->{blast_obj},
@@ -1062,21 +1061,15 @@ sub create_blast_lib {
 	
 	# Set path to blast binary
 	my $blast_program = 'makeblastdb';
-	my $blast_bin_dir = $self->{blast_bin_path};
-	my $bin_path;
-	if ($blast_bin_dir) {
-		 $bin_path = $self->{blast_bin_path} . $blast_program;
-	}
-	else { $bin_path = $blast_program; }
 
 	# Execute command
 	my $makedb_cmd;
 	if ($type eq 'aa') {
-		$makedb_cmd = "$bin_path -in $lib_path -dbtype prot > /dev/null";
+		$makedb_cmd = "$blast_program -in $lib_path -dbtype prot > /dev/null";
 		$self->{blast_orf_lib_path} = $lib_path; 
 	}
 	elsif ($type eq 'na') {
-		$makedb_cmd = "$bin_path -in $lib_path -dbtype nucl> /dev/null";
+		$makedb_cmd = "$blast_program -in $lib_path -dbtype nucl> /dev/null";
 		$self->{blast_utr_lib_path} = $lib_path;
 	}
 	my $result = system $makedb_cmd;

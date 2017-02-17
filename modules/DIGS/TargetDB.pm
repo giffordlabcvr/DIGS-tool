@@ -59,7 +59,6 @@ sub new {
 		directory_levels     => \%levels,
 		line_limit           => $line_limit,
 		genome_use_path      => $parameter_ref->{genome_use_path},
-		blast_bin_path       => $parameter_ref->{blast_bin_path},
 		skipindexing_paths   => $parameter_ref->{skipindexing_paths},
 
 	};
@@ -505,20 +504,12 @@ sub format_target_for_blast {
 	# Get data 
 	my $genome_path   = $self->{genome_use_path};
 	my $line_limit    = $self->{line_limit};
-	my $blast_bin_dir = $self->{blast_bin_path};
 	my $organism      = $genome_ref->{organism};
 	my $type          = $genome_ref->{source_type};
 	my $version       = $genome_ref->{version};
 	my $version_path  = $genome_ref->{version_path};
 	my $path          = $genome_path . $version_path;
-
-	my $bin_path;
-	if ($blast_bin_dir) {
-		$bin_path = $self->{blast_bin_path} . $blast_program;
-	}
-	else {
-		$bin_path = $blast_program;
-	}
+	my $bin_path = $blast_program;
 
 	# Iterate through the files
 	my $formatted_ref   = $genome_ref->{formatted};

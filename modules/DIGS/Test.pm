@@ -88,6 +88,13 @@ sub run_tests {
 	my $db = $digs_obj->{db}; # Get the database reference
 	$db->flush_screening_db();
 
+	# Set paths for processing etc
+	#$config->{process_id} = 
+	#$config->{report_dir} = 
+	#$config->{tmp_path} = 
+	#$config->{output_path} = 
+	#$config->{blast_obj} = 
+
 	# Display current settings	
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
@@ -126,11 +133,6 @@ sub run_test_1 {
 
 	# Do a DIGS run against synthetic data (included in repo)
 	my %config = ScreenBuilder->new($digs_obj);
-	#$config->{blast_obj} = 
-	#$config->{process_id} = 
-	#$config->{report_dir} = 
-	#$config->{tmp_path} = 
-	#$config->{output_path} = 
 	#$config->{tmp_path} = 
 	#$config->{seq_length_minimum} = 
 	#$config->{consolidate_range} = 
@@ -141,7 +143,6 @@ sub run_test_1 {
 	#$config->{reference_aa_fasta} = 
 	#$config->{query_aa_fasta} =  
 	#$config->{genome_use_path} =  
-	#$config->{blast_bin_path} =  
 	
 	# Arrays
 	#$config->{target_paths} =  
@@ -155,7 +156,6 @@ sub run_test_1 {
 	#mysql_password => blenat2
 
 	#previously_executed_searches
-
 
 	$digs_obj->{loader_obj} = \%config;
 	
