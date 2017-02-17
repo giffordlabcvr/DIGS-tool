@@ -53,6 +53,10 @@ sub new {
 
 	# Set member variables
 	my $self = {
+
+		# Global settings
+		process_id             => $digs_obj->{process_id},
+		program_version        => $digs_obj->{program_version},
 		
 		# DIGS tool object
 		digs_obj => $digs_obj,
@@ -85,20 +89,22 @@ sub run_tests {
 	$digs_obj->{mysql_username} = $user;
 	$digs_obj->{mysql_password} = $password;
 	$digs_obj->initialise_screening_db('digs_test_screen');
+	
+	# Flush the 'digs_test' database
 	my $db = $digs_obj->{db}; # Get the database reference
 	$db->flush_screening_db();
 
+	# Create the ScreenBuilder object
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	
 	# Set paths for processing etc
-	#$config->{process_id} = 
-	#$config->{report_dir} = 
-	#$config->{tmp_path} = 
-	#$config->{output_path} = 
-	#$config->{blast_obj} = 
-
-	# Display current settings	
-	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
+	$loader_obj->{output_path}     = "./tmp/"; 
+	$loader_obj->{genome_use_path} = './test/targets/';
+	$loader_obj->create_output_directories($self);
+	$digs_obj->{loader_obj} = $loader_obj;
 
 	# Do a live screen using test control file and synthetic target data
+	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 	$self->run_test_1();
 	#$self->run_test_2();
 	#$self->run_test_3();
@@ -112,12 +118,12 @@ sub run_tests {
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
 
 	# Remove the output directory
-	my $output_dir = $digs_obj->{report_dir};
-	if ($output_dir) {
-		my $command1 = "rm -rf $output_dir";
-		system $command1;
-	}
-	else { die; }
+	#my $output_dir = $digs_obj->{report_dir};
+	#if ($output_dir) {
+	#	my $command1 = "rm -rf $output_dir";
+	#	system $command1;
+	#}
+	#else { die; }
 }
 
 #***************************************************************************
@@ -129,38 +135,24 @@ sub run_test_1 {
 	my ($self) = @_;
 
 	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
-	my $digs_obj = $self->{digs_obj};
+	my $digs_obj   = $self->{digs_obj};
+	my $loader_obj = $digs_obj->{loader_obj};
 
-	# Do a DIGS run against synthetic data (included in repo)
-	my %config = ScreenBuilder->new($digs_obj);
-	#$config->{tmp_path} = 
-	#$config->{seq_length_minimum} = 
-	#$config->{consolidate_range} = 
-	#$config->{bitscore_min_tblastn} = 
-	#$config->{bitscore_min_blastn} = 
-	#$config->{reference_aa_fasta} = 
-	#$config->{defragment_range} = 
-	#$config->{reference_aa_fasta} = 
-	#$config->{query_aa_fasta} =  
-	#$config->{genome_use_path} =  
+	# Set the parameters for this test (directly rather than using control file)
+	$loader_obj->{seq_length_minimum}   = 100;
+	$loader_obj->{consolidate_range}    = 100;
+	$loader_obj->{defragment_range}     = 100;
+	$loader_obj->{query_na_fasta}       = "./test/probes/korv_test1.fna"; 
+	$loader_obj->{reference_na_fasta}   = "./test/references/korv_test1.fna"; 
+	$loader_obj->{bitscore_min_blastn}  = 100;
+	$loader_obj->{seq_length_minimum}   = 50;
+	my @test_targets;
+	my $test1_target_path = "./test/targets/species/dataype/version/artificial_test1_korv.fa";
+	push (@test_targets, $test1_target_path);
+	$loader_obj->{target_paths} = \@test_targets;
 	
-	# Arrays
-	#$config->{target_paths} =  
-	#$config->{skipindexing_paths} =  
-	#$config->{exclude_paths} =  
-
-	# Connection details
-	#db_name => erv_homo_rt
-	#mysql_username => root
-	#mysql_server => localhost
-	#mysql_password => blenat2
-
-	#previously_executed_searches
-
-	$digs_obj->{loader_obj} = \%config;
-	
+	# Run this test
 	$digs_obj->setup_for_digs();
-	die;
 	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;
 

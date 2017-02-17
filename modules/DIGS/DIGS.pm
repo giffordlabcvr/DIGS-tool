@@ -55,7 +55,7 @@ sub new {
 	# Set member variables
 	my $self = {
 		
-		# Flags
+		# Global settings
 		process_id             => $parameter_ref->{process_id},
 		program_version        => $parameter_ref->{program_version},
 		
