@@ -51,7 +51,6 @@ sub new {
 		
 		# Flags
 		verbose              => $parameter_ref->{verbose},
-		refresh_genomes      => $parameter_ref->{refresh_genomes},
 
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},

@@ -113,7 +113,7 @@ sub run_digs_process {
 	if ($option eq 1) { 
 			
 		# Check the target sequences are formatted for BLAST
-		$self->prepare_targets();
+		$self->prepare_target_files_for_blast();
 	}
 	elsif ($option eq 2) { 
 	
@@ -150,10 +150,10 @@ sub run_digs_process {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  prepare_targets
+# Subroutine:  prepare_target_files_for_blast
 # Description: index target files for BLAST
 #***************************************************************************
-sub prepare_targets {
+sub prepare_target_files_for_blast {
 
 	my ($self) = @_;
 
@@ -842,7 +842,6 @@ sub create_consolidated_locus {
 	if ($reextract) {
 
 		my $target_group = $target_group_ref->{$target_id};
-		$target_group = 'test';
 		unless ($target_group) {
 			die " \n\t TARGET ID $target_id\n\n"; 
 		}
@@ -2091,12 +2090,31 @@ sub run_utility_process {
  	# Show title
 	$self->show_title();  
 
-	# Initialise (an infile must be defined)
+	# If we're doing anything else we need a control file as input
 	unless ($infile) { die "\n\t Option '$option' requires an infile\n\n"; }
-	$self->initialise($infile, $option);
-	
-	# Load/create the screening
-	$self->load_screening_db($infile);
+
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($self);
+	$loader_obj->parse_control_file($infile, $self, $option);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Create the output directories
+	$loader_obj->create_output_directories($self);
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$self->initialise_screening_db($db_name);
 
 	# Hand off to functions 
 	if ($option eq 1) { # Add a table of data to the screening database
@@ -2939,7 +2957,9 @@ sub initialise {
 	$loader_obj->create_output_directories($self);
 
 	# Load/create the screening database
-	$self->load_screening_db($ctl_file);
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$self->initialise_screening_db($db_name);
 
 	# SET-UP FOR DIGS SCREENING
 	if ($option eq 2) { 
@@ -2996,6 +3016,7 @@ sub initialise {
 		$consolidate_settings{range} = $range;
 		$consolidate_settings{start} = 'extract_start';
 		$consolidate_settings{end}   = 'extract_end';
+		$self->{consolidate_settings} = \%consolidate_settings;
 	}
 
 	# Create log file
@@ -3031,6 +3052,7 @@ sub setup_for_digs {
 	my %queries;
 	my $loader_obj = $self->{loader_obj};
 	unless ($loader_obj) { die; }  # Sanity checking
+	#$devtools->print_hash($loader_obj); die;
 	$loader_obj->{previously_executed_searches} = \%done;
 
 	# Set up the DIGS screen
@@ -3046,21 +3068,15 @@ sub setup_for_digs {
 }
 
 #***************************************************************************
-# Subroutine:  load_screening_db
-# Description: load a DIGS screening database, create if doesn't exist 
+# Subroutine:  initialise_screening_db
+# Description: load a DIGS screening database (create if doesn't exist) 
 #***************************************************************************
-sub load_screening_db {
+sub initialise_screening_db {
 
-	my ($self) = @_;
-
-	# Get required objects and info from self, check everything looks OK
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; } 
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	my ($self, $db_name) = @_;
 
 	# Create the screening DB object
-	my $db_obj = ScreeningDB->new($loader_obj);
+	my $db_obj = ScreeningDB->new($self);
 
 	# Check if this screening DB exists, if not then create it
 	my $db_exists = $db_obj->does_db_exist($db_name);

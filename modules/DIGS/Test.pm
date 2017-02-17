@@ -1,3 +1,68 @@
+#!usr/bin/perl -w
+############################################################################
+# Module:      Test.pm   
+# Description: Tests for the DIGS tool
+# History:     December  2017: Created by Robert Gifford 
+############################################################################
+package Test;
+
+############################################################################
+# Import statements/packages (externally developed packages)
+############################################################################
+use strict;
+
+############################################################################
+# Import statements/packages (internally developed packages)
+############################################################################
+
+# Base classes
+use Base::FileIO;
+use Base::Console;
+use Base::DevTools;
+
+# Program components
+use DIGS::ScreenBuilder; # Functions to set up screen
+
+############################################################################
+# Globals
+############################################################################
+
+# Base objects
+my $fileio    = FileIO->new();
+my $console   = Console->new();
+my $devtools  = DevTools->new();
+
+# DIGS test database connection globals
+my $server   = 'localhost';
+my $user     = 'root';
+my $password = 'blenat2';
+1;
+
+############################################################################
+# LIFECYCLE
+############################################################################
+
+#***************************************************************************
+# Subroutine:  new
+# Description: create new Test 'object'
+#***************************************************************************
+sub new {
+
+	my ($invocant, $digs_obj) = @_;
+	my $class = ref($invocant) || $invocant;
+
+	# Set member variables
+	my $self = {
+		
+		# DIGS tool object
+		digs_obj => $digs_obj,
+
+	};
+	
+	bless ($self, $class);
+	return $self;
+}
+
 ############################################################################
 # TESTS
 ############################################################################
@@ -10,19 +75,19 @@ sub run_tests {
 
 	my ($self) = @_;
 
- 	# Show title
-	$self->show_title();  
+	my $digs_obj = $self->{digs_obj};
 
-	# Read the control file for the test run
-	my $test_ctl_file1 = './test/test1_erv_na.ctl';
-	$self->initialise('2', $test_ctl_file1);
-	die;
+ 	# Show title
+	$digs_obj->show_title();  
 	
 	# Load the 'digs_test' database
-	$self->load_screening_db();
-	my $db = $self->{db}; # Get the database reference
+	$digs_obj->{mysql_server}   = $server;
+	$digs_obj->{mysql_username} = $user;
+	$digs_obj->{mysql_password} = $password;
+	$digs_obj->initialise_screening_db('digs_test_screen');
+	my $db = $digs_obj->{db}; # Get the database reference
 	$db->flush_screening_db();
-	
+
 	# Display current settings	
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 
@@ -40,7 +105,7 @@ sub run_tests {
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
 
 	# Remove the output directory
-	my $output_dir = $self->{report_dir};
+	my $output_dir = $digs_obj->{report_dir};
 	if ($output_dir) {
 		my $command1 = "rm -rf $output_dir";
 		system $command1;
@@ -57,17 +122,53 @@ sub run_test_1 {
 	my ($self) = @_;
 
 	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
+	my $digs_obj = $self->{digs_obj};
 
 	# Do a DIGS run against synthetic data (included in repo)
-	$self->setup_for_digs();
-	$self->perform_digs();
+	my %config = ScreenBuilder->new($digs_obj);
+	#$config->{blast_obj} = 
+	#$config->{process_id} = 
+	#$config->{report_dir} = 
+	#$config->{tmp_path} = 
+	#$config->{output_path} = 
+	#$config->{tmp_path} = 
+	#$config->{seq_length_minimum} = 
+	#$config->{consolidate_range} = 
+	#$config->{bitscore_min_tblastn} = 
+	#$config->{bitscore_min_blastn} = 
+	#$config->{reference_aa_fasta} = 
+	#$config->{defragment_range} = 
+	#$config->{reference_aa_fasta} = 
+	#$config->{query_aa_fasta} =  
+	#$config->{genome_use_path} =  
+	#$config->{blast_bin_path} =  
+	
+	# Arrays
+	#$config->{target_paths} =  
+	#$config->{skipindexing_paths} =  
+	#$config->{exclude_paths} =  
+
+	# Connection details
+	#db_name => erv_homo_rt
+	#mysql_username => root
+	#mysql_server => localhost
+	#mysql_password => blenat2
+
+	#previously_executed_searches
+
+
+	$digs_obj->{loader_obj} = \%config;
+	
+	$digs_obj->setup_for_digs();
+	die;
+	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;
 
 	# Check that we got expected result
 	# For this test it is two hits
 	# Hit 1: start KoRV, LTR: 200   end 703   in -ve orientation 
 	# Hit 2: start KoRV, LTR: 10967 end 11470 in -ve orientation 
-	my $db = $self->{db}; # Get the database reference
+	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};
 	my @data;
 	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
