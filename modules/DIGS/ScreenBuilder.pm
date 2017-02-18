@@ -450,7 +450,7 @@ sub does_file_have_fasta_extension {
 	if ($file_extension) {
 
 		# Make extension lowercase (in case it includes capitals)
-		$file_extension eq lc $file_extension;
+		$file_extension = lc $file_extension;
 		
 		# Test if the extension is one of a few possible FASTA ones				
 		if ($file_extension eq 'fa' 
@@ -886,11 +886,14 @@ sub set_exclude_targets {
 
 	# Iterate through the list of paths 
 	my %paths;
-	my $genome_use_path   = $self->{genome_use_path};
+	my $genome_use_path = $self->{genome_use_path};
+	unless ($genome_use_path) { die; }
+	
 	foreach my $path (@$exclude_array_ref) {
 				
 		my $full_path = $genome_use_path . "/$path";	
 		my $exists = $fileio->check_directory_exists($full_path);
+
 		my @leaves;
 		# If the path is a directory, get paths to all the files in it and its subdirectories
 		if ($exists) {
@@ -1150,105 +1153,6 @@ sub create_blast_lib {
 		print "\n\t Failed to format reference library for BLAST! \n\n";
 		print "\n\t $makedb_cmd \n\n"; exit;	
 	}
-}
-
-#***************************************************************************
-# Subroutine:  extract_track_sequences
-# Description: extract FASTA nucs from a genome assembly using an input track 
-#***************************************************************************
-sub extract_track_sequences {
-	
-	my ($self, $extracted_ref, $track_path) = @_;
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
-
-	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers in order!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $query_na_track_genome_path = $console->ask_question($question1);
-	
-	# Read FASTA probe library
-	my @track;
-	$fileio->read_file($track_path, \@track);
-
-	# Iterate through the tracks extracting
-	my $i = 0;	
-	my @probe_fasta;
-	foreach my $line (@track) {
-		
-		$i++;
-		
-		chomp $line; # remove newline
-		my @line = split("\t", $line);
-
-		my $j;
-		#foreach my $element (@line) {
-		#	$j++;
-		#	print "\n\t ELEMENT $j : $element"
-		#}
-		#die;
-		
-		my $name          = $line[0];
-		my $scaffold      = $line[2];
-		
-		# TODO - hacky - resolve
-		if ($scaffold =~ /Unk/) { next; }
-		
-		my $subject_start = $line[3];
-		my $subject_end   = $line[4];
-		my $gene          = $line[5];
-		my $id            = $line[0];
-		my $orientation;
-
-		if ($subject_start < $subject_end) {
-			$orientation = '+';
-		}
-		elsif ($subject_start > $subject_end) {
-			$orientation = '-';
-			my $switch     = $subject_start;
-			$subject_start = $subject_end;
-			$subject_end   = $switch;
-		}
-		
-		# Extract the sequence
-		my %data;
-		$data{subject_start} = $subject_start;
-		$data{subject_end}   = $subject_end;
-		$data{orientation}   = $orientation;
-		$data{scaffold}      = $scaffold;
-
-		my $target_path = "$query_na_track_genome_path" . "/$scaffold" . '.fa';;	
-		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
-		if ($sequence) {	
-			#print "\n\t got seq $sequence \n\n";
-			my %probe;
-			$probe{probe_name}      = $name;
-			$probe{probe_gene}      = $gene;
-			$probe{probe_id}        = $name . "_$gene";
-			$probe{sequence}        = $sequence;
-			$probe{probe_type}      = 'UTR';
-			$probe{blast_alg}       = 'blastn';
-			
-			push(@$extracted_ref, \%probe);
-			
-			my $header = "$name" . "_$gene";
-			$header =~ s/\(/\./g;
-			$header =~ s/\)//g;
-
-			print "\n\t\t Getting probe $i: $header";
-
-			my $digs_fasta = ">$header" . "\n$sequence\n";
-			push (@probe_fasta, $digs_fasta);;
-		
-		}
-		else {
-			die "\n\t Sequence extraction failed";
-		}
-	}	
-	
-	my $outfile = 'extracted.DIGS.fna';
-	$fileio->write_file($outfile, \@probe_fasta);
 }
 
 ############################################################################

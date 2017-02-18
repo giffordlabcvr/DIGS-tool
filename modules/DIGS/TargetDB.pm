@@ -272,7 +272,7 @@ sub summarise_targets_short {
 		$key =~ s/\|/\t/g;
 		push (@summary, "$key\n");
 	}
-	$fileio->write_file('target_target_keys.txt', \@summary);
+	$fileio->write_file('targets-file-summary.txt', \@summary);
 
 }
 

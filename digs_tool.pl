@@ -48,6 +48,7 @@ use DIGS::ScreenBuilder;
 use DIGS::TargetDB;
 use DIGS::ScreeningDB;
 use DIGS::Test;
+use DIGS::Utility;
 
 ############################################################################
 # Paths & Globals
@@ -156,14 +157,16 @@ sub main {
 		$test_obj->run_tests();
 	}
 	elsif ($extra_help) {
-		$digs_tool_obj->show_utility_help_page();
+		my $utility_obj = Utility->new($digs_tool_obj);
+		$utility_obj->show_utility_help_page();
 		exit;
 	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($mode, $infile); 
 	}
 	elsif ($utility) { # Utility functions
-		$digs_tool_obj->run_utility_process($utility, $infile); 
+		my $utility_obj = Utility->new($digs_tool_obj);
+		$utility_obj->run_utility_process($utility, $infile); 
 	}
 
 	else { die $USAGE; }
