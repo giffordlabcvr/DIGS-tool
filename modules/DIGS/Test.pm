@@ -152,6 +152,7 @@ sub run_test_1 {
 	$loader_obj->{target_paths} = \@test_targets;
 	
 	# Run this test
+	
 	$digs_obj->setup_for_digs();
 	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;

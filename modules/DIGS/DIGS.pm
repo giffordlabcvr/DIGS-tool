@@ -3085,7 +3085,7 @@ sub initialise_screening_db {
 	}
 	
 	# Load the table handles into screening database object
-	print   "\t  Connecting to DB:  $db_name";
+	print   "\n\n\t  Connecting to DB:  $db_name";
 	$db_obj->load_screening_db($db_name);	
 	$self->{db} = $db_obj; # Store the database object reference 
 }

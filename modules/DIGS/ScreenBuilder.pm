@@ -67,7 +67,7 @@ sub new {
 }
 
 ############################################################################
-# TOP-LEVEL HANDLER
+# SETUP FUNCTIONS
 ############################################################################
 
 #***************************************************************************
@@ -87,8 +87,16 @@ sub setup_screen  {
 	
 	# Set target sequence files for screening
 	my %targets;
+	my $num_targets = $self->set_targets(\%targets);
+
+	# Show error and exit if no targets found
+	unless ($num_targets) {
+		$self->show_no_targets_found_error();
+	}
+
+	# Record the target group designations
 	my %target_groups;
-	$self->set_targets(\%targets, \%target_groups);
+	$self->set_target_groups(\%targets, \%target_groups);
 	$pipeline_obj->{target_groups} = \%target_groups; 
 
 	# Create the BLAST queries for this screen
@@ -100,107 +108,105 @@ sub setup_screen  {
 	print "\n\t  Targets:           $unique target files";
 	unless ($num_queries) { print "\n\n\t ### No outstanding searches were loaded\n"; }
 	else { print "\n\t  Searches to run    $num_queries\n"; }
+
 	return $num_queries;
 }
 
-############################################################################
-# MAIN FUNCTIONS
-############################################################################
+#***************************************************************************
+# Subroutine:  setup_blast_probes
+# Description: Setting up probes for a screen
+#***************************************************************************
+sub setup_blast_probes {
+	
+	my ($self, $probes_ref) = @_;
+
+	# Set up peptide probes
+	my $probe_type;
+	my $input_path;
+	my $got_probes = undef;
+	if ($self->{query_aa_fasta}) {
+ 		$self->{probe_library_type} = 'aa';
+		$input_path = $self->{query_aa_fasta};
+		$probe_type = 'amino acid FASTA';
+		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
+		$got_probes = scalar @$probes_ref;;
+	}
+
+	# Set up nucleotide probes
+	if ($self->{query_na_fasta}) {
+ 		$self->{probe_library_type} = 'na';
+		$input_path = $self->{query_na_fasta};
+		$probe_type = 'nucleic acid FASTA';
+		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
+		$got_probes = scalar @$probes_ref;;
+	}
+	
+	unless ($got_probes) { 
+		$devtools->print_hash($self);
+		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
+	}
+}
 
 #***************************************************************************
-# Subroutine:  parse control file
-# Description: read an input file to get parameters for screening
+# Subroutine:  get_fasta_probes
+# Description: 
 #***************************************************************************
-sub parse_control_file {
-
-	my ($self, $ctl_file, $pipeline_obj, $option) = @_;
+sub get_fasta_probes {
 	
-	# Read input file
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	my ($self, $probes_ref, $query_fasta, $probe_type) = @_;
 
-	# Parse the 'SCREENDB' block (screening DB name and MySQL connection details)
-	$self->parse_screendb_block(\@ctl_file);
+	# Read FASTA probe library
+	my @fasta;
+	$self->read_fasta($query_fasta, \@fasta);
+	my $num_fasta = scalar @fasta;
+	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences";
+	my $i = 0;
+	my $type = $self->{probe_library_type};
+	my %probe_ids; # Hash to check probe names are unique
+	foreach my $seq_ref (@fasta) {
+		$i++;
+		my $header  = $seq_ref->{header};
+		my %header_data;
+		my $valid = $self->parse_fasta_header_data($header, \%header_data);
+		if ($valid) {
+			my $name      = $header_data{name};
+			my $gene_name = $header_data{gene_name};
+			my $probe_id  = $name . "_$gene_name";
+			my $seq       = $seq_ref->{sequence};
+			
+			my %probe;
+			$probe{probe_name}      = $name;
+			$probe{probe_gene}      = $gene_name;
+			$probe{probe_id}        = $probe_id;
+			$probe{sequence}        = $seq;
+			
+			if ($probe_ids{$probe_id}) {
+				print "\n\t   - Warning: non-unique probe name '$probe_id' in probe set";
+			}
+			else {
+				$probe_ids{$probe_id} = 1;
+			}
+			
+			if ($type eq 'aa') {
+				$probe{probe_type}  = 'ORF';
+				$probe{blast_alg}   = 'tblastn';
+			}
+			if ($type eq 'na') {
+				$probe{probe_type}  = 'UTR';
+				$probe{blast_alg}   = 'blastn';
+			}
+			push(@$probes_ref, \%probe);	
 
-	# Parse the 'SCREENSETS' block (input data and parameters for screening)
-	$self->parse_screensets_block(\@ctl_file);
-
-	# READ the 'TARGETS' block (files to be screened)	
-	my @targets;
-	my $start_token = 'BEGIN TARGETS';
-	my $stop_token  = 'ENDBLOCK';
-	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@targets);
-	$self->{target_paths} = \@targets;
-
-	# READ the 'EXCLUDE' block	(files in target path to be excluded from screen)	
-	my @exclude;
-	$start_token = 'BEGIN EXCLUDE';
-	$stop_token  = 'ENDBLOCK';
-	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
-	$self->{exclude_paths} = \@exclude;
-
-	# READ the 'SKIPINDEX' block if present (Targets to skip during indexing)
-	my @skipindex;
-	$start_token = 'BEGIN SKIPINDEX';
-	$stop_token  = 'ENDBLOCK';
-	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
-	$self->{skipindexing_paths} = \@skipindex;
-
-	# Set parameters in pipeline object
-	
-	# Screening DB name and MySQL connection details
-	$pipeline_obj->{db_name}                = $self->{db_name};
-	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
-	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
-	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
-
-	# Input and output file paths 	
-	$pipeline_obj->{output_path}            = $self->{output_path};
-	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
-	$pipeline_obj->{target_paths}           = $self->{target_paths};
-	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
-	
-	# Set parameters for screening
-	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
-	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
-	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
-
-	# Set numthreads in the BLAST object 
-	my $num_threads = $self->{num_threads};
-	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$pipeline_obj->{blast_obj}->{num_threads} = $num_threads;
-
-	if ($option eq 6) {
-	
-		# READ the 'NOMENCLATURE' block
-		$start_token  = 'BEGIN NOMENCLATURE';
-		$stop_token   = 'ENDBLOCK';
-		$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
-	
-		# Set paths for applying nomenclature 	
-		$pipeline_obj->{new_track_path}        = $self->{new_track_path};
-		$pipeline_obj->{translation_path}      = $self->{translation_path};
-		$pipeline_obj->{tax_level}             = $self->{tax_level};
-		$pipeline_obj->{organism_code}         = $self->{organism_code};
-		$pipeline_obj->{locus_class}           = $self->{locus_class};
-		$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
-		$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
-		$pipeline_obj->{genome_structure}      = $self->{genome_structure};
+		}
+		else {
+			print "\n\t Couldn't extract data from header '$header'"; 
+		}
 	}
-
-	# Set the thresholds for filtering results
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
-
-	# Set the bit score minimum for a tBLASTn screen
-	if ($self->{bitscore_min_tblastn}) {
-		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+	unless ($i) {
+		print "\n\t No Probes were loaded";
+		print "\n\t Check path is correct\n"; 
+		print "\n\t Check file is in unix text format (no mac linebreaks)\n\n\n"; 
 	}
-	# Set the bit score minimum for a BLASTn screen
-	if ($self->{bitscore_min_blastn}) {
-		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
-	}
-
 }
 
 #***************************************************************************
@@ -313,122 +319,25 @@ sub create_reference_library {
 }
 
 #***************************************************************************
-# Subroutine:  setup_blast_probes
-# Description: Setting up probes for a screen
-#***************************************************************************
-sub setup_blast_probes {
-	
-	my ($self, $probes_ref) = @_;
-
-	# Set up peptide probes
-	my $probe_type;
-	my $input_path;
-	my $got_probes = undef;
-	if ($self->{query_aa_fasta}) {
- 		$self->{probe_library_type} = 'aa';
-		$input_path = $self->{query_aa_fasta};
-		$probe_type = 'amino acid FASTA';
-		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
-		$got_probes = scalar @$probes_ref;;
-	}
-
-	# Set up nucleotide probes
-	if ($self->{query_na_fasta}) {
- 		$self->{probe_library_type} = 'na';
-		$input_path = $self->{query_na_fasta};
-		$probe_type = 'nucleic acid FASTA';
-		$self->get_fasta_probes($probes_ref, $input_path, $probe_type);
-		$got_probes = scalar @$probes_ref;;
-	}
-	
-	unless ($got_probes) { 
-		$devtools->print_hash($self);
-		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get_fasta_probes
-# Description: 
-#***************************************************************************
-sub get_fasta_probes {
-	
-	my ($self, $probes_ref, $query_fasta, $probe_type) = @_;
-
-	# Read FASTA probe library
-	my @fasta;
-	$self->read_fasta($query_fasta, \@fasta);
-	my $num_fasta = scalar @fasta;
-	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences";
-	my $i = 0;
-	my $type = $self->{probe_library_type};
-	my %probe_ids; # Hash to check probe names are unique
-	foreach my $seq_ref (@fasta) {
-		$i++;
-		my $header  = $seq_ref->{header};
-		my %header_data;
-		my $valid = $self->parse_fasta_header_data($header, \%header_data);
-		if ($valid) {
-			my $name      = $header_data{name};
-			my $gene_name = $header_data{gene_name};
-			my $probe_id  = $name . "_$gene_name";
-			my $seq       = $seq_ref->{sequence};
-			
-			my %probe;
-			$probe{probe_name}      = $name;
-			$probe{probe_gene}      = $gene_name;
-			$probe{probe_id}        = $probe_id;
-			$probe{sequence}        = $seq;
-			
-			if ($probe_ids{$probe_id}) {
-				print "\n\t   - Warning: non-unique probe name '$probe_id' in probe set";
-			}
-			else {
-				$probe_ids{$probe_id} = 1;
-			}
-			
-			if ($type eq 'aa') {
-				$probe{probe_type}  = 'ORF';
-				$probe{blast_alg}   = 'tblastn';
-			}
-			if ($type eq 'na') {
-				$probe{probe_type}  = 'UTR';
-				$probe{blast_alg}   = 'blastn';
-			}
-			push(@$probes_ref, \%probe);	
-
-		}
-		else {
-			print "\n\t Couldn't extract data from header '$header'"; 
-		}
-	}
-	unless ($i) {
-		print "\n\t No Probes were loaded";
-		print "\n\t Check path is correct\n"; 
-		print "\n\t Check file is in unix text format (no mac linebreaks)\n\n\n"; 
-	}
-}
-
-#***************************************************************************
 # Subroutine:  set_targets
 # Description: set up the target files for screening
 #***************************************************************************
 sub set_targets {
 	
-	my ($self, $targets_ref, $target_groups_ref) = @_;
+	my ($self, $targets_ref) = @_;
 
 	# Initialise target sequence library
 	my $genome_obj = TargetDB->new($self);
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_paths_ref = $self->{target_paths};
-	unless ($target_paths_ref) { die; } 
+	my $genome_use_path   = $self->{genome_use_path};
+	my $target_paths_ref  = $self->{target_paths};
+	unless ($target_paths_ref) { die; }  # Sanity checking
 	
 	# Iterate through the list of paths 
 	my %paths;
 	my %target_data;	
-	my @targets;	
+	my $num_targets;
 	foreach my $path (@$target_paths_ref) {
-				
+		
 		my $full_path = $genome_use_path . "/$path";	
 		my $exists = $fileio->check_directory_exists($full_path);
 		my @leaves;
@@ -444,44 +353,115 @@ sub set_targets {
 			my %file;
 			$file{file} = $file;
 			$file{path} = $full_path;
-			push (@leaves, \%file);
+			push (@leaves, \%file);							
 		}
-		$self->read_genome_files(\@leaves, $targets_ref);
-		push (@targets, @leaves);
-				
-	}
+		my $num_leaves = $self->read_genome_files(\@leaves, $targets_ref);
 
-	# Show error and exit if no targets found
-	my $targets = scalar @targets;
-	unless ($targets) {
-		$self->show_no_targets_found_error($target_paths_ref);
+		# Keep count
+		if ($num_leaves) {
+			if ($num_targets) { 
+				$num_targets = $num_targets + $num_leaves;
+			}
+			else {
+				$num_targets = $num_leaves;
+			}
+		}
 	}
-	
-	# Record the 'group'
-	$self->set_target_groups($targets_ref, $target_groups_ref);
-	
+	return $num_targets;
 }
 
 #***************************************************************************
-# Subroutine:  show_no_targets_found_error
-# Description: show 'no_targets_found' error
+# Subroutine:  read genome files
+# Description: select target files from an array of file descriptions 
 #***************************************************************************
-sub show_no_targets_found_error {
+sub read_genome_files {
+	
+	my ($self, $files_array_ref, $targets_ref) = @_;
 
-	my ($self, $target_paths_ref) = @_;
+	my $exclude_paths_ref = $self->{exclude_paths};
+	my $verbose           = $self->{verbose};
+	#$devtools->print_hash($exclude_paths_ref); #die;
+	
+	my $count = 0;
+	foreach my $file_ref (@$files_array_ref) {
 
-	print "\n\n\t No target databases found";
-	print " - check target paths are correctly specified in control file\n";
-	print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
-	print "\n\t  TARGETS block from control file has these paths:";
-	my $i = 0;
-	foreach my $path (@$target_paths_ref) {
-		$i++;
-		print "\n\t\t PATH 1: '$path'";
+		# Test whether this file has a FASTA file extension
+		my $file = $file_ref->{file};
+		my $is_fasta = $self->does_file_have_fasta_extension($file);		
+		unless ($is_fasta) {
+			next; # Skip everything that isn't explicitly labelled as FASTA
+		}
+
+		my $path = $file_ref->{path};
+		$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+		$path =~ s/\/\//\//g; # Convert any double backslashes to single
+			
+		my @path = split(/\//, $path);
+		pop @path;
+		my $version  = pop @path;
+		my $type     = pop @path;
+		my $organism = pop @path;
+		my $group    = pop @path;
+		unless ($organism and $type and $version) { die; }
+		my @target = ( $organism , $type, $version, $file );
+		my $target_id = join ('|', @target);
+
+		my @key_path = ( $group , $organism, $type, $version, $file);
+		my $key_path = join('/', @key_path);
+		#print "\n\t ######  PATH $key_path";
+		unless ($exclude_paths_ref->{$key_path}) {
+
+
+			if ($verbose) {
+				print "\n\t\t  Target '$key_path' added";
+			}
+
+			# Store using target_id as a key
+			my %data;
+			$data{file}      = $file;
+			$data{path}      = $path;
+			$data{organism}  = $organism;
+			$data{version}   = $version;
+			$data{datatype}  = $type;
+			$data{group}     = $group;
+			$targets_ref->{$target_id} = \%data;	
+			$count++;
+
+		}
+		elsif ($verbose) {
+			print "\n\t\t  Target '$key_path' EXCLUDED";
+		}				
 	}
-	print "\n\n";
-	exit;
 
+	return $count;
+}
+
+#***************************************************************************
+# Subroutine:  does_file_have_fasta_extension
+# Description: use file extension to determine if a file is FASTA format
+#***************************************************************************
+sub does_file_have_fasta_extension {
+	
+	my ($self, $file_name) = @_;
+
+	my $has_fasta_extension = undef;
+
+	my $file_extension = $fileio->get_infile_type($file_name);	
+	if ($file_extension) {
+
+		# Make extension lowercase (in case it includes capitals)
+		$file_extension eq lc $file_extension;
+		
+		# Test if the extension is one of a few possible FASTA ones				
+		if ($file_extension eq 'fa' 
+		or  $file_extension eq 'fas' 
+		or  $file_extension eq 'fasta'
+		or  $file_extension eq 'faa' 
+		or  $file_extension eq 'fna' ) {
+			 $has_fasta_extension = 'true';
+		} 
+	}
+	return $has_fasta_extension;
 }
 
 #***************************************************************************
@@ -518,71 +498,27 @@ sub set_target_groups {
 }
 
 #***************************************************************************
-# Subroutine:  read genome files
-# Description: processes the top level (leaves) of the genome directory
+# Subroutine:  show_no_targets_found_error
+# Description: show 'no_targets_found' error
 #***************************************************************************
-sub read_genome_files {
-	
-	my ($self, $leaves_ref, $targets_ref, $exclude_ref) = @_;
+sub show_no_targets_found_error {
 
-	my $genome_use_path  = $self->{genome_use_path};
-	my $exclude_paths_ref = $self->{exclude_paths};
-	my %excluded;
-	foreach my $file_ref (@$leaves_ref) {
+	my ($self) = @_;
 
-		my $file = $file_ref->{file};
-		my $path = $file_ref->{path};
-		$path =~ s/\/\//\//g; # Convert any double backslashes to single		
-		my $file_type = $fileio->get_infile_type($file);
-			
-		# Use files that are of the correct type
-		if ($file_type eq 'fa' or $file_type eq 'fas' 
-		or  $file_type eq 'fasta' or $file_type eq 'fna' ) {
-			
-			my @path = split(/\//, $path);
-			my $file     = pop @path;
-			my $version  = pop @path;
-			my $type     = pop @path;
-			my $organism = pop @path;
-			my $group    = pop @path;
-			unless ($organism and $type and $version) { die; }
-			my @target = ( $organism , $type, $version, $file );
-			my $target_id = join ('|', @target);
+	my $target_paths_ref = $self->{target_paths};
+	print "\n\n\t No target databases found";
+	print " - check target paths are correctly specified in control file\n";
+	print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
+	print "\n\t  TARGETS block from control file has these paths:";
 
-			my @key_path = ( $group , $organism, $type, $version, $file);
-			my $key_path = join('/', @key_path);
-			
-			# Exclude paths from the exclude block
-			my $exclude = undef;
-			foreach my $path (@$exclude_paths_ref) {
-				$path =~ s/_\///; # Remove a trailing forwardslash
-				if ($key_path =~ m/$path/) { 
-					unless ($excluded{$path}) {
-						print "\n\t    Excluding: $path";
-						print "\n\t    Matches:   $key_path";
-						$excluded{$path} = 1;
-						last;
-					}
-				}
-				$exclude = 'true';
-			}
-			#$devtools->print_hash($exclude_ref); die;
-			
-			unless ($exclude) { 
-
-				# Store using key
-				my %data;
-				$data{file}      = $file;
-				$data{path}      = $path;
-				$data{organism}  = $organism;
-				$data{version}   = $version;
-				$data{datatype}  = $type;
-				$data{group}     = $group;
-				$targets_ref->{$target_id} = \%data;	
-				#print "\n\t STORING TARGET $path";
-			}
-		}
+	my $i = 0;
+	foreach my $path (@$target_paths_ref) {
+		$i++;
+		print "\n\t\t PATH 1: '$path'";
 	}
+	print "\n\n";
+	exit;
+	
 }
 
 #***************************************************************************
@@ -692,6 +628,103 @@ sub set_queries {
 ############################################################################
 # INPUT FILE PARSING FUNCTIONS
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  parse control file
+# Description: read an input file to get parameters for screening
+#***************************************************************************
+sub parse_control_file {
+
+	my ($self, $ctl_file, $pipeline_obj, $option) = @_;
+	
+	# Read input file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+
+	# Parse the 'SCREENDB' block (screening DB name and MySQL connection details)
+	$self->parse_screendb_block(\@ctl_file);
+
+	# Parse the 'SCREENSETS' block (input data and parameters for screening)
+	$self->parse_screensets_block(\@ctl_file);
+
+	# READ the 'TARGETS' block (files to be screened)	
+	my @targets;
+	my $start_token = 'BEGIN TARGETS';
+	my $stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@targets);
+	$self->{target_paths} = \@targets;
+
+	# READ the 'EXCLUDE' block	(files in target path to be excluded from screen)	
+	my @exclude;
+	$start_token = 'BEGIN EXCLUDE';
+	$stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@exclude);
+	my %exclude;
+	$self->set_exclude_targets(\@exclude, \%exclude);
+	$self->{exclude_paths} = \%exclude;
+
+	# READ the 'SKIPINDEX' block if present (Targets to skip during indexing)
+	my @skipindex;
+	$start_token = 'BEGIN SKIPINDEX';
+	$stop_token  = 'ENDBLOCK';
+	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
+	$self->{skipindexing_paths} = \@skipindex;
+
+	# Set parameters in pipeline object
+	
+	# Screening DB name and MySQL connection details
+	$pipeline_obj->{db_name}                = $self->{db_name};
+	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
+	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
+	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
+
+	# Input and output file paths 	
+	$pipeline_obj->{output_path}            = $self->{output_path};
+	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$pipeline_obj->{target_paths}           = $self->{target_paths};
+	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
+	
+	# Set parameters for screening
+	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
+	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
+	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
+
+	# Set numthreads in the BLAST object 
+	my $num_threads = $self->{num_threads};
+	unless ($num_threads) { $num_threads = 1; }  # Default setting
+	$pipeline_obj->{blast_obj}->{num_threads} = $num_threads;
+
+	if ($option eq 6) {
+	
+		# READ the 'NOMENCLATURE' block
+		$start_token  = 'BEGIN NOMENCLATURE';
+		$stop_token   = 'ENDBLOCK';
+		$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
+	
+		# Set paths for applying nomenclature 	
+		$pipeline_obj->{new_track_path}        = $self->{new_track_path};
+		$pipeline_obj->{translation_path}      = $self->{translation_path};
+		$pipeline_obj->{tax_level}             = $self->{tax_level};
+		$pipeline_obj->{organism_code}         = $self->{organism_code};
+		$pipeline_obj->{locus_class}           = $self->{locus_class};
+		$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
+		$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+		$pipeline_obj->{genome_structure}      = $self->{genome_structure};
+	}
+
+	# Set the thresholds for filtering results
+	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+
+	# Set the bit score minimum for a tBLASTn screen
+	if ($self->{bitscore_min_tblastn}) {
+		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+	}
+	# Set the bit score minimum for a BLASTn screen
+	if ($self->{bitscore_min_blastn}) {
+		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
+	}
+}
 
 #***************************************************************************
 # Subroutine:  parse_screendb_block
@@ -832,17 +865,57 @@ sub parse_target_block {
 	my $screenset_lines = scalar @target_block;
 	
 	# Parse the target strings
-	my $targets = 0;
 	my @targets;
 	foreach my $line (@target_block) {
 		
 		chomp $line;
-		#print "\n\t LINE $line";
 		$line =~ s/\s+//g; # remove whitespace
 		if ($line =~ /^\s*$/)   { next; } # discard blank line
 		if ($line =~ /^\s*#/)   { next; } # discard comment line 
 		push (@$targets_ref, $line);
-		$targets++;
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  set_exclude_targets
+# Description: set up hash to record paths of targets to exclude from screening
+#***************************************************************************
+sub set_exclude_targets {
+	
+	my ($self, $exclude_array_ref, $exclude_hash_ref) = @_;
+
+	# Iterate through the list of paths 
+	my %paths;
+	my $genome_use_path   = $self->{genome_use_path};
+	foreach my $path (@$exclude_array_ref) {
+				
+		my $full_path = $genome_use_path . "/$path";	
+		my $exists = $fileio->check_directory_exists($full_path);
+		my @leaves;
+		# If the path is a directory, get paths to all the files in it and its subdirectories
+		if ($exists) {
+			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
+		}
+		# If the path is not to a directory, process as a file 
+		else {
+		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my %file;
+			$file{file} = $file;
+			$file{path} = $path;
+			push (@leaves, \%file);
+		}
+		# Record in a hash
+		foreach my $leaf (@leaves) {
+			my $path = $leaf->{path};
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			$exclude_hash_ref->{$path} = 1;
+		}		
 	}
 }
 
