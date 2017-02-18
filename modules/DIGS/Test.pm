@@ -101,16 +101,20 @@ sub run_tests {
 	$loader_obj->{output_path}     = "./tmp/"; 
 	$loader_obj->{genome_use_path} = './test/targets/';
 	$loader_obj->create_output_directories($self);
-	$digs_obj->{loader_obj} = $loader_obj;
+	$digs_obj->{loader_obj}       = $loader_obj;
+	$digs_obj->{report_dir}       = $loader_obj->{report_dir};
+	$digs_obj->{tmp_path}         = $loader_obj->{tmp_path};
+
+	#$devtools->print_hash($loader_obj); die;
 
 	# Do a live screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 	$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
-	#$self->run_test_5();
-	#$self->run_test_6();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
+	$self->run_test_5();
+	$self->run_test_6();
 	#$self->run_test_7();
 	#$self->run_test_10();
 
@@ -118,12 +122,12 @@ sub run_tests {
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
 
 	# Remove the output directory
-	#my $output_dir = $digs_obj->{report_dir};
-	#if ($output_dir) {
-	#	my $command1 = "rm -rf $output_dir";
-	#	system $command1;
-	#}
-	#else { die; }
+	my $output_dir = $digs_obj->{report_dir};
+	if ($output_dir) {
+		my $command1 = "rm -rf $output_dir";
+		system $command1;
+	}
+	else { die; }
 }
 
 #***************************************************************************
@@ -140,19 +144,25 @@ sub run_test_1 {
 
 	# Set the parameters for this test (directly rather than using control file)
 	$loader_obj->{seq_length_minimum}   = 100;
-	$loader_obj->{consolidate_range}    = 100;
 	$loader_obj->{defragment_range}     = 100;
 	$loader_obj->{query_na_fasta}       = "./test/probes/korv_test1.fna"; 
 	$loader_obj->{reference_na_fasta}   = "./test/references/korv_test1.fna"; 
 	$loader_obj->{bitscore_min_blastn}  = 100;
 	$loader_obj->{seq_length_minimum}   = 50;
 	my @test_targets;
-	my $test1_target_path = "./test/targets/species/dataype/version/artificial_test1_korv.fa";
+	my $test1_target_path = "species/datatype/version/artificial_test1_korv.fa";
 	push (@test_targets, $test1_target_path);
 	$loader_obj->{target_paths} = \@test_targets;
 	
 	# Run this test
-	
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 100;
+ 	$digs_obj->{seq_length_minimum} = $loader_obj->{seq_length_minimum};
+	$digs_obj->{bitscore_minimum}   = $loader_obj->{bitscore_min_blastn};
+	unless ($self->{bitscore_minimum}) {
+		$digs_obj->{bitscore_minimum} = $loader_obj->{bitscore_min_tblastn};
+	}
+	$digs_obj->{bitscore_minimum}   = 100;
 	$digs_obj->setup_for_digs();
 	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;
@@ -192,23 +202,27 @@ sub run_test_2 {
 
 	my ($self) = @_;
 
+	my $digs_obj   = $self->{digs_obj};
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 100;
+ 
 	## Check that defragment gives expected result (negative)
 	print "\n\t ### TEST 2: Defragment results test negative  ~ + ~ + ~ \n";	
-	$self->{defragment_mode} = 'defragment';
+
 	# Construct WHERE statement
-	my $where  = " WHERE organism      = 'fake_species' ";
-	$where    .= " AND target_datatype = 'fake_datatype' ";
-	$where    .= " AND target_version  = 'fake_version' ";
+	my $where  = " WHERE organism      = 'species' ";
+	$where    .= " AND target_datatype = 'datatype' ";
+	$where    .= " AND target_version  = 'version' ";
 	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
-	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
-	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
+	my $path   = "species/datatype/version/artificial_test1_korv.fa";
+	my $target_path  = './test/targets/'  . $path;
 	my %settings;
 	$settings{range}     = 100;
 	$settings{start}     = 'extract_start';
 	$settings{end}       = 'extract_end';
 	$settings{where_sql} = $where;
 	
-	my $num_new = $self->defragment_target(\%settings, $target_path, 'digs_results');
+	my $num_new = $digs_obj->defragment_target(\%settings, $target_path, 'digs_results');
 	if ($num_new eq '0' )  { print "\n\n\t  Defragment negative test: ** PASSED **\n" }
 	else                   { die   "\n\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
@@ -222,15 +236,32 @@ sub run_test_3 {
 
 	my ($self) = @_;
 
+	my $digs_obj   = $self->{digs_obj};
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 100;
+
 	# Run a peptide screen
 	print "\n\t ### TEST 3: Running live partially deleted pol peptide screen against synthetic data ~ + ~ + ~ \n";
 	my $test_ctl_file2 = './test/test3_erv_aa.ctl';
-	my $loader_obj     = $self->{loader_obj};
-	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
-	$self->setup_for_digs();
-	$self->perform_digs();
+	my $loader_obj     = $digs_obj->{loader_obj};
+	#$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
 
-	my $db = $self->{db}; # Get the database reference
+	# Set the parameters for this test (directly rather than using control file)
+	$loader_obj->{seq_length_minimum}   = 100;
+	$loader_obj->{defragment_range}     = 100;
+	$loader_obj->{query_aa_fasta}       = "./test/probes/korv_test3.faa"; 
+	$loader_obj->{reference_aa_fasta}   = "./test/probes/korv_test3.faa"; 
+	$loader_obj->{bitscore_min_tblastn}  = 100;
+	$loader_obj->{seq_length_minimum}   = 50;
+	my @test_targets;
+	my $test1_target_path = "species/datatype/version/artificial_test1_korv.fa";
+	push (@test_targets, $test1_target_path);
+	$loader_obj->{target_paths} = \@test_targets;
+
+	$digs_obj->setup_for_digs();
+	$digs_obj->perform_digs();
+
+	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};
 	my @data;
 	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
@@ -264,22 +295,23 @@ sub run_test_4 {
 
 	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
 	print "\n\t ### TEST 4: Defragment results test positive  ~ + ~ + ~ \n";
-
-	# Set to defragment
-	$self->{defragment_mode} = 'defragment';
+ 
+ 	my $digs_obj   = $self->{digs_obj};
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 500;
 
 	# Construct WHERE statement
 	my $where  = " WHERE probe_type = 'ORF' ";
-	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
-	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
+	my $path   = "species/datatype/version/artificial_test1_korv.fa";
+	my $target_path  = './test/targets/'  . $path;
 	my %settings;
 	$settings{range}     = 500;
 	$settings{start}     = 'extract_start';
 	$settings{end}       = 'extract_end';
 	$settings{where_sql} = $where;
 
-	my $num_new = $self->defragment_target(\%settings, $target_path, 'digs_results');
-	my $db = $self->{db}; # Get the database reference
+	my $num_new = $digs_obj->defragment_target(\%settings, $target_path, 'digs_results');
+	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};	
 	my @data;
 	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
@@ -318,19 +350,33 @@ sub run_test_5 {
 	# Run the second peptide screen
 	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ ";
 
-	my $db = $self->{db}; # Get the database reference
+ 	my $digs_obj   = $self->{digs_obj};
+	my $loader_obj = $digs_obj->{loader_obj};
+	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
-	my $test5_path = './test/test5.txt';;
+	my $test5_path = './test/tabular/test5.txt';;
 	print "\n\t ### Flushed digs_results table & now uploading data from file '$test5_path'";
 	$db->upload_data_to_digs_results($test5_path);
 	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
-		
-	my $test_ctl_file2 = './test/test5_erv_aa.ctl';
-	my $loader_obj     = $self->{loader_obj};
-	$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
-	$self->setup_for_digs();
-	$self->perform_digs();
+
+	# Set the parameters for this test (directly rather than using control file)
+	$loader_obj->{seq_length_minimum}   = 100;
+	$loader_obj->{defragment_range}     = 100;
+	$loader_obj->{query_aa_fasta}       = "./test/probes/korv_test5.faa"; 
+	$loader_obj->{reference_aa_fasta}   = "./test/probes/korv_test5.faa"; 
+	$loader_obj->{bitscore_min_tblastn}  = 100;
+	$loader_obj->{seq_length_minimum}   = 50;
+	my @test_targets;
+	my $test1_target_path = "species/datatype/version/artificial_test1_korv.fa";
+	push (@test_targets, $test1_target_path);
+	$loader_obj->{target_paths} = \@test_targets;
+
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 100;
+
+	$digs_obj->setup_for_digs();
+	$digs_obj->perform_digs();
 
 	my @data;
 	my @fields = qw [ assigned_gene assigned_name extract_start extract_end ];
@@ -386,10 +432,48 @@ sub run_test_6 {
 
 	my ($self) = @_;
 
+	my $digs_obj = $self->{digs_obj};
+	
 	# Test consolidation
-	print "\n\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
-	$self->{consolidate_range} = 200;
-	my $num_consolidated = $self->consolidate_loci();
+ 	print "\n\n\t ### TEST 6: Testing consolidation function ~ + ~ + ~ \n";
+	$digs_obj->{consolidate_range} = 200;
+
+	my @test_targets;
+	my $test1_target_path = "species/datatype/version/artificial_test1_korv.fa";
+	push (@test_targets, $test1_target_path);
+	my $loader_obj = $digs_obj->{loader_obj};
+	$loader_obj->{target_paths} = \@test_targets;
+
+	# Set target sequence files for screening
+	my %targets;
+	my $num_targets = $loader_obj->set_targets(\%targets);
+
+	# Show error and exit if no targets found
+	unless ($num_targets) {
+		$loader_obj->show_no_targets_found_error();
+	}
+
+	# Set target sequence files for screening
+	my %target_groups;
+	$loader_obj->set_target_groups(\%targets, \%target_groups);
+	$digs_obj->{target_groups} = \%target_groups; 
+	$digs_obj->{genome_use_path} = './test/'; 
+
+	$digs_obj->set_up_consolidate_tables();
+	$digs_obj->{defragment_mode} = 'consolidate';
+
+	# Get contig lengths and capture in a table
+	#$digs_obj->calculate_contig_lengths();	
+	# Set the parameters for consolidation
+
+	my %consolidate_settings;
+	$consolidate_settings{range} = 200;
+	$consolidate_settings{start} = 'extract_start';
+	$consolidate_settings{end}   = 'extract_end';
+	$digs_obj->{consolidate_settings} = \%consolidate_settings;
+
+	# Do the consolidation
+	my $num_consolidated = $digs_obj->consolidate_loci();
 	my $fail = undef;
 	if ($num_consolidated ne '2')  { 
 		$fail = 1;
@@ -428,8 +512,9 @@ sub run_test_7 {
 	$where    .= " AND target_datatype = 'fake_datatype' ";
 	$where    .= " AND target_version  = 'fake_version' ";
 	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
-	my $path         = "/test/fake_species/fake_datatype/fake_version/artificial_test1_korv.fa";
-	my $target_path  = $ENV{DIGS_GENOMES}  . $path;
+	my $path    = "species/datatype/version/artificial_test1_korv.fa";
+	my $target_path  = './test/targets/'  . $path;
+
 	my %settings;
 	$settings{range}     = 100;
 	$settings{start}     = 'extract_start';

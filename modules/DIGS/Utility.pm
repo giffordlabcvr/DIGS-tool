@@ -89,7 +89,7 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t -u=6  Show nomenclature chains"; 
 	   $HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
 	   $HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
-	   $HELP  .= "\n\t -u=9  Translate DB schema\n"; 
+	   $HELP  .= "\n\t -u=9  Translate DB schema"; 
 	   $HELP  .= "\n\t -u=10 Create standard locus IDs\n"; 
 	   #$HELP  .= "\n\t -u=11  Extract sequences using track";
 	   $HELP  .= "\n\n"; 
@@ -142,7 +142,7 @@ sub run_utility_process {
 	elsif ($option eq 2) { # Flush screening DB
 		my $db = $digs_obj->{db};
 		my $db_name = $db->{db_name};
-		my $question = "\n\n\t Are you sure you want to flush data in the $db_name database?";
+		my $question = "\n\n\t  Are you sure you want to flush data in the $db_name database?";
 		my $answer1 = $console->ask_yes_no_question($question); # Ask to make sure
 		if ($answer1 eq 'y') { $db->flush_screening_db(); }
 	}

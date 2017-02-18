@@ -385,7 +385,10 @@ sub search_target_file_using_blast {
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
 	unless ($min_length) { die; }
-	unless ($min_score)  { die; }
+	unless ($min_score)  {
+		$devtools->print_hash($self);
+		die;
+	}
 	
 	# Sanity checking
 	unless ($blast_obj)       { die; } 
@@ -765,7 +768,7 @@ sub create_consolidated_locus {
 			$initialised = 'true';								
 		}
 	}
-
+	
 	my $reextract = 1;
 	my $sequence = '';
 	my $seq_len  = 0;
@@ -775,7 +778,8 @@ sub create_consolidated_locus {
 
 		my $target_group = $target_group_ref->{$target_id};
 		unless ($target_group) {
-			die " \n\t TARGET ID $target_id\n\n"; 
+			print " \n\t No target group found for TARGET ID $target_id\n\n"; 
+			$devtools->print_hash($target_group_ref); die;
 		}
 		# Construct the path to this target file
 		my @path;
@@ -795,6 +799,7 @@ sub create_consolidated_locus {
 		$consolidated_ref->{orientation}     = $orientation;
 
 		# Extract the sequence
+		print "\n\t\t    # TARGET: '$target_path'";
 		my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
 		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {
@@ -828,7 +833,7 @@ sub update_locus_data {
 	my ($self, $consolidated_ref) = @_;
 
 	unless ($consolidated_ref) { die; }
-
+	
 	# Get parameters and data structures
 	my $verbose           = $self->{verbose};
 	my $db_ref            = $self->{db};
@@ -847,10 +852,10 @@ sub update_locus_data {
 		}	
 
 		# Insert the consolidated locus information
-		my %locus;		
+		my %locus;
 		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
 		my $locus_id  = $loci_table->insert_row(\%locus);
-		
+				
 		# Create the links between the loci and digs_results tables
 		foreach my $hit_ref (@$loci_ref) {
 			my $digs_result_id = $hit_ref->{record_id};
@@ -2192,8 +2197,10 @@ sub setup_for_digs {
 	my ($self) = @_;
 
 	# Flush active set
-	my $db  = $self->{db};
-	unless ($db) { die "\n\t Error: no DB defined \n\n\n"; }
+	my $db         = $self->{db};
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
+	unless ($db)         { die "\n\t Error: no DB defined \n\n\n"; }
 
 	#print "\n\t  Flushing 'active_set' table\n";
 	my $active_set_table = $db->{active_set_table};
@@ -2205,9 +2212,6 @@ sub setup_for_digs {
 	
 	# Get the list of queries that have been completed 
 	my %queries;
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	#$devtools->print_hash($loader_obj); die;
 	$loader_obj->{previously_executed_searches} = \%done;
 
 	# Set up the DIGS screen
