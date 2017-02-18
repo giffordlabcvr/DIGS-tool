@@ -491,74 +491,6 @@ sub search_target_file_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  compile_nonredundant_locus_set
-# Description: determine what to extract based on current results
-# Note similar to defragment fxn
-#***************************************************************************
-sub compile_nonredundant_locus_set {
-	
-	my ($self, $query_ref, $to_extract_ref) = @_;
-
-	# Get flag
-	my $verbose         = $self->{verbose};
-
-	# Compose SQL WHERE statement to retrieve relevant set of loci
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
-
-	# Get the relevant set of DIGS results
-	my @digs_results;
-	$self->get_sorted_digs_results(\@digs_results, $where);
-	my $num_loci = scalar @digs_results;
-	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
-		
-	# Add the digs results to the BLAST hits in the active_set table
-	$self->add_digs_results_to_active_set(\@digs_results);
-
-	# Get sorted list of digs results and BLAST hits from active_set table
-	my @combined;
-	$self->get_sorted_active_set(\@combined);
-	my $total_loci = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > 0) {
-			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
-		}
-	}
-	
-	# Compose clusters of overlapping/adjacent loci
-	my %settings;
-	my %defragmented;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@combined, \%settings);
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > $num_clusters) {
-		}
-	}
-
-	# Get a resolved list of non-redundant, non-overlapping loci to extract
-	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
-	my $num_new = scalar @$to_extract_ref;
-	if ($num_new){
-		print "\n\t\t # $num_new sequences to extract";
-	}	
-	else {
-		print "\n\t\t # No new loci to extract";
-	}	
-}
-
-#***************************************************************************
 # Subroutine:  extract_sequences_from_target_file
 # Description: extract sequences from target databases
 #***************************************************************************
@@ -1120,6 +1052,145 @@ sub wrap_up {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  compile_nonredundant_locus_set
+# Description: determine what to extract based on current results
+# Note similar to defragment fxn
+#***************************************************************************
+sub compile_nonredundant_locus_set {
+	
+	my ($self, $query_ref, $to_extract_ref) = @_;
+
+	# Get flag
+	my $verbose         = $self->{verbose};
+
+	# Compose SQL WHERE statement to retrieve relevant set of loci
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{organism};
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
+
+	# Get the relevant set of DIGS results
+	my @digs_results;
+	$self->get_sorted_digs_results(\@digs_results, $where);
+	my $num_loci = scalar @digs_results;
+	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
+		
+	# Add the digs results to the BLAST hits in the active_set table
+	$self->add_digs_results_to_active_set(\@digs_results);
+
+	# Get sorted list of digs results and BLAST hits from active_set table
+	my @combined;
+	$self->get_sorted_active_set(\@combined);
+	my $total_loci = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > 0) {
+			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
+		}
+	}
+	
+	# Compose clusters of overlapping/adjacent loci
+	my %settings;
+	my %defragmented;
+	$settings{range} = $self->{defragment_range};
+	$settings{start} = 'subject_start';
+	$settings{end}   = 'subject_end';
+	$self->compose_clusters(\%defragmented, \@combined, \%settings);
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > $num_clusters) {
+		}
+	}
+
+	# Get a resolved list of non-redundant, non-overlapping loci to extract
+	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
+	my $num_new = scalar @$to_extract_ref;
+	if ($num_new){
+		print "\n\t\t # $num_new sequences to extract";
+	}	
+	else {
+		print "\n\t\t # No new loci to extract";
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  defragment_target 
+# Description: implement a defragmentation process for a single target file
+# Note: similar to compile_nonredundant_locus_set fxn, diff details
+#***************************************************************************
+sub defragment_target {
+
+	my ($self, $settings_ref, $target_path, $copy_name) = @_;
+	
+	# Create the relevant set of previously extracted loci
+	my @combined;
+	my %target_defragmented;
+	my $where     = $settings_ref->{where_sql};
+    my $copy_table_name = $copy_name . '_table';
+
+	# Get digs results
+	$self->get_sorted_digs_results(\@combined, $where);
+	my $num_hits = scalar @combined;
+	print "\n\t\t # $num_hits digs results to defragment ";
+	#$devtools->print_array(\@combined); die;
+		
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
+	my @cluster_ids  = keys %target_defragmented;
+	my $num_clusters = scalar @combined;
+	if ($num_clusters < $num_hits) {
+		#$self->show_clusters(\%target_defragmented);  # Show clusters
+		my $range = $settings_ref->{range};
+		print "...compressed to $num_clusters overlapping/contiguous clusters within '$range' bp of one another";
+	}
+	
+	# Determine what to extract, and extract it
+	my @loci;
+	my $reextract = $settings_ref->{reextract};
+	my $flag     = $settings_ref->{reextract};
+	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
+	print "\n\t\t # $extended extensions to previously extracted sequences ";
+	my $num_new = scalar @loci;
+	print "\n\t\t # $num_new loci to extract after defragment ";
+
+	if ($reextract) {
+
+		# Extract newly identified or extended sequences
+		my @extracted;
+		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
+				
+		# Do the genotyping step for the newly extracted locus sequences
+		my $assigned_count   = 0;
+		my $crossmatch_count = 0;
+		my $num_extracted = scalar @extracted;
+		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+		foreach my $hit_ref (@extracted) { # Iterate through loci		
+			$self->classify_sequence_using_blast($hit_ref);
+			$assigned_count++;
+			my $remainder = $assigned_count % 100;
+			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
+		}
+		print "\n\t\t\t # $assigned_count sequences classified\n";
+
+		# Update DB
+		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
+		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
+	}
+	else { # DEBUG
+		# Update DB
+		$self->prepare_locus_update(\@loci);
+		$self->update_db(\@loci, $copy_table_name);
+	}
+	return $num_new;
+}
+
+#***************************************************************************
 # Subroutine:  preview_defragment
 # Description: preview a defragmentation process
 #***************************************************************************
@@ -1276,77 +1347,6 @@ sub defragment_target_files {
 		$settings_ref->{where_sql} = $where;
 		$self->defragment_target($settings_ref, $target_path, 'digs_results');
 	}
-}
-
-#***************************************************************************
-# Subroutine:  defragment_target 
-# Description: implement a defragmentation process for a single target file
-# Note: similar to compile_nonredundant_locus_set fxn, diff details
-#***************************************************************************
-sub defragment_target {
-
-	my ($self, $settings_ref, $target_path, $copy_name) = @_;
-	
-	# Create the relevant set of previously extracted loci
-	my @combined;
-	my %target_defragmented;
-	my $where     = $settings_ref->{where_sql};
-    my $copy_table_name = $copy_name . '_table';
-
-	# Get digs results
-	$self->get_sorted_digs_results(\@combined, $where);
-	my $num_hits = scalar @combined;
-	print "\n\t\t # $num_hits digs results to defragment ";
-	#$devtools->print_array(\@combined); die;
-		
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
-	my @cluster_ids  = keys %target_defragmented;
-	my $num_clusters = scalar @combined;
-	if ($num_clusters < $num_hits) {
-		#$self->show_clusters(\%target_defragmented);  # Show clusters
-		my $range = $settings_ref->{range};
-		print "...compressed to $num_clusters overlapping/contiguous clusters within '$range' bp of one another";
-	}
-	
-	# Determine what to extract, and extract it
-	my @loci;
-	my $reextract = $settings_ref->{reextract};
-	my $flag     = $settings_ref->{reextract};
-	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
-	print "\n\t\t # $extended extensions to previously extracted sequences ";
-	my $num_new = scalar @loci;
-	print "\n\t\t # $num_new loci to extract after defragment ";
-
-	if ($reextract) {
-
-		# Extract newly identified or extended sequences
-		my @extracted;
-		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
-				
-		# Do the genotyping step for the newly extracted locus sequences
-		my $assigned_count   = 0;
-		my $crossmatch_count = 0;
-		my $num_extracted = scalar @extracted;
-		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
-		foreach my $hit_ref (@extracted) { # Iterate through loci		
-			$self->classify_sequence_using_blast($hit_ref);
-			$assigned_count++;
-			my $remainder = $assigned_count % 100;
-			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
-		}
-		print "\n\t\t\t # $assigned_count sequences classified\n";
-
-		# Update DB
-		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
-		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
-	}
-	else { # DEBUG
-		# Update DB
-		$self->prepare_locus_update(\@loci);
-		$self->update_db(\@loci, $copy_table_name);
-	}
-	return $num_new;
 }
 
 #***************************************************************************
@@ -2016,415 +2016,6 @@ sub get_sorted_active_set {
 
 }
 
-#***************************************************************************
-# Subroutine:  get_sorted_nomenclature_tracks
-# Description: get nomenclature set rows, sorted by scaffold, in order of location
-#***************************************************************************
-sub get_sorted_nomenclature_tracks {
-
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set SQL 'where' clause to sort the rows
-	my $sort  = " ORDER BY scaffold, extract_start ";
-	if ($where) { $where .= $sort; }
-	else        { $where  = $sort; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $nomenclature_table = $db->{nomenclature_tracks_table};
-	unless ($nomenclature_table) {  
-		$devtools->print_hash($db); die; 
-	}
-		
-	# Set the fields to get values for
-	my @fields = qw [ record_id track_name
-	                  assigned_name assigned_gene
-	                  scaffold orientation namespace_id
-                      extract_start extract_end sequence_length ];
-	$nomenclature_table->select_rows(\@fields, $data_ref, $where);
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: nomenclature
-############################################################################
-
-#***************************************************************************
-# Subroutine:  create_standard_locus_ids
-# Description: apply standard ids to a set of loci from one or more genomes
-#***************************************************************************
-sub create_standard_locus_ids {
-
-	my ($self, $infile) = @_;
-
-	# Create nomenclature tables if they don't exist already
-	my $db_ref = $self->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_track_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
-
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);
-	my $tracks_table = $db_ref->{nomenclature_tracks_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	unless ($nom_table and $tracks_table and $chains_table) { die; }
-
-	# Check whether to flush the table
-	my $question = "\n\n\t  Flush the tables before uploading tracks?";
-	my $flush = $console->ask_yes_no_question($question);
-	if ($flush eq 'y') { 
-		$tracks_table->flush();
-		$chains_table->flush();
-		$nom_table->flush();
-	}
-
-	# Load tracks into table in a DIGS locus format
-	$self->load_nomenclature_tracks();
-
-	# Cluster tracks
-	$self->create_nomenclature_track();
-
-	# Apply standard names to locus clusters
-	my $organism_code = $self->{organism_code};
-	my $locus_class   = $self->{locus_class};
-	unless ($organism_code and $locus_class) { die; } # Sanity checking
-	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
-
-}
-
-#***************************************************************************
-# Subroutine:  create_nomenclature_track
-# Description: cluster nomenclature tracks
-#***************************************************************************
-sub create_nomenclature_track {
-
-	my ($self) = @_;
-	
-	# Get sorted tracks from nomenclature table
-	my @sorted;
-	$self->get_sorted_nomenclature_tracks(\@sorted);
-	#$devtools->print_array(\@sorted); die;
-	my $total_loci = scalar @sorted;
-	print "\n\n\t # $total_loci rows in the nomenclature table";
-
-	# Compose clusters of related sequences
-	my %settings;
-	$settings{range} = '0';
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
-	my %clusters;
-	$self->compose_clusters(\%clusters, \@sorted, \%settings);
-	#$devtools->print_hash(\%clusters); die;
-
-	# Cluster IDs
-	my @cluster_ids  = keys %clusters;
-	my $num_clusters = scalar @cluster_ids;
-	print "\n\t # $num_clusters locus groups in total";
-	$self->{nomenclature_clusters} = \%clusters;	
-
-	# Set the organism and version fields (a convenience), & configure namespace
-	my %namespace;
-	my $organism       = $self->{nomenclature_organism};
-	my $target_version = $self->{nomenclature_version};
-	foreach my $cluster_id (@cluster_ids) {
-		
-		my $cluster_ref = $clusters{$cluster_id};
-		#$devtools->print_array($cluster_ref); exit;
-		foreach my $locus_ref (@$cluster_ref) {		
-			
-			# Set organism and target version
-			$locus_ref->{organism}       = $organism;
-			$locus_ref->{target_version} = $target_version;			
-
-			# Check namespace
-			my $assigned_name = $locus_ref->{assigned_name};
-			my $namespace_id  = $locus_ref->{namespace_id};
-			if ($namespace_id ne 'NULL') {
-				
-				if ($namespace{$assigned_name}) {			
-					my $taxon_namespace_ref = $namespace{$assigned_name};
-					$taxon_namespace_ref->{$namespace_id} = 1;
-				}
-				else{
-					my %taxon_namespace;
-					$taxon_namespace{$namespace_id} = 1;
-					$namespace{$assigned_name} = \%taxon_namespace;
-				}				
-			}
-		}
-	}
-	$self->{namespace} = \%namespace;
-}
-
-#***************************************************************************
-# Subroutine:  apply_standard_names_to_clusters
-# Description: apply standard names to clusters  
-#***************************************************************************
-sub apply_standard_names_to_clusters {
-
-	my ($self, $locus_class, $organism_code) = @_;
-
-	my $db_ref        = $self->{db};
-	my $chains_table  = $db_ref->{nomenclature_chains_table};
-	my $nom_table     = $db_ref->{nomenclature_table};
-	unless ($nom_table and $chains_table) { die; }
-
-	# Load translations
-	my %translations;
-	$self->load_translations(\%translations);
-
-	# Iterate through the clusters
-	my %counter;
-	my @nomenclature;
-	my $clusters_ref = $self->{nomenclature_clusters};	
-	my @cluster_ids  = keys %$clusters_ref;
-	#$self->show_clusters($clusters_ref);
-	foreach my $cluster_id (@cluster_ids) {
-
-		my $mixed;
-		my $skip;
-		my $lowest;
-		my $highest;
-		my $taxname_final;
-		my $scaffold_final;
-		my $orientation_final;
-		my $namespace_id_final = undef;
-		
-		# Get the array of loci
-		my $cluster_ref = $clusters_ref->{$cluster_id};
-		my %last_locus;
-		my %composite;
-		foreach my $locus_ref (@$cluster_ref) {
-		
-			#$devtools->print_hash($locus_ref);
-			my $start        = $locus_ref->{extract_start};
-			my $end          = $locus_ref->{extract_end};
-			my $track        = $locus_ref->{track_name};
-			my $taxname      = $locus_ref->{assigned_name};
-			my $namespace_id = $locus_ref->{namespace_id};
-			my $orientation  = $locus_ref->{orientation};
-			my $scaffold     = $locus_ref->{scaffold};
-			if ($namespace_id ne 'NULL') {	
-				$namespace_id_final = $namespace_id;
-			}
-
-			# Set coordinates
-			my $last_start   = $last_locus{extract_start};
-			my $last_end     = $last_locus{extract_end};
-			
-			if ($last_start) {
-				if ($start < $last_start) { $lowest = $start; }
-				if ($end > $last_end)     { $highest = $end;  }
-			}
-			else {
-				$lowest = $start;
-				$highest = $end;
-			}
-			
-			$taxname_final = $taxname;
-			$scaffold_final = $scaffold;
-			$orientation_final = $orientation;
-		}
-		
-		# Create numeric ID
-		$composite{track_name}    = 'MASTER';
-		$composite{assigned_name} = $taxname_final;
-		$composite{scaffold}      = $scaffold_final;
-		$composite{extract_start} = $lowest;
-		$composite{extract_end}   = $highest;
-		$composite{orientation}   = $orientation_final;
-		$composite{locus_class}   = $locus_class;
-		$composite{organism_code} = $organism_code;
-		$composite{namespace_id}  = $namespace_id_final;
-		my $numeric_id = $self->create_numeric_id(\%composite, \%counter);
-
-		# Create the locus ID		
-		my @id;
-		push (@id, $locus_class);
-		push (@id, $taxname_final);
-		push (@id, $numeric_id);
-		push (@id, $organism_code);	 
-		my $id = join('.', @id);
-		print "\n\t # ID: $id";
-
-		# Update the nomenclature table
-		$composite{full_id} = $id;
-		$composite{namespace_id} = $numeric_id;
-		my $nom_id = $nom_table->insert_row(\%composite);
-	
-		# Update chains table
-		foreach my $locus_ref (@$cluster_ref) {			
-			my $locus_id = $locus_ref->{record_id};
-			my %data;
-			$data{track_id}             = $locus_id;
-			$data{nomenclature_locus_id} = $nom_id;
-			$chains_table->insert_row(\%data);
-		}
-	}	
-}
-
-#***************************************************************************
-# Subroutine:  create_numeric_id
-# Description: create a unique ID for a locus (tracking an ID namespace)
-#***************************************************************************
-sub create_numeric_id {
-
-	my ($self, $locus_ref, $counter_ref) = @_;
-
-	# Get data structures and values
-	my $taxname       = $locus_ref->{assigned_name};
-	my $namespace_id  = $locus_ref->{namespace_id};
-	my $namespace_ref = $self->{namespace};
-
-	# Create numeric ID
-	my $numeric_id;			
-	if ($namespace_id) {	
-		$numeric_id = $namespace_id;
-	}
-	else {			
-
-		# Get namespace for this taxon
-		my $taxon_namespace = $namespace_ref->{$taxname};
-		
-		# Create new numeric ID that does not infringe the current namespace
-		my $unique = undef;
-		
-		if ($counter_ref->{$taxname}) {
-			$numeric_id = $counter_ref->{$taxname};	
-		}
-		else {
-			$numeric_id = '0';
-		}
-						
-		do { # Increment until we get a number that doesn't infringe the namespace
-			$numeric_id++;
-			unless ($taxon_namespace->{$numeric_id}) {
-				$unique = 'true';
-			}
-		} until ($unique);
-			
-		$counter_ref->{$taxname} = $numeric_id;
-	}	
-	return $numeric_id;
-}
-
-#***************************************************************************
-# Subroutine:  load_translations
-# Description: load translation tables
-#***************************************************************************
-sub load_translations {
-
-	my ($self, $translations_ref) = @_;
-
-	# Read translation from file
-	my $translations_path = $self->{translation_path};
-	unless ($translations_path) { die; }
-	my @file;
-	$fileio->read_file($translations_path, \@file);
-	my $header = shift @file;
-	chomp $header;
-	my @header = split("\t", $header); 
-	my %levels;
-	my $i = 0;
-	foreach my $element (@header) {
-		$i++;
-		$levels{$i} = $element;
-	}
-
-	# Set up the translations
-	foreach my $line (@file) {
-
-		chomp $line;
-		my @line  = split("\t", $line);
-		my $j = 0;
-		my %taxonomy;
-		foreach my $value (@line) {
-			$j++;
-			my $level = $levels{$j};
-			unless ($level) { die; }		
-			$taxonomy{$level} = $value;			
-		}
-		my $id = shift @line;
-		$translations_ref->{$id} = \%taxonomy;		
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_nomenclature_tracks
-# Description: load input tracks into table, in a DIGS locus format
-#***************************************************************************
-sub load_nomenclature_tracks {
-
-	my ($self) = @_;
-	
-	# Load nomenclature table
-	my $db_ref = $self->{db};
-	my $nom_table = $db_ref->{nomenclature_tracks_table};
-	unless ($nom_table) { die; }
-
-	# Read tracks from file path
-	my @new_track;
-	my $new_track_path = $self->{new_track_path};
-	unless ($new_track_path) { die; }
-	$fileio->read_file($new_track_path, \@new_track);
-	
-	# Load tracks into table
-	foreach my $line (@new_track) {
-	
-		#print $line;
-		chomp $line;
-		my @line = split("\t", $line);
-		my $track_name    = shift @line;
-		my $assigned_name = shift @line;
-		my $scaffold      = shift @line;
-		my $extract_start = shift @line;
-		my $extract_end   = shift @line;
-		my $assigned_gene = shift @line;
-		my $namespace_id  = shift @line;		
-		my $span;
-		my $orientation;
-
-		#
-		if ($extract_end > $extract_start) {
-			$orientation = '+';
-			$span = $extract_end - $extract_start;
-		}
-		else {
-			$orientation = '-';
-			$span = $extract_start - $extract_end;		
-			my $start = $extract_start;
-			$extract_start = $extract_end;
-			$extract_end   = $start;
-		}
-
-		my %data;
-		$data{track_name}      = $track_name;
-		$data{assigned_name}   = $assigned_name;
-		$data{scaffold}        = $scaffold;
-		$data{extract_start}   = $extract_start;
-		$data{extract_end}     = $extract_end;
-		$data{sequence_length} = $span;
-		$data{orientation}     = $orientation;
-		$data{assigned_gene}   = $assigned_gene;
-		unless ($namespace_id) { $namespace_id = 'NULL'; }
-		$data{namespace_id}    = $namespace_id;		
-		$nom_table->insert_row(\%data);	
-
-	}
-}
-
 ############################################################################
 # INTERNAL FUNCTIONS: title and help display
 ############################################################################
@@ -2539,11 +2130,19 @@ sub initialise {
 	
 	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
 	if ($option eq 4 or $option eq 5) { 
-	
+
 		# Set target sequence files for screening
 		my %targets;
+		my $num_targets = $loader_obj->set_targets(\%targets);
+
+		# Show error and exit if no targets found
+		unless ($num_targets) {
+			$loader_obj->show_no_targets_found_error();
+		}
+
+		# Set target sequence files for screening
 		my %target_groups;
-		$loader_obj->set_targets(\%targets, \%target_groups);
+		$loader_obj->set_target_groups(\%targets, \%target_groups);
 		$self->{target_groups} = \%target_groups; 
 	}
 
@@ -2692,12 +2291,7 @@ sub calculate_contig_lengths {
 
 	my ($self, $contigs_ref) = @_;
 
-	# Set target sequence files for screening
-	my %targets;
-	my %target_groups;
-	my $loader_obj = $self->{loader_obj};
-	$loader_obj->set_targets(\%targets, \%target_groups);
-	
+	# Get database and tables
 	my $db_ref = $self->{db};
 	my $digs_results     = $db_ref->{digs_results_table};
 	my $contigs_table    = $db_ref->{contigs_table};
@@ -2723,7 +2317,7 @@ sub calculate_contig_lengths {
 			my $target_version  = $target_ref->{target_version};
 			my @genome = ( $organism , $target_datatype, $target_version );
 			my $target_id       = join ('|', @genome);
-			my $target_group = $target_groups{$target_id};
+			my $target_group = $target_group_ref->{$target_id};
 			unless ($target_group) { die; }
 		
 			# Construct the path to this target file
@@ -2757,28 +2351,6 @@ sub calculate_contig_lengths {
 ############################################################################
 # Development
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  show_translations
-# Description:  
-#***************************************************************************
-sub show_translations {
-
-	my ($self, $translations_ref) = @_;
-
-	# Validate
-	#show_translations(\%taxonomy); #die;
-		
-	my @keys = keys %$translations_ref;
-	foreach my $key (@keys) {
-		my $data_ref = $translations_ref->{$key};
-		my @keys2 = keys %$data_ref;
-		foreach my $key2 (@keys2) {
-			my $value = $data_ref->{$key2};
-			print "\n\t $key	$key2	$value";
-		}
-	}
-}		
 
 #***************************************************************************
 # Subroutine:  prepare_locus_update 
