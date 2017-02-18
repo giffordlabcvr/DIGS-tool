@@ -115,7 +115,7 @@ sub run_tests {
 	$self->run_test_4();
 	$self->run_test_5();
 	$self->run_test_6();
-	#$self->run_test_7();
+	$self->run_test_7();
 	#$self->run_test_10();
 
 	# Print finished message
@@ -499,39 +499,44 @@ sub run_test_7 {
 	print "\n\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
 
 	# Upload a data set
-	my $db = $self->{db}; # Get the database reference
+	my $digs_obj   = $self->{digs_obj};
+	my $loader_obj = $digs_obj->{loader_obj};
+	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
-	my $test7_path = './test/test7.txt';;
+	my $test7_path = './test/tabular/test7.txt';;
 	print "\n\t ### Flushed digs_results table & now uploading data from file '$test7_path'";
 	$db->upload_data_to_digs_results($test7_path);
 	print "\n\t ### Data uploaded\n";
 
-	# Defragment - Construct WHERE statement
-	my $where  = " WHERE organism      = 'fake_species' ";
-	$where    .= " AND target_datatype = 'fake_datatype' ";
-	$where    .= " AND target_version  = 'fake_version' ";
-	$where    .= " AND target_name     = 'artificial_test1_korv.fa' "; 
-	my $path    = "species/datatype/version/artificial_test1_korv.fa";
-	my $target_path  = './test/targets/'  . $path;
+	# Set the parameters for this test (directly rather than using control file)
+	$loader_obj->{seq_length_minimum}   = 50;
+	$loader_obj->{defragment_range}     = 200;
+	$loader_obj->{query_aa_fasta}       = "./test/probes/korv_test5.faa"; 
+	$loader_obj->{reference_aa_fasta}   = "./test/references/korv_test7_reassign.faa"; 
+	$loader_obj->{query_na_fasta}       = "./test/probes/korv_test1.fna"; 
+	$loader_obj->{reference_na_fasta}   = "./test/probes/korv_test1.fna"; 
+	$loader_obj->{bitscore_min_tblastn} = 100;
 
-	my %settings;
-	$settings{range}     = 100;
-	$settings{start}     = 'extract_start';
-	$settings{end}       = 'extract_end';
-	$settings{where_sql} = $where;
+	my @test_targets;
+	my $test1_target_path = "species/datatype/version/artificial_test1_korv.fa";
+	push (@test_targets, $test1_target_path);
+	$loader_obj->{target_paths} = \@test_targets;
 
-	$self->{defragment_mode} = 'defragment';
-	$self->defragment_target(\%settings, $target_path, 'digs_results');
+	$digs_obj->{defragment_mode}  = 'defragment';
+	$digs_obj->{defragment_range} = 100;
 
-	# Do the reassign
-	print "\n\n\t ### Now reassigning the ORF hits to an MLV reference library\n";
-	my $test_ctl_file7 = './test/test7_erv_aa.ctl';
-	my $loader_obj     = $self->{loader_obj};
-	$loader_obj->parse_control_file($test_ctl_file7, $self, 2);
-	my @digs_results;
-	$self->initialise_reassign(\@digs_results); # Set up 
-	$self->reassign(\@digs_results);	
+	# If we're doing a reassign, get the assigned digs_results
+	my @reassign_loci;
+	$digs_obj->get_digs_results_sequences(\@reassign_loci);
+	$digs_obj->{reassign_loci} = \@reassign_loci;
+
+	# Set up the reference library
+	$loader_obj->setup_reference_libraries($digs_obj);
+
+	my @digs_results;	
+	#$digs_obj->initialise(\@digs_results); # Set up 
+	$digs_obj->reassign(\@digs_results);	
 	
 	# Get data and check reassign looks right
 	my @data;
