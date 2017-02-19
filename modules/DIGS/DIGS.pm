@@ -799,7 +799,7 @@ sub create_consolidated_locus {
 		$consolidated_ref->{orientation}     = $orientation;
 
 		# Extract the sequence
-		print "\n\t\t    # TARGET: '$target_path'";
+		#print "\n\t\t    # TARGET: '$target_path'";
 		my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
 		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {
