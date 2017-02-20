@@ -413,7 +413,7 @@ sub read_genome_files {
 
 
 			if ($verbose) {
-				print "\n\t\t  Target '$key_path' added";
+				#print "\n\t\t  Target '$key_path' added";
 			}
 
 			# Store using target_id as a key
