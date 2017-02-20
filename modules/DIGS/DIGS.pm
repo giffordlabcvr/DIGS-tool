@@ -151,7 +151,7 @@ sub run_digs_process {
 
 #***************************************************************************
 # Subroutine:  prepare_target_files_for_blast
-# Description: index target files for BLAST
+# Description: create index files for all target databases
 #***************************************************************************
 sub prepare_target_files_for_blast {
 
@@ -176,7 +176,7 @@ sub perform_digs {
 
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
-	my $completed = 0;
+	my $queries_completed = 0;
 	my $queries_ref = $self->{queries};
 	unless ($queries_ref) { die; }   # Sanity checking
 	my @probes = keys %$queries_ref; # Get the list of queries
@@ -188,8 +188,8 @@ sub perform_digs {
 		foreach my $query_ref (@$probe_queries) {  
 	
 			# Increment query count
-			$completed++;		
-			$self->{completed} = $completed;
+			$queries_completed++;		
+			$self->{queries_completed} = $queries_completed;
 
 			# Do the 1st BLAST (probe vs target)
 			$self->search_target_file_using_blast($query_ref);
@@ -214,10 +214,14 @@ sub perform_digs {
 		
 			# Show progress
 			$self->show_digs_progress();
-
+			
+			# Validate
+			#$self->validate('loop exit');
+			
 		}	
 	}
 }
+
 
 #***************************************************************************
 # Subroutine:  reassign
@@ -384,23 +388,16 @@ sub search_target_file_using_blast {
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
-	unless ($min_length) { die; }
-	unless ($min_score)  {
-		$devtools->print_hash($self);
-		die;
-	}
-	
-	# Sanity checking
-	unless ($blast_obj)       { die; } 
-	unless ($tmp_path)        { die; } 
 
-	# Get screening database table objects
-	my $db_ref           = $self->{db};
-	my $active_set_table = $db_ref->{active_set_table};
-	unless ($db_ref)          { die; } 
+	# Sanity checking
+	unless ($min_length) { die; }
+	unless ($min_score)  { die; }	
+	unless ($blast_obj)  { die; } 
+	unless ($tmp_path)   { die; } 
 
 	# Get query details
 	my $probe_id        = $query_ref->{probe_id};
+	my $blast_alg       = $query_ref->{blast_alg};
 	my $probe_name      = $query_ref->{probe_name};
 	my $probe_gene      = $query_ref->{probe_gene};
 	my $probe_type      = $query_ref->{probe_type};
@@ -410,23 +407,22 @@ sub search_target_file_using_blast {
 	my $datatype        = $query_ref->{target_datatype};
 	my $target_name     = $query_ref->{target_name};
 	my $target_path     = $query_ref->{target_path};
-	my $blast_alg       = $query_ref->{blast_alg};
 	my $result_file     = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
-	#unless ($probe_id, $probe_type) { die; }
+	unless ($probe_id and $blast_alg) { die; }
 
 	# Do BLAST similarity search
-	my $completed = $self->{completed};	
+	my $completed = $self->{queries_completed};	
 	print "\n\n\t  $blast_alg: $completed: '$organism' ($version, $datatype)";
 	print   "\n\t  target: '$target_name'";
 	print   "\n\t  probe:  '$probe_id'";   
 	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
+	# TODO: catch error from BLAST and don't update "Searches_performed" table	
 	
 	# Extract the results from tabular format BLAST output
 	my @hits;
 	$blast_obj->parse_tab_format_results($result_file, \@hits);
 	my $rm_command = "rm $result_file";
 	system $rm_command; # Remove the result file
-	# TODO: catch error from BLAST and don't update "Searches_performed" table	
 
 	# Summarise raw results of BLAST search
 	my $num_hits = scalar @hits;
@@ -441,7 +437,6 @@ sub search_target_file_using_blast {
 	foreach my $hit_ref (@hits) {
 
 		my $skip = undef;
-
 		# Apply length cutoff
 		if ($min_length) { # Skip sequences that are too short
 			my $start  = $hit_ref->{aln_start};
@@ -451,7 +446,6 @@ sub search_target_file_using_blast {
 				$length_exclude_count++; 				
 			}
 		}
-
 		# Apply bitscore cutoff
 		if ($min_score) { 
 			# Skip sequences that have too low bit scores
@@ -462,24 +456,10 @@ sub search_target_file_using_blast {
 					$score_exclude_count++;
 				}
 			}
-		}
-	
+		}	
 		unless ($skip) {		
 			# Insert values into 'active_set' table
-			$hit_ref->{digs_result_id}  = 0;
-			$hit_ref->{organism}        = $organism;
-			$hit_ref->{target_version}  = $version;
-			$hit_ref->{target_datatype} = $datatype;
-			$hit_ref->{target_name}     = $target_name;
-			$hit_ref->{probe_id}        = $probe_id;
-			$hit_ref->{probe_name}      = $probe_name;
-			$hit_ref->{probe_gene}      = $probe_gene;
-			$hit_ref->{probe_type}      = $probe_type;
-			$hit_ref->{align_len}       = $hit_ref->{align_len};
-			$hit_ref->{subject_start}   = $hit_ref->{aln_start};  # Rename to match DB
-			$hit_ref->{subject_end}     = $hit_ref->{aln_stop};   # Rename to match DB
-			$hit_ref->{query_end}       = $hit_ref->{query_stop}; # Rename to match DB
-			$active_set_table->insert_row($hit_ref);
+			$self->insert_row_in_active_set_table($query_ref, $hit_ref);
 			$num_retained_hits++;			
 		}
 	} 
@@ -491,6 +471,46 @@ sub search_target_file_using_blast {
 	}
 	
 	return $num_hits;
+}
+
+#***************************************************************************
+# Subroutine:  insert_row_in_active_set_table
+# Description: insert a BLAST result as a row into the active set table
+#***************************************************************************
+sub insert_row_in_active_set_table {
+
+	my ($self, $query_ref, $hit_ref) = @_;
+
+	# Get screening database table objects
+	my $db_ref           = $self->{db};
+	my $active_set_table = $db_ref->{active_set_table};
+	unless ($db_ref)          { die; } 
+
+	my $probe_id        = $query_ref->{probe_id};
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+	my $probe_path      = $query_ref->{probe_path};
+	my $organism        = $query_ref->{organism};
+	my $version         = $query_ref->{target_version};
+	my $datatype        = $query_ref->{target_datatype};
+	my $target_name     = $query_ref->{target_name};
+	my $target_path     = $query_ref->{target_path};
+
+	$hit_ref->{digs_result_id}  = 0;
+	$hit_ref->{organism}        = $organism;
+	$hit_ref->{target_version}  = $version;
+	$hit_ref->{target_datatype} = $datatype;
+	$hit_ref->{target_name}     = $target_name;
+	$hit_ref->{probe_id}        = $probe_id;
+	$hit_ref->{probe_name}      = $probe_name;
+	$hit_ref->{probe_gene}      = $probe_gene;
+	$hit_ref->{probe_type}      = $probe_type;
+	$hit_ref->{subject_start}   = $hit_ref->{aln_start};  # Rename to match DB
+	$hit_ref->{subject_end}     = $hit_ref->{aln_stop};   # Rename to match DB
+	$hit_ref->{query_end}       = $hit_ref->{query_stop}; # Rename to match DB
+	$active_set_table->insert_row($hit_ref);
+
 }
 
 #***************************************************************************
@@ -698,6 +718,49 @@ sub classify_sequence_using_blast {
 }
 
 #***************************************************************************
+# Subroutine:  update_locus_data
+# Description: insert new data about consolidated loci into relevant tables
+#***************************************************************************
+sub update_locus_data {
+
+	my ($self, $consolidated_ref) = @_;
+
+	unless ($consolidated_ref) { die; }
+	
+	# Get parameters and data structures
+	my $verbose           = $self->{verbose};
+	my $db_ref            = $self->{db};
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
+	
+	my @cluster_ids  = keys %$consolidated_ref;
+	foreach my $cluster_id (@cluster_ids) {
+
+		# Get the loci in this cluster
+		my $loci_ref = $consolidated_ref->{$cluster_id};
+		my $cluster_size = scalar @$loci_ref;
+		if ($verbose and $cluster_size > 1) {
+			#$self->show_cluster($hits_ref, $cluster_id);
+		}	
+
+		# Insert the consolidated locus information
+		my %locus;
+		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
+		my $locus_id  = $loci_table->insert_row(\%locus);
+				
+		# Create the links between the loci and digs_results tables
+		foreach my $hit_ref (@$loci_ref) {
+			my $digs_result_id = $hit_ref->{record_id};
+			my %chain_data;
+			$chain_data{digs_result_id} = $digs_result_id;
+			$chain_data{locus_id}       = $locus_id;
+			$loci_chains_table->insert_row(\%chain_data);
+		}		
+	}
+}
+
+#***************************************************************************
 # Subroutine:  create_consolidated_locus
 # Description: derive data fields for a consolidated locus
 #***************************************************************************
@@ -706,9 +769,9 @@ sub create_consolidated_locus {
 	my ($self, $consolidated_ref, $locus_elements_ref, $cluster_id) = @_;
 
 	my $initialised = undef;
+	my $db_ref    = $self->{db};
 	my $verbose   = $self->{verbose};
 	my $blast_obj = $self->{blast_obj};
-
 	my @locus_structure;
 	my $lowest;
 	my $highest;
@@ -813,7 +876,33 @@ sub create_consolidated_locus {
 			print "\n\t\t    # Sequence extraction failed ";
 		}
 	}
-	
+
+
+	# Do the annotation for truncated versus non-truncated 	matches
+	my $contigs_table = $db_ref->{contigs_table};
+	my %data;
+	my @fields = qw [ contig_id seq_length ];
+	my $where = " WHERE contig_id = '$scaffold'";
+	$contigs_table->select_row(\@fields, \%data, $where);
+	my $contig_length = $data{seq_length};
+	unless ($contig_length) { die; }
+
+	# Check the start of the match
+	if ($lowest eq 1) {  
+		unshift(@locus_structure, 'T');
+	}
+	else {
+		unshift(@locus_structure, 'X');
+	}
+	# Check the end of the match
+	if ($highest eq $contig_length) { 
+		push(@locus_structure, 'T');
+	}
+	else {
+		push(@locus_structure, 'X');
+	}
+
+	# Insert the data
 	my $locus_structure = join('-', @locus_structure);
 	$consolidated_ref->{organism}        = $organism;
 	$consolidated_ref->{target_version}  = $version;
@@ -824,48 +913,6 @@ sub create_consolidated_locus {
 
 }
 
-#***************************************************************************
-# Subroutine:  update_locus_data
-# Description: insert new data about consolidated loci into relevant tables
-#***************************************************************************
-sub update_locus_data {
-
-	my ($self, $consolidated_ref) = @_;
-
-	unless ($consolidated_ref) { die; }
-	
-	# Get parameters and data structures
-	my $verbose           = $self->{verbose};
-	my $db_ref            = $self->{db};
-	my $loci_table        = $db_ref->{loci_table};
-	my $loci_chains_table = $db_ref->{loci_chains_table};
-	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
-	
-	my @cluster_ids  = keys %$consolidated_ref;
-	foreach my $cluster_id (@cluster_ids) {
-
-		# Get the loci in this cluster
-		my $loci_ref = $consolidated_ref->{$cluster_id};
-		my $cluster_size = scalar @$loci_ref;
-		if ($verbose and $cluster_size > 1) {
-			#$self->show_cluster($hits_ref, $cluster_id);
-		}	
-
-		# Insert the consolidated locus information
-		my %locus;
-		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
-		my $locus_id  = $loci_table->insert_row(\%locus);
-				
-		# Create the links between the loci and digs_results tables
-		foreach my $hit_ref (@$loci_ref) {
-			my $digs_result_id = $hit_ref->{record_id};
-			my %chain_data;
-			$chain_data{digs_result_id} = $digs_result_id;
-			$chain_data{locus_id}       = $locus_id;
-			$loci_chains_table->insert_row(\%chain_data);
-		}		
-	}
-}
 
 #***************************************************************************
 # Subroutine:  set_default_values_for_unassigned_locus
@@ -1016,7 +1063,7 @@ sub show_digs_progress {
 
 	# Get the counts
 	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{completed};	
+	my $completed       = $self->{queries_completed};	
 	unless ($completed and $total_queries) { die; } # Sanity checking
 	
 	# Calculate percentage progress
@@ -1097,6 +1144,9 @@ sub compile_nonredundant_locus_set {
 			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
 		}
 	}
+	
+	# Validate
+	#$self->validate2('start compiling nonredundant');	
 	
 	# Compose clusters of overlapping/adjacent loci
 	my %settings;
@@ -1822,7 +1872,6 @@ sub update_cross_matching {
 		$crossmatch{$assigned} = 1;
 		$crossmatch_ref->{$probe_key} = \%crossmatch;
 	}
-
 }
 
 #***************************************************************************
@@ -2016,9 +2065,7 @@ sub get_sorted_active_set {
                             evalue_num evalue_exp identity 
 	                        scaffold orientation
 	                        subject_start subject_end ];
-
 	$active_set_table->select_rows(\@blast_fields, $data_ref, $where);
-
 }
 
 ############################################################################
@@ -2342,6 +2389,7 @@ sub calculate_contig_lengths {
 				my $length = $contig_ref->{seq_length};
 				$contig_ref->{contig_id} = $contig_ref->{header};;
 				unless ($length) {
+					# DEbUG
 					$devtools->print_hash($contig_ref); die;
 				}
 				#print "\n\t # $header: $length";
@@ -2355,6 +2403,49 @@ sub calculate_contig_lengths {
 ############################################################################
 # Development
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  validate
+# Description:
+#***************************************************************************
+sub validate {
+	
+	my ($self, $when) = @_;
+
+	# Get the connection to the digs_results table (so we can update it)
+	my $db = $self->{db};
+	my $digs_results_table = $db->{digs_results_table};
+	unless ($digs_results_table) { die; }
+	my @rows;
+	my @fields = qw [ scaffold assigned_gene  ]; 	
+	my $where = " WHERE scaffold = '30037' ";
+	$digs_results_table->select_rows(\@fields, \@rows, $where);
+	my $num_rows = scalar @rows;
+	print "\n\t\t ### HERE IS HOW MANY ROWS THERE ARE for 30037 at '$when': '$num_rows'";
+
+}
+
+#***************************************************************************
+# Subroutine:  validate
+# Description:
+#***************************************************************************
+sub validate2 {
+	
+	my ($self, $when) = @_;
+
+	# Get the connection to the digs_results table (so we can update it)
+	my $db = $self->{db};
+	my $active_set_table = $db->{active_set_table};
+	unless ($active_set_table) { die; }
+	my @rows;
+	my @fields = qw [ scaffold probe_name probe_gene ]; 	
+	my $where = " WHERE scaffold = '30037' ";
+	$active_set_table->select_rows(\@fields, \@rows, $where);
+	my $num_rows = scalar @rows;
+	print "\n\t\t ### HERE IS HOW MANY active_set ROWS THERE ARE for 30037 at '$when': '$num_rows'";
+	#$devtools->print_array(\@rows); die;
+
+}
 
 #***************************************************************************
 # Subroutine:  prepare_locus_update 
