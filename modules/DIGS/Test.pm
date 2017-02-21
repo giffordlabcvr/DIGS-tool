@@ -109,14 +109,14 @@ sub run_tests {
 
 	# Do a live screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
-	$self->run_test_1();
-	$self->run_test_2();
-	$self->run_test_3();
-	$self->run_test_4();
-	$self->run_test_5();
-	$self->run_test_6();
-	$self->run_test_7();
-	#$self->run_test_10();
+	#$self->run_test_1();
+	#$self->run_test_2();
+	#$self->run_test_3();
+	#$self->run_test_4();
+	#$self->run_test_5();
+	#$self->run_test_6();
+	#$self->run_test_7();
+	$self->run_test_10();
 
 	# Print finished message
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
@@ -586,18 +586,21 @@ sub run_test_10 {
 	$self->{defragment_mode} = 'defragment';
 
 	# Get digs_results table handle and flush the table
-	my $db = $self->{db}; # Get the database reference
+	# Upload a data set
+	my $digs_obj      = $self->{digs_obj};
+	my $loader_obj    = $digs_obj->{loader_obj};
+	my $db            = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 
 	# Upload the data
-	my $test10_path = './test/test10.txt';;
+	my $test10_path = './test/tabular/test10.txt';;
 	print "\n\t ### Flushed digs_results table & now uploading data from file '$test10_path'";
 	my $original_num_rows = $db->upload_data_to_digs_results($test10_path);
 	print "\n\t ### EVE data uploaded\n";
-
-	# Execute the defragment procedure
-	$self->interactive_defragment();
+	die;
+	
+	$digs_obj->interactive_defragment();
 	
 	# Check result
 	my @result;

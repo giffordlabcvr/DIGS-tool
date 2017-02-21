@@ -132,7 +132,7 @@ sub run_digs_process {
 	}
 	elsif ($option eq 5) { 
 	
-		# Combine digs_results into higher order locus structures 
+		# Combine digs_results into higher order locus structures
 		$self->consolidate_loci();
 	}
 	else {
@@ -146,7 +146,7 @@ sub run_digs_process {
 }
 
 ############################################################################
-# PRIMARY FUNCTIONS
+# PRIMARY FUNCTIONS (TOP LEVEL)
 ############################################################################
 
 #***************************************************************************
@@ -216,12 +216,10 @@ sub perform_digs {
 			$self->show_digs_progress();
 			
 			# Validate
-			#$self->validate('loop exit');
-			
+			#$self->validate('loop exit');			
 		}	
 	}
 }
-
 
 #***************************************************************************
 # Subroutine:  reassign
@@ -347,7 +345,7 @@ sub consolidate_loci {
 	my @sorted;
 	$self->get_sorted_digs_results(\@sorted);
 	my $total_loci = scalar @sorted;
-
+	
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	print "\n\t  Consolidating assigned extracted sequences into loci";
 	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
@@ -356,7 +354,7 @@ sub consolidate_loci {
 	my %consolidated;
 	$self->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	
-	# Check the output of the consolidation process
+	# Check the output
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_loci > $num_clusters) {
@@ -369,6 +367,7 @@ sub consolidate_loci {
 	
 	# Return the number of clusters
 	return $num_clusters;
+	die;
 }
 
 ############################################################################
@@ -718,203 +717,6 @@ sub classify_sequence_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  update_locus_data
-# Description: insert new data about consolidated loci into relevant tables
-#***************************************************************************
-sub update_locus_data {
-
-	my ($self, $consolidated_ref) = @_;
-
-	unless ($consolidated_ref) { die; }
-	
-	# Get parameters and data structures
-	my $verbose           = $self->{verbose};
-	my $db_ref            = $self->{db};
-	my $loci_table        = $db_ref->{loci_table};
-	my $loci_chains_table = $db_ref->{loci_chains_table};
-	#$self->show_clusters($consolidated_ref); die; # DEBUG- Show clusters 	
-	
-	my @cluster_ids  = keys %$consolidated_ref;
-	foreach my $cluster_id (@cluster_ids) {
-
-		# Get the loci in this cluster
-		my $loci_ref = $consolidated_ref->{$cluster_id};
-		my $cluster_size = scalar @$loci_ref;
-		if ($verbose and $cluster_size > 1) {
-			#$self->show_cluster($hits_ref, $cluster_id);
-		}	
-
-		# Insert the consolidated locus information
-		my %locus;
-		$self->create_consolidated_locus(\%locus, $loci_ref, $cluster_id);
-		my $locus_id  = $loci_table->insert_row(\%locus);
-				
-		# Create the links between the loci and digs_results tables
-		foreach my $hit_ref (@$loci_ref) {
-			my $digs_result_id = $hit_ref->{record_id};
-			my %chain_data;
-			$chain_data{digs_result_id} = $digs_result_id;
-			$chain_data{locus_id}       = $locus_id;
-			$loci_chains_table->insert_row(\%chain_data);
-		}		
-	}
-}
-
-#***************************************************************************
-# Subroutine:  create_consolidated_locus
-# Description: derive data fields for a consolidated locus
-#***************************************************************************
-sub create_consolidated_locus {
-
-	my ($self, $consolidated_ref, $locus_elements_ref, $cluster_id) = @_;
-
-	my $initialised = undef;
-	my $db_ref    = $self->{db};
-	my $verbose   = $self->{verbose};
-	my $blast_obj = $self->{blast_obj};
-	my @locus_structure;
-	my $lowest;
-	my $highest;
-	my $scaffold;
-	my $version;
-	my $orientation;
-	my $datatype;
-	my $organism;
-	my $target_name;
-	my $assigned_name;
-	my $target_id; 
-	my $target_datatype;
-	my $target_version;
-	foreach my $element_ref (@$locus_elements_ref) {
-			
-		my $feature     = $element_ref->{assigned_gene};
-		my $start       = $element_ref->{extract_start};
-		my $end         = $element_ref->{extract_end};
-		$version        = $element_ref->{target_version};
-		$datatype       = $element_ref->{target_datatype};
-		$orientation    = $element_ref->{orientation};
-		$scaffold       = $element_ref->{scaffold};
-		$organism       = $element_ref->{organism};
-		$target_name    = $element_ref->{target_name};
-
-		# Get the target details (and thus the target path)
-		#my $target_path = $self->get_target_file_path($target_ref);
-		$organism        = $element_ref->{organism};
-		$target_name     = $element_ref->{target_name};
-		$target_datatype = $element_ref->{target_datatype};
-		$target_version  = $element_ref->{target_version};
-		my @genome = ( $organism , $target_datatype, $target_version );
-		$target_id       = join ('|', @genome);
-
-		unless ($feature and $orientation) { die; }
-		if ($orientation eq '+') {
-			my $record = "$feature($orientation)";
-			#my $record = $feature;
-			push(@locus_structure, $record);
-		}
-		elsif ($orientation eq '-') {
-			my $record = "$feature($orientation)";
-			unshift(@locus_structure, $record);			
-		}
-
-		if ($initialised) {
-			if ($end > $highest) {
-				$highest = $end;
-			}
-			if ($start < $lowest) {
-				$lowest = $start;					
-			}
-		}
-		else {
-			$highest = $end;
-			$lowest = $start;
-			$initialised = 'true';								
-		}
-	}
-	
-	my $reextract = 1;
-	my $sequence = '';
-	my $seq_len  = 0;
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_group_ref = $self->{target_groups};
-	if ($reextract) {
-
-		my $target_group = $target_group_ref->{$target_id};
-		unless ($target_group) {
-			print " \n\t No target group found for TARGET ID $target_id\n\n"; 
-			$devtools->print_hash($target_group_ref); die;
-		}
-		# Construct the path to this target file
-		my @path;
-		push (@path, $genome_use_path);
-		push (@path, $target_group);
-		push (@path, $organism);
-		push (@path, $target_datatype);
-		push (@path, $target_version);
-		push (@path, $target_name);
-		my $target_path = join ('/', @path);
-
-		$consolidated_ref->{extract_start}   = $lowest;
-		$consolidated_ref->{extract_end}     = $highest;
-		$consolidated_ref->{start}           = $lowest;
-		$consolidated_ref->{end}             = $highest;
-		$consolidated_ref->{scaffold}        = $scaffold;
-		$consolidated_ref->{orientation}     = $orientation;
-
-		# Extract the sequence
-		#print "\n\t\t    # TARGET: '$target_path'";
-		my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
-		my $seq_length = length $sequence; # Set sequence length
-		if ($sequence) {
-			
-			# If we extracted a sequence, update the data for this locus
-			if ($verbose) { print "\n\t\t    - Re-extracted sequence: $seq_length nucleotides "; }
-			$consolidated_ref->{sequence}        = $sequence;
-			$consolidated_ref->{sequence_length} = $seq_length;
-		}
-		elsif ($verbose) { 
-			print "\n\t\t    # Sequence extraction failed ";
-		}
-	}
-
-
-	# Do the annotation for truncated versus non-truncated 	matches
-	my $contigs_table = $db_ref->{contigs_table};
-	my %data;
-	my @fields = qw [ contig_id seq_length ];
-	my $where = " WHERE contig_id = '$scaffold'";
-	$contigs_table->select_row(\@fields, \%data, $where);
-	my $contig_length = $data{seq_length};
-	unless ($contig_length) { die; }
-
-	# Check the start of the match
-	if ($lowest eq 1) {  
-		unshift(@locus_structure, 'T');
-	}
-	else {
-		unshift(@locus_structure, 'X');
-	}
-	# Check the end of the match
-	if ($highest eq $contig_length) { 
-		push(@locus_structure, 'T');
-	}
-	else {
-		push(@locus_structure, 'X');
-	}
-
-	# Insert the data
-	my $locus_structure = join('-', @locus_structure);
-	$consolidated_ref->{organism}        = $organism;
-	$consolidated_ref->{target_version}  = $version;
-	$consolidated_ref->{target_name}     = $target_name;
-	$consolidated_ref->{target_datatype} = $datatype;
-	$consolidated_ref->{assigned_name}   = $assigned_name;
-	$consolidated_ref->{locus_structure} = $locus_structure;
-
-}
-
-
-#***************************************************************************
 # Subroutine:  set_default_values_for_unassigned_locus
 # Description: set default values for an unassigned extracted sequence
 #***************************************************************************
@@ -935,7 +737,7 @@ sub set_default_values_for_unassigned_locus {
 	$hit_ref->{query_start}      = 0;
 	$hit_ref->{subject_end}      = 0;
 	$hit_ref->{subject_start}    = 0;
-
+	
 }
 
 #***************************************************************************
@@ -1097,6 +899,257 @@ sub wrap_up {
 	# Print finished message
 	print "\n\n\t ### Process completed ~ + ~ + ~";
 
+}
+
+############################################################################
+# INTERNAL FUNCTIONS: CONSOLIDATE LOCI
+############################################################################
+
+#***************************************************************************
+# Subroutine:  update_locus_data
+# Description: compile locus information  and update the locus tables
+#***************************************************************************
+sub update_locus_data {
+
+	my ($self, $consolidated_ref) = @_;
+
+	unless ($consolidated_ref) { die; }
+	
+	# Get parameters and data structures
+	my $verbose           = $self->{verbose};
+	my $db_ref            = $self->{db};
+	my $loci_table        = $db_ref->{loci_table};
+	my $loci_chains_table = $db_ref->{loci_chains_table};
+
+	# Iterate through the clusters	
+	my @cluster_ids  = keys %$consolidated_ref;
+	foreach my $cluster_id (@cluster_ids) {
+
+		# Get the loci in this cluster
+		my $cluster_ref = $consolidated_ref->{$cluster_id};
+
+		# Turn this cluster into an annotated locus
+		my %locus;
+		$self->assemble_consolidated_locus(\%locus, $cluster_ref);
+		#$devtools->print_hash(\%locus); die;
+
+		# Extract the consolidate locus if the flag is set
+		my $reextract = undef;
+		if ($reextract) {
+			die;
+			$self->extract_consolidated_locus(\%locus);
+		}
+
+		# Do the annotation for truncated versus non-truncated 	matches
+		my $annotate_ends = undef;
+		if ($annotate_ends) {
+			die;
+			$self->annotate_consolidated_locus_flanks(\%locus);
+		}
+
+		# Insert the consolidated locus information
+		my $locus_array = $locus{locus_array};
+		my $locus_structure = join('-', @$locus_array);
+		$locus{locus_structure} = $locus_structure;
+	
+		# Insert the data	
+		my $locus_id  = $loci_table->insert_row(\%locus);
+				
+		# Create the links between the loci and digs_results tables
+		foreach my $digs_result_ref (@$cluster_ref) {
+			my $digs_result_id = $digs_result_ref->{record_id};
+			my %chain_data;
+			$chain_data{digs_result_id} = $digs_result_id;
+			$chain_data{locus_id}       = $locus_id;
+			$loci_chains_table->insert_row(\%chain_data);
+		}		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  assemble_consolidated_locus
+# Description: 
+#***************************************************************************
+sub assemble_consolidated_locus {
+
+	my ($self, $consolidated_ref, $cluster_ref) = @_;
+
+	my $annotate_flanks = undef;
+	my $initialised = undef;
+	my $organism;
+	my $version;
+	my $target_name;
+	my $datatype;
+	my $assigned_name;
+	my $lowest;
+	my $highest;
+	my $scaffold;
+	my $orientation;
+	my $target_datatype;
+	my $target_version;
+	my @locus_structure;
+	my $target_id; 
+	foreach my $element_ref (@$cluster_ref) {
+			
+		my $feature     = $element_ref->{assigned_gene};
+		my $start       = $element_ref->{extract_start};
+		my $end         = $element_ref->{extract_end};
+		$assigned_name  = $element_ref->{assigned_name};
+		$version        = $element_ref->{target_version};
+		$datatype       = $element_ref->{target_datatype};
+		$orientation    = $element_ref->{orientation};
+		$scaffold       = $element_ref->{scaffold};
+		$organism       = $element_ref->{organism};
+		$target_name    = $element_ref->{target_name};
+
+		# Get the target details (and thus the target path)
+		$organism        = $element_ref->{organism};
+		$target_name     = $element_ref->{target_name};
+		$target_datatype = $element_ref->{target_datatype};
+		$target_version  = $element_ref->{target_version};
+		my @genome = ( $organism , $target_datatype, $target_version );
+		$target_id = join ('|', @genome);
+
+		unless ($feature and $orientation) { die; }
+		
+		if ($orientation eq '+') {
+			my $record = "$feature($orientation)";
+			#my $record = $feature;
+			push(@locus_structure, $record);
+		}
+		elsif ($orientation eq '-') {
+			my $record = "$feature($orientation)";
+			unshift(@locus_structure, $record);			
+		}
+
+		if ($initialised) {
+			if ($end > $highest) {
+				$highest = $end;
+			}
+			if ($start < $lowest) {
+				$lowest = $start;					
+			}
+		}
+		else {
+			$highest = $end;
+			$lowest = $start;
+			$initialised = 'true';								
+		}
+	}
+
+	# Store the data
+	$consolidated_ref->{organism}        = $organism;
+	$consolidated_ref->{target_version}  = $version;
+	$consolidated_ref->{target_name}     = $target_name;
+	$consolidated_ref->{target_datatype} = $datatype;
+	$consolidated_ref->{scaffold}        = $scaffold;
+	$consolidated_ref->{target_id}       = $target_id;
+	$consolidated_ref->{orientation}     = $orientation;
+	$consolidated_ref->{start}           = $lowest;
+	$consolidated_ref->{end}             = $highest;
+	$consolidated_ref->{extract_start}   = $lowest;
+	$consolidated_ref->{extract_end}     = $highest;
+	$consolidated_ref->{assigned_name}   = $assigned_name;
+	$consolidated_ref->{assigned_name}   = $assigned_name;
+	$consolidated_ref->{locus_array}     = \@locus_structure;
+	
+}
+
+#***************************************************************************
+# Subroutine:  extract_consolidated_locus
+# Description: 
+#***************************************************************************
+sub extract_consolidated_locus {
+
+	my ($self, $consolidated_ref) = @_;
+
+	my $db_ref    = $self->{db};
+	my $verbose   = $self->{verbose};
+	my $blast_obj = $self->{blast_obj};
+	my $seq_len   = 0;
+	
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	#my $target_path = $self->get_target_file_path($target_ref);
+
+	my $organism        = $consolidated_ref->{organism};
+	my $target_version  = $consolidated_ref->{target_version};
+	my $target_datatype = $consolidated_ref->{target_datatype};
+	my $target_name     = $consolidated_ref->{target_name};
+	my $target_id       = $consolidated_ref->{target_id};
+	my $lowest          = $consolidated_ref->{start};
+	my $highest         = $consolidated_ref->{end};
+
+	my $target_group = $target_group_ref->{$target_id};
+	unless ($target_group) {
+		print " \n\t No target group found for TARGET ID $target_id\n\n"; 
+		$devtools->print_hash($target_group_ref); die;
+	}
+	
+	# Construct the path to this target file
+	my @path;
+	push (@path, $genome_use_path);
+	push (@path, $target_group);
+	push (@path, $organism);
+	push (@path, $target_datatype);
+	push (@path, $target_version);
+	push (@path, $target_name);
+	my $target_path = join ('/', @path);
+
+	# Extract the sequence
+	#print "\n\t\t    # TARGET: '$target_path'";
+	my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
+	my $seq_length = length $sequence; # Set sequence length
+	if ($sequence) {
+		
+		# If we extracted a sequence, update the data for this locus
+		if ($verbose) { print "\n\t\t    - Re-extracted sequence: $seq_length nucleotides "; }
+		$consolidated_ref->{sequence}        = $sequence;
+		$consolidated_ref->{sequence_length} = $seq_length;
+	}
+	elsif ($verbose) { 
+		print "\n\t\t    # Sequence extraction failed ";
+	}
+}
+
+#***************************************************************************
+# Subroutine:  annotate_consolidated_locus_flanks
+# Description: 
+#***************************************************************************
+sub annotate_consolidated_locus_flanks {
+
+	my ($self, $consolidated_ref) = @_;
+
+	my $db_ref = $self->{db};
+	my $contigs_table = $db_ref->{contigs_table};
+	my $lowest   = $consolidated_ref->{start};
+	my $highest  = $consolidated_ref->{end};
+	my $highest  = $consolidated_ref->{end};
+	my $scaffold = $consolidated_ref->{scaffold};
+
+	# Get the length of this contig
+	my %data;
+	my @fields = qw [ contig_id seq_length ];
+	my $where = " WHERE contig_id = '$scaffold'";
+	$contigs_table->select_row(\@fields, \%data, $where);
+	my $contig_length = $data{seq_length};
+	unless ($contig_length) { die; }
+
+	# Check the start of the match
+	my @locus_structure;
+	if ($lowest eq 1) {  
+		unshift(@locus_structure, 'T');
+	}
+	else {
+		unshift(@locus_structure, 'X');
+	}
+	# Check the end of the match
+	if ($highest eq $contig_length) { 
+		push(@locus_structure, 'T');
+	}
+	else {
+		push(@locus_structure, 'X');
+	}
 }
 
 ############################################################################
@@ -2232,7 +2285,6 @@ sub initialise {
 	my $log_file   = $report_dir . "/log.txt";
 	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
 	$self->{log_file} = $log_file;
-
 }
 
 #***************************************************************************
@@ -2350,7 +2402,8 @@ sub calculate_contig_lengths {
 	my $target_group_ref = $self->{target_groups};
 	
 	my $question1 = "\n\n\t # Refresh contig length table";
-	my $refresh = $console->ask_yes_no_question($question1);		
+	#my $refresh = $console->ask_yes_no_question($question1);		
+	my $refresh = 'n';
 
 	if ($refresh eq 'y') {
 	

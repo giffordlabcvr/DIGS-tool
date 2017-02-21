@@ -91,7 +91,8 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
 	   $HELP  .= "\n\t -u=9  Translate DB schema"; 
 	   $HELP  .= "\n\t -u=10 Create standard locus IDs\n"; 
-	   #$HELP  .= "\n\t -u=11  Extract sequences using track";
+	   $HELP  .= "\n\t -u=11 Upload data to digs_results table\n"; 
+	   #$HELP  .= "\n\t -u=12  Extract sequences using track";
 	   $HELP  .= "\n\n"; 
 
 	print $HELP;
@@ -174,9 +175,13 @@ sub run_utility_process {
 	}
 	elsif ($option eq 10) { # Standardised locus naming
 		die;
+		$self->upload_data_to_digs_results_table();
+	}
+	elsif ($option eq 10) { # Standardised locus naming
+		die;
 		$self->create_standard_locus_ids();
 	}
-	elsif ($option eq 11) {
+	elsif ($option eq 12) {
 		die;
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
 		my $loader_obj = ScreenBuilder->new($self);
@@ -192,7 +197,9 @@ sub run_utility_process {
 # Subroutine:  extend_screening_db
 # Description: console managemant of ancillary tables in the screening database
 #***************************************************************************
-sub extend_screening_db { }
+sub extend_screening_db { 
+
+}
 
 #***************************************************************************
 # Subroutine:  show_blast_chains
