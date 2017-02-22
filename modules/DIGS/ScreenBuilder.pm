@@ -395,9 +395,9 @@ sub set_target_groups {
 		unless ($organism and $version and $datatype and $target_name) { die; }
 		
 		# Create a unique key for this genome
-		my @genome = ( $organism , $datatype, $version );
-		my $new_target_id = join ('|', @genome);
-		print "\n\t ### old '$target_id' \n\t ### new '$new_target_id'";
+		#my @genome = ( $organism , $datatype, $version );
+		#my $new_target_id = join ('|', @genome);
+		#print "\n\t ### old '$target_id' \n\t ### new '$new_target_id'";
 		
 		# Set a key to get the top level group name in the target path
 		$target_groups_ref->{$target_id} = $group;

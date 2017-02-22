@@ -604,26 +604,71 @@ sub extract_track_sequences {
 	#}
 
 	# Iterate through the tracks extracting
-	$devtools->print_hash(\%targets);		
+	#$devtools->print_hash(\%targets);
+	my @fasta;	
 	foreach my $line (@infile) {
 		
 		chomp $line; # remove newline
 		my @line = split("\t", $line);
-		my $record_id = shift @line;
-		my $organism  = shift @line;
-		my $type      = shift @line;
-		my $version   = shift @line;
-		my $name      = shift @line;
+		my $record_id     = shift @line;
+		my $organism      = shift @line;
+		my $type          = shift @line;
+		my $version       = shift @line;
+		my $name          = shift @line;
+        my $scaffold      = shift @line;
+        my $orientation   = shift @line;
+        my $assigned_name = shift @line;
+        my $extract_start = shift @line;
+        my $extract_end   = shift @line;
+        my $gene          = shift @line;
+		
 		unless ($organism and $version and $type and $name) { die; }
+		
 		my $key = $organism . '|' . $type . '|' . $version;
 		my $target_data = $targets{$key};
-		#my $group = $target_data->{grouping};
 		unless ($target_data) {
 			print "\n\t NO DATA FOR GENOME ID '$key'";
 		}
-		#print "\n\t #### weee we wee $group";
+		my $group = $target_data->{grouping};
+		#print "\n\t GROUP FOR '$key': '$group'";
+		
+		my $genome_use_path = $digs_obj->{genome_use_path};
+		unless ($genome_use_path) {	die; }
+		my @target_path;
+		push (@target_path, $genome_use_path);
+		push (@target_path, $group);
+		push (@target_path, $organism);
+		push (@target_path, $type);
+		push (@target_path, $version);
+		push (@target_path, $name);
+		my $target_path = join('/', @target_path);
+	
+		my %data;
+		$data{start}       = $extract_start;
+        $data{end}         = $extract_end;
+        $data{scaffold}    = $scaffold; 
+        $data{orientation} = $orientation;	
+		#print "\n\t TARGET $target_path";
 
+		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
+		unless ($sequence) {	
+			print  "\n\t Sequence extraction failed for record '$record_id'";
+			sleep 1;
+		}
+		else {
+			my $header = $key . '|' . $scaffold . '|' . $assigned_name . "_$gene";
+			#my $header = $name . "_$gene";
+			#$header =~ s/\(/\./g;
+			#$header =~ s/\)//g;
+			print "\n\t\t Got sequence for $record_id: $header";
+			my $digs_fasta = ">$header" . "\n$sequence\n";
+			push (@fasta, $digs_fasta);;
+		}
 	}
+
+	my $outfile = 'extracted.DIGS.fna';
+	$fileio->write_file($outfile, \@fasta);
+
 }
 
 ############################################################################
