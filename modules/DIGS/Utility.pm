@@ -81,18 +81,18 @@ sub show_utility_help_page {
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -e=[utility help]\n";
 
        $HELP  .= "\n\t ### Utility functions\n"; 
-	   $HELP  .= "\n\t -u=1  Add extra tables to screening DB"; 
-	   $HELP  .= "\n\t -u=2  Flush screening DB"; 
-	   $HELP  .= "\n\t -u=3  Drop screening DB"; 
-	   $HELP  .= "\n\t -u=4  Show BLAST chains"; 
-	   $HELP  .= "\n\t -u=5  Show locus chains"; 
-	   $HELP  .= "\n\t -u=6  Show nomenclature chains"; 
-	   $HELP  .= "\n\t -u=7  Summarise genomes (short, by species)";
-	   $HELP  .= "\n\t -u=8  Summarise genomes (long, by target file)";
-	   $HELP  .= "\n\t -u=9  Translate DB schema"; 
-	   $HELP  .= "\n\t -u=10 Create standard locus IDs\n"; 
-	   $HELP  .= "\n\t -u=11 Upload data to digs_results table\n"; 
-	   #$HELP  .= "\n\t -u=12  Extract sequences using track";
+	   $HELP  .= "\n\t -u=1   Add extra tables to screening DB"; 
+	   $HELP  .= "\n\t -u=2   Flush screening DB"; 
+	   $HELP  .= "\n\t -u=3   Drop screening DB"; 
+	   $HELP  .= "\n\t -u=4   Show BLAST chains"; 
+	   $HELP  .= "\n\t -u=5   Show locus chains"; 
+	   $HELP  .= "\n\t -u=6   Show nomenclature chains"; 
+	   $HELP  .= "\n\t -u=7   Summarise genomes (short, by species)";
+	   $HELP  .= "\n\t -u=8   Summarise genomes (long, by target file)";
+	   $HELP  .= "\n\t -u=9   Translate DB schema"; 
+	   $HELP  .= "\n\t -u=10  Create standard locus IDs"; 
+	   $HELP  .= "\n\t -u=11  Upload data to digs_results table"; 
+	   $HELP  .= "\n\t -u=12  Extract sequences using track";
 	   $HELP  .= "\n\n"; 
 
 	print $HELP;
@@ -182,11 +182,8 @@ sub run_utility_process {
 		$self->create_standard_locus_ids();
 	}
 	elsif ($option eq 12) {
-		die;
 		unless ($infile) {  die "\n\t Option '$option' requires an infile\n\n"; }
-		my $loader_obj = ScreenBuilder->new($self);
-		my @extracted;
-		$self->extract_track_sequences(\@extracted, $infile);
+		$self->extract_track_sequences($infile);
 	}
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
@@ -536,97 +533,97 @@ sub show_nomenclature_chains {
 #***************************************************************************
 sub extract_track_sequences {
 	
-	my ($self, $extracted_ref, $track_path) = @_;
+	my ($self, $ctl_file) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+	my $db = $digs_obj->{db};
+	unless ($db)       { die; }
+	unless ($ctl_file) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
 
 	# Get paths, objects, data structures and variables from self
-	my $blast_obj   = $self->{blast_obj};
+	my $blast_obj = $digs_obj->{blast_obj};
+	my $verbose   = $self->{verbose}; # Get 'verbose' flag setting
+
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
+	}
+
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $ctl_file;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($ctl_file, $digs_obj);
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+
+	# Get all targets
+	my $target_db_obj = TargetDB->new($digs_obj);
+	my %targets;
+	$target_db_obj->read_target_directory(\%targets);
+	#$devtools->print_hash(\%targets); die;
 
 	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers in order!";
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
 	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $query_na_track_genome_path = $console->ask_question($question1);
-	
-	# Read FASTA probe library
-	my @track;
-	$fileio->read_file($track_path, \@track);
+	#my $infile = $console->ask_question($question1);
+	my $infile = 'loci.txt';
+	unless ($infile) { die; }
+	my @infile;
+	$fileio->read_file($infile, \@infile);
+
+	# Get the header row
+	my $header_row = shift @infile;
+	my @header_row = split ("\t", $header_row);		
+	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+	my $i;
+	my @fields;
+	my %fields;
+	foreach my $element (@header_row) {
+		chomp $element;
+		$i++;
+		$element =~ s/\s+/_/g;
+		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+		print "\n\t\t Column $i: '$element'";
+		push (@fields, $element);
+		$fields{$element} = "varchar";
+	}
+
+	# Prompt user - did we read the file correctly?
+	my $question2 = "\n\n\t Is this correct?";
+	#my $answer2 = $console->ask_yes_no_question($question2);
+	#if ($answer2 eq 'n') { # Exit if theres a problem with the infile
+	#	print "\n\t\t Aborted!\n\n\n"; exit;
+	#}
 
 	# Iterate through the tracks extracting
-	my $i = 0;	
-	my @probe_fasta;
-	foreach my $line (@track) {
-		
-		$i++;
+	$devtools->print_hash(\%targets);		
+	foreach my $line (@infile) {
 		
 		chomp $line; # remove newline
 		my @line = split("\t", $line);
-
-		my $j;
-		#foreach my $element (@line) {
-		#	$j++;
-		#	print "\n\t ELEMENT $j : $element"
-		#}
-		#die;
-		
-		my $name          = $line[0];
-		my $scaffold      = $line[2];
-		
-		# TODO - hacky - resolve
-		if ($scaffold =~ /Unk/) { next; }
-		
-		my $subject_start = $line[3];
-		my $subject_end   = $line[4];
-		my $gene          = $line[5];
-		my $id            = $line[0];
-		my $orientation;
-
-		if ($subject_start < $subject_end) {
-			$orientation = '+';
+		my $record_id = shift @line;
+		my $organism  = shift @line;
+		my $type      = shift @line;
+		my $version   = shift @line;
+		my $name      = shift @line;
+		unless ($organism and $version and $type and $name) { die; }
+		my $key = $organism . '|' . $type . '|' . $version;
+		my $target_data = $targets{$key};
+		#my $group = $target_data->{grouping};
+		unless ($target_data) {
+			print "\n\t NO DATA FOR GENOME ID '$key'";
 		}
-		elsif ($subject_start > $subject_end) {
-			$orientation = '-';
-			my $switch     = $subject_start;
-			$subject_start = $subject_end;
-			$subject_end   = $switch;
-		}
-		
-		# Extract the sequence
-		my %data;
-		$data{subject_start} = $subject_start;
-		$data{subject_end}   = $subject_end;
-		$data{orientation}   = $orientation;
-		$data{scaffold}      = $scaffold;
+		#print "\n\t #### weee we wee $group";
 
-		my $target_path = "$query_na_track_genome_path" . "/$scaffold" . '.fa';;	
-		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
-		if ($sequence) {	
-			#print "\n\t got seq $sequence \n\n";
-			my %probe;
-			$probe{probe_name}      = $name;
-			$probe{probe_gene}      = $gene;
-			$probe{probe_id}        = $name . "_$gene";
-			$probe{sequence}        = $sequence;
-			$probe{probe_type}      = 'UTR';
-			$probe{blast_alg}       = 'blastn';
-			
-			push(@$extracted_ref, \%probe);
-			
-			my $header = "$name" . "_$gene";
-			$header =~ s/\(/\./g;
-			$header =~ s/\)//g;
-
-			print "\n\t\t Getting probe $i: $header";
-
-			my $digs_fasta = ">$header" . "\n$sequence\n";
-			push (@probe_fasta, $digs_fasta);;
-		
-		}
-		else {
-			die "\n\t Sequence extraction failed";
-		}
-	}	
-	
-	my $outfile = 'extracted.DIGS.fna';
-	$fileio->write_file($outfile, \@probe_fasta);
+	}
 }
 
 ############################################################################

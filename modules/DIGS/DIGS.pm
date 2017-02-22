@@ -367,7 +367,6 @@ sub consolidate_loci {
 	
 	# Return the number of clusters
 	return $num_clusters;
-	die;
 }
 
 ############################################################################

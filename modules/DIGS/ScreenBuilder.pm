@@ -371,6 +371,40 @@ sub set_targets {
 }
 
 #***************************************************************************
+# Subroutine:  set_target_groups
+# Description: Record the top-level 'group' part of the path to a target file
+#***************************************************************************
+sub set_target_groups {
+
+	my ($self, $targets_ref, $target_groups_ref) = @_;
+	
+	# Iterate through targets
+	my @keys = keys %$targets_ref;
+	foreach my $target_id (@keys) {
+			
+		# Get target data
+		my $target_ref   = $targets_ref->{$target_id};
+		my $group        = $target_ref->{group};
+		my $organism     = $target_ref->{organism};
+		my $datatype     = $target_ref->{datatype};
+		my $version      = $target_ref->{version};
+		my $target_path  = $target_ref->{path};
+		my $target_name  = $target_ref->{file};		
+		
+		# Sanity checking	
+		unless ($organism and $version and $datatype and $target_name) { die; }
+		
+		# Create a unique key for this genome
+		my @genome = ( $organism , $datatype, $version );
+		my $new_target_id = join ('|', @genome);
+		print "\n\t ### old '$target_id' \n\t ### new '$new_target_id'";
+		
+		# Set a key to get the top level group name in the target path
+		$target_groups_ref->{$target_id} = $group;
+	}
+}
+
+#***************************************************************************
 # Subroutine:  read genome files
 # Description: select target files from an array of file descriptions 
 #***************************************************************************
@@ -411,7 +445,6 @@ sub read_genome_files {
 		#print "\n\t ######  PATH $key_path";
 		unless ($exclude_paths_ref->{$key_path}) {
 
-
 			if ($verbose) {
 				#print "\n\t\t  Target '$key_path' added";
 			}
@@ -432,8 +465,31 @@ sub read_genome_files {
 			print "\n\t\t  Target '$key_path' EXCLUDED";
 		}				
 	}
-
 	return $count;
+}
+
+#***************************************************************************
+# Subroutine:  show_no_targets_found_error
+# Description: show 'no_targets_found' error
+#***************************************************************************
+sub show_no_targets_found_error {
+
+	my ($self) = @_;
+
+	my $target_paths_ref = $self->{target_paths};
+	print "\n\n\t No target databases found";
+	print " - check target paths are correctly specified in control file\n";
+	print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
+	print "\n\t  TARGETS block from control file has these paths:";
+
+	my $i = 0;
+	foreach my $path (@$target_paths_ref) {
+		$i++;
+		print "\n\t\t PATH 1: '$path'";
+	}
+	print "\n\n";
+	exit;
+	
 }
 
 #***************************************************************************
@@ -462,63 +518,6 @@ sub does_file_have_fasta_extension {
 		} 
 	}
 	return $has_fasta_extension;
-}
-
-#***************************************************************************
-# Subroutine:  set_target_groups
-# Description: Record the top-level 'group' part of the path to a target file
-#***************************************************************************
-sub set_target_groups {
-
-	my ($self, $targets_ref, $target_groups_ref) = @_;
-	
-	# Iterate through targets
-	my @keys = keys %$targets_ref;
-	foreach my $target_name (@keys) {
-			
-		# Get target data
-		my $target_ref   = $targets_ref->{$target_name};
-		my $group        = $target_ref->{group};
-		my $organism     = $target_ref->{organism};
-		my $datatype     = $target_ref->{datatype};
-		my $version      = $target_ref->{version};
-		my $target_path  = $target_ref->{path};
-		my $target_name  = $target_ref->{file};		
-		
-		# Sanity checking	
-		unless ($organism and $version and $datatype and $target_name) { die; }
-		
-		# Create a unique key for this genome
-		my @genome = ( $organism , $datatype, $version );
-		my $target_id = join ('|', @genome);
-		
-		# Set a key to get the top level group name in the target path
-		$target_groups_ref->{$target_id} = $group;
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_no_targets_found_error
-# Description: show 'no_targets_found' error
-#***************************************************************************
-sub show_no_targets_found_error {
-
-	my ($self) = @_;
-
-	my $target_paths_ref = $self->{target_paths};
-	print "\n\n\t No target databases found";
-	print " - check target paths are correctly specified in control file\n";
-	print "\n\t  \$DIGS_GENOMES path is set to '$ENV{DIGS_GENOMES}'\n";
-	print "\n\t  TARGETS block from control file has these paths:";
-
-	my $i = 0;
-	foreach my $path (@$target_paths_ref) {
-		$i++;
-		print "\n\t\t PATH 1: '$path'";
-	}
-	print "\n\n";
-	exit;
-	
 }
 
 #***************************************************************************
@@ -635,7 +634,7 @@ sub set_queries {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj, $option) = @_;
+	my ($self, $ctl_file, $pipeline_obj) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -695,23 +694,20 @@ sub parse_control_file {
 	unless ($num_threads) { $num_threads = 1; }  # Default setting
 	$pipeline_obj->{blast_obj}->{num_threads} = $num_threads;
 
-	if ($option eq 6) {
-	
-		# READ the 'NOMENCLATURE' block
-		$start_token  = 'BEGIN NOMENCLATURE';
-		$stop_token   = 'ENDBLOCK';
-		$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
-	
-		# Set paths for applying nomenclature 	
-		$pipeline_obj->{new_track_path}        = $self->{new_track_path};
-		$pipeline_obj->{translation_path}      = $self->{translation_path};
-		$pipeline_obj->{tax_level}             = $self->{tax_level};
-		$pipeline_obj->{organism_code}         = $self->{organism_code};
-		$pipeline_obj->{locus_class}           = $self->{locus_class};
-		$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
-		$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
-		$pipeline_obj->{genome_structure}      = $self->{genome_structure};
-	}
+	# READ the 'NOMENCLATURE' block
+	$start_token  = 'BEGIN NOMENCLATURE';
+	$stop_token   = 'ENDBLOCK';
+	#$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
+		
+	# Set paths for applying nomenclature 	
+	$pipeline_obj->{new_track_path}        = $self->{new_track_path};
+	$pipeline_obj->{translation_path}      = $self->{translation_path};
+	$pipeline_obj->{tax_level}             = $self->{tax_level};
+	$pipeline_obj->{organism_code}         = $self->{organism_code};
+	$pipeline_obj->{locus_class}           = $self->{locus_class};
+	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
+	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+	$pipeline_obj->{genome_structure}      = $self->{genome_structure};
 
 	# Set the thresholds for filtering results
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
