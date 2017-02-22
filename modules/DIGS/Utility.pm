@@ -197,8 +197,150 @@ sub run_utility_process {
 # Subroutine:  extend_screening_db
 # Description: console managemant of ancillary tables in the screening database
 #***************************************************************************
-sub extend_screening_db { 
+sub extend_screening_db {
 
+	my ($self) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+
+	my $db = $digs_obj->{db};
+	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	
+	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
+
+	# Declare the variables & data structures we need
+	my %extra_tables;
+	my @extra_tables;
+	my $table_to_use;
+	my %fields;
+	my @fields;
+	my $anc_table;
+	my $table_name;
+
+	# Show the options
+	my @choices = qw [ 1 2 3 4 ];
+	print "\n\n\t\t 1. Create new ancillary table";
+	print "\n\t\t 2. Append data to existing ancillary table";
+	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
+	print "\n\t\t 4. Drop an ancillary table\n";
+	my $question4 = "\n\t Choose an option";
+	my $answer4   = $console->ask_simple_choice_question($question4, \@choices);
+
+	# Create new table
+	if ($answer4 == '1') {	
+		my $table_name_question = "\n\t What is the name of the new table?";
+		$table_name = $console->ask_question($table_name_question);
+	}
+	# or choose one of the ancillary tables already in the DB
+	else {
+
+		# Get the ancillary tables in this DB
+		$db->get_ancillary_table_names(\@extra_tables);
+		
+		my $table_num = 0;
+		foreach my $table_name (@extra_tables) {
+			$table_num++;
+			$extra_tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+		}
+		my @table_choices = keys %extra_tables;
+
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
+		$table_to_use = $extra_tables{$answer5};
+		unless ($table_to_use) { die; }
+	}
+		
+	# Upload data to table
+	my @data;
+	unless ($answer4 eq 4) {
+
+		# Try to read the tab-delimited infile
+		print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+		my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+		my $infile = $console->ask_question($question1);
+		unless ($infile) { die; }
+		my @infile;
+		$fileio->read_file($infile, \@infile);
+
+		my $line_number = 0;
+		foreach my $line (@infile) {
+			$line_number++;
+			if     ($line =~ /^\s*$/)  { next; } # discard blank line
+			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+			unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
+			push (@data, $line);
+		}
+		my $data = scalar @data;
+		unless ($data) {
+			die "\n\t Couldn't read input file\n\n";
+		}
+		
+		my $header_row = shift @data;
+		my @header_row = split ("\t", $header_row);		
+		print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+		my $i;
+		foreach my $element (@header_row) {
+			chomp $element;
+			$i++;
+			$element =~ s/\s+/_/g;
+			if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+			print "\n\t\t Column $i: '$element'";
+			push (@fields, $element);
+			$fields{$element} = "varchar";
+		}
+		
+		# Prompt user - did we read the file correctly?
+		my $question3 = "\n\n\t Is this correct?";
+		my $answer3 = $console->ask_yes_no_question($question3);
+		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+			print "\n\t\t Aborted!\n\n\n"; exit;
+		}
+	}
+
+
+	# Create table if first time
+	if ($answer4 eq 1) {
+		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
+	}
+
+	# Get a reference to a table object for the ancillary table
+	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
+	$db->{$table_to_use} = $anc_table;
+		
+	if ($answer4 == '4') {	# Drop the ancillary table
+		$db->drop_ancillary_table($table_to_use);
+		return;
+	}
+	if ($answer4 eq 3)   {  # Flush the table if requested
+		$anc_table->flush();
+		$anc_table->reset_primary_keys();
+	}
+	
+	my $row_count = 0;
+	foreach my $line (@data) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@fields) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields{$column_num};
+			if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			}
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			$insert{$field} = $value;
+		}
+		$anc_table->insert_row(\%insert);
+	}
 }
 
 #***************************************************************************

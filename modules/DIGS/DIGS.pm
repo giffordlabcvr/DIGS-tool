@@ -1124,7 +1124,6 @@ sub annotate_consolidated_locus_flanks {
 	my $contigs_table = $db_ref->{contigs_table};
 	my $lowest   = $consolidated_ref->{start};
 	my $highest  = $consolidated_ref->{end};
-	my $highest  = $consolidated_ref->{end};
 	my $scaffold = $consolidated_ref->{scaffold};
 
 	# Get the length of this contig
