@@ -109,14 +109,14 @@ sub run_tests {
 
 	# Do a live screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
-	#$self->run_test_1();
-	#$self->run_test_2();
-	#$self->run_test_3();
-	#$self->run_test_4();
-	#$self->run_test_5();
-	#$self->run_test_6();
-	#$self->run_test_7();
-	$self->run_test_10();
+	$self->run_test_1();
+	$self->run_test_2();
+	$self->run_test_3();
+	$self->run_test_4();
+	$self->run_test_5();
+	$self->run_test_6();
+	$self->run_test_7();
+	#$self->run_test_10();
 
 	# Print finished message
 	print "\n\n\t ### Tests completed ~ + ~ + ~\n\n\n";
