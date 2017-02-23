@@ -169,8 +169,7 @@ sub run_utility_process {
 		$target_db_obj->summarise_targets_long();
 	}
 	elsif ($option eq 9) { # DB schema translation
-		die;
-		my $db_obj = $self->{db};
+		my $db_obj = $digs_obj->{db};
 		$db_obj->translate_schema();
 	}
 	elsif ($option eq 10) { # Standardised locus naming
