@@ -363,14 +363,14 @@ sub consolidate_loci {
 	}
 	
 	# Update locus data based on consolidated results
-	$self->update_locus_data(\%consolidated);
+	$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
 	
 	# Return the number of clusters
 	return $num_clusters;
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: MAIN DIGS SCREENING LOOP
+# INTERNAL FUNCTIONS: MAIN DIGS LOOP
 ############################################################################
 
 #***************************************************************************
@@ -557,7 +557,7 @@ sub extract_sequences_from_target_file {
 
 #***************************************************************************
 # Subroutine:  add_buffer_to_sequence
-# Description: extract sequences from target databases
+# Description: eadd leading-and-trailing buffer to extract coordinates
 #***************************************************************************
 sub add_buffer_to_sequence {
 
@@ -905,10 +905,10 @@ sub wrap_up {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  update_locus_data
+# Subroutine:  derive_locus_table_from_clustered_digs_results
 # Description: compile locus information  and update the locus tables
 #***************************************************************************
-sub update_locus_data {
+sub derive_locus_table_from_clustered_digs_results {
 
 	my ($self, $consolidated_ref) = @_;
 
@@ -929,7 +929,7 @@ sub update_locus_data {
 
 		# Turn this cluster into an annotated locus
 		my %locus;
-		$self->assemble_consolidated_locus(\%locus, $cluster_ref);
+		$self->derive_locus_structure(\%locus, $cluster_ref);
 		#$devtools->print_hash(\%locus); die;
 
 		# Extract the consolidate locus if the flag is set
@@ -966,10 +966,10 @@ sub update_locus_data {
 }
 
 #***************************************************************************
-# Subroutine:  assemble_consolidated_locus
-# Description: 
+# Subroutine:  derive_locus_structure
+# Description: derive locus structure based on clustered digs results 
 #***************************************************************************
-sub assemble_consolidated_locus {
+sub derive_locus_structure {
 
 	my ($self, $consolidated_ref, $cluster_ref) = @_;
 
@@ -987,10 +987,12 @@ sub assemble_consolidated_locus {
 	my $target_datatype;
 	my $target_version;
 	my @locus_structure;
-	my $target_id; 
+	my $target_id;
 	foreach my $element_ref (@$cluster_ref) {
 			
+		my $last_feature = $feature;
 		my $feature     = $element_ref->{assigned_gene};
+		
 		my $start       = $element_ref->{extract_start};
 		my $end         = $element_ref->{extract_end};
 		$assigned_name  = $element_ref->{assigned_name};
@@ -1010,17 +1012,18 @@ sub assemble_consolidated_locus {
 		$target_id = join ('|', @genome);
 
 		unless ($feature and $orientation) { die; }
-		
-		if ($orientation eq '+') {
-			my $record = "$feature($orientation)";
-			#my $record = $feature;
-			push(@locus_structure, $record);
-		}
-		elsif ($orientation eq '-') {
-			my $record = "$feature($orientation)";
-			unshift(@locus_structure, $record);			
-		}
 
+		if ($feature ne $last_feature) {
+			if ($orientation eq '+') {
+				my $record = "$feature($orientation)";
+				#my $record = $feature;
+				push(@locus_structure, $record);
+			}
+			elsif ($orientation eq '-') {
+				my $record = "$feature($orientation)";
+				unshift(@locus_structure, $record);			
+			}
+		}
 		if ($initialised) {
 			if ($end > $highest) {
 				$highest = $end;
