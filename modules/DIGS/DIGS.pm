@@ -980,6 +980,7 @@ sub derive_locus_structure {
 	my $target_name;
 	my $datatype;
 	my $assigned_name;
+	my $feature;
 	my $lowest;
 	my $highest;
 	my $scaffold;
@@ -989,12 +990,16 @@ sub derive_locus_structure {
 	my @locus_structure;
 	my $target_id;
 	foreach my $element_ref (@$cluster_ref) {
-			
-		my $last_feature = $feature;
-		my $feature     = $element_ref->{assigned_gene};
 		
+		# Capture values from the previous iterations	
+		my $last_feature     = $feature;
+		my $last_orientation = $orientation;
+		#my $last_scaffold    = $scaffold;
+		
+		# Get the data about this digs_results table row
 		my $start       = $element_ref->{extract_start};
 		my $end         = $element_ref->{extract_end};
+		$feature        = $element_ref->{assigned_gene};
 		$assigned_name  = $element_ref->{assigned_name};
 		$version        = $element_ref->{target_version};
 		$datatype       = $element_ref->{target_datatype};
@@ -1002,41 +1007,54 @@ sub derive_locus_structure {
 		$scaffold       = $element_ref->{scaffold};
 		$organism       = $element_ref->{organism};
 		$target_name    = $element_ref->{target_name};
+		unless ($feature and $orientation) { die; } # Sanity checking
+		my $record      = "$feature($orientation)";
 
-		# Get the target details (and thus the target path)
+		# Create a target key
 		$organism        = $element_ref->{organism};
 		$target_name     = $element_ref->{target_name};
 		$target_datatype = $element_ref->{target_datatype};
 		$target_version  = $element_ref->{target_version};
 		my @genome = ( $organism , $target_datatype, $target_version );
-		$target_id = join ('|', @genome);
-
-		unless ($feature and $orientation) { die; }
-
-		if ($feature ne $last_feature) {
-			if ($orientation eq '+') {
-				my $record = "$feature($orientation)";
-				#my $record = $feature;
-				push(@locus_structure, $record);
-			}
-			elsif ($orientation eq '-') {
-				my $record = "$feature($orientation)";
-				unshift(@locus_structure, $record);			
-			}
+		my $this_target_id = join ('|', @genome);
+		if ($target_id) {
+			unless ($this_target_id eq $target_id) { 
+				die; 
+			} 
 		}
-		if ($initialised) {
-			if ($end > $highest) {
-				$highest = $end;
-			}
-			if ($start < $lowest) {
-				$lowest = $start;					
-			}
-		}
-		else {
+		$target_id = $this_target_id;
+		
+		# Deal with first locus in a cluster
+		unless ($initialised) {
 			$highest = $end;
 			$lowest = $start;
 			$initialised = 'true';								
+			push(@locus_structure, $record);
+			next;		
 		}
+
+		# Capture information about coordinates 			
+		if ($end > $highest) {
+			$highest = $end;
+		}
+		if ($start < $lowest) {
+			$lowest = $start;					
+		}
+
+		# Deal with loci that follow at least one previous locus
+		if ($orientation eq $last_orientation
+		and $feature eq $last_feature) {
+			next;
+		}
+
+		if ($orientation eq '+') {
+			#my $record = $feature;
+			push(@locus_structure, $record);
+		}
+		elsif ($orientation eq '-') {
+			unshift(@locus_structure, $record);			
+		}		
+				
 	}
 
 	# Store the data
