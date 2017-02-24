@@ -314,6 +314,7 @@ sub interactive_defragment {
 	$settings{total_loci}     = '0';
 	$settings{total_clusters} = '0';
 	$settings{range}          = undef;
+	$settings{reextract}      = 1;
 
 	# Preview changes 
 	my $choice = undef;
@@ -525,7 +526,9 @@ sub extract_sequences_from_target_file {
 	# Iterate through the list of sequences to extract
 	my $new_loci = 0;
 	foreach my $locus_ref (@$loci_ref) {
-				
+			
+		die;
+		
 		# Add any buffer 
 		if ($buffer) { 
 			my $orientation = $locus_ref->{orientation};
@@ -534,11 +537,12 @@ sub extract_sequences_from_target_file {
 	
 		# Extract the sequence
 		my $sequence   = $blast_obj->extract_sequence($target_path, $locus_ref);
-		my $seq_length = length $sequence; # Set sequence length
 		if ($sequence) {
 			
 			# If we extracted a sequence, update the data for this locus
+			my $seq_length = length $sequence; # Set sequence length
 			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
+			die;
 			$locus_ref->{extract_start}   = $locus_ref->{start};
 			$locus_ref->{extract_end}     = $locus_ref->{end};
 			$locus_ref->{sequence}        = $sequence;
@@ -1189,13 +1193,13 @@ sub annotate_consolidated_locus_flanks {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
+# INTERNAL FUNCTIONS: defragmenting results
 ############################################################################
 
 #***************************************************************************
 # Subroutine:  compile_nonredundant_locus_set
 # Description: determine what to extract based on current results
-# Note similar to defragment fxn
+# Note similar to defragment_target fxn
 #***************************************************************************
 sub compile_nonredundant_locus_set {
 	
@@ -1258,77 +1262,6 @@ sub compile_nonredundant_locus_set {
 	else {
 		print "\n\t\t # No new loci to extract";
 	}	
-}
-
-#***************************************************************************
-# Subroutine:  defragment_target 
-# Description: implement a defragmentation process for a single target file
-# Note: similar to compile_nonredundant_locus_set fxn, diff details
-#***************************************************************************
-sub defragment_target {
-
-	my ($self, $settings_ref, $target_path, $copy_name) = @_;
-	
-	# Create the relevant set of previously extracted loci
-	my @combined;
-	my %target_defragmented;
-	my $where     = $settings_ref->{where_sql};
-    my $copy_table_name = $copy_name . '_table';
-
-	# Get digs results
-	$self->get_sorted_digs_results(\@combined, $where);
-	my $num_hits = scalar @combined;
-	print "\n\t\t # $num_hits digs results to defragment ";
-	#$devtools->print_array(\@combined); die;
-		
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
-	my @cluster_ids  = keys %target_defragmented;
-	my $num_clusters = scalar @combined;
-	if ($num_clusters < $num_hits) {
-		#$self->show_clusters(\%target_defragmented);  # Show clusters
-		my $range = $settings_ref->{range};
-		print "...compressed to $num_clusters overlapping/contiguous clusters within '$range' bp of one another";
-	}
-	
-	# Determine what to extract, and extract it
-	my @loci;
-	my $reextract = $settings_ref->{reextract};
-	my $flag     = $settings_ref->{reextract};
-	my $extended = $self->merge_clustered_loci(\%target_defragmented, \@loci, $flag);
-	print "\n\t\t # $extended extensions to previously extracted sequences ";
-	my $num_new = scalar @loci;
-	print "\n\t\t # $num_new loci to extract after defragment ";
-
-	if ($reextract) {
-
-		# Extract newly identified or extended sequences
-		my @extracted;
-		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
-				
-		# Do the genotyping step for the newly extracted locus sequences
-		my $assigned_count   = 0;
-		my $crossmatch_count = 0;
-		my $num_extracted = scalar @extracted;
-		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
-		foreach my $hit_ref (@extracted) { # Iterate through loci		
-			$self->classify_sequence_using_blast($hit_ref);
-			$assigned_count++;
-			my $remainder = $assigned_count % 100;
-			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
-		}
-		print "\n\t\t\t # $assigned_count sequences classified\n";
-
-		# Update DB
-		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
-		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
-	}
-	else { # DEBUG
-		# Update DB
-		$self->prepare_locus_update(\@loci);
-		$self->update_db(\@loci, $copy_table_name);
-	}
-	return $num_new;
 }
 
 #***************************************************************************
@@ -1455,17 +1388,20 @@ sub defragment_target_files {
 		# Get the target details (and thus the target path)
 		#my $target_path = $self->get_target_file_path($target_ref);
 		my $organism        = $target_ref->{organism};
-		my $target_name     = $target_ref->{target_name};
 		my $target_datatype = $target_ref->{target_datatype};
 		my $target_version  = $target_ref->{target_version};
-		my @genome = ( $organism , $target_datatype, $target_version );
+		my $target_name     = $target_ref->{target_name};
+		my @genome = ( $organism , $target_datatype, $target_version, $target_name );
 		my $target_id       = join ('|', @genome);
 		print "\n\t\t # Defragmenting hits in '$target_name'";
 
 		my $target_path = 'NULL';
 		if ($reextract) {
 			my $target_group = $target_group_ref->{$target_id};
-			unless ($target_group) { die; }
+			unless ($target_group) { 
+				$devtools->print_hash($target_group_ref);
+				die; 
+			}
 			# Construct the path to this target file
 			my @path;
 			push (@path, $genome_use_path);
@@ -1484,11 +1420,86 @@ sub defragment_target_files {
 		$where    .= " AND target_name     = '$target_name' "; 
 		$settings_ref->{start}     = 'extract_start';
 		$settings_ref->{end}       = 'extract_end';
-		$settings_ref->{reextract} = undef;
 		$settings_ref->{where_sql} = $where;
 		$self->defragment_target($settings_ref, $target_path, 'digs_results');
 	}
 }
+
+#***************************************************************************
+# Subroutine:  defragment_target 
+# Description: implement a defragmentation process for a single target file
+# Note: similar to compile_nonredundant_locus_set fxn, diff details
+#***************************************************************************
+sub defragment_target {
+
+	my ($self, $settings_ref, $target_path, $copy_name) = @_;
+	
+	# Create the relevant set of previously extracted loci
+	my @combined;
+	my %target_defragmented;
+	my $where     = $settings_ref->{where_sql};
+    my $copy_table_name = $copy_name . '_table';
+
+	# Get digs results
+	$self->get_sorted_digs_results(\@combined, $where);
+	my $num_hits = scalar @combined;
+	print "\n\t\t # $num_hits digs results to defragment ";
+	#$devtools->print_array(\@combined); die;
+		
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
+	my @cluster_ids  = keys %target_defragmented;
+	my $num_clusters = scalar @combined;
+	if ($num_clusters < $num_hits) {
+		#$self->show_clusters(\%target_defragmented);  # Show clusters
+		my $range = $settings_ref->{range};
+		print "...compressed to $num_clusters overlapping/contiguous clusters within '$range' bp of one another";
+	}
+	
+	# Determine what to extract, and extract it
+	my @loci;
+	my $reextract = $settings_ref->{reextract};
+	my $extended  = $self->merge_clustered_loci(\%target_defragmented, \@loci, $reextract);
+	print "\n\t\t # $extended extensions to previously extracted sequences ";
+	my $num_new   = scalar @loci;
+	print "\n\t\t # $num_new loci to extract after defragment ";
+
+	if ($reextract and $num_new) {
+
+		# Extract newly identified or extended sequences
+		my @extracted;
+		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
+		die;
+		
+		# Do the genotyping step for the newly extracted locus sequences
+		my $assigned_count   = 0;
+		my $crossmatch_count = 0;
+		my $num_extracted = scalar @extracted;
+		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+		foreach my $hit_ref (@extracted) { # Iterate through loci		
+			$self->classify_sequence_using_blast($hit_ref);
+			$assigned_count++;
+			my $remainder = $assigned_count % 100;
+			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
+		}
+		print "\n\t\t\t # $assigned_count sequences classified\n";
+
+		# Update DB
+		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
+		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
+	}
+	else { # DEBUG
+		# Update DB
+		$self->prepare_locus_update(\@loci);
+		$self->update_db(\@loci, $copy_table_name);
+	}
+	return $num_new;
+}
+
+
+############################################################################
+# INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
+############################################################################
 
 #***************************************************************************
 # Subroutine:  compose_clusters 
@@ -1698,7 +1709,7 @@ sub extend_cluster {
 #***************************************************************************
 sub merge_clustered_loci {
 	
-	my ($self, $defragmented_ref, $to_extract_ref, $flag) = @_;
+	my ($self, $defragmented_ref, $to_extract_ref, $reextract) = @_;
 
 	#$devtools->print_hash($defragmented_ref); die;
 
@@ -1714,7 +1725,7 @@ sub merge_clustered_loci {
 		my $cluster_ref = $defragmented_ref->{$id};
 		unless ($cluster_ref) { die; }
 		my $num_cluster_loci = scalar @$cluster_ref;
-		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref, $flag);
+		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref, $reextract);
 		if   ($extended) { $extend_count = $extend_count + $extended; }
 	}
 	return $extend_count;
@@ -1726,7 +1737,7 @@ sub merge_clustered_loci {
 #***************************************************************************
 sub merge_cluster {
 	
-	my ($self, $cluster_id, $cluster_ref, $to_extract_ref, $flag) = @_;
+	my ($self, $cluster_id, $cluster_ref, $to_extract_ref, $reextract) = @_;
 
 	# Determine what to extract for this cluster
 	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
@@ -1802,9 +1813,11 @@ sub merge_cluster {
 
 	# Determine whether or not we need to extract sequences for this cluster
 	# Extract if cluster is composed entirely of new loci (no previous result IDs)
-	unless ($flag) {
+	unless ($reextract) {
 		unless ($previous_digs_result_id) { 
-			#print "\n\t\t # Cluster $cluster_id is comprised entirely of new loci ";
+			if ($verbose) {
+				print "\n\t\t # Cluster $cluster_id is comprised entirely of new loci ";
+			}
 			$extract = 'true';	
 		}
 	}
