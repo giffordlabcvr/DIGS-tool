@@ -527,8 +527,6 @@ sub extract_sequences_from_target_file {
 	my $new_loci = 0;
 	foreach my $locus_ref (@$loci_ref) {
 			
-		die;
-		
 		# Add any buffer 
 		if ($buffer) { 
 			my $orientation = $locus_ref->{orientation};
@@ -542,7 +540,6 @@ sub extract_sequences_from_target_file {
 			# If we extracted a sequence, update the data for this locus
 			my $seq_length = length $sequence; # Set sequence length
 			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
-			die;
 			$locus_ref->{extract_start}   = $locus_ref->{start};
 			$locus_ref->{extract_end}     = $locus_ref->{end};
 			$locus_ref->{sequence}        = $sequence;
