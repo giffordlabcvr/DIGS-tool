@@ -989,6 +989,8 @@ sub derive_locus_structure {
 	my $target_version;
 	my @locus_structure;
 	my $target_id;
+	my $multiple_orientations = undef;
+	my $last_element = undef;
 	foreach my $element_ref (@$cluster_ref) {
 		
 		# Capture values from the previous iterations	
@@ -999,6 +1001,7 @@ sub derive_locus_structure {
 		# Get the data about this digs_results table row
 		my $start       = $element_ref->{extract_start};
 		my $end         = $element_ref->{extract_end};
+
 		$feature        = $element_ref->{assigned_gene};
 		$assigned_name  = $element_ref->{assigned_name};
 		$version        = $element_ref->{target_version};
@@ -1009,6 +1012,7 @@ sub derive_locus_structure {
 		$target_name    = $element_ref->{target_name};
 		unless ($feature and $orientation) { die; } # Sanity checking
 		my $record      = "$feature($orientation)";
+		#print "\n\t RECORD $record";
 
 		# Create a target key
 		$organism        = $element_ref->{organism};
@@ -1023,15 +1027,18 @@ sub derive_locus_structure {
 			} 
 		}
 		$target_id = $this_target_id;
+
 		
 		# Deal with first locus in a cluster
 		unless ($initialised) {
-			$highest = $end;
-			$lowest = $start;
-			$initialised = 'true';								
+			$highest      = $end;
+			$lowest       = $start;
+			$last_element = $element_ref;
+			$initialised  = 'true';								
 			push(@locus_structure, $record);
 			next;		
 		}
+
 
 		# Capture information about coordinates 			
 		if ($end > $highest) {
@@ -1046,15 +1053,27 @@ sub derive_locus_structure {
 		and $feature eq $last_feature) {
 			next;
 		}
+		if ($orientation ne $last_orientation) {
+			$multiple_orientations = 'true';
+		}
 
-		if ($orientation eq '+') {
+		# Add this element to the start or end of the locus array, based on orientation
+		if ($multiple_orientations) { # If multiple orientations, base it on last element
+			if ($start >= $last_element->{extract_start}) {
+				push(@locus_structure, $record);
+			}
+			else {
+				unshift(@locus_structure, $record);	
+			}
+		}
+		elsif ($orientation eq '+') {
 			#my $record = $feature;
 			push(@locus_structure, $record);
 		}
 		elsif ($orientation eq '-') {
 			unshift(@locus_structure, $record);			
-		}		
-				
+		}
+		$last_element = $element_ref;				
 	}
 
 	# Store the data
