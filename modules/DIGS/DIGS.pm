@@ -215,8 +215,6 @@ sub perform_digs {
 			# Show progress
 			$self->show_digs_progress();
 			
-			# Validate
-			#$self->validate('loop exit');			
 		}	
 	}
 }
@@ -1235,9 +1233,6 @@ sub compile_nonredundant_locus_set {
 			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
 		}
 	}
-	
-	# Validate
-	#$self->validate2('start compiling nonredundant');	
 	
 	# Compose clusters of overlapping/adjacent loci
 	my %settings;
@@ -2494,49 +2489,6 @@ sub calculate_contig_lengths {
 ############################################################################
 # Development
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  validate
-# Description:
-#***************************************************************************
-sub validate {
-	
-	my ($self, $when) = @_;
-
-	# Get the connection to the digs_results table (so we can update it)
-	my $db = $self->{db};
-	my $digs_results_table = $db->{digs_results_table};
-	unless ($digs_results_table) { die; }
-	my @rows;
-	my @fields = qw [ scaffold assigned_gene  ]; 	
-	my $where = " WHERE scaffold = '30037' ";
-	$digs_results_table->select_rows(\@fields, \@rows, $where);
-	my $num_rows = scalar @rows;
-	print "\n\t\t ### HERE IS HOW MANY ROWS THERE ARE for 30037 at '$when': '$num_rows'";
-
-}
-
-#***************************************************************************
-# Subroutine:  validate
-# Description:
-#***************************************************************************
-sub validate2 {
-	
-	my ($self, $when) = @_;
-
-	# Get the connection to the digs_results table (so we can update it)
-	my $db = $self->{db};
-	my $active_set_table = $db->{active_set_table};
-	unless ($active_set_table) { die; }
-	my @rows;
-	my @fields = qw [ scaffold probe_name probe_gene ]; 	
-	my $where = " WHERE scaffold = '30037' ";
-	$active_set_table->select_rows(\@fields, \@rows, $where);
-	my $num_rows = scalar @rows;
-	print "\n\t\t ### HERE IS HOW MANY active_set ROWS THERE ARE for 30037 at '$when': '$num_rows'";
-	#$devtools->print_array(\@rows); die;
-
-}
 
 #***************************************************************************
 # Subroutine:  prepare_locus_update 
