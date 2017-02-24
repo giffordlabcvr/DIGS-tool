@@ -3,7 +3,7 @@
 # Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
 # Description: A tool for exploring genomes 'in silico' using BLAST and 
 #              a relational database
-# History:     Version 1.13 February 2017
+# History:     ≈ February 2017
 ############################################################################
 
 
@@ -63,7 +63,7 @@ my $genome_use_path = $ENV{DIGS_GENOMES} . '/';
 my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
 
 # Version number	
-my $program_version = '1.1';
+my $program_version = '1.13';
 
 # Create a unique process ID for this DIGS screening process
 my $pid  = $$;
