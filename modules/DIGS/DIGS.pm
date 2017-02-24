@@ -2193,7 +2193,7 @@ sub show_help_page {
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
-	   $HELP  .= "\n\t -m=1  Prepare  FASTA target files (i.e. index for BLAST)";		
+	   $HELP  .= "\n\t -m=1  Prepare target files (index files for BLAST)";		
 	   $HELP  .= "\n\t -m=2  Do DIGS"; 
 	   $HELP  .= "\n\t -m=3  Reassign loci"; 
 	   $HELP  .= "\n\t -m=4  Defragment loci"; 

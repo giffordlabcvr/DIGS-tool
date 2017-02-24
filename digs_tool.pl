@@ -85,7 +85,6 @@ my $blast_obj = BLAST->new(\%blast_params);
 
 my $mysql_username = ($ENV{DIGS_MYSQL_USER}); 
 my $mysql_password = ($ENV{DIGS_MYSQL_PASSWORD}); 
-print "\n\t  $mysql_username ($mysql_password) \n\n";
 
 # Instantiate main program classes using global settings
 my %params;
