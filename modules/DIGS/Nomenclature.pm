@@ -152,7 +152,7 @@ sub create_nomenclature_track {
 	my %clusters;
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->compose_clusters(\%clusters, \@sorted, \%settings);
-	#$devtools->print_hash(\%clusters); die;
+	$devtools->print_hash(\%clusters); die;
 
 	# Cluster IDs
 	my @cluster_ids  = keys %clusters;
