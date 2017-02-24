@@ -43,7 +43,7 @@ my $devtools  = DevTools->new();
 
 #***************************************************************************
 # Subroutine:  new
-# Description: Create a new ScreeningDB.pm 'object'
+# Description: Create a new ScreeningDB 'object'
 #***************************************************************************
 sub new {
 

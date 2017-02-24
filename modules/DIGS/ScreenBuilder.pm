@@ -674,8 +674,6 @@ sub parse_control_file {
 	# Screening DB name and MySQL connection details
 	$pipeline_obj->{db_name}                = $self->{db_name};
 	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
-	$pipeline_obj->{mysql_username}         = $self->{mysql_username};
-	$pipeline_obj->{mysql_password}         = $self->{mysql_password};
 
 	# Input and output file paths 	
 	$pipeline_obj->{output_path}            = $self->{output_path};
@@ -741,8 +739,8 @@ sub parse_screendb_block {
 	# Get the 'SCREENDB' block values and validate
 	my $db_name  = $self->{db_name};
 	my $server   = $self->{mysql_server};
-	my $user     = $self->{mysql_username};
-	my $password = $self->{mysql_password};
+	#my $user     = $self->{mysql_username};
+	#my $password = $self->{mysql_password};
 
 	unless ($db_name)  {
 		die "\n\t Control file error: 'db_name' undefined in 'SCREENDB' block\n\n\n";
@@ -750,12 +748,12 @@ sub parse_screendb_block {
 	unless ($server)  {
 		die "\n\t Control file error: 'mysql_server' undefined in 'SCREENDB' block\n\n\n";
 	}
-	unless ($user)  {
-		die "\n\t Control file error: 'mysql_username' undefined in 'SCREENDB' block\n\n\n";
-	}
-	unless ($password)  {
-		die "\n\t Control file error: 'mysql_password' undefined in 'SCREENDB' block\n\n\n";
-	}
+	#unless ($user)  {
+	#	die "\n\t Control file error: 'mysql_username' undefined in 'SCREENDB' block\n\n\n";
+	#}
+	#unless ($password)  {
+	#	die "\n\t Control file error: 'mysql_password' undefined in 'SCREENDB' block\n\n\n";
+	#}
 }
 
 #***************************************************************************

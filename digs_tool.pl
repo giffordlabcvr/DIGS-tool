@@ -3,7 +3,7 @@
 # Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
 # Description: A tool for exploring genomes 'in silico' using BLAST and 
 #              a relational database
-# History:     Version 1.12 December 2016
+# History:     Version 1.13 February 2017
 ############################################################################
 
 
@@ -16,10 +16,14 @@ unless ($ENV{DIGS_HOME}) {
 	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
-
-#print "\n\t DIGS HOME PATH:    $ENV{DIGS_HOME} ";
-#print "\n\t DIGS GENOMES PATH: $ENV{DIGS_GENOMES}\n\n ";
-#sleep 1;
+unless ($ENV{DIGS_MYSQL_USER}) {
+	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
+	exit;
+}
+unless ($ENV{DIGS_MYSQL_PASSWORD}) {
+	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
+	exit;
+}
 
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME}) . '/modules/'; 
@@ -79,6 +83,10 @@ my %blast_params;
 $blast_params{blast_bin_path} = $blast_bin_path;
 my $blast_obj = BLAST->new(\%blast_params);
 
+my $mysql_username = ($ENV{DIGS_MYSQL_USER}); 
+my $mysql_password = ($ENV{DIGS_MYSQL_PASSWORD}); 
+print "\n\t  $mysql_username ($mysql_password) \n\n";
+
 # Instantiate main program classes using global settings
 my %params;
 $params{program_version} = $program_version;
@@ -86,6 +94,9 @@ $params{process_id}      = $process_id;
 $params{blast_bin_path}  = $blast_bin_path; 
 $params{genome_use_path} = $genome_use_path;
 $params{blast_obj}       = $blast_obj;
+$params{mysql_username}  = $mysql_username ; 
+$params{mysql_password}  = $mysql_password; 
+
 my $digs_tool_obj = DIGS->new(\%params);
 
 ############################################################################

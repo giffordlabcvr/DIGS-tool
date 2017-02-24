@@ -63,10 +63,10 @@ sub new {
 		blast_obj              => $parameter_ref->{blast_obj},
 
 		# MySQL database connection parameters
+		mysql_username         => $parameter_ref->{mysql_username}, 
+		mysql_password         => $parameter_ref->{mysql_password},
 		db_name                => '',   # Obtained from control file
-		server                 => '',   # Obtained from control file
-		username               => '',   # Obtained from control file
-		password               => '',   # Obtained from control file
+		mysql_server           => '',   # Obtained from control file
 
 		# Parameters for DIGS
 		query_na_fasta         => '',   # Obtained from control file
