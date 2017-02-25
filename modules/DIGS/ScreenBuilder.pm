@@ -142,7 +142,7 @@ sub setup_blast_probes {
 	}
 	
 	unless ($got_probes) { 
-		$devtools->print_hash($self);
+		#$devtools->print_hash($self);
 		die "\n\t No path to probes setting has been loaded, check control file\n\n\n";
 	}
 }
@@ -748,12 +748,6 @@ sub parse_screendb_block {
 	unless ($server)  {
 		die "\n\t Control file error: 'mysql_server' undefined in 'SCREENDB' block\n\n\n";
 	}
-	#unless ($user)  {
-	#	die "\n\t Control file error: 'mysql_username' undefined in 'SCREENDB' block\n\n\n";
-	#}
-	#unless ($password)  {
-	#	die "\n\t Control file error: 'mysql_password' undefined in 'SCREENDB' block\n\n\n";
-	#}
 }
 
 #***************************************************************************
