@@ -211,7 +211,7 @@ sub fix_searches_performed_table {
 	my $where1 = " ORDER BY record_id ";
 	my @searches;
 	my @fields = qw [ record_id organism target_datatype target_version ];
-	$searches_table->select_rows(\@fields, \@extracted_ids, $where1);	 
+	$searches_table->select_rows(\@fields, \@searches, $where1);	 
 
 	# Iterate through the digs result rows	
 	foreach my $row_ref (@searches) {
@@ -225,7 +225,7 @@ sub fix_searches_performed_table {
 		my $where2 = " record_id = $record_id ";
 		my %data;
 		$data{target_id} = $target_id;
-		$searches_table->update(\%data, $where);
+		$searches_table->update(\%data, $where2);
 	}
 }
 
