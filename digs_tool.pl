@@ -3,7 +3,7 @@
 # Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
 # Description: A tool for exploring genomes 'in silico' using BLAST and 
 #              a relational database
-# History:     ≈ February 2017
+# History:     Updated: February 2017
 ############################################################################
 
 

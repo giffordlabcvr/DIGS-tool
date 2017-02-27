@@ -238,9 +238,10 @@ sub reassign {
 	unless ($digs_results_table) { die; }
 	
 	# Get the sequences to reassign 
-	print "\n\n\t  Reassigning hits in the digs_results table\n";
 	my $reassign_loci = $self->{reassign_loci};
 	unless ($reassign_loci) { die; }
+	my $num_to_reassign = scalar @$reassign_loci;
+	print "\n\n\t  Reassigning $num_to_reassign hits in the digs_results table\n";
 
 	# Iterate through the loci, doing the reassign process for each
 	my $count = 0;
@@ -2181,7 +2182,7 @@ sub show_title {
 		$version_num = 'version undefined (use with caution)';
 	}
 	$console->refresh();
-	my $title       = 'DIGS (version: $version_num)';
+	my $title       = "DIGS (version: $version_num)";
 	my $description = 'Database-Integrated Genome Screening';
 	my $author      = 'Robert J. Gifford';
 	my $contact	    = '<robert.gifford@glasgow.ac.uk>';

@@ -543,6 +543,9 @@ sub set_queries {
 
 	# Work out the current state with respect to searches performed
 	my $done_ref = $self->{previously_executed_searches};
+	my @query_keys = keys %$done_ref;
+	my $num_previous_queries = scalar @query_keys;
+	print "\n\t  Previous queries:  $num_previous_queries previous queries";
 
 	# Get relevant member variables and objects
 	my $path;
@@ -553,6 +556,8 @@ sub set_queries {
 	my $outstanding;   # Number of searches still to be performed
 	
 	# Create the queries
+	my $skipped_because_done = '0';
+	my $num_queries = '0';
 	foreach my $probe_ref (@$probes_ref) {
 	
 		my $blast_alg       = $probe_ref->{blast_alg};
@@ -572,6 +577,8 @@ sub set_queries {
 		# Iterate through targets
 		foreach my $target_name (@target_names) {
 			
+			$num_queries++;			
+
 			# Get target data
 			my $target_ref   = $targets_ref->{$target_name};
 			my $group        = $target_ref->{group};
@@ -596,7 +603,8 @@ sub set_queries {
 			my $key = join ('|', @key);
 
 			if ($done_ref->{$key}) { 
-				next; # Skip queries that have been issued
+				$skipped_because_done++;
+				next; # Skip queries that have already been performed
 			} 
 
 			# Else store the query
@@ -620,7 +628,8 @@ sub set_queries {
 			}
 		}
 	}
-		
+	
+	print "\n\t  Skipped in set:    $skipped_because_done (of $num_queries)";
 	return $outstanding;
 }
 
