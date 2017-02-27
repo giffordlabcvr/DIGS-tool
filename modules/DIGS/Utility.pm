@@ -185,7 +185,7 @@ sub run_utility_process {
 		$self->extract_track_sequences($infile);
 	}
 	elsif ($option eq 13) {
-		$self->fix_searches_performed_table();
+		$self->fix_searches_performed_table_2();
 	}
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
@@ -222,12 +222,54 @@ sub fix_searches_performed_table {
 		my $version   = $row_ref->{target_version};
 		my @id = ( $organism, $datatype, $version );
 		my $target_id = join ('|', @id);
-		my $where2 = " record_id = $record_id ";
+		my $where2 = " WHERE record_id = $record_id ";
 		my %data;
 		$data{target_id} = $target_id;
 		$searches_table->update(\%data, $where2);
+		print "\n\t  UPDATED target_id field for $record_id to '$target_id'";
 	}
 }
+
+#***************************************************************************
+# Subroutine:  fix_searches_performed_table_2
+# Description: 
+#***************************************************************************
+sub fix_searches_performed_table_2 {
+
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $digs_obj = $self->{digs_obj};
+
+	my $db = $digs_obj->{db};
+	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $searches_table = $db->{searches_table}; 
+	my $where1 = " ORDER BY record_id ";
+	my @searches;
+	my @fields = qw [ record_id organism target_datatype target_version target_id ];
+	$searches_table->select_rows(\@fields, \@searches, $where1);	 
+
+	# Iterate through the digs result rows	
+	foreach my $row_ref (@searches) {
+	
+		my $record_id = $row_ref->{record_id};
+		my $datatype  = $row_ref->{target_datatype};
+		my $version   = $row_ref->{target_version};
+		my $target_id = $row_ref->{target_id};
+	
+		my @id = split (/\|/, $target_id);
+		my $organism  = shift @id;
+			
+		my $where2 = " WHERE record_id = $record_id ";
+		my %data;
+		$data{organism} = $organism;
+		$searches_table->update(\%data, $where2);
+		print "\n\t  UPDATED organism field for $record_id to '$organism'";
+	}
+}
+
 
 #***************************************************************************
 # Subroutine:  extend_screening_db
