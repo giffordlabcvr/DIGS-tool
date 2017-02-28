@@ -359,7 +359,7 @@ sub consolidate_loci {
 	my $num_clusters = scalar @cluster_ids;
 	if ($total_loci > $num_clusters) {
 		my $range = $settings_ref->{range};
-		print "\n\t ...consolidated to $num_clusters overlapping/contiguous clusters within '$range' bp of one another ";
+		print "\n\t  $num_clusters clusters of loci within '$range' bp of one another ";
 	}
 	
 	# Update locus data based on consolidated results
@@ -919,6 +919,12 @@ sub derive_locus_table_from_clustered_digs_results {
 	my $db_ref            = $self->{db};
 	my $loci_table        = $db_ref->{loci_table};
 	my $loci_chains_table = $db_ref->{loci_chains_table};
+	
+	# Flags for how to handle
+	#my $reextract = undef;
+	my $reextract = 'true';
+	#my $annotate_ends = undef;
+	my $annotate_ends = 'true';
 
 	# Iterate through the clusters	
 	my @cluster_ids  = keys %$consolidated_ref;
@@ -933,16 +939,12 @@ sub derive_locus_table_from_clustered_digs_results {
 		#$devtools->print_hash(\%locus); die;
 
 		# Extract the consolidate locus if the flag is set
-		my $reextract = undef;
 		if ($reextract) {
-			die;
 			$self->extract_consolidated_locus(\%locus);
 		}
 
 		# Do the annotation for truncated versus non-truncated 	matches
-		my $annotate_ends = undef;
 		if ($annotate_ends) {
-			die;
 			$self->annotate_consolidated_locus_flanks(\%locus);
 		}
 
@@ -1119,10 +1121,13 @@ sub extract_consolidated_locus {
 	my $lowest          = $consolidated_ref->{start};
 	my $highest         = $consolidated_ref->{end};
 
-	my $target_group = $target_group_ref->{$target_id};
+	my $full_id = $target_id . '|' . $target_name;
+	my $target_group = $target_group_ref->{$full_id};
 	unless ($target_group) {
-		print " \n\t No target group found for TARGET ID $target_id\n\n"; 
-		$devtools->print_hash($target_group_ref); die;
+		print " \n\t No target group found for TARGET ID $full_id\n\n"; 
+		#$devtools->print_hash($target_group_ref);
+        sleep 1;
+		return 0;
 	}
 	
 	# Construct the path to this target file
@@ -2082,8 +2087,8 @@ sub add_digs_results_to_active_set {
 }
 
 #***************************************************************************
-# Subroutine:  get sorted digs results
-# Description: get digs results sorted by scaffold, in order of location
+# Subroutine:  get_sorted_digs_results
+# Description: get digs_results table rows sorted by scaffold & coordinates
 #***************************************************************************
 sub get_sorted_digs_results {
 
@@ -2117,8 +2122,8 @@ sub get_sorted_digs_results {
 }
 
 #***************************************************************************
-# Subroutine:  get digs results sequences
-# Description: get digs_results table sequences
+# Subroutine:  get_digs_results_sequences
+# Description: get sequences from the digs_results table
 #***************************************************************************
 sub get_digs_results_sequences {
 
@@ -2133,7 +2138,6 @@ sub get_digs_results_sequences {
 	my @fields = qw [ record_id assigned_name assigned_gene 
 	                  probe_type sequence ];
 	$digs_results_table->select_rows(\@fields, $data_ref, $where);
-	
 }
 
 #***************************************************************************
@@ -2446,8 +2450,8 @@ sub calculate_contig_lengths {
 	my $target_group_ref = $self->{target_groups};
 	
 	my $question1 = "\n\n\t # Refresh contig length table";
-	#my $refresh = $console->ask_yes_no_question($question1);		
-	my $refresh = 'n';
+	my $refresh = $console->ask_yes_no_question($question1);		
+	#my $refresh = 'y';
 
 	if ($refresh eq 'y') {
 	
@@ -2463,10 +2467,14 @@ sub calculate_contig_lengths {
 			my $target_name     = $target_ref->{target_name};
 			my $target_datatype = $target_ref->{target_datatype};
 			my $target_version  = $target_ref->{target_version};
-			my @genome = ( $organism , $target_datatype, $target_version );
+			my @genome = ( $organism , $target_datatype, $target_version, $target_name );
 			my $target_id       = join ('|', @genome);
 			my $target_group = $target_group_ref->{$target_id};
-			unless ($target_group) { die; }
+			unless ($target_group) { die; 
+				print " \n\t No target group found for TARGET ID $target_id\n\n"; 
+        		sleep 1;
+				next;
+			}
 		
 			# Construct the path to this target file
 			my @path;
@@ -2484,12 +2492,16 @@ sub calculate_contig_lengths {
 			
 				my $header = $contig_ref->{header};
 				my $length = $contig_ref->{seq_length};
-				$contig_ref->{contig_id} = $contig_ref->{header};;
-				unless ($length) {
-					# DEbUG
+				unless ($length and $header) {
 					$devtools->print_hash($contig_ref); die;
 				}
-				#print "\n\t # $header: $length";
+				
+				$contig_ref->{organism}        = $organism;
+				$contig_ref->{target_datatype} = $target_datatype;
+				$contig_ref->{target_version}  = $target_version;
+				$contig_ref->{target_name}     = $target_name;
+				$contig_ref->{scaffold}        = $header;
+				print "\n\t # $header: $length";
 				
 				$contigs_table->insert_row($contig_ref);
 			}			

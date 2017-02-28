@@ -320,8 +320,12 @@ sub load_contigs_table {
 
     # Definition of the loci table
     my %loci_fields = (
-        contig_id    => 'varchar',
-        seq_length   => 'int',
+        organism         => 'varchar',
+        target_version   => 'varchar',
+        target_datatype  => 'varchar',
+        target_name      => 'varchar',
+        scaffold         => 'varchar',
+        seq_length       => 'int',
     );   
     my $contigs_table = MySQLtable->new('contigs', $dbh, \%loci_fields);
     $self->{contigs_table} = $contigs_table;
@@ -652,9 +656,13 @@ sub create_contigs_table {
     # consolidated contigs table 
     my $contigs = "CREATE TABLE `contigs`  (
     
-        `record_id`       int(11) NOT NULL auto_increment,
-        `contig_id`       varchar(100) NOT NULL default '0',
-        `seq_length`      int(11) NOT NULL default '0',
+        `record_id`         int(11) NOT NULL auto_increment,
+        `organism`          varchar(100) NOT NULL default '0',
+        `target_datatype`   varchar(100) NOT NULL default '0',
+        `target_version`    varchar(100) NOT NULL default '0',
+        `target_name`       varchar(100) NOT NULL default '0',
+        `scaffold`          varchar(100) NOT NULL default '0',
+        `seq_length`        int(11) NOT NULL default '0',
      
         `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
       PRIMARY KEY  (`record_id`)
