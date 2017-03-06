@@ -945,7 +945,7 @@ sub derive_locus_table_from_clustered_digs_results {
 
 		# Do the annotation for truncated versus non-truncated 	matches
 		if ($annotate_ends) {
-			$self->annotate_consolidated_locus_flanks(\%locus);
+			#$self->annotate_consolidated_locus_flanks(\%locus);
 		}
 
 		# Insert the consolidated locus information
@@ -1053,7 +1053,7 @@ sub derive_locus_structure {
 		# Deal with loci that follow at least one previous locus
 		if ($orientation eq $last_orientation
 		and $feature eq $last_feature) {
-			next;
+			#next;
 		}
 		if ($orientation ne $last_orientation) {
 			$multiple_orientations = 'true';
