@@ -38,19 +38,6 @@ To see options for screening:
 ./digs_tool.pl -h
 ```
 
-To initially create your screening database:
-```
-./digs_tool.pl -m=1 -i=[path to your control file]
-```
-
-To initiate DIGS:
-
-```
-./digs_tool.pl -m=2 -i=[path to your control file]
-```
-
-
-
 
 ### Authors and Contributors
 
