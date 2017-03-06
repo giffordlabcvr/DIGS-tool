@@ -118,9 +118,9 @@ sub run_digs_process {
 	elsif ($option eq 2) { 
 	
 		# Run a DIGS process
-		$self->perform_digs();	
+		$self->perform_digs();
 	}
-	elsif ($option eq 3) { 
+	elsif ($option eq 3) {
 	
 		# Reassign data in digs_results table
 		$self->reassign();	
@@ -1025,7 +1025,8 @@ sub derive_locus_structure {
 		my $this_target_id = join ('|', @genome);
 		if ($target_id) {
 			unless ($this_target_id eq $target_id) { 
-				die; 
+				print "\n\t WHY??? $target_id NE $this_target_id\n\n";
+				#die; 
 			} 
 		}
 		$target_id = $this_target_id;
@@ -1053,7 +1054,7 @@ sub derive_locus_structure {
 		# Deal with loci that follow at least one previous locus
 		if ($orientation eq $last_orientation
 		and $feature eq $last_feature) {
-			#next;
+			next;
 		}
 		if ($orientation ne $last_orientation) {
 			$multiple_orientations = 'true';
@@ -1377,15 +1378,20 @@ sub defragment_target_files {
 	}
 
 	# Create a copy of the digs_results table (changes will be applied to copy)
-	# TODO: fix this
-	print "\n\t # Defragmenting using range '$t_range'\n";
-	my $copy_name = $db->backup_digs_results_table();
-	print "\n\t # Copied DIGS results to '$copy_name'\n";
+	my $question = "\n\t # Do you want to create a backup of the current digs_results table?";
+	my $answer = $console->ask_yes_no_question($question);
+	if ($answer eq 'y') {
+		my $copy_name = $db->backup_digs_results_table();
+		print "\n\t # Copied DIGS results to '$copy_name'\n";
+	}
+	
+	# Get database handle and table	
 	my $dbh = $db->{dbh};
 	$db->load_digs_results_table($dbh, 'digs_results');	
 	unless ($db->{digs_results_table}) { die; }
-	
+
 	# Iterate through the target files, applying the defragment process to each		
+	print "\n\t # Defragmenting using range '$t_range'\n";
 	foreach my $target_ref (@$targets_ref) {
 
 		# Get the target details (and thus the target path)
@@ -1403,6 +1409,7 @@ sub defragment_target_files {
 			my $target_group = $target_group_ref->{$target_id};
 			unless ($target_group) { 
 				$devtools->print_hash($target_group_ref);
+				print "\n\t Didn't get target group name for target file with id '$target_id'\n\n";
 				die; 
 			}
 			# Construct the path to this target file
@@ -1472,7 +1479,6 @@ sub defragment_target {
 		# Extract newly identified or extended sequences
 		my @extracted;
 		$self->extract_sequences_from_target_file($target_path, \@loci, \@extracted);
-		die;
 		
 		# Do the genotyping step for the newly extracted locus sequences
 		my $assigned_count   = 0;
@@ -1485,11 +1491,11 @@ sub defragment_target {
 			my $remainder = $assigned_count % 100;
 			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
 		}
-		print "\n\t\t\t # $assigned_count sequences classified\n";
+		print "\n\t\t\t # $assigned_count sequences classified";
 
 		# Update DB
 		my $num_deleted = $self->update_db(\@extracted, $copy_table_name, 1);
-		print "\n\t\t\t # $num_deleted rows deleted from digs_resulsts table\n";
+		print "\n\t\t\t # $num_deleted rows deleted from digs_results table\n";
 	}
 	else { # DEBUG
 		# Update DB
@@ -2226,7 +2232,7 @@ sub show_help_page {
 
 #***************************************************************************
 # Subroutine:  initialise 
-# Description: set up, depending on what option we are running
+# Description: set up, depending on what options have been received
 #***************************************************************************
 sub initialise {
 
@@ -2272,7 +2278,7 @@ sub initialise {
 	# SET-UP FOR REASSIGN
 	if ($option eq 3) { 
 	
-		# If we're doing a reassign, get the assigned digs_results
+		# We're doing a reassign, so get the assigned digs_results
 		my @reassign_loci;
 		$self->get_digs_results_sequences(\@reassign_loci);
 		$self->{reassign_loci} = \@reassign_loci;
@@ -2302,6 +2308,8 @@ sub initialise {
 	# DO SET-UP NEEDED FOR DEFRAGMENT
 	if ($option eq 4) { 
 		$self->{defragment_mode} = 'defragment';	
+		# Set up the reference library
+		$loader_obj->setup_reference_libraries($self);
 	}
 	# DO SET-UP NEEDED FOR CONSOLIDATE
 	elsif ($option eq 5) { 

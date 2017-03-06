@@ -928,9 +928,10 @@ sub backup_digs_results_table {
 	my $copy_sql_2 = "INSERT $copy_name SELECT * FROM digs_results";
     my $dbh = $self->{dbh};
 	my $sth = $dbh->prepare($copy_sql_1);
+	
    	unless ($sth->execute()) { print $copy_sql_1; exit;}	
-   	#$sth = $dbh->prepare($copy_sql_2);
-   	#unless ($sth->execute()) { print $copy_sql_2; exit;}
+   	$sth = $dbh->prepare($copy_sql_2);
+   	unless ($sth->execute()) { print $copy_sql_2; exit;}
    	
    	return $copy_name;
 
