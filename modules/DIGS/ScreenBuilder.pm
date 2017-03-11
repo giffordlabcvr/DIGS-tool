@@ -405,8 +405,8 @@ sub set_target_groups {
 }
 
 #***************************************************************************
-# Subroutine:  read genome files
-# Description: select target files from an array of file descriptions 
+# Subroutine:  read_genome_files
+# Description: select target files from an array 
 #***************************************************************************
 sub read_genome_files {
 	
@@ -414,7 +414,7 @@ sub read_genome_files {
 
 	my $exclude_paths_ref = $self->{exclude_paths};
 	my $verbose           = $self->{verbose};
-	#$devtools->print_hash($exclude_paths_ref); #die;
+	#$devtools->print_hash($exclude_paths_ref); die; # DEBUG
 	
 	my $count = 0;
 	foreach my $file_ref (@$files_array_ref) {
@@ -909,12 +909,25 @@ sub set_exclude_targets {
 			$file{path} = $path;
 			push (@leaves, \%file);
 		}
-		# Record in a hash
+
+		# Record in a hash if its a FASTA file
 		foreach my $leaf (@leaves) {
 			my $path = $leaf->{path};
 			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
 			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
-			$exclude_hash_ref->{$path} = 1;
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my $is_fasta = $self->does_file_have_fasta_extension($file);		
+			if ($is_fasta) {
+				
+				my $version  = pop @path;
+				my $type     = pop @path;
+				my $organism = pop @path;
+				my $group    = pop @path;
+				my @key_path = ( $group , $organism, $type, $version, $file);
+				my $key_path = join('/', @key_path);
+				$exclude_hash_ref->{$key_path} = 1;
+			}
 		}		
 	}
 }
