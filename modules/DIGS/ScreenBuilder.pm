@@ -676,7 +676,9 @@ sub parse_control_file {
 	$start_token = 'BEGIN SKIPINDEX';
 	$stop_token  = 'ENDBLOCK';
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
-	$self->{skipindexing_paths} = \@skipindex;
+	my %skipindex;
+	$self->set_skipindex_targets(\@skipindex, \%skipindex);
+	$self->{skipindexing_paths} = \%skipindex;
 
 	# Set parameters in pipeline object
 	
@@ -716,6 +718,9 @@ sub parse_control_file {
 	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
 	$pipeline_obj->{genome_structure}      = $self->{genome_structure};
 
+	# Indexing 
+	$pipeline_obj->{skipindexing_paths} = \%skipindex;
+	
 	# Set the thresholds for filtering results
 	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
@@ -927,6 +932,65 @@ sub set_exclude_targets {
 				my @key_path = ( $group , $organism, $type, $version, $file);
 				my $key_path = join('/', @key_path);
 				$exclude_hash_ref->{$key_path} = 1;
+			}
+		}		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  set_skipindex_targets
+# Description: set up hash to record paths of targets to exclude from screening
+#***************************************************************************
+sub set_skipindex_targets {
+	
+	my ($self, $skipindex_array_ref, $skipindex_hash_ref) = @_;
+
+	# Iterate through the list of paths 
+	my %paths;
+	my $genome_use_path = $self->{genome_use_path};
+	unless ($genome_use_path) { die; }
+	
+	foreach my $path (@$skipindex_array_ref) {
+			
+		my $full_path = $genome_use_path . "/$path";	
+		my $exists = $fileio->check_directory_exists($full_path);
+
+		my @leaves;
+		# If the path is a directory, get paths to all the files in it and its subdirectories
+		if ($exists) {
+			$fileio->read_directory_tree_leaves_simple($full_path, \@leaves);
+		}
+		# If the path is not to a directory, process as a file 
+		else {
+		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my %file;
+			$file{file} = $file;
+			$file{path} = $path;
+			push (@leaves, \%file);
+		}
+
+		# Record in a hash if its a FASTA file
+		foreach my $leaf (@leaves) {
+			my $path = $leaf->{path};
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			$path =~ s/\/\//\//g; # Convert any double backslashes to single		
+			my @path = split(/\//, $path);
+			my $file = pop @path;
+			my $is_fasta = $self->does_file_have_fasta_extension($file);		
+			if ($is_fasta) {
+				
+				my $version  = pop @path;
+				my $type     = pop @path;
+				my $organism = pop @path;
+				my $group    = pop @path;
+				my @key_path = ( $group , $organism, $type, $version);
+				my $key_path = join('/', @key_path);
+				$skipindex_hash_ref->{$key_path} = 100;
 			}
 		}		
 	}

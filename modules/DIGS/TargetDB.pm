@@ -31,6 +31,8 @@ my $blast_program  = 'makeblastdb';
 # Create base objects
 my $fileio    = FileIO->new();
 my $console   = Console->new();
+my $devtools   = DevTools->new();
+
 1;
 
 ############################################################################
@@ -100,17 +102,13 @@ sub format_targets_for_blast {
 	print "\n\n\t Refreshing target data under path '$genome_path'\n";
 	$self->read_target_directory(\%server_data);
 
-	my %skip;
 	my $skip_ref = $self->{skipindexing_paths};
-	foreach my $skip_path (@$skip_ref) {
-		#print "\n\t SKIP: $skip_path";
-		$skip{$skip_path} = 1;
-	}
-		
+	#$devtools->print_hash($skip_ref); #die;	
+	
 	# Iterate through and check formatting in each genome
 	print "\n\t #~#~# Loading target data\n";
 	my $skipped = '0';
-	my @keys = keys %server_data;
+	my @keys = sort keys %server_data;
 	foreach my $key (@keys) {
 		
 		# Get genome data
@@ -119,15 +117,17 @@ sub format_targets_for_blast {
 		my $type        = $genome_ref->{source_type};
 		my $version     = $genome_ref->{version};
 		my $path        = $genome_ref->{version_path};
-		
-		if ($skip{$path}) {  
+		my $group       = $genome_ref->{grouping};
+	
+		my @target = ( $group, $organism , $type, $version );
+		my $target_id = join ('/', @target);
+		if ($skip_ref->{$target_id}) {  
 			print "\n\t       Skipping '$organism': '$type' '$version'";
 			$skipped++;
 			next;
 		}
-
 		
-		print "\n\t #~#~# Checking '$organism': '$type'  '$version'";
+		print "\n\t #~#~# Checking files in group $group;\t'$organism'\t'$type'\t'$version'";
 		$self->check_genome_formatting($genome_ref);
 		my $unformatted_ref = $genome_ref->{unformatted};
 		my $num_unformatted = scalar @$unformatted_ref;
@@ -148,7 +148,6 @@ sub format_targets_for_blast {
 		}
 	}
 	print "\n\n\t #~#~# Skipped '$skipped' files";
-	print "\n\n";
 }
 
 #***************************************************************************
@@ -510,6 +509,7 @@ sub format_target_for_blast {
 	my $version_path  = $genome_ref->{version_path};
 	my $path          = $genome_path . $version_path;
 	my $bin_path = $blast_program;
+	die;
 
 	# Iterate through the files
 	my $formatted_ref   = $genome_ref->{formatted};

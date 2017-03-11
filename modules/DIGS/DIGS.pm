@@ -118,9 +118,9 @@ sub run_digs_process {
 	elsif ($option eq 2) { 
 	
 		# Run a DIGS process
-		$self->perform_digs();
+		$self->perform_digs();	
 	}
-	elsif ($option eq 3) {
+	elsif ($option eq 3) { 
 	
 		# Reassign data in digs_results table
 		$self->reassign();	
@@ -171,8 +171,8 @@ sub perform_digs {
 	my ($self, $mode) = @_;
 
 	# Get handle for the 'searches_performed' table, updated in this loop
-	my $db_ref         = $self->{db};
-	my $searches_table = $db_ref->{searches_table};
+	my $db_ref              = $self->{db};
+	my $searches_table      = $db_ref->{searches_table};
 
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
@@ -206,15 +206,14 @@ sub perform_digs {
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->classify_sequences_using_blast(\@extracted, $query_ref);
 			
-			# Update DB
-			my $num_deleted = $self->update_db(\@extracted, 'digs_results_table', 1);
+			# Update tables in the screening database to reflect new information
+			$self->update_db(\@extracted, 'digs_results_table', 1);
 	
-			# Update the searches table, to indicate this search has been performed
+			# Update the searches_performed table, indicating search has completed
 			$searches_table->insert_row($query_ref);
 		
-			# Show progress
-			$self->show_digs_progress();
-			
+			# Show a status update in the console
+			$self->show_digs_progress();			
 		}	
 	}
 }
@@ -1378,20 +1377,15 @@ sub defragment_target_files {
 	}
 
 	# Create a copy of the digs_results table (changes will be applied to copy)
-	my $question = "\n\t # Do you want to create a backup of the current digs_results table?";
-	my $answer = $console->ask_yes_no_question($question);
-	if ($answer eq 'y') {
-		my $copy_name = $db->backup_digs_results_table();
-		print "\n\t # Copied DIGS results to '$copy_name'\n";
-	}
-	
-	# Get database handle and table	
+	# TODO: fix this
+	print "\n\t # Defragmenting using range '$t_range'\n";
+	my $copy_name = $db->backup_digs_results_table();
+	print "\n\t # Copied DIGS results to '$copy_name'\n";
 	my $dbh = $db->{dbh};
 	$db->load_digs_results_table($dbh, 'digs_results');	
 	unless ($db->{digs_results_table}) { die; }
-
+	
 	# Iterate through the target files, applying the defragment process to each		
-	print "\n\t # Defragmenting using range '$t_range'\n";
 	foreach my $target_ref (@$targets_ref) {
 
 		# Get the target details (and thus the target path)
@@ -2232,17 +2226,17 @@ sub show_help_page {
 
 #***************************************************************************
 # Subroutine:  initialise 
-# Description: set up, depending on what options have been received
+# Description: set up, depending on what option we are running
 #***************************************************************************
 sub initialise {
 
 	my ($self, $option, $ctl_file) = @_;
 
-	# Don't need to do anything if we're just preparing target files (option 1)
-	if ($option eq 1) { return }
-	
-	# If we're doing anything else we need a control file as input
-	unless ($ctl_file) { die "\n\t Option '$option' requires an infile\n\n"; }
+	# Die with error message if control file required but not recieved as input
+	unless ($option eq 1) { die "\n\t Option '$option' requires an infile\n\n"; }
+	if ($option eq 1) { 
+		unless ($ctl_file) { return; }
+	}
 
 	# Try opening control file
 	my @ctl_file;
