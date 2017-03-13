@@ -2233,10 +2233,10 @@ sub initialise {
 	my ($self, $option, $ctl_file) = @_;
 
 	# Die with error message if control file required but not recieved as input
-	unless ($option eq 1) { die "\n\t Option '$option' requires an infile\n\n"; }
-	if ($option eq 1) { 
-		unless ($ctl_file) { return; }
-	}
+	unless ($ctl_file) {
+		unless ($option eq 1) { die "\n\t Option '$option' requires an infile\n\n"; }
+		if ($option eq 1) { return; }
+	}	
 
 	# Try opening control file
 	my @ctl_file;

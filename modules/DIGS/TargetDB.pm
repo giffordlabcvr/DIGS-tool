@@ -509,7 +509,6 @@ sub format_target_for_blast {
 	my $version_path  = $genome_ref->{version_path};
 	my $path          = $genome_path . $version_path;
 	my $bin_path = $blast_program;
-	die;
 
 	# Iterate through the files
 	my $formatted_ref   = $genome_ref->{formatted};
