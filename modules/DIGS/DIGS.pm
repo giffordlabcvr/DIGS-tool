@@ -59,6 +59,10 @@ sub new {
 		process_id             => $parameter_ref->{process_id},
 		program_version        => $parameter_ref->{program_version},
 		
+		# Flags
+		verbose                => $parameter_ref->{verbose},
+		force                  => $parameter_ref->{force},
+		
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},
 
@@ -2127,14 +2131,13 @@ sub get_sorted_digs_results {
 #***************************************************************************
 sub get_digs_results_sequences {
 
-	my ($self, $data_ref) = @_;;
+	my ($self, $data_ref, $where) = @_;;
 	
 	# Get database tables
 	my $db = $self->{db};
 	my $digs_results_table  = $db->{digs_results_table};
 		
 	# Set the fields to get values for
-	my $where  = " ORDER BY record_id ";
 	my @fields = qw [ record_id assigned_name assigned_gene 
 	                  probe_type sequence ];
 	$digs_results_table->select_rows(\@fields, $data_ref, $where);
@@ -2272,9 +2275,16 @@ sub initialise {
 	# SET-UP FOR REASSIGN
 	if ($option eq 3) { 
 	
-		# We're doing a reassign, so get the assigned digs_results
+		my $where = '';
+		unless ($self->{force}) {
+			# Option to enter a WHERE statement
+			my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
+			$where = $console->ask_question($question);
+		}
+
+		# Get the assigned digs_results
 		my @reassign_loci;
-		$self->get_digs_results_sequences(\@reassign_loci);
+		$self->get_digs_results_sequences(\@reassign_loci, $where);
 		$self->{reassign_loci} = \@reassign_loci;
 
 		# Set up the reference library
