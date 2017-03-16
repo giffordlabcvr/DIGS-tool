@@ -6,22 +6,21 @@
 # History:     Updated: February 2017
 ############################################################################
 
-
-# Check the required environment variable are defined
-unless ($ENV{DIGS_GENOMES}) {
+# Capture variables set in the environment 
+unless ($ENV{'DIGS_GENOMES'}) {
 	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_HOME}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
+unless ($ENV{'DIGS_HOME'}) {
+	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_MYSQL_USER}) {
-	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
+unless ($ENV{'DIGS_MYSQL_USER'}) {
+	print  "\n\n\t Required environment variable '\$DIGS_MYSQL_USER' is undefined\n";
 	exit;
 }
-unless ($ENV{DIGS_MYSQL_PASSWORD}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
+unless ($ENV{'DIGS_MYSQL_PASSWORD'}) {
+	print  "\n\n\t Required environment variable '\$DIGS_MYSQL_PASSWORD' is undefined\n";
 	exit;
 }
 
