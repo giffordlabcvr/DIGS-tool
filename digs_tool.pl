@@ -12,7 +12,7 @@ unless ($ENV{'DIGS_GENOMES'}) {
 	exit;
 }
 unless ($ENV{'DIGS_HOME'}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
+	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
 unless ($ENV{'DIGS_MYSQL_USER'}) {
@@ -136,6 +136,7 @@ sub main {
 	my $help       = undef;
 	my $extra_help = undef;
 	my $verbose    = undef;
+	my $force      = undef;
 	my $analysis   = undef;
 	my $test       = undef;
 	
@@ -147,6 +148,7 @@ sub main {
 			    'help'          => \$help,
 			    'extra_help'    => \$extra_help,
 			    'verbose'       => \$verbose,
+			    'force'         => \$force,
 			    'test'          => \$test,
 	) or die $USAGE;
 
@@ -154,6 +156,9 @@ sub main {
 	# Set flags based on options received
 	if ($verbose) { 
 		$digs_tool_obj->{verbose} = 'true';
+	}
+	if ($force) { 
+		$digs_tool_obj->{force} = 'true';
 	}
 
 	# Hand off to functions based on options received
