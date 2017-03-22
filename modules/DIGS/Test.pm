@@ -34,8 +34,10 @@ my $devtools  = DevTools->new();
 
 # DIGS test database connection globals
 my $server   = 'localhost';
-my $user     = 'root';
-my $password = 'blenat2';
+my $user     = ($ENV{DIGS_MYSQL_USER});
+my $password = ($ENV{DIGS_MYSQL_PASSWORD}); 
+
+
 1;
 
 ############################################################################
