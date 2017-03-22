@@ -52,6 +52,7 @@ use DIGS::TargetDB;
 use DIGS::ScreeningDB;
 use DIGS::Test;
 use DIGS::Utility;
+use DIGS::Nomenclature;
 
 ############################################################################
 # Paths & Globals
@@ -126,37 +127,37 @@ sub main {
 	# Set version
 	
 	# Options that require a file path
-	my $infile     = undef;
+	my $infile      = undef;
 	
 	# Options that require a numerical value
-	my $mode       = undef;
-	my $database   = undef;
-	my $utility    = undef;
-	my $genomes    = undef;
-	my $xdev       = undef;
+	my $mode         = undef;
+	my $database     = undef;
+	my $utility      = undef;
+	my $genomes      = undef;
+	my $nomenclature = undef;
 	
 	# Options that don't require a value
-	my $help       = undef;
-	my $extra_help = undef;
-	my $verbose    = undef;
-	my $force      = undef;
-	my $test       = undef;
+	my $help         = undef;
+	my $extra_help   = undef;
+	my $verbose      = undef;
+	my $force        = undef;
+	my $test         = undef;
 	
 	# Read in options using GetOpt::Long
-	GetOptions ('infile|i=s'    => \$infile,
+	GetOptions ('infile|i=s'     => \$infile,
 	
-	            'mode|m=i'      => \$mode,
-			    'database=i'    => \$database,
-			    'utility=i'     => \$utility,
-			    'genomes=i'     => \$genomes,
-			    'xdev=i'        => \$xdev,
+	            'mode|m=i'       => \$mode,
+			    'database|d=i'   => \$database,
+			    'utility=i'      => \$utility,
+			    'genomes=i'      => \$genomes,
+			    'nomenclature=i' => \$nomenclature,
 			      
-			    'help'          => \$help,
-			    'extra_help'    => \$extra_help,
-			    'verbose'       => \$verbose,
-			    'force'         => \$force,
-			    'test'          => \$test,
-			    
+			    'help'           => \$help,
+			    'extra_help'     => \$extra_help,
+			    'verbose'        => \$verbose,
+			    'force'          => \$force,
+			    'test'           => \$test,
+			    			    
 	) or die $USAGE;
 
 
@@ -185,9 +186,13 @@ sub main {
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($infile, $mode); 
 	}
-	elsif ($database or $utility or $genomes or $xdev) { # Utility functions
+	elsif ($database or $utility or $genomes or $utility) { # Utility functions
 		my $utility_obj = Utility->new($digs_tool_obj);
-		$utility_obj->run_utility_process($infile, $database, $utility, $genomes, $xdev); 
+		$utility_obj->run_utility_process($infile, $database, $genomes, $utility); 
+	}
+	elsif ($nomenclature) { # Utility functions
+		my $nomenclature_obj = Nomenclature->new($digs_tool_obj);
+		$nomenclature_obj->create_standard_locus_ids($infile); 
 	}
 	
 	else { die $USAGE; }
