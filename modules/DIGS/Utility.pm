@@ -81,12 +81,12 @@ sub show_utility_help_page {
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -e=[utility help]\n";
 
        $HELP  .= "\n\t ### Utility functions\n"; 
-	   $HELP  .= "\n\t -u=1   Add extra tables to screening DB"; 
-	   $HELP  .= "\n\t -u=2   Flush screening DB"; 
+	   $HELP  .= "\n\t -u=1   Create ancillary tables in a DIGS screening DB"; 
+	   $HELP  .= "\n\t -u=2   Flush core tables in screening DB"; 
 	   $HELP  .= "\n\t -u=3   Drop screening DB"; 
-	   $HELP  .= "\n\t -u=4   Show BLAST chains"; 
-	   $HELP  .= "\n\t -u=5   Show locus chains"; 
-	   $HELP  .= "\n\t -u=6   Show nomenclature chains"; 
+	   $HELP  .= "\n\t -u=4   Show BLAST chains (details of hits that have been merged)"; 
+	   $HELP  .= "\n\t -u=5   Show locus chains (details of digs_results that have been merged)"; 
+	   $HELP  .= "\n\t -u=6   Show nomenclature chains (details of annotations that have been merged)"; 
 	   $HELP  .= "\n\t -u=7   Summarise genomes (short, by species)";
 	   $HELP  .= "\n\t -u=8   Summarise genomes (long, by target file)";
 	   $HELP  .= "\n\t -u=9   Translate DB schema"; 
@@ -127,9 +127,6 @@ sub run_utility_process {
 
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
-
-	# Create the output directories
-	$loader_obj->create_output_directories($self);
 
 	# Load/create the screening database
 	my $db_name = $loader_obj->{db_name};

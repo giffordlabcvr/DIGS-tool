@@ -99,14 +99,19 @@ sub setup_screen  {
 	$self->set_target_groups(\%targets, \%target_groups);
 	$pipeline_obj->{target_groups} = \%target_groups; 
 
-	# Create the BLAST queries for this screen
-	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	# Show output about the number of oustanding targets and number of queries loaded
 	my @keys        = keys %targets;
 	my $unique      = scalar @keys;
-	
-	# Show output about the number of oustanding targets and number of queries loaded
 	print "\n\t  Targets:           $unique target files";
-	unless ($num_queries) { print "\n\n\t ### No outstanding searches were loaded\n"; }
+
+
+	# Create the BLAST queries for this screen
+	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	
+
+	unless ($num_queries) {
+		print "\n\n\t ### No outstanding queries were loaded\n";
+	}
 	else { print "\n\t  Searches to run    $num_queries\n"; }
 
 	return $num_queries;

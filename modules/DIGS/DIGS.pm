@@ -111,42 +111,46 @@ sub run_digs_process {
 
 	# Initialise
 	$self->show_title();  
-	$self->initialise($option, $ctl_file);
+	my $valid = $self->initialise($option, $ctl_file);
 
-	# Hand off to DIGS functions
-	if ($option eq 1) { 
+	if ($valid) {
+	
+		# Hand off to DIGS functions
+		if ($option eq 1) { 
 			
-		# Check the target sequences are formatted for BLAST
-		$self->prepare_target_files_for_blast();
-	}
-	elsif ($option eq 2) { 
+			# Check the target sequences are formatted for BLAST
+			$self->prepare_target_files_for_blast();
+		}
+		elsif ($option eq 2) { 
 	
-		# Run a DIGS process
-		$self->perform_digs();	
-	}
-	elsif ($option eq 3) { 
+			# Run a DIGS process
+			$self->perform_digs();	
+		}
+		elsif ($option eq 3) { 
 	
-		# Reassign data in digs_results table
-		$self->reassign();	
-	}
-	elsif ($option eq 4) {
-	
-		# Interactively defragment results 	
-		$self->interactive_defragment();	
-	}
-	elsif ($option eq 5) { 
-	
-		# Combine digs_results into higher order locus structures
-		$self->consolidate_loci();
-	}
-	else {
+			# Reassign data in digs_results table
+			$self->reassign();	
+		}
+		elsif ($option eq 4) {
 		
-		# Show error
-		print "\n\t  Unrecognized option '-m=$option'\n";
+			# Interactively defragment results 	
+			$self->interactive_defragment();	
+		}
+		elsif ($option eq 5) { 
+	
+			# Combine digs_results into higher order locus structures
+			$self->consolidate_loci();
+		}
+		else {
+					
+			# Show error
+			print "\n\t  Unrecognized option '-m=$option'\n";
+		}
 	}
 
 	# Show final summary and exit message
 	$self->wrap_up($option);
+
 }
 
 ############################################################################
@@ -891,7 +895,7 @@ sub wrap_up {
 		my $command1 = "rm -rf $output_dir";
 		system $command1;
 	}
-
+	
 	# Show cross matching at end if verbose output setting is on
 	my $verbose = $self->{verbose};
 	if ($verbose and $option eq 2 and $option eq 3) { 
@@ -1502,7 +1506,6 @@ sub defragment_target {
 	}
 	return $num_new;
 }
-
 
 ############################################################################
 # INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
@@ -2268,7 +2271,8 @@ sub initialise {
 	if ($option eq 2) { 
 	
 		# If we're doing a screen, set up for the screen 
-		$self->setup_for_digs();
+		my $valid = $self->setup_for_digs();
+		unless ($valid) { return 0; }
 		$self->{defragment_mode} = 'defragment';
 	}
 	
@@ -2309,13 +2313,13 @@ sub initialise {
 		$self->{target_groups} = \%target_groups; 
 	}
 
-	# DO SET-UP NEEDED FOR DEFRAGMENT
+	# DO SET-UP NEEDED FOR DEFRAGMENT ONLY
 	if ($option eq 4) { 
 		$self->{defragment_mode} = 'defragment';	
 		# Set up the reference library
 		$loader_obj->setup_reference_libraries($self);
 	}
-	# DO SET-UP NEEDED FOR CONSOLIDATE
+	# DO SET-UP NEEDED FOR CONSOLIDATE ONLY
 	elsif ($option eq 5) { 
 		$self->set_up_consolidate_tables();
 		$self->{defragment_mode} = 'consolidate';
@@ -2376,13 +2380,15 @@ sub setup_for_digs {
 	# Set up the DIGS screen
 	my $total_queries = $loader_obj->setup_screen($self, \%queries);
 	unless ($total_queries)  { 
-		print "\n\t  Exiting without screening.\n\n";	
-		exit;
+		print "\n\t  Exiting DIGS setup";	
+		return 0;;
 	}
 		
 	# Record queries 
 	$self->{queries}       = \%queries;
 	$self->{total_queries} = $total_queries;
+
+	return 1;
 }
 
 #***************************************************************************
