@@ -126,30 +126,37 @@ sub main {
 	# Set version
 	
 	# Options that require a file path
-	my $infile   = undef;
+	my $infile     = undef;
 	
 	# Options that require a numerical value
-	my $mode     = undef;
-	my $utility  = undef;
+	my $mode       = undef;
+	my $database   = undef;
+	my $utility    = undef;
+	my $genomes    = undef;
+	my $xdev       = undef;
 	
 	# Options that don't require a value
 	my $help       = undef;
 	my $extra_help = undef;
 	my $verbose    = undef;
 	my $force      = undef;
-	my $analysis   = undef;
 	my $test       = undef;
 	
 	# Read in options using GetOpt::Long
-	GetOptions ('mode|m=i'      => \$mode,
+	GetOptions ('infile|i=s'    => \$infile,
+	
+	            'mode|m=i'      => \$mode,
+			    'database=i'    => \$database,
 			    'utility=i'     => \$utility,
-			    'infile|i=s'    => \$infile,    
-			    'analysis|a=i'  => \$analysis,
+			    'genomes=i'     => \$genomes,
+			    'xdev=i'        => \$xdev,
+			      
 			    'help'          => \$help,
 			    'extra_help'    => \$extra_help,
 			    'verbose'       => \$verbose,
 			    'force'         => \$force,
 			    'test'          => \$test,
+			    
 	) or die $USAGE;
 
 
@@ -176,13 +183,13 @@ sub main {
 		exit;
 	}
 	elsif ($mode) { # Main DIGS tool functions 
-		$digs_tool_obj->run_digs_process($mode, $infile); 
+		$digs_tool_obj->run_digs_process($infile, $mode); 
 	}
-	elsif ($utility) { # Utility functions
+	elsif ($database or $utility or $genomes or $xdev) { # Utility functions
 		my $utility_obj = Utility->new($digs_tool_obj);
-		$utility_obj->run_utility_process($utility, $infile); 
+		$utility_obj->run_utility_process($infile, $database, $utility, $genomes, $xdev); 
 	}
-
+	
 	else { die $USAGE; }
 
 	# Exit script

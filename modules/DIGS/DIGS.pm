@@ -69,8 +69,8 @@ sub new {
 		# MySQL database connection parameters
 		mysql_username         => $parameter_ref->{mysql_username}, 
 		mysql_password         => $parameter_ref->{mysql_password},
-		db_name                => '',   # Obtained from control file
-		mysql_server           => '',   # Obtained from control file
+		db_name                => '',   # Obtained from control file or user
+		mysql_server           => '',   # Obtained from control file or user
 
 		# Parameters for DIGS
 		query_na_fasta         => '',   # Obtained from control file
@@ -107,7 +107,7 @@ sub new {
 #***************************************************************************
 sub run_digs_process {
 
-	my ($self, $option, $ctl_file) = @_;
+	my ($self, $ctl_file, $option) = @_;
 
 	# Initialise
 	$self->show_title();  
@@ -276,7 +276,7 @@ sub reassign {
 		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
 				
 			if ($verbose) {  # Report the outcome
-				print "\n\t\t      - row $record_id reassigned: was previously '$previous_assign ($previous_gene)'";
+				print "\n\t\t      - reassigned: was previously '$previous_assign ($previous_gene)'";
 			}
 			
 			# Update the matrix
@@ -707,7 +707,8 @@ sub classify_sequence_using_blast {
 		$locus_ref->{subject_end}    = $subject_end;
 		$locus_ref->{subject_start}  = $subject_start;
 		if ($verbose) { 
-			print "\n\t\t    - Classified as '$assigned_name ($assigned_gene)'";
+			my $id = $locus_ref->{record_id};
+			print "\n\t\t    - Record '$id' assigned as '$assigned_name ($assigned_gene)'";
 		 	print " via $blast_alg comparison to $lib_file";
 		 }
 		$assigned = $assigned_name . '_' . $assigned_gene;

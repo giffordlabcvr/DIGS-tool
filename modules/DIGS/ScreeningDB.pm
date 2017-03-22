@@ -88,7 +88,9 @@ sub load_screening_db {
 
 	my ($self, $db_name) = @_;
 	
-	unless ($db_name) { die "\n\t DB name is not defined\n\n\n"; }
+	unless ($db_name) { 
+		die "\n\t Undefined db_name in load_screening_db fxn\n\n\n";
+	}
 
 	# Get connection variables from self
 	my $server   = $self->{server};
@@ -113,6 +115,7 @@ sub load_screening_db {
 	$self->load_digs_results_table($dbh, 'digs_results');	
 	$self->load_blast_chains_table($dbh);	
 
+	
 }
 
 #***************************************************************************

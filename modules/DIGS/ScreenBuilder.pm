@@ -758,8 +758,6 @@ sub parse_screendb_block {
 	# Get the 'SCREENDB' block values and validate
 	my $db_name  = $self->{db_name};
 	my $server   = $self->{mysql_server};
-	#my $user     = $self->{mysql_username};
-	#my $password = $self->{mysql_password};
 
 	unless ($db_name)  {
 		die "\n\t Control file error: 'db_name' undefined in 'SCREENDB' block\n\n\n";
