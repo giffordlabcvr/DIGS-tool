@@ -109,19 +109,24 @@ sub run_digs_process {
 
 	my ($self, $ctl_file, $option) = @_;
 
-	# Initialise
 	$self->show_title();  
-	my $valid = $self->initialise($option, $ctl_file);
+
+	# Initialise
+	my $valid = undef;
+	if ($ctl_file) {	
+		$valid = $self->initialise($option, $ctl_file);
+	}
+
+	# Hand off to DIGS functions
+	if ($option eq 1) { 
+		
+		# Check the target sequences are formatted for BLAST
+		$self->prepare_target_files_for_blast();
+	}
 
 	if ($valid) {
 	
-		# Hand off to DIGS functions
-		if ($option eq 1) { 
-			
-			# Check the target sequences are formatted for BLAST
-			$self->prepare_target_files_for_blast();
-		}
-		elsif ($option eq 2) { 
+		if ($option eq 2) { 
 	
 			# Run a DIGS process
 			$self->perform_digs();	
@@ -596,7 +601,6 @@ sub classify_sequences_using_blast {
 
 	my ($self, $extracted_ref, $query_ref) = @_;
 
-	#$devtools->print_array($extracted_ref); die;
 	my $verbose = $self->{verbose};
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
@@ -612,7 +616,7 @@ sub classify_sequences_using_blast {
 		# Get the unique key for this probe
 		my $probe_name  = $query_ref->{probe_name};
 		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key = $probe_name . '_' . $probe_gene; 		
+		my $probe_key   = $probe_name . '_' . $probe_gene; 		
 
 		# Record cross-matching
 		if ($probe_key ne $assigned) {

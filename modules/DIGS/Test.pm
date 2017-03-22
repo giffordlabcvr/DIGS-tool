@@ -37,7 +37,6 @@ my $server   = 'localhost';
 my $user     = ($ENV{DIGS_MYSQL_USER});
 my $password = ($ENV{DIGS_MYSQL_PASSWORD}); 
 
-
 1;
 
 ############################################################################

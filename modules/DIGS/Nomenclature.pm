@@ -4,7 +4,7 @@
 # Description: Nomenclature functions in the DIGS tool
 # History:     December  2017: Created by Robert Gifford 
 ############################################################################
-package Test;
+package Nomenclature;
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -34,8 +34,6 @@ my $devtools  = DevTools->new();
 
 # DIGS test database connection globals
 my $server   = 'localhost';
-my $user     = 'root';
-my $password = 'blenat2';
 1;
 
 ############################################################################
@@ -67,7 +65,6 @@ sub new {
 	return $self;
 }
 
-
 ############################################################################
 # INTERNAL FUNCTIONS: nomenclature
 ############################################################################
@@ -80,52 +77,23 @@ sub create_standard_locus_ids {
 
 	my ($self, $infile) = @_;
 
-	# Create nomenclature tables if they don't exist already
+ 	# Show title
 	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_track_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
+	$digs_obj->show_title();  
+	$digs_obj->{defragment_mode} = 'consolidate';
 
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);
-	my $tracks_table = $db_ref->{nomenclature_tracks_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	unless ($nom_table and $tracks_table and $chains_table) { die; }
-
-	# Check whether to flush the table
-	my $question = "\n\n\t  Flush the tables before uploading tracks?";
-	my $flush = $console->ask_yes_no_question($question);
-	if ($flush eq 'y') { 
-		$tracks_table->flush();
-		$chains_table->flush();
-		$nom_table->flush();
-	}
+	# Set up for this process
+	$self->initialise_nomenclature_process($infile);
 
 	# Load tracks into table in a DIGS locus format
 	$self->load_nomenclature_tracks();
-
+	
 	# Cluster tracks
 	$self->create_nomenclature_track();
 
 	# Apply standard names to locus clusters
-	my $organism_code = $self->{organism_code};
-	my $locus_class   = $self->{locus_class};
-	unless ($organism_code and $locus_class) { die; } # Sanity checking
-	$self->apply_standard_names_to_clusters($locus_class, $organism_code);
+	$self->{translation_path} = '../local/human/translations.txt';
+	$self->apply_standard_names_to_clusters();
 
 }
 
@@ -152,7 +120,7 @@ sub create_nomenclature_track {
 	my %clusters;
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->compose_clusters(\%clusters, \@sorted, \%settings);
-	$devtools->print_hash(\%clusters); die;
+	#$devtools->print_hash(\%clusters); die;
 
 	# Cluster IDs
 	my @cluster_ids  = keys %clusters;
@@ -200,12 +168,20 @@ sub create_nomenclature_track {
 #***************************************************************************
 sub apply_standard_names_to_clusters {
 
-	my ($self, $locus_class, $organism_code) = @_;
+	my ($self) = @_;
 
-	my $db_ref        = $self->{db};
+	my $digs_obj      = $self->{digs_obj};
+	my $db_ref        = $digs_obj->{db};
 	my $chains_table  = $db_ref->{nomenclature_chains_table};
 	my $nom_table     = $db_ref->{nomenclature_table};
 	unless ($nom_table and $chains_table) { die; }
+
+	#my $organism_code = $self->{organism_code};
+	#my $locus_class   = $self->{locus_class};
+	my $organism_code = 'HoSa';
+	my $locus_class   = 'ERV';
+	unless ($organism_code and $locus_class) { die; } # Sanity checking
+
 
 	# Load translations
 	my %translations;
@@ -379,7 +355,10 @@ sub load_translations {
 		foreach my $value (@line) {
 			$j++;
 			my $level = $levels{$j};
-			unless ($level) { die; }		
+			unless ($level) { 
+				$level = 'wtf';
+				#die; 
+			}		
 			$taxonomy{$level} = $value;			
 		}
 		my $id = shift @line;
@@ -396,18 +375,29 @@ sub load_nomenclature_tracks {
 	my ($self) = @_;
 	
 	# Load nomenclature table
-	my $db_ref = $self->{db};
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+
 	my $nom_table = $db_ref->{nomenclature_tracks_table};
 	unless ($nom_table) { die; }
 
 	# Read tracks from file path
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
+	unless ($infile) { die; }
 	my @new_track;
-	my $new_track_path = $self->{new_track_path};
-	unless ($new_track_path) { die; }
-	$fileio->read_file($new_track_path, \@new_track);
-	
+	$fileio->read_file($infile, \@new_track);
+
+
 	# Load tracks into table
+	my $line_number = 0;
 	foreach my $line (@new_track) {
+
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
 	
 		#print $line;
 		chomp $line;
@@ -449,6 +439,7 @@ sub load_nomenclature_tracks {
 		$nom_table->insert_row(\%data);	
 
 	}
+
 }
 
 #***************************************************************************
@@ -501,6 +492,91 @@ sub show_translations {
 		}
 	}
 }
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_process
+# Description:  
+#***************************************************************************
+sub initialise_nomenclature_process {
+
+	my ($self, $infile) = @_;
+
+	# Parse control file and connect to DB
+	unless($infile) {
+		die "\n\t This option requires an infile\n\n";
+	}
+
+	# Parse control file and connect to DB
+	$self->parse_ctl_file_and_connect_to_db($infile);
+
+	# Create nomenclature tables if they don't exist already
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	unless ($nom_tracks_exists) {
+		$db_ref->create_nomenclature_tracks_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_tracks_table($dbh);
+	$db_ref->load_nomenclature_chains_table($dbh);
+	$db_ref->load_nomenclature_table($dbh);
+	
+	my $tracks_table = $db_ref->{nomenclature_tracks_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	unless ($nom_table and $tracks_table and $chains_table) { die; }
+
+	# Check whether to flush the table
+	my $question = "\n\n\t  Flush the tables before uploading tracks?";
+	my $flush = $console->ask_yes_no_question($question);
+	if ($flush eq 'y') { 
+		$tracks_table->flush();
+		$chains_table->flush();
+		$nom_table->flush();
+	}
+}
+
+#***************************************************************************
+# Subroutine:  parse_ctl_file_and_connect_to_db
+# Description: connect to a DIGS screening DB by parsing a DIGS control file
+#***************************************************************************
+sub parse_ctl_file_and_connect_to_db {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+	
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($infile, $digs_obj);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+}
+
 
 ############################################################################
 # EOF

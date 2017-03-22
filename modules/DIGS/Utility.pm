@@ -87,24 +87,24 @@ sub show_utility_help_page {
     my $HELP   = "\n\t ### DIGS version $program_version - utility functions help menu\n";
 
        $HELP  .= "\n\t ### Managing DIGS screening DBs"; 
-	   $HELP  .= "\n\t -d=1   Create ancillary tables in a DIGS screening DB"; 
+	   $HELP  .= "\n\t -d=1   Manage ancillary tables in a DIGS screening DB"; 
 	   $HELP  .= "\n\t -d=2   Flush core tables in a DIGS screening DB"; 
-	   $HELP  .= "\n\t -d=3   Drop a DIGS screening DB\n"; 
+	   $HELP  .= "\n\t -d=3   Drop a DIGS screening DB"; 
+	   $HELP  .= "\n\t -d=4   Extract data\n";
+	   #$HELP  .= "\n\t -d=2   Upload data to the digs_results table";
 
-       $HELP  .= "\n\t ### Working with DIGS data"; 	   
-	   $HELP  .= "\n\t -u=1   Upload data";
-	   $HELP  .= "\n\t -u=2   Create standard locus IDs"; 
-	   $HELP  .= "\n\t -u=3   Extract sequences using track\n";
+       $HELP  .= "\n\t ### Creating standard locus nomenclature"; 	   
+	   $HELP  .= "\n\t -n=1   Create standard locus IDs\n"; 
 
        $HELP  .= "\n\t ### Summarizing target databases"; 	   
 	   $HELP  .= "\n\t -g=1   Summarise targets (brief summary, by species)";
 	   $HELP  .= "\n\t -g=2   Summarise targets (long, by individual target file)\n";
 
        $HELP  .= "\n\t ### Development and validation tools"; 	   
-	   $HELP  .= "\n\t -x=1   Translate DB schema"; 
-	   $HELP  .= "\n\t -x=2   Show BLAST chains (details of hits that have been merged)"; 
-	   $HELP  .= "\n\t -x=3   Show locus chains (details of digs_results that have been merged)"; 
-	   $HELP  .= "\n\t -x=4   Show nomenclature chains (details of annotations that have been merged)\n"; 
+	   $HELP  .= "\n\t -u=1   Translate DB schema"; 
+	   $HELP  .= "\n\t -u=2   Show BLAST chains (details of hits that have been merged)"; 
+	   $HELP  .= "\n\t -u=3   Show locus chains (details of digs_results that have been merged)"; 
+	   $HELP  .= "\n\t -u=4   Show nomenclature chains (details of annotations that have been merged)\n"; 
 
 	   $HELP  .= "\n\n"; 
 
@@ -117,7 +117,7 @@ sub show_utility_help_page {
 #***************************************************************************
 sub run_utility_process {
 
-	my ($self, $infile, $database, $utility, $genomes, $xdev) = @_;
+	my ($self, $infile, $database, $genomes, $utility) = @_;
 
  	# Show title
 	my $digs_obj = $self->{digs_obj};
@@ -127,7 +127,7 @@ sub run_utility_process {
 		$self->run_target_utility_process($genomes);		
 	}
 	elsif ($utility) {
-		$self->run_data_utility_process($utility);	
+		$self->run_data_utility_process($utility, $infile);	
 	}
 	else {
 
@@ -141,8 +141,8 @@ sub run_utility_process {
 		if ($database) {
 			$self->run_screening_db_utility_process($database);
 		}
-		elsif ($xdev) {
-			$self->run_dev_validation_process($xdev);		
+		elsif ($utility) {
+			$self->run_dev_validation_process($utility);		
 		}
 	}
 }
@@ -193,8 +193,6 @@ sub do_load_db_dialogue {
 	my $db_name = $console->ask_question($question);
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
 	$digs_obj->{mysql_server}   = 'localhost';
-	#$digs_obj->{mysql_username} = ($ENV{DIGS_MYSQL_USER}); 
-	#$digs_obj->{mysql_password} = ($ENV{DIGS_MYSQL_PASSWORD}); 
 
 	# Create the screening DB object
 	my $db_obj = ScreeningDB->new($digs_obj);
@@ -219,12 +217,12 @@ sub do_load_db_dialogue {
 #***************************************************************************
 sub run_screening_db_utility_process {
 
-	my ($self, $option) = @_;
+	my ($self, $option, $ctl_file) = @_;
 
 	my $digs_obj = $self->{digs_obj};
 
 	# Hand off to functions 
-	if ($option eq 1) { # Add a table of data to the screening database
+	if ($option eq 1) { # Manage ancillary tables in a screening DB
 		$self->extend_screening_db();
 	}
 	elsif ($option eq 2) { # Flush screening DB
@@ -238,37 +236,19 @@ sub run_screening_db_utility_process {
 		my $db = $digs_obj->{db};
 		$db->drop_screening_db();    
 	}
+	elsif ($option eq 4) {
+		$self->extract_track_sequences($ctl_file);
+	}
+	if ($option eq 5) { # Add data to the digs_results table
+		die;
+		# TODO - create console dialogue
+		$self->upload_data_to_digs_results_table();
+	}
 	else {
 		print "\n\t  Unrecognized option '-d=$option'\n";
 	}
 }
 	
-#***************************************************************************
-# Subroutine:  run_data_utility_process
-# Description: top-level handler for DIGS data utility functions 
-#***************************************************************************
-sub run_data_utility_process {
-
-	my ($self, $option) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	if ($option eq 1) { # Standardised locus naming
-		die;
-		$self->upload_data_to_digs_results_table();
-	}
-	elsif ($option eq 2) { # Standardised locus naming
-		die;
-		$self->create_standard_locus_ids();
-	}
-	elsif ($option eq 3) {
-		$self->extract_track_sequences();
-	}
-	else {
-		print "\n\t  Unrecognized option '-u=$option'\n";
-	}
-}
-
 #***************************************************************************
 # Subroutine:  run_target_utility_process
 # Description: top-level handler for functions summarising target databases
