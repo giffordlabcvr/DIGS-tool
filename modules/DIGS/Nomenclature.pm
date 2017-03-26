@@ -31,9 +31,6 @@ use DIGS::ScreenBuilder; # Functions to set up screen
 my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
-
-# DIGS test database connection globals
-my $server   = 'localhost';
 1;
 
 ############################################################################
@@ -66,7 +63,7 @@ sub new {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: nomenclature
+# TOP LEVEL FUNCTION
 ############################################################################
 
 #***************************************************************************
@@ -80,38 +77,67 @@ sub create_standard_locus_ids {
  	# Show title
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->show_title();  
-	$digs_obj->{defragment_mode} = 'consolidate';
 
 	# Set up for this process
 	$self->initialise_nomenclature_process($infile);
 
-	# Load tracks into table in a DIGS locus format
-	$self->load_nomenclature_tracks();
+	# Get sorted tracks from nomenclature table
+	$self->get_sorted_nomenclature_tracks();
 	
-	# Cluster tracks
-	$self->create_nomenclature_track();
+	# Get the locus data and created clustered annotations
+	$self->cluster_annotations();
 
 	# Apply standard names to locus clusters
-	$self->{translation_path} = '../local/human/translations.txt';
 	$self->apply_standard_names_to_clusters();
 
 }
 
+############################################################################
+# INTERNAL FUNCTIONS
+############################################################################
+
 #***************************************************************************
-# Subroutine:  create_nomenclature_track
+# Subroutine:  get_sorted_nomenclature_tracks
+# Description: get nomenclature set rows, sorted by scaffold, in order of location
+#***************************************************************************
+sub get_sorted_nomenclature_tracks {
+
+	my ($self) = @_;;
+
+	# Set SQL 'where' clause to sort the rows
+	my $where  = " ORDER BY scaffold, extract_start ";
+
+	# Get database tables
+	my $digs_obj = $self->{digs_obj};
+	my $db = $digs_obj->{db};
+	my $nomenclature_table = $db->{nomenclature_tracks_table};
+	unless ($nomenclature_table) {  
+		$devtools->print_hash($db); die; 
+	}
+		
+	# Set the fields to get values for
+	my @sorted;
+	my @fields = qw [ record_id track_name
+	                  assigned_name assigned_gene
+	                  scaffold orientation namespace_id
+                      extract_start extract_end sequence_length ];
+	$nomenclature_table->select_rows(\@fields, \@sorted, $where);
+
+	my $total_loci = scalar @sorted;
+	print "\n\n\t # $total_loci rows in the nomenclature table";
+	#$devtools->print_array(\@sorted); die;
+	$self->{sorted_loci} = \@sorted;
+	
+}
+
+#***************************************************************************
+# Subroutine:  cluster_annotations
 # Description: cluster nomenclature tracks
 #***************************************************************************
-sub create_nomenclature_track {
+sub cluster_annotations {
 
 	my ($self) = @_;
 	
-	# Get sorted tracks from nomenclature table
-	my @sorted;
-	$self->get_sorted_nomenclature_tracks(\@sorted);
-	#$devtools->print_array(\@sorted); die;
-	my $total_loci = scalar @sorted;
-	print "\n\n\t # $total_loci rows in the nomenclature table";
-
 	# Compose clusters of related sequences
 	my %settings;
 	$settings{range} = '0';
@@ -119,7 +145,8 @@ sub create_nomenclature_track {
 	$settings{end}   = 'extract_end';
 	my %clusters;
 	my $digs_obj = $self->{digs_obj};
-	$digs_obj->compose_clusters(\%clusters, \@sorted, \%settings);
+	my $sorted_ref = $self->{sorted_loci};
+	$digs_obj->compose_clusters(\%clusters, $sorted_ref, \%settings);
 	#$devtools->print_hash(\%clusters); die;
 
 	# Cluster IDs
@@ -127,39 +154,7 @@ sub create_nomenclature_track {
 	my $num_clusters = scalar @cluster_ids;
 	print "\n\t # $num_clusters locus groups in total";
 	$self->{nomenclature_clusters} = \%clusters;	
-
-	# Set the organism and version fields (a convenience), & configure namespace
-	my %namespace;
-	my $organism       = $self->{nomenclature_organism};
-	my $target_version = $self->{nomenclature_version};
-	foreach my $cluster_id (@cluster_ids) {
-		
-		my $cluster_ref = $clusters{$cluster_id};
-		#$devtools->print_array($cluster_ref); exit;
-		foreach my $locus_ref (@$cluster_ref) {		
-			
-			# Set organism and target version
-			$locus_ref->{organism}       = $organism;
-			$locus_ref->{target_version} = $target_version;			
-
-			# Check namespace
-			my $assigned_name = $locus_ref->{assigned_name};
-			my $namespace_id  = $locus_ref->{namespace_id};
-			if ($namespace_id ne 'NULL') {
-				
-				if ($namespace{$assigned_name}) {			
-					my $taxon_namespace_ref = $namespace{$assigned_name};
-					$taxon_namespace_ref->{$namespace_id} = 1;
-				}
-				else{
-					my %taxon_namespace;
-					$taxon_namespace{$namespace_id} = 1;
-					$namespace{$assigned_name} = \%taxon_namespace;
-				}				
-			}
-		}
-	}
-	$self->{namespace} = \%namespace;
+	
 }
 
 #***************************************************************************
@@ -176,16 +171,12 @@ sub apply_standard_names_to_clusters {
 	my $nom_table     = $db_ref->{nomenclature_table};
 	unless ($nom_table and $chains_table) { die; }
 
-	#my $organism_code = $self->{organism_code};
-	#my $locus_class   = $self->{locus_class};
-	my $organism_code = 'HoSa';
-	my $locus_class   = 'ERV';
+	my $organism_code = $self->{organism_code};
+	my $locus_class   = $self->{locus_class};
 	unless ($organism_code and $locus_class) { die; } # Sanity checking
 
-
-	# Load translations
-	my %translations;
-	$self->load_translations(\%translations);
+	# Configure namespace and preprocess
+	$self->configure_namespace();
 
 	# Iterate through the clusters
 	my %counter;
@@ -235,6 +226,7 @@ sub apply_standard_names_to_clusters {
 				$highest = $end;
 			}
 			
+			
 			$taxname_final = $taxname;
 			$scaffold_final = $scaffold;
 			$orientation_final = $orientation;
@@ -275,6 +267,18 @@ sub apply_standard_names_to_clusters {
 			$chains_table->insert_row(\%data);
 		}
 	}	
+}
+
+#***************************************************************************
+# Subroutine:  translate_taxaname
+# Description: 
+#***************************************************************************
+sub translate_taxaname {
+
+	my ($self, $original_name) = @_;
+
+	my $translated_name;	
+	return $translated_name;
 }
 
 #***************************************************************************
@@ -323,47 +327,176 @@ sub create_numeric_id {
 }
 
 #***************************************************************************
-# Subroutine:  load_translations
-# Description: load translation tables
+# Subroutine:  configure_namespace
+# Description: configure the namespace for named loci  (also preprocess for locus assign)
 #***************************************************************************
-sub load_translations {
+sub configure_namespace {
 
-	my ($self, $translations_ref) = @_;
+	my ($self) = @_;
 
-	# Read translation from file
-	my $translations_path = $self->{translation_path};
-	unless ($translations_path) { die; }
-	my @file;
-	$fileio->read_file($translations_path, \@file);
-	my $header = shift @file;
-	chomp $header;
-	my @header = split("\t", $header); 
-	my %levels;
-	my $i = 0;
-	foreach my $element (@header) {
-		$i++;
-		$levels{$i} = $element;
-	}
+	# Set the organism and version fields (a convenience), & configure namespace
+	my $clusters_ref = $self->{nomenclature_clusters};	
+	my @cluster_ids  = keys %$clusters_ref;
 
-	# Set up the translations
-	foreach my $line (@file) {
+	my $organism       = $self->{nomenclature_organism};
+	my $target_version = $self->{nomenclature_version};
+	my %namespace;
+	foreach my $cluster_id (@cluster_ids) {
+		
+		my $cluster_ref = $clusters_ref->{$cluster_id};
+		#$devtools->print_array($cluster_ref); exit;
+		foreach my $locus_ref (@$cluster_ref) {		
+			
+			# Set organism and target version
+			$locus_ref->{organism}       = $organism;
+			$locus_ref->{target_version} = $target_version;			
 
-		chomp $line;
-		my @line  = split("\t", $line);
-		my $j = 0;
-		my %taxonomy;
-		foreach my $value (@line) {
-			$j++;
-			my $level = $levels{$j};
-			unless ($level) { 
-				$level = 'wtf';
-				#die; 
-			}		
-			$taxonomy{$level} = $value;			
+			# Check namespace
+			my $assigned_name = $locus_ref->{assigned_name};
+			my $namespace_id  = $locus_ref->{namespace_id};
+			if ($namespace_id ne 'NULL') {
+				
+				if ($namespace{$assigned_name}) {			
+					my $taxon_namespace_ref = $namespace{$assigned_name};
+					$taxon_namespace_ref->{$namespace_id} = 1;
+				}
+				else{
+					my %taxon_namespace;
+					$taxon_namespace{$namespace_id} = 1;
+					$namespace{$assigned_name} = \%taxon_namespace;
+				}				
+			}
 		}
-		my $id = shift @line;
-		$translations_ref->{$id} = \%taxonomy;		
 	}
+	$self->{namespace} = \%namespace;
+}
+
+############################################################################
+# INITIALISE
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_process
+# Description:  
+#***************************************************************************
+sub initialise_nomenclature_process {
+
+	my ($self, $infile) = @_;
+
+	# Initialise database
+	$self->initialise_nomenclature_db($infile);
+	$self->do_flush_tables_dialogue();
+
+	# Set the 'defragment_mode' (determines rules for clustering loci)
+	my $digs_obj = $self->{digs_obj};
+	$digs_obj->{defragment_mode} = 'consolidate';
+	
+	# Set the rules for using translation tables (options)
+	$self->{translation_path}    = '../local/human/translations.txt';
+	$self->load_translation_tables();
+	
+	# Get the locus class
+	my $question2 = "\n\t  What locus class name to use?";
+	#my $locus_class = $console->ask_yes_no_question($question2);	
+	#$self->{locus_class} = $locus_class;
+	$self->{locus_class} = 'ERV';
+	
+	# Get the organism ID
+	my $question1 = "\n\t  What is the organism code to use?";
+	#my $organism_code = $console->ask_yes_no_question($question1);	
+	#$self->{organism_code} = $organism_code;
+	$self->{organism_code} = 'HoSa';
+
+}
+
+#***************************************************************************
+# Subroutine:  load_translation_tables
+# Description: 
+#***************************************************************************
+sub load_translation_tables {
+
+	my ($self) = @_;
+
+	# Option to load a taxon translation table
+	print "\n\n\t #### TRANSLATION TABLES";
+	print "\n\n\t #### This allows names & clustering to be based on different taxonomic levels/gene names)";
+
+	my $question2 = "\n\t  Load a translation table?";
+	my $translate = $console->ask_yes_no_question($question2);
+	if ($translate eq 'y') {	# Load translations
+		my %translations;
+		$self->load_translations(\%translations);
+		$self->{translations} = \%translations;
+	}
+
+	# Option to load a gene look-up table (resolve to equivalents)
+	# TODO
+}
+
+#***************************************************************************
+# Subroutine:  do_flush_tables_dialogue
+# Description: 
+#***************************************************************************
+sub do_flush_tables_dialogue {
+
+	my ($self) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+
+	# Check whether to flush the table
+	my $tracks_table = $db_ref->{nomenclature_tracks_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	unless ($nom_table and $tracks_table and $chains_table) { die; }
+	my $question1 = "\n\n\t  Flush the tables before uploading tracks?";
+	my $flush = $console->ask_yes_no_question($question1);
+	if ($flush eq 'y') { 
+		$tracks_table->flush();
+		$chains_table->flush();
+		$nom_table->flush();
+	}	
+}
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_db
+# Description: 
+#***************************************************************************
+sub initialise_nomenclature_db {
+
+	my ($self, $infile) = @_;
+	
+	# Parse control file and connect to DB
+	unless($infile) {
+		die "\n\t This option requires an infile\n\n";
+	}
+
+	# Parse control file and connect to DB
+	$self->parse_ctl_file_and_connect_to_db($infile);
+
+	# Create nomenclature tables if they don't exist already
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	unless ($nom_tracks_exists) {
+		$db_ref->create_nomenclature_tracks_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_tracks_table($dbh);
+	$db_ref->load_nomenclature_chains_table($dbh);
+	$db_ref->load_nomenclature_table($dbh);
+	
 }
 
 #***************************************************************************
@@ -443,106 +576,46 @@ sub load_nomenclature_tracks {
 }
 
 #***************************************************************************
-# Subroutine:  get_sorted_nomenclature_tracks
-# Description: get nomenclature set rows, sorted by scaffold, in order of location
+# Subroutine:  load_translations
+# Description: load translation tables
 #***************************************************************************
-sub get_sorted_nomenclature_tracks {
-
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set SQL 'where' clause to sort the rows
-	my $sort  = " ORDER BY scaffold, extract_start ";
-	if ($where) { $where .= $sort; }
-	else        { $where  = $sort; }
-
-	# Get database tables
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};
-	my $nomenclature_table = $db->{nomenclature_tracks_table};
-	unless ($nomenclature_table) {  
-		$devtools->print_hash($db); die; 
-	}
-		
-	# Set the fields to get values for
-	my @fields = qw [ record_id track_name
-	                  assigned_name assigned_gene
-	                  scaffold orientation namespace_id
-                      extract_start extract_end sequence_length ];
-	$nomenclature_table->select_rows(\@fields, $data_ref, $where);
-}
-
-#***************************************************************************
-# Subroutine:  show_translations
-# Description:  
-#***************************************************************************
-sub show_translations {
+sub load_translations {
 
 	my ($self, $translations_ref) = @_;
 
-	# Validate
-	#show_translations(\%taxonomy); #die;
-		
-	my @keys = keys %$translations_ref;
-	foreach my $key (@keys) {
-		my $data_ref = $translations_ref->{$key};
-		my @keys2 = keys %$data_ref;
-		foreach my $key2 (@keys2) {
-			my $value = $data_ref->{$key2};
-			print "\n\t $key	$key2	$value";
+	# Read translation from file
+	my $translations_path = $self->{translation_path};
+	unless ($translations_path) { die; }
+	my @file;
+	$fileio->read_file($translations_path, \@file);
+	my $header = shift @file;
+	chomp $header;
+	my @header = split("\t", $header); 
+	my %levels;
+	my $i = 0;
+	foreach my $element (@header) {
+		$i++;
+		$levels{$i} = $element;
+	}
+
+	# Set up the translations
+	foreach my $line (@file) {
+
+		chomp $line;
+		my @line  = split("\t", $line);
+		my $j = 0;
+		my %taxonomy;
+		foreach my $value (@line) {
+			$j++;
+			my $level = $levels{$j};
+			unless ($level) { 
+				$level = 'wtf';
+				#die; 
+			}		
+			$taxonomy{$level} = $value;			
 		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  initialise_nomenclature_process
-# Description:  
-#***************************************************************************
-sub initialise_nomenclature_process {
-
-	my ($self, $infile) = @_;
-
-	# Parse control file and connect to DB
-	unless($infile) {
-		die "\n\t This option requires an infile\n\n";
-	}
-
-	# Parse control file and connect to DB
-	$self->parse_ctl_file_and_connect_to_db($infile);
-
-	# Create nomenclature tables if they don't exist already
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_tracks_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
-
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);
-	
-	my $tracks_table = $db_ref->{nomenclature_tracks_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	unless ($nom_table and $tracks_table and $chains_table) { die; }
-
-	# Check whether to flush the table
-	my $question = "\n\n\t  Flush the tables before uploading tracks?";
-	my $flush = $console->ask_yes_no_question($question);
-	if ($flush eq 'y') { 
-		$tracks_table->flush();
-		$chains_table->flush();
-		$nom_table->flush();
+		my $id = shift @line;
+		$translations_ref->{$id} = \%taxonomy;		
 	}
 }
 
@@ -577,6 +650,31 @@ sub parse_ctl_file_and_connect_to_db {
 	$digs_obj->initialise_screening_db($db_name);
 }
 
+############################################################################
+# UTILITY / DEV
+############################################################################
+
+#***************************************************************************
+# Subroutine:  show_translations
+# Description:  
+#***************************************************************************
+sub show_translations {
+
+	my ($self, $translations_ref) = @_;
+
+	# Validate
+	#show_translations(\%taxonomy); #die;
+		
+	my @keys = keys %$translations_ref;
+	foreach my $key (@keys) {
+		my $data_ref = $translations_ref->{$key};
+		my @keys2 = keys %$data_ref;
+		foreach my $key2 (@keys2) {
+			my $value = $data_ref->{$key2};
+			print "\n\t $key	$key2	$value";
+		}
+	}
+}
 
 ############################################################################
 # EOF
