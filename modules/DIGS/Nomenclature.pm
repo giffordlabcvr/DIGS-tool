@@ -386,6 +386,8 @@ sub initialise_nomenclature_process {
 	# Initialise database
 	$self->initialise_nomenclature_db($infile);
 	$self->do_flush_tables_dialogue();
+	$self->load_nomenclature_tracks();
+	
 
 	# Set the 'defragment_mode' (determines rules for clustering loci)
 	my $digs_obj = $self->{digs_obj};
