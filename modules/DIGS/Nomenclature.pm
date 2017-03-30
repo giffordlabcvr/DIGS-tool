@@ -423,10 +423,10 @@ sub load_taxonomy_tables {
 
 	# Option to load a taxon translation table
 	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t #### TRANSLATION TABLES";
-	my $question1 = "\n\t  Load a translation table from file?";
+	print "\n\n\t #### TAXONOMY TRANSLATION TABLES";
+	my $question1 = "\n\t  Load a taxonomy table from file?";
 	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {	# Load translations
+	if ($load_from_file eq 'y') {
 		my %translations;
 		$self->load_translations_from_file(\%translations);
 		$self->{translations} = \%translations;
@@ -434,14 +434,42 @@ sub load_taxonomy_tables {
 	else {
 		my $question2 = "\n\t  Use a table in the screening database?";
 		my $load_from_db_table = $console->ask_yes_no_question($question2);
-		if ($load_from_db_table eq 'y') {	# Load translations
+		if ($load_from_db_table eq 'y') {
 			my %translations;
 			$self->load_translations_from_table(\%translations);
 			$self->{translations} = \%translations;
 		}
 	}
+}
+
+#***************************************************************************
+# Subroutine:  load_gene_name_translation_tables
+# Description: load a table that captures alternative names of homologous genes
+#***************************************************************************
+sub load_gene_name_translation_tables {
+
+	my ($self) = @_;
+
 	# Option to load a gene look-up table (resolve to equivalents)
 	# TODO
+	print "\n\n\t #### GENE NAME TRANSLATION TABLES";
+	my $question1 = "\n\t  Load a gene name translation table from file?";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {	
+		my %gene_names;
+		die;
+		#$self->load_translations_from_file(\%translations);
+		#$self->{gene_names} = \%gene_names;
+	}
+	else {
+		my $question2 = "\n\t  Use a gene name translation table in the screening database?";
+		my $load_from_db_table = $console->ask_yes_no_question($question2);
+		if ($load_from_db_table eq 'y') {	
+			my %gene_names;
+			$self->load_translations_from_table(\%translations);
+			$self->{gene_names} = \%gene_names;
+		}
+	}
 }
 
 #***************************************************************************
