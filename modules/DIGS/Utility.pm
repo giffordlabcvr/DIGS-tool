@@ -495,7 +495,7 @@ sub extend_screening_db {
 	my $answer   = $console->ask_simple_choice_question($question, \@choices);
 
 	# Create new table
-	if ($answer == '1') {	
+	if ($answer eq '1') {	
 		my $table_name_question = "\n\t What is the name of the new table?";
 		$table_name = $console->ask_question($table_name_question);
 	}

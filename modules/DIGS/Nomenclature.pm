@@ -90,7 +90,7 @@ sub create_standard_locus_ids {
 }
 
 ############################################################################
-# INITIALISATION: top level handler
+# INITIALISATION: top level handlers
 ############################################################################
 
 #***************************************************************************
@@ -101,24 +101,49 @@ sub initialise_nomenclature_process {
 
 	my ($self, $infile) = @_;
 
-	# Initialise database
-	$self->initialise_nomenclature_db($infile);
-	$self->do_flush_tables_dialogue();
-	$self->load_nomenclature_tracks();
-	
 	# Set the 'defragment_mode' (determines rules for clustering loci)
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->{defragment_mode} = 'consolidate';
 	
-	# Set the rules for using translation tables (options)
-	$self->{translation_path}    = '../local/human/translations.txt';
-	$self->load_translation_tables();
-	
+	# Initialise database
+	$self->initialise_nomenclature_db($infile);
+
+	# Do console dialogue to get input parameters
+	$self->do_console_setup_dialogue();
+
+}
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_process
+# Description: set up the program to execute the ID allocation process 
+#***************************************************************************
+sub do_console_setup_dialogue {
+
+	my ($self) = @_;
+
+	print "\n\n\t  #≈#~# SETUP: overview\n";
+	print "\n\t  # Please define the following:";
+	print "\n\t  # ";
+	print "\n\t  #   1.   Locus class (e.g. ERV)";
+	print "\n\t  #   2.   A source of tracks (required)";
+	print "\n\t  #   3.   A taxonomy translation table for the locus class (optional)";
+	print "\n\t  #   4.   An alternative name translation table for gene names (optional)";
+	print "\n\t  #   5.   An organism ID, or organism name=>ID translation table";
+
 	# Get the locus class
+	print "\n\n\t  #≈#~# SET LOCUS CLASS\n";
 	my $question2 = "\n\t  What locus class name to use?";
-	#my $locus_class = $console->ask_yes_no_question($question2);	
+	my $locus_class = $console->ask_question($question2);	
 	#$self->{locus_class} = $locus_class;
-	$self->{locus_class} = 'ERV';
+	$self->{locus_class} = 'ERV';	
+
+	# Nomenclature tracks
+	$self->load_nomenclature_tracks();
+	
+	# Set the rules for using translation tables (options)
+	$self->load_taxonomy_tables();
+
+	# Set the rules for handling gene names (options)
 	
 	# Get the organism ID
 	my $question1 = "\n\t  What is the organism code to use?";
@@ -203,7 +228,7 @@ sub parse_ctl_file_and_connect_to_db {
 
 #***************************************************************************
 # Subroutine:  do_flush_tables_dialogue
-# Description: 
+# Description: ask user whether or not to flush the core nomenclature tables
 #***************************************************************************
 sub do_flush_tables_dialogue {
 
@@ -241,13 +266,14 @@ sub load_nomenclature_tracks {
 
 	# Option to load a taxon translation table
 	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t #### SOURCE OF ANNOTATION TRACKS ";
+	print "\n\n\t  #≈#~# SET SOURCE OF ANNOTATION TRACKS\n";
 	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
-	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {
+	my @choices = qw [ f t ];
+	my $load_from_file = $console->ask_simple_choice_question($question1, \@choices);
+	if ($load_from_file eq 'f') {
 		$self->load_nomenclature_tracks_from_file();
 	}
-	else {
+	elsif ($load_from_file eq 't') {
 
 	}
 }
@@ -263,6 +289,8 @@ sub load_nomenclature_tracks_from_file {
 	# Load nomenclature table
 	my $digs_obj = $self->{digs_obj};
 	my $db_ref = $digs_obj->{db};
+
+	$self->do_flush_tables_dialogue();
 
 	my $nom_table = $db_ref->{nomenclature_tracks_table};
 	unless ($nom_table) { die; }
@@ -336,7 +364,7 @@ sub load_taxonomy_tables {
 
 	# Option to load a taxon translation table
 	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t #### TAXONOMY TRANSLATION TABLES";
+	print "\n\n\t  #≈#~# LOAD TAXONOMY TRANSLATION TABLES\n";
 	my $question1 = "\n\t  Load a taxonomy table from file?";
 	my $load_from_file = $console->ask_yes_no_question($question1);
 	if ($load_from_file eq 'y') {
@@ -356,36 +384,6 @@ sub load_taxonomy_tables {
 }
 
 #***************************************************************************
-# Subroutine:  load_gene_name_translation_tables
-# Description: load a table that captures alternative names of homologous genes
-#***************************************************************************
-sub load_gene_name_translation_tables {
-
-	my ($self) = @_;
-
-	# Option to load a gene look-up table (resolve to equivalents)
-	# TODO
-	print "\n\n\t #### GENE NAME TRANSLATION TABLES";
-	my $question1 = "\n\t  Load a gene name translation table from file?";
-	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {	
-		my %gene_names;
-		die;
-		#$self->load_translations_from_file(\%translations);
-		#$self->{gene_names} = \%gene_names;
-	}
-	else {
-		my $question2 = "\n\t  Use a gene name translation table in the screening database?";
-		my $load_from_db_table = $console->ask_yes_no_question($question2);
-		if ($load_from_db_table eq 'y') {	
-			my %gene_names;
-			#$self->load_translations_from_table(\%gene_names);
-			#$self->{gene_names} = \%gene_names;
-		}
-	}
-}
-
-#***************************************************************************
 # Subroutine:  load_translations_from_file
 # Description: load translation tables
 #***************************************************************************
@@ -394,7 +392,10 @@ sub load_translations_from_file {
 	my ($self, $translations_ref) = @_;
 
 	# Read translation from file
-	my $translations_path = $self->{translation_path};
+	#my $translations_path = $self->{translation_path};
+	my $translations_path =  '../local/human/translations.txt';
+	die;
+	
 	unless ($translations_path) { die; }
 	my @file;
 	$fileio->read_file($translations_path, \@file);
@@ -426,6 +427,36 @@ sub load_translations_from_file {
 		}
 		my $id = shift @line;
 		$translations_ref->{$id} = \%taxonomy;		
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_gene_name_translation_tables
+# Description: load a table that captures alternative names of homologous genes
+#***************************************************************************
+sub load_gene_name_translation_tables {
+
+	my ($self) = @_;
+
+	# Option to load a gene look-up table (resolve to equivalents)
+	# TODO
+	print "\n\n\t #### GENE NAME TRANSLATION TABLES";
+	my $question1 = "\n\t  Load a gene name translation table from file?";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {	
+		my %gene_names;
+		die;
+		#$self->load_gene_name_translations_from_file(\%translations);
+		#$self->{gene_names} = \%gene_names;
+	}
+	else {
+		my $question2 = "\n\t  Use a gene name translation table in the screening database?";
+		my $load_from_db_table = $console->ask_yes_no_question($question2);
+		if ($load_from_db_table eq 'y') {	
+			my %gene_names;
+			#$self->load_translations_from_table(\%gene_names);
+			#$self->{gene_names} = \%gene_names;
+		}
 	}
 }
 
