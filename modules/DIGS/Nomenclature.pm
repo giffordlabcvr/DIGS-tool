@@ -81,9 +81,6 @@ sub create_standard_locus_ids {
 	# Set up for this process
 	$self->initialise_nomenclature_process($infile);
 
-	# Get sorted tracks from nomenclature table
-	$self->get_sorted_nomenclature_tracks();
-	
 	# Get the locus data and created clustered annotations
 	$self->cluster_annotations();
 
@@ -93,8 +90,378 @@ sub create_standard_locus_ids {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS
+# INITIALISATION: top level handler
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_process
+# Description: set up the program to execute the ID allocation process 
+#***************************************************************************
+sub initialise_nomenclature_process {
+
+	my ($self, $infile) = @_;
+
+	# Initialise database
+	$self->initialise_nomenclature_db($infile);
+	$self->do_flush_tables_dialogue();
+	$self->load_nomenclature_tracks();
+	
+	# Set the 'defragment_mode' (determines rules for clustering loci)
+	my $digs_obj = $self->{digs_obj};
+	$digs_obj->{defragment_mode} = 'consolidate';
+	
+	# Set the rules for using translation tables (options)
+	$self->{translation_path}    = '../local/human/translations.txt';
+	$self->load_translation_tables();
+	
+	# Get the locus class
+	my $question2 = "\n\t  What locus class name to use?";
+	#my $locus_class = $console->ask_yes_no_question($question2);	
+	#$self->{locus_class} = $locus_class;
+	$self->{locus_class} = 'ERV';
+	
+	# Get the organism ID
+	my $question1 = "\n\t  What is the organism code to use?";
+	#my $organism_code = $console->ask_yes_no_question($question1);	
+	#$self->{organism_code} = $organism_code;
+	$self->{organism_code} = 'HoSa';
+}
+
+############################################################################
+# INITIALISATION: core database tables for ID allocation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_db
+# Description: load core nomenclature tables, create if they don't exist
+#***************************************************************************
+sub initialise_nomenclature_db {
+
+	my ($self, $infile) = @_;
+	
+	# Parse control file and connect to DB
+	unless($infile) {
+		die "\n\t This option requires an infile\n\n";
+	}
+
+	# Parse control file and connect to DB
+	$self->parse_ctl_file_and_connect_to_db($infile);
+
+	# Create nomenclature tables if they don't exist already
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	unless ($nom_tracks_exists) {
+		$db_ref->create_nomenclature_tracks_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_tracks_table($dbh);
+	$db_ref->load_nomenclature_chains_table($dbh);
+	$db_ref->load_nomenclature_table($dbh);	
+}
+
+#***************************************************************************
+# Subroutine:  parse_ctl_file_and_connect_to_db
+# Description: connect to a DIGS screening DB by parsing a DIGS control file
+#***************************************************************************
+sub parse_ctl_file_and_connect_to_db {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+	
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($infile, $digs_obj);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+}
+
+#***************************************************************************
+# Subroutine:  do_flush_tables_dialogue
+# Description: 
+#***************************************************************************
+sub do_flush_tables_dialogue {
+
+	my ($self) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+
+	# Check whether to flush the table
+	my $tracks_table = $db_ref->{nomenclature_tracks_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	unless ($nom_table and $tracks_table and $chains_table) { die; }
+	my $question1 = "\n\n\t  Flush the tables before uploading tracks?";
+	my $flush = $console->ask_yes_no_question($question1);
+	if ($flush eq 'y') { 
+		$tracks_table->flush();
+		$chains_table->flush();
+		$nom_table->flush();
+	}	
+}
+
+############################################################################
+# INITIALISATION: core database tables for ID allocation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_tracks
+# Description: load input tracks into table, in a DIGS locus format
+#***************************************************************************
+sub load_nomenclature_tracks {
+
+	my ($self) = @_;
+
+	# Option to load a taxon translation table
+	# Reason: tables allow IDs to be based on alternative taxonomic levels
+	print "\n\n\t #### SOURCE OF ANNOTATION TRACKS ";
+	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {
+		$self->load_nomenclature_tracks_from_file();
+	}
+	else {
+
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_nomenclature_tracks_from_file
+# Description: load input tracks into table, in a DIGS locus format
+#***************************************************************************
+sub load_nomenclature_tracks_from_file {
+
+	my ($self) = @_;
+	
+	# Load nomenclature table
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+
+	my $nom_table = $db_ref->{nomenclature_tracks_table};
+	unless ($nom_table) { die; }
+
+	# Read tracks from file path
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
+	unless ($infile) { die; }
+	my @new_track;
+	$fileio->read_file($infile, \@new_track);
+
+	# Load tracks into table
+	my $line_number = 0;
+	foreach my $line (@new_track) {
+
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
+	
+		#print $line;
+		chomp $line;
+		my @line = split("\t", $line);
+		my $track_name    = shift @line;
+		my $assigned_name = shift @line;
+		my $scaffold      = shift @line;
+		my $extract_start = shift @line;
+		my $extract_end   = shift @line;
+		my $assigned_gene = shift @line;
+		my $namespace_id  = shift @line;		
+		my $span;
+		my $orientation;
+
+		#
+		if ($extract_end > $extract_start) {
+			$orientation = '+';
+			$span = $extract_end - $extract_start;
+		}
+		else {
+			$orientation = '-';
+			$span = $extract_start - $extract_end;		
+			my $start = $extract_start;
+			$extract_start = $extract_end;
+			$extract_end   = $start;
+		}
+
+		my %data;
+		$data{track_name}      = $track_name;
+		$data{assigned_name}   = $assigned_name;
+		$data{scaffold}        = $scaffold;
+		$data{extract_start}   = $extract_start;
+		$data{extract_end}     = $extract_end;
+		$data{sequence_length} = $span;
+		$data{orientation}     = $orientation;
+		$data{assigned_gene}   = $assigned_gene;
+		unless ($namespace_id) { $namespace_id = 'NULL'; }
+		$data{namespace_id}    = $namespace_id;		
+		$nom_table->insert_row(\%data);	
+
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_taxonomy_tables
+# Description: load a table that captures taxonomic definitions
+#***************************************************************************
+sub load_taxonomy_tables {
+
+	my ($self) = @_;
+
+	# Option to load a taxon translation table
+	# Reason: tables allow IDs to be based on alternative taxonomic levels
+	print "\n\n\t #### TAXONOMY TRANSLATION TABLES";
+	my $question1 = "\n\t  Load a taxonomy table from file?";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {
+		my %translations;
+		$self->load_translations_from_file(\%translations);
+		$self->{translations} = \%translations;
+	}
+	else {
+		my $question2 = "\n\t  Use a table in the screening database?";
+		my $load_from_db_table = $console->ask_yes_no_question($question2);
+		if ($load_from_db_table eq 'y') {
+			my %translations;
+			$self->load_translations_from_table(\%translations);
+			$self->{translations} = \%translations;
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_gene_name_translation_tables
+# Description: load a table that captures alternative names of homologous genes
+#***************************************************************************
+sub load_gene_name_translation_tables {
+
+	my ($self) = @_;
+
+	# Option to load a gene look-up table (resolve to equivalents)
+	# TODO
+	print "\n\n\t #### GENE NAME TRANSLATION TABLES";
+	my $question1 = "\n\t  Load a gene name translation table from file?";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {	
+		my %gene_names;
+		die;
+		#$self->load_translations_from_file(\%translations);
+		#$self->{gene_names} = \%gene_names;
+	}
+	else {
+		my $question2 = "\n\t  Use a gene name translation table in the screening database?";
+		my $load_from_db_table = $console->ask_yes_no_question($question2);
+		if ($load_from_db_table eq 'y') {	
+			my %gene_names;
+			#$self->load_translations_from_table(\%gene_names);
+			#$self->{gene_names} = \%gene_names;
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  load_translations_from_file
+# Description: load translation tables
+#***************************************************************************
+sub load_translations_from_file {
+
+	my ($self, $translations_ref) = @_;
+
+	# Read translation from file
+	my $translations_path = $self->{translation_path};
+	unless ($translations_path) { die; }
+	my @file;
+	$fileio->read_file($translations_path, \@file);
+	my $header = shift @file;
+	chomp $header;
+	my @header = split("\t", $header); 
+	my %levels;
+	my $i = 0;
+	foreach my $element (@header) {
+		$i++;
+		$levels{$i} = $element;
+	}
+
+	# Set up the translations
+	foreach my $line (@file) {
+
+		chomp $line;
+		my @line  = split("\t", $line);
+		my $j = 0;
+		my %taxonomy;
+		foreach my $value (@line) {
+			$j++;
+			my $level = $levels{$j};
+			unless ($level) { 
+				$level = 'wtf';
+				#die; 
+			}		
+			$taxonomy{$level} = $value;			
+		}
+		my $id = shift @line;
+		$translations_ref->{$id} = \%taxonomy;		
+	}
+}
+
+############################################################################
+# ANNOTATION CLUSTERING
+############################################################################
+
+#***************************************************************************
+# Subroutine:  cluster_annotations
+# Description: cluster nomenclature tracks
+#***************************************************************************
+sub cluster_annotations {
+
+	my ($self) = @_;
+
+	# Get sorted tracks from nomenclature table
+	$self->get_sorted_nomenclature_tracks();
+		
+	# Compose clusters of related sequences
+	my %settings;
+	$settings{range} = '0';
+	$settings{start} = 'extract_start';
+	$settings{end}   = 'extract_end';
+	my %clusters;
+	my $digs_obj = $self->{digs_obj};
+	my $sorted_ref = $self->{sorted_loci};
+	$digs_obj->compose_clusters(\%clusters, $sorted_ref, \%settings);
+	#$devtools->print_hash(\%clusters); die;
+
+	# Cluster IDs
+	my @cluster_ids  = keys %clusters;
+	my $num_clusters = scalar @cluster_ids;
+	print "\n\t # $num_clusters locus groups in total";
+	$self->{nomenclature_clusters} = \%clusters;	
+	
+}
 
 #***************************************************************************
 # Subroutine:  get_sorted_nomenclature_tracks
@@ -126,36 +493,12 @@ sub get_sorted_nomenclature_tracks {
 	my $total_loci = scalar @sorted;
 	print "\n\n\t # $total_loci rows in the nomenclature table";
 	#$devtools->print_array(\@sorted); die;
-	$self->{sorted_loci} = \@sorted;
-	
+	$self->{sorted_loci} = \@sorted;	
 }
 
-#***************************************************************************
-# Subroutine:  cluster_annotations
-# Description: cluster nomenclature tracks
-#***************************************************************************
-sub cluster_annotations {
-
-	my ($self) = @_;
-	
-	# Compose clusters of related sequences
-	my %settings;
-	$settings{range} = '0';
-	$settings{start} = 'extract_start';
-	$settings{end}   = 'extract_end';
-	my %clusters;
-	my $digs_obj = $self->{digs_obj};
-	my $sorted_ref = $self->{sorted_loci};
-	$digs_obj->compose_clusters(\%clusters, $sorted_ref, \%settings);
-	#$devtools->print_hash(\%clusters); die;
-
-	# Cluster IDs
-	my @cluster_ids  = keys %clusters;
-	my $num_clusters = scalar @cluster_ids;
-	print "\n\t # $num_clusters locus groups in total";
-	$self->{nomenclature_clusters} = \%clusters;	
-	
-}
+############################################################################
+# STANDARD ID ALLOCATION
+############################################################################
 
 #***************************************************************************
 # Subroutine:  apply_standard_names_to_clusters
@@ -372,346 +715,6 @@ sub translate_taxaname {
 	my $taxonomy_ref = $translations_ref->{$original_name};	
 	my $translated_name = $taxonomy_ref->{$taxonomic_level};	
 	return $translated_name;
-}
-
-############################################################################
-# INITIALISE: top level handler
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise_nomenclature_process
-# Description: set up the program to execute the ID allocation process 
-#***************************************************************************
-sub initialise_nomenclature_process {
-
-	my ($self, $infile) = @_;
-
-	# Initialise database
-	$self->initialise_nomenclature_db($infile);
-	$self->do_flush_tables_dialogue();
-	$self->load_nomenclature_tracks();
-	
-	# Set the 'defragment_mode' (determines rules for clustering loci)
-	my $digs_obj = $self->{digs_obj};
-	$digs_obj->{defragment_mode} = 'consolidate';
-	
-	# Set the rules for using translation tables (options)
-	$self->{translation_path}    = '../local/human/translations.txt';
-	$self->load_translation_tables();
-	
-	# Get the locus class
-	my $question2 = "\n\t  What locus class name to use?";
-	#my $locus_class = $console->ask_yes_no_question($question2);	
-	#$self->{locus_class} = $locus_class;
-	$self->{locus_class} = 'ERV';
-	
-	# Get the organism ID
-	my $question1 = "\n\t  What is the organism code to use?";
-	#my $organism_code = $console->ask_yes_no_question($question1);	
-	#$self->{organism_code} = $organism_code;
-	$self->{organism_code} = 'HoSa';
-}
-
-############################################################################
-# INITIALISE: core database tables for ID allocation
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise_nomenclature_db
-# Description: load core nomenclature tables, create if they don't exist
-#***************************************************************************
-sub initialise_nomenclature_db {
-
-	my ($self, $infile) = @_;
-	
-	# Parse control file and connect to DB
-	unless($infile) {
-		die "\n\t This option requires an infile\n\n";
-	}
-
-	# Parse control file and connect to DB
-	$self->parse_ctl_file_and_connect_to_db($infile);
-
-	# Create nomenclature tables if they don't exist already
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_tracks_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
-
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);	
-}
-
-#***************************************************************************
-# Subroutine:  parse_ctl_file_and_connect_to_db
-# Description: connect to a DIGS screening DB by parsing a DIGS control file
-#***************************************************************************
-sub parse_ctl_file_and_connect_to_db {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($infile, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
-	}
-	
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file} = $infile;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($infile, $digs_obj);
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-
-	# Load/create the screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-}
-
-#***************************************************************************
-# Subroutine:  do_flush_tables_dialogue
-# Description: 
-#***************************************************************************
-sub do_flush_tables_dialogue {
-
-	my ($self) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-
-	# Check whether to flush the table
-	my $tracks_table = $db_ref->{nomenclature_tracks_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	unless ($nom_table and $tracks_table and $chains_table) { die; }
-	my $question1 = "\n\n\t  Flush the tables before uploading tracks?";
-	my $flush = $console->ask_yes_no_question($question1);
-	if ($flush eq 'y') { 
-		$tracks_table->flush();
-		$chains_table->flush();
-		$nom_table->flush();
-	}	
-}
-
-############################################################################
-# INITIALISE: core database tables for ID allocation
-############################################################################
-
-#***************************************************************************
-# Subroutine:  load_nomenclature_tracks
-# Description: load input tracks into table, in a DIGS locus format
-#***************************************************************************
-sub load_nomenclature_tracks {
-
-	my ($self) = @_;
-
-	# Option to load a taxon translation table
-	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t #### SOURCE OF ANNOTATION TRACKS ";
-	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
-	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {
-		$self->load_nomenclature_tracks_from_file();
-	}
-	else {
-
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_nomenclature_tracks_from_file
-# Description: load input tracks into table, in a DIGS locus format
-#***************************************************************************
-sub load_nomenclature_tracks_from_file {
-
-	my ($self) = @_;
-	
-	# Load nomenclature table
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-
-	my $nom_table = $db_ref->{nomenclature_tracks_table};
-	unless ($nom_table) { die; }
-
-	# Read tracks from file path
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $infile = $console->ask_question($question1);
-	unless ($infile) { die; }
-	my @new_track;
-	$fileio->read_file($infile, \@new_track);
-
-	# Load tracks into table
-	my $line_number = 0;
-	foreach my $line (@new_track) {
-
-		$line_number++;
-		if     ($line =~ /^\s*$/)  { next; } # discard blank line
-		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
-	
-		#print $line;
-		chomp $line;
-		my @line = split("\t", $line);
-		my $track_name    = shift @line;
-		my $assigned_name = shift @line;
-		my $scaffold      = shift @line;
-		my $extract_start = shift @line;
-		my $extract_end   = shift @line;
-		my $assigned_gene = shift @line;
-		my $namespace_id  = shift @line;		
-		my $span;
-		my $orientation;
-
-		#
-		if ($extract_end > $extract_start) {
-			$orientation = '+';
-			$span = $extract_end - $extract_start;
-		}
-		else {
-			$orientation = '-';
-			$span = $extract_start - $extract_end;		
-			my $start = $extract_start;
-			$extract_start = $extract_end;
-			$extract_end   = $start;
-		}
-
-		my %data;
-		$data{track_name}      = $track_name;
-		$data{assigned_name}   = $assigned_name;
-		$data{scaffold}        = $scaffold;
-		$data{extract_start}   = $extract_start;
-		$data{extract_end}     = $extract_end;
-		$data{sequence_length} = $span;
-		$data{orientation}     = $orientation;
-		$data{assigned_gene}   = $assigned_gene;
-		unless ($namespace_id) { $namespace_id = 'NULL'; }
-		$data{namespace_id}    = $namespace_id;		
-		$nom_table->insert_row(\%data);	
-
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_taxonomy_tables
-# Description: load a table that captures taxonomic definitions
-#***************************************************************************
-sub load_taxonomy_tables {
-
-	my ($self) = @_;
-
-	# Option to load a taxon translation table
-	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t #### TAXONOMY TRANSLATION TABLES";
-	my $question1 = "\n\t  Load a taxonomy table from file?";
-	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {
-		my %translations;
-		$self->load_translations_from_file(\%translations);
-		$self->{translations} = \%translations;
-	}
-	else {
-		my $question2 = "\n\t  Use a table in the screening database?";
-		my $load_from_db_table = $console->ask_yes_no_question($question2);
-		if ($load_from_db_table eq 'y') {
-			my %translations;
-			$self->load_translations_from_table(\%translations);
-			$self->{translations} = \%translations;
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_gene_name_translation_tables
-# Description: load a table that captures alternative names of homologous genes
-#***************************************************************************
-sub load_gene_name_translation_tables {
-
-	my ($self) = @_;
-
-	# Option to load a gene look-up table (resolve to equivalents)
-	# TODO
-	print "\n\n\t #### GENE NAME TRANSLATION TABLES";
-	my $question1 = "\n\t  Load a gene name translation table from file?";
-	my $load_from_file = $console->ask_yes_no_question($question1);
-	if ($load_from_file eq 'y') {	
-		my %gene_names;
-		die;
-		#$self->load_translations_from_file(\%translations);
-		#$self->{gene_names} = \%gene_names;
-	}
-	else {
-		my $question2 = "\n\t  Use a gene name translation table in the screening database?";
-		my $load_from_db_table = $console->ask_yes_no_question($question2);
-		if ($load_from_db_table eq 'y') {	
-			my %gene_names;
-			#$self->load_translations_from_table(\%gene_names);
-			#$self->{gene_names} = \%gene_names;
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  load_translations_from_file
-# Description: load translation tables
-#***************************************************************************
-sub load_translations_from_file {
-
-	my ($self, $translations_ref) = @_;
-
-	# Read translation from file
-	my $translations_path = $self->{translation_path};
-	unless ($translations_path) { die; }
-	my @file;
-	$fileio->read_file($translations_path, \@file);
-	my $header = shift @file;
-	chomp $header;
-	my @header = split("\t", $header); 
-	my %levels;
-	my $i = 0;
-	foreach my $element (@header) {
-		$i++;
-		$levels{$i} = $element;
-	}
-
-	# Set up the translations
-	foreach my $line (@file) {
-
-		chomp $line;
-		my @line  = split("\t", $line);
-		my $j = 0;
-		my %taxonomy;
-		foreach my $value (@line) {
-			$j++;
-			my $level = $levels{$j};
-			unless ($level) { 
-				$level = 'wtf';
-				#die; 
-			}		
-			$taxonomy{$level} = $value;			
-		}
-		my $id = shift @line;
-		$translations_ref->{$id} = \%taxonomy;		
-	}
 }
 
 ############################################################################
