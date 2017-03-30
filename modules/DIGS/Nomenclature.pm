@@ -271,13 +271,16 @@ sub apply_standard_names_to_clusters {
 
 #***************************************************************************
 # Subroutine:  translate_taxaname
-# Description: 
+# Description: translate taxa name
 #***************************************************************************
 sub translate_taxaname {
 
-	my ($self, $original_name) = @_;
+	my ($self, $original_name, $taxonomic_level) = @_;
 
-	my $translated_name;	
+	# Do translation
+	my $translations_ref = $self->{translations};
+	my $taxonomy_ref = $translations_ref->{$original_name};	
+	my $translated_name = $taxonomy_ref->{$taxonomic_level};	
 	return $translated_name;
 }
 
@@ -377,7 +380,7 @@ sub configure_namespace {
 
 #***************************************************************************
 # Subroutine:  initialise_nomenclature_process
-# Description:  
+# Description: set up the program to execute the ID allocation process 
 #***************************************************************************
 sub initialise_nomenclature_process {
 
@@ -388,7 +391,6 @@ sub initialise_nomenclature_process {
 	$self->do_flush_tables_dialogue();
 	$self->load_nomenclature_tracks();
 	
-
 	# Set the 'defragment_mode' (determines rules for clustering loci)
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->{defragment_mode} = 'consolidate';
@@ -412,25 +414,32 @@ sub initialise_nomenclature_process {
 }
 
 #***************************************************************************
-# Subroutine:  load_translation_tables
-# Description: 
+# Subroutine:  load_taxonomy_tables
+# Description: load a table that captures taxonomic definitions
 #***************************************************************************
-sub load_translation_tables {
+sub load_taxonomy_tables {
 
 	my ($self) = @_;
 
 	# Option to load a taxon translation table
+	# Reason: tables allow IDs to be based on alternative taxonomic levels
 	print "\n\n\t #### TRANSLATION TABLES";
-	print "\n\n\t #### This allows names & clustering to be based on different taxonomic levels/gene names)";
-
-	my $question2 = "\n\t  Load a translation table?";
-	my $translate = $console->ask_yes_no_question($question2);
-	if ($translate eq 'y') {	# Load translations
+	my $question1 = "\n\t  Load a translation table from file?";
+	my $load_from_file = $console->ask_yes_no_question($question1);
+	if ($load_from_file eq 'y') {	# Load translations
 		my %translations;
-		$self->load_translations(\%translations);
+		$self->load_translations_from_file(\%translations);
 		$self->{translations} = \%translations;
 	}
-
+	else {
+		my $question2 = "\n\t  Use a table in the screening database?";
+		my $load_from_db_table = $console->ask_yes_no_question($question2);
+		if ($load_from_db_table eq 'y') {	# Load translations
+			my %translations;
+			$self->load_translations_from_table(\%translations);
+			$self->{translations} = \%translations;
+		}
+	}
 	# Option to load a gene look-up table (resolve to equivalents)
 	# TODO
 }
@@ -578,10 +587,10 @@ sub load_nomenclature_tracks {
 }
 
 #***************************************************************************
-# Subroutine:  load_translations
+# Subroutine:  load_translations_from_file
 # Description: load translation tables
 #***************************************************************************
-sub load_translations {
+sub load_translations_from_file {
 
 	my ($self, $translations_ref) = @_;
 
