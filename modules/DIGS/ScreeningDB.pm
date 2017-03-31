@@ -882,9 +882,11 @@ sub get_ancillary_table_names {
 		foreach my $item (@$row) {
 			chomp $item;
 			$i++;
-			if ($item eq 'searches_performed')      { next; }
-			elsif ($item eq 'active_set')        { next; }
-			elsif ($item eq 'digs_results')  { next; }
+			if ($item eq 'blast_chains')          { next; }
+			if ($item eq 'nomenclature_chains')   { next; }
+			if ($item eq 'searches_performed')    { next; }
+			elsif ($item eq 'active_set')         { next; }
+			elsif ($item eq 'digs_results')       { next; }
 			else {
 				push (@$anc_tables_ref, $item)
 			}

@@ -482,7 +482,6 @@ sub extend_screening_db {
 	my $table_to_use;
 	my %fields;
 	my @fields;
-	my $anc_table;
 	my $table_name;
 
 	# Show the options
@@ -519,53 +518,10 @@ sub extend_screening_db {
 		unless ($table_to_use) { die; }
 	}
 		
-	# Upload data to table
+	# Read in the data
 	my @data;
 	unless ($answer eq 4) {
-
-		# Try to read the tab-delimited infile
-		print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-		my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-		my $infile = $console->ask_question($question1);
-		unless ($infile) { die; }
-		my @infile;
-		$fileio->read_file($infile, \@infile);
-
-		my $line_number = 0;
-		foreach my $line (@infile) {
-			$line_number++;
-			if     ($line =~ /^\s*$/)  { next; } # discard blank line
-			elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-			unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
-			push (@data, $line);
-		}
-		my $data = scalar @data;
-		unless ($data) {
-			die "\n\t Couldn't read input file\n\n";
-		}
-		
-		# Get the column headers
-		my $header_row = shift @data;
-		my @header_row = split ("\t", $header_row);		
-		print "\n\n\t The following cleaned column headers (i.e. table fields) were obtained\n";
-		my $i;
-		foreach my $element (@header_row) {
-			chomp $element;
-			$i++;
-			$element =~ s/\s+/_/g;  # Remove whitespace
-			$element =~ s/-/_/g;    # Remove hyphens (avoid in mysql field names)
-			if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
-			print "\n\t\t Column $i: '$element'";
-			push (@fields, $element);
-			$fields{$element} = "varchar";
-		}
-		
-		# Prompt user - did we read the file correctly?
-		my $question3 = "\n\n\t Is this correct?";
-		my $answer3 = $console->ask_yes_no_question($question3);
-		if ($answer3 eq 'n') { # Exit if theres a problem with the infile
-			print "\n\t\t Aborted!\n\n\n"; exit;
-		}
+		$self->do_generic_tabdelim_read_dialogue(\@data, \@fields, \%fields)
 	}
 
 
@@ -575,7 +531,7 @@ sub extend_screening_db {
 	}
 
 	# Get a reference to a table object for the ancillary table
-	$anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
+	my $anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
 	$db->{$table_to_use} = $anc_table;
 		
 	if ($answer eq '4') {	# Drop the ancillary table
@@ -607,6 +563,62 @@ sub extend_screening_db {
 			$insert{$field} = $value;
 		}
 		$anc_table->insert_row(\%insert);
+	}
+}
+
+#***************************************************************************
+# Subroutine:  do_generic_tabdelim_read_dialogue
+# Description: 
+#***************************************************************************
+sub do_generic_tabdelim_read_dialogue {
+
+	my ($self, $data_ref, $fields_array, $fields_hash) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try to read the tab-delimited infile
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question1);
+	unless ($infile) { die; }
+	my @infile;
+	$fileio->read_file($infile, \@infile);
+
+	my $line_number = 0;
+	foreach my $line (@infile) {
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
+		push (@$data_ref, $line);
+	}
+	my $data = scalar @$data_ref;
+	unless ($data) {
+		die "\n\t Couldn't read input file\n\n";
+	}
+	
+	# Get the column headers
+	my $header_row = shift @$data_ref;
+	my @header_row = split ("\t", $header_row);		
+	print "\n\n\t The following cleaned column headers (i.e. table fields) were obtained\n";
+	my $i;
+	foreach my $element (@header_row) {
+		chomp $element;
+		$i++;
+		$element =~ s/\s+/_/g;  # Remove whitespace
+		$element =~ s/-/_/g;    # Remove hyphens (avoid in mysql field names)
+		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+		print "\n\t\t Column $i: '$element'";
+		push (@$fields_array, $element);
+		$fields_hash->{$element} = "varchar";
+	}
+	
+	# Prompt user - did we read the file correctly?
+	my $question3 = "\n\n\t Is this correct?";
+	my $answer3 = $console->ask_yes_no_question($question3);
+	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+		print "\n\t\t Aborted!\n\n\n"; exit;
 	}
 }
 
