@@ -816,6 +816,100 @@ sub flush_screening_db {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  do_ancillary_table_dialogue
+# Description: create an ancillary table for the screening DB
+#***************************************************************************
+sub do_ancillary_table_dialogue {
+
+	my ($self, $fields_array_ref, $fields_hash_ref) = @_;
+	
+	# Declare the variables & data structures we need
+	my %extra_tables;
+	my @extra_tables;
+
+	# Show the options
+	my @choices = qw [ 1 2 3 ];
+	print "\n\t\t 1. Create new ancillary table";
+	print "\n\t\t 2. Append data to existing ancillary table";
+	print "\n\t\t 3. Flush existing ancillary table and upload fresh data\n";
+	my $question = "\n\t Choose an option";
+	my $option = $console->ask_simple_choice_question($question, \@choices);
+
+	my $table_name;
+	my $table_to_use;
+	if ($option eq '1') { # Get name of new table
+		my $table_name_question = "\n\t What is the name of the new table?";
+		$table_name = $console->ask_question($table_name_question);
+	}
+	# or choose one of the ancillary tables already in the DB
+	else {
+
+		# Get the ancillary tables in this DB
+		$self->get_ancillary_table_names(\@extra_tables);
+		
+		my $table_num = 0;
+		foreach my $table_name (@extra_tables) {
+			$table_num++;
+			$extra_tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+		}
+		my @table_choices = keys %extra_tables;
+
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
+		$table_to_use = $extra_tables{$answer5};
+		unless ($table_to_use) { die; }
+	}
+
+	if ($option eq 1) { # Create table 
+		$table_to_use = $self->create_ancillary_table($table_name, $fields_array_ref, $fields_hash_ref);	
+	}
+
+	my $dbh = $self->{dbh};
+	my $anc_table = MySQLtable->new($table_to_use, $dbh, $fields_hash_ref);
+	$self->{$table_to_use} = $anc_table;
+
+	if ($option eq 3)   {  # Flush the table if requested
+		$anc_table->flush();
+		$anc_table->reset_primary_keys();
+	}
+	
+	return $table_to_use;
+}
+
+#***************************************************************************
+# Subroutine:  get_ancillary_table_names
+# Description: get the names of all ancillary tables in a screening DB
+#***************************************************************************
+sub get_ancillary_table_names {
+
+	my ($self, $anc_tables_ref) = @_;
+	
+	# Get DB object
+	my $dbh = $self->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+	my $show = "SHOW TABLES ";
+	my $sth = $dbh->prepare($show);
+   	unless ($sth->execute()) { print $show; exit;}	
+	
+	my $i = 0;
+	while (my $row = $sth->fetchrow_arrayref) {
+		foreach my $item (@$row) {
+			chomp $item;
+			$i++;
+			if ($item eq 'blast_chains')          { next; }
+			if ($item eq 'nomenclature_chains')   { next; }
+			if ($item eq 'searches_performed')    { next; }
+			elsif ($item eq 'active_set')         { next; }
+			elsif ($item eq 'digs_results')       { next; }
+			else {
+				push (@$anc_tables_ref, $item)
+			}
+		}
+	}
+}
+
+#***************************************************************************
 # Subroutine:  create_ancillary_table
 # Description: create an ancillary table for the screening DB
 #***************************************************************************
@@ -863,35 +957,45 @@ sub create_ancillary_table {
 }
 
 #***************************************************************************
-# Subroutine:  get_ancillary_table_names
-# Description: get the names of all ancillary tables in a screening DB
+# Subroutine:  import_data_to_ancillary_table
+# Description: load data to ancillary table
 #***************************************************************************
-sub get_ancillary_table_names {
+sub import_data_to_ancillary_table {
 
-	my ($self, $anc_tables_ref) = @_;
-	
-	# Get DB object
-	my $dbh = $self->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-	my $show = "SHOW TABLES ";
-	my $sth = $dbh->prepare($show);
-   	unless ($sth->execute()) { print $show; exit;}	
-	
-	my $i = 0;
-	while (my $row = $sth->fetchrow_arrayref) {
-		foreach my $item (@$row) {
-			chomp $item;
-			$i++;
-			if ($item eq 'blast_chains')          { next; }
-			if ($item eq 'nomenclature_chains')   { next; }
-			if ($item eq 'searches_performed')    { next; }
-			elsif ($item eq 'active_set')         { next; }
-			elsif ($item eq 'digs_results')       { next; }
-			else {
-				push (@$anc_tables_ref, $item)
-			}
-		}
+	my ($self, $table_name, $data_ref, $fields_array_ref, $fields_hash_ref, $verbose) = @_;
+
+	my $anc_table = $self->{$table_name};
+	unless ($anc_table) { 
+		#$devtools->print_hash($self);
+		print "\n\t couldn't get table '$table_name'\n\n\n";
+		die; 
 	}
+	#$devtools->print_hash($fields_hash_ref);
+	#$devtools->print_array($data_ref); die;
+
+	my $row_count = 0;
+	foreach my $line (@$data_ref) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@$fields_array_ref) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields_hash_ref->{$column_num};
+			if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			}
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			$insert{$field} = $value;
+		}
+		$anc_table->insert_row(\%insert);
+	}
+	
+	return $row_count;
 }
 
 #***************************************************************************
@@ -940,6 +1044,93 @@ sub backup_digs_results_table {
    	return $copy_name;
 
 }
+
+############################################################################
+# TESTING FOR EXISTENCE OF TABLES & DATABASES
+############################################################################
+
+#***************************************************************************
+# Subroutine:  does_table_exist
+# Description: check if a table exists in the screening DB
+#***************************************************************************
+sub does_table_exist {
+
+    my ($self, $table_name) = @_;
+
+	# Get connection variables from self
+	my $server   = $self->{server};
+	my $username = $self->{username};
+	my $password = $self->{password};
+	my $db_name  = $self->{db_name};
+
+	unless ($server)   { die; }
+	unless ($username) { die; }
+	unless ($password) { die; }
+
+	# Set name
+	my $info_db_name = 'information_schema';
+   
+	# Load tables from the screening result DB we've been given
+	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
+	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
+
+	my $query = "SELECT * FROM information_schema.tables
+                 WHERE table_schema = '$db_name' 
+  			     AND table_name = '$table_name'
+		         LIMIT 1;";
+	my $sth = $dbh->prepare($query);
+	unless ($sth->execute()) { print $query; exit; }
+	my $row_count = 0;
+	my $exists = undef;
+	while (my $row = $sth->fetchrow_arrayref) {
+		$exists = 'TRUE';		
+	}
+
+	return $exists;	
+}
+
+#***************************************************************************
+# Subroutine:  does_db_exist
+# Description: check if a screening database exists
+#***************************************************************************
+sub does_db_exist {
+
+    my ($self, $db_name) = @_;
+
+	unless ($db_name)  { die; }
+
+	# Get connection variables from self
+	my $server   = $self->{server};
+	my $username = $self->{username};
+	my $password = $self->{password};
+
+	unless ($server)   { die; }
+	unless ($username) { die; }
+	unless ($password) { die; }
+
+	# Set name
+	my $info_db_name = 'information_schema';
+   
+	# Load tables from the screening result DB we've been given
+	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
+	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
+	my $query = "SELECT * FROM information_schema.tables
+                 WHERE table_schema = '$db_name' 
+		         LIMIT 1;";
+	my $sth = $dbh->prepare($query);
+	unless ($sth->execute()) { print $query; exit; }
+	my $row_count = 0;
+	my $exists = undef;
+	while (my $row = $sth->fetchrow_arrayref) {
+		$exists = 'TRUE';		
+	}
+
+	return $exists;	
+}
+
+############################################################################
+# DEPRECATED
+############################################################################
 
 #***************************************************************************
 # Subroutine:  translate_schema
@@ -1080,85 +1271,6 @@ sub load_extracted_table {
 	);
 	my $extract_table = MySQLtable->new('Extracted', $dbh, \%extract_fields);
 	$self->{extracted_table} = $extract_table;
-}
-
-#***************************************************************************
-# Subroutine:  does_table_exist
-# Description: check if a table exists in the screening DB
-#***************************************************************************
-sub does_table_exist {
-
-    my ($self, $table_name) = @_;
-
-	# Get connection variables from self
-	my $server   = $self->{server};
-	my $username = $self->{username};
-	my $password = $self->{password};
-	my $db_name  = $self->{db_name};
-
-	unless ($server)   { die; }
-	unless ($username) { die; }
-	unless ($password) { die; }
-
-	# Set name
-	my $info_db_name = 'information_schema';
-   
-	# Load tables from the screening result DB we've been given
-	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
-	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
-
-	my $query = "SELECT * FROM information_schema.tables
-                 WHERE table_schema = '$db_name' 
-  			     AND table_name = '$table_name'
-		         LIMIT 1;";
-	my $sth = $dbh->prepare($query);
-	unless ($sth->execute()) { print $query; exit; }
-	my $row_count = 0;
-	my $exists = undef;
-	while (my $row = $sth->fetchrow_arrayref) {
-		$exists = 'TRUE';		
-	}
-
-	return $exists;	
-}
-
-#***************************************************************************
-# Subroutine:  does_db_exist
-# Description: check if a screening database exists
-#***************************************************************************
-sub does_db_exist {
-
-    my ($self, $db_name) = @_;
-
-	unless ($db_name)  { die; }
-
-	# Get connection variables from self
-	my $server   = $self->{server};
-	my $username = $self->{username};
-	my $password = $self->{password};
-
-	unless ($server)   { die; }
-	unless ($username) { die; }
-	unless ($password) { die; }
-
-	# Set name
-	my $info_db_name = 'information_schema';
-   
-	# Load tables from the screening result DB we've been given
-	my $dbh = DBI->connect("dbi:mysql:$info_db_name:$server", $username, $password);
-	unless ($dbh) { die "\n\t Failed to connect to database\n\n\n"; }
-	my $query = "SELECT * FROM information_schema.tables
-                 WHERE table_schema = '$db_name' 
-		         LIMIT 1;";
-	my $sth = $dbh->prepare($query);
-	unless ($sth->execute()) { print $query; exit; }
-	my $row_count = 0;
-	my $exists = undef;
-	while (my $row = $sth->fetchrow_arrayref) {
-		$exists = 'TRUE';		
-	}
-
-	return $exists;	
 }
 
 ############################################################################

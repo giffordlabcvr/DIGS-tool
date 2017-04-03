@@ -70,7 +70,7 @@ sub new {
 }
 
 ############################################################################
-# TOP LEVEL HANDLERS FOR UTILITY FUNCTIONS
+# HELP INFO PAGE FOR UTILITY OPTIONS
 ############################################################################
 
 #***************************************************************************
@@ -87,10 +87,11 @@ sub show_utility_help_page {
     my $HELP   = "\n\t ### DIGS version $program_version - utility functions help menu\n";
 
        $HELP  .= "\n\t ### Managing DIGS screening DBs"; 
-	   $HELP  .= "\n\t -d=1   Manage ancillary tables in a DIGS screening DB"; 
-	   $HELP  .= "\n\t -d=2   Flush core tables in a DIGS screening DB"; 
-	   $HELP  .= "\n\t -d=3   Drop a DIGS screening DB"; 
-	   $HELP  .= "\n\t -d=4   Extract data\n";
+	   $HELP  .= "\n\t -d=1   Upload data to tables"; 
+	   $HELP  .= "\n\t -d=2   Flush core tables"; 
+	   $HELP  .= "\n\t -d=3   Drop DB tables";
+	   $HELP  .= "\n\t -d=4   Drop a DIGS screening DB"; 
+	   $HELP  .= "\n\t -d=5   Extract data\n";
 	   #$HELP  .= "\n\t -d=2   Upload data to the digs_results table";
 
        $HELP  .= "\n\t ### Creating standard locus nomenclature"; 	   
@@ -102,18 +103,22 @@ sub show_utility_help_page {
 
        $HELP  .= "\n\t ### Development and validation tools"; 	   
 	   $HELP  .= "\n\t -u=1   Translate DB schema"; 
-	   $HELP  .= "\n\t -u=2   Show BLAST chains (details of hits that have been merged)"; 
-	   $HELP  .= "\n\t -u=3   Show locus chains (details of digs_results that have been merged)"; 
-	   $HELP  .= "\n\t -u=4   Show nomenclature chains (details of annotations that have been merged)\n"; 
+	   $HELP  .= "\n\t -u=2   Show BLAST chains (merged BLAST hits)"; 
+	   $HELP  .= "\n\t -u=3   Show locus chains (merged digs_results table rows)"; 
+	   $HELP  .= "\n\t -u=4   Show nomenclature chains (merged annotations)\n"; 
 
 	   $HELP  .= "\n\n"; 
 
 	print $HELP;
 }
 
+############################################################################
+# TOP LEVEL HANDLER
+############################################################################
+
 #***************************************************************************
 # Subroutine:  run_utility_process
-# Description: handler for DIGS tool utility functions 
+# Description: top-level handler for DIGS tool utility functions 
 #***************************************************************************
 sub run_utility_process {
 
@@ -147,73 +152,13 @@ sub run_utility_process {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  parse_ctl_file_and_connect_to_db
-# Description: connect to a DIGS screening DB by parsing a DIGS control file
-#***************************************************************************
-sub parse_ctl_file_and_connect_to_db {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($infile, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
-	}
-	
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file} = $infile;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($infile, $digs_obj);
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-
-	# Load/create the screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-}
-
-#***************************************************************************
-# Subroutine:  do_load_db_dialogue
-# Description: connect to a DIGS screening DB
-#***************************************************************************
-sub do_load_db_dialogue {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-
-	# Load/create the screening database
-	my $question = "\t  Enter the name of a DIGS screening database";
-	my $db_name = $console->ask_question($question);
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->{mysql_server}   = 'localhost';
-
-	# Create the screening DB object
-	my $db_obj = ScreeningDB->new($digs_obj);
-
-	# Check if this screening DB exists, if not then create it
-	my $db_exists = $db_obj->does_db_exist($db_name);
-	unless ($db_exists) {
-		print "\n\t  Could not connect to screening DB '$db_name'";
-		print "\n\t  Exiting.\n\n\n"; exit;	
-	}
-	
-	# Load the database
-	print   "\n\t  Connecting to DB:  $db_name";
-	$db_obj->load_screening_db($db_name);	
-	$digs_obj->{db} = $db_obj; # Store the database object reference 
-
-}
+############################################################################
+# SECOND LEVEL HANDLERS FOR UTILITY FUNCTIONS
+############################################################################
 
 #***************************************************************************
 # Subroutine:  run_screening_db_utility_process
-# Description: top-level handler for DIGS screening database utility fxns 
+# Description: handler for DIGS screening database utility fxns 
 #***************************************************************************
 sub run_screening_db_utility_process {
 
@@ -223,7 +168,7 @@ sub run_screening_db_utility_process {
 
 	# Hand off to functions 
 	if ($option eq 1) { # Manage ancillary tables in a screening DB
-		$self->extend_screening_db();
+		$self->upload_data();
 	}
 	elsif ($option eq 2) { # Flush screening DB
 		my $db = $digs_obj->{db};
@@ -232,26 +177,25 @@ sub run_screening_db_utility_process {
 		my $answer1 = $console->ask_yes_no_question($question); # Ask to make sure
 		if ($answer1 eq 'y') { $db->flush_screening_db(); }
 	}
-	elsif ($option eq 3) { # Drop screening DB 
+	elsif ($option eq 3) {	# Drop tables
+		die;
+		$self->drop_ancillary_table();
+	}
+	elsif ($option eq 4) { # Drop screening DB 
 		my $db = $digs_obj->{db};
 		$db->drop_screening_db();    
 	}
-	elsif ($option eq 4) {
+	elsif ($option eq 5) {
 		$self->extract_track_sequences($ctl_file);
-	}
-	if ($option eq 5) { # Add data to the digs_results table
-		die;
-		# TODO - create console dialogue
-		$self->upload_data_to_digs_results_table();
 	}
 	else {
 		print "\n\t  Unrecognized option '-d=$option'\n";
 	}
 }
-	
+
 #***************************************************************************
 # Subroutine:  run_target_utility_process
-# Description: top-level handler for functions summarising target databases
+# Description: handler for functions summarising target databases
 #***************************************************************************
 sub run_target_utility_process {
 
@@ -274,7 +218,7 @@ sub run_target_utility_process {
 
 #***************************************************************************
 # Subroutine:  run_dev_validation_process
-# Description: top-level handler for DIGS development & validation functions
+# Description: handler for DIGS development & validation functions
 #***************************************************************************
 sub run_dev_validation_process {
 
@@ -289,11 +233,12 @@ sub run_dev_validation_process {
 	elsif ($option eq 2) { # Show the BLAST chains for each extracted locus
 		$self->show_blast_chains();
 	}
-	elsif ($option eq 3) { # Consolidate DIGS results into higher level loci 
+	elsif ($option eq 3) { # Show the digs_results breakdown for each consolidated locus
 		$self->show_locus_chains();
 	}
-	elsif ($option eq 4) { # Consolidate DIGS results into higher level loci 
-		$self->show_nomenclature_chains();
+	elsif ($option eq 4) { # Show the alternative annotations breakdown for each ID-allocated locus
+		my $nomenclature_obj = Nomenclature->new($self); 
+		$nomenclature_obj->show_nomenclature_chains();
 	}
 	elsif ($option eq 5) {
 		$self->fix_searches_performed_table();
@@ -304,6 +249,52 @@ sub run_dev_validation_process {
 	else {
 		print "\n\t  Unrecognized option '-u=$option'\n";
 	}
+}
+
+############################################################################
+# DATABASE MANAGEMENT FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  upload_data
+# Description: upload data to DOGS screening DB tables
+#***************************************************************************
+sub upload_data {
+
+	my ($self) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+
+	my $db = $digs_obj->{db};
+	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+
+	# Get the file path
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	#my $infile = $self->ask_question($question);
+	my $infile = '../local/human/translations.txt';
+	unless ($infile) { die; }
+
+	# Read in the data from a tab delimited file
+	my @data;
+	my %fields;
+	my @fields;
+	$console->do_read_tabdelim_dialogue($infile, \@data, \@fields, \%fields);
+	#$devtools->print_array(\@data); die;
+
+	# Get a reference to a table object for the ancillary table
+	my $anc_table = $db->do_ancillary_table_dialogue(\@fields, \%fields);
+	#$devtools->print_hash(\%fields); die;
+	#$devtools->print_array(\@fields); die;
+
+	# Insert the data	
+	print "\n\n\t #### IMPORTING to table '$anc_table'";
+	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
+	my $row_count = $db->import_data_to_ancillary_table($anc_table, \@data, \@fields, \%fields, $verbose);
+
 }
 
 ############################################################################
@@ -455,174 +446,6 @@ sub extract_track_sequences {
 }
 
 ############################################################################
-# DATABASE MANAGEMENT FUNCTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  extend_screening_db
-# Description: console managemant of ancillary tables in the screening database
-#***************************************************************************
-sub extend_screening_db {
-
-	my ($self) = @_;
-
-	# Get database handle, die if we can't 
-	my $digs_obj = $self->{digs_obj};
-
-	my $db = $digs_obj->{db};
-	unless ($db) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-	
-	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
-
-	# Declare the variables & data structures we need
-	my %extra_tables;
-	my @extra_tables;
-	my $table_to_use;
-	my %fields;
-	my @fields;
-	my $table_name;
-
-	# Show the options
-	my @choices = qw [ 1 2 3 4 ];
-	print "\n\n\t\t 1. Create new ancillary table";
-	print "\n\t\t 2. Append data to existing ancillary table";
-	print "\n\t\t 3. Flush existing ancillary table and upload fresh data";
-	print "\n\t\t 4. Drop an ancillary table\n";
-	my $question = "\n\t Choose an option";
-	my $answer   = $console->ask_simple_choice_question($question, \@choices);
-
-	# Create new table
-	if ($answer eq '1') {	
-		my $table_name_question = "\n\t What is the name of the new table?";
-		$table_name = $console->ask_question($table_name_question);
-	}
-	# or choose one of the ancillary tables already in the DB
-	else {
-
-		# Get the ancillary tables in this DB
-		$db->get_ancillary_table_names(\@extra_tables);
-		
-		my $table_num = 0;
-		foreach my $table_name (@extra_tables) {
-			$table_num++;
-			$extra_tables{$table_num} = $table_name;
-			print "\n\t\t Table $table_num: '$table_name'";
-		}
-		my @table_choices = keys %extra_tables;
-
-		my $question5 = "\n\n\t Apply to which of the above tables?";
-		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
-		$table_to_use = $extra_tables{$answer5};
-		unless ($table_to_use) { die; }
-	}
-		
-	# Read in the data
-	my @data;
-	unless ($answer eq 4) {
-		$self->do_generic_tabdelim_read_dialogue(\@data, \@fields, \%fields)
-	}
-
-
-	# Create table if first time
-	if ($answer eq 1) {
-		$table_to_use = $db->create_ancillary_table($table_name, \@fields, \%fields);	
-	}
-
-	# Get a reference to a table object for the ancillary table
-	my $anc_table = MySQLtable->new($table_to_use, $dbh, \%fields);
-	$db->{$table_to_use} = $anc_table;
-		
-	if ($answer eq '4') {	# Drop the ancillary table
-		$db->drop_ancillary_table($table_to_use);
-		return;
-	}
-	if ($answer eq 3)   {  # Flush the table if requested
-		$anc_table->flush();
-		$anc_table->reset_primary_keys();
-	}
-	
-	my $row_count = 0;
-	foreach my $line (@data) { # Add data to the table
-		$row_count++;
-		chomp $line;
-		my %insert;
-		my @elements = split ("\t", $line);
-		my $column_num = 0;
-		foreach my $field (@fields) {
-			my $value = $elements[$column_num];
-			$column_num++;
-			my $type  = $fields{$column_num};
-			if ($verbose) {
-				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
-			}
-			unless ($value) { 
-				$value = 'NULL';
-			}
-			$insert{$field} = $value;
-		}
-		$anc_table->insert_row(\%insert);
-	}
-}
-
-#***************************************************************************
-# Subroutine:  do_generic_tabdelim_read_dialogue
-# Description: 
-#***************************************************************************
-sub do_generic_tabdelim_read_dialogue {
-
-	my ($self, $data_ref, $fields_array, $fields_hash) = @_;
-
-	# Get database handle, die if we can't 
-	my $digs_obj = $self->{digs_obj};
-	
-	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	my $infile = $console->ask_question($question1);
-	unless ($infile) { die; }
-	my @infile;
-	$fileio->read_file($infile, \@infile);
-
-	my $line_number = 0;
-	foreach my $line (@infile) {
-		$line_number++;
-		if     ($line =~ /^\s*$/)  { next; } # discard blank line
-		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
-		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
-		push (@$data_ref, $line);
-	}
-	my $data = scalar @$data_ref;
-	unless ($data) {
-		die "\n\t Couldn't read input file\n\n";
-	}
-	
-	# Get the column headers
-	my $header_row = shift @$data_ref;
-	my @header_row = split ("\t", $header_row);		
-	print "\n\n\t The following cleaned column headers (i.e. table fields) were obtained\n";
-	my $i;
-	foreach my $element (@header_row) {
-		chomp $element;
-		$i++;
-		$element =~ s/\s+/_/g;  # Remove whitespace
-		$element =~ s/-/_/g;    # Remove hyphens (avoid in mysql field names)
-		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
-		print "\n\t\t Column $i: '$element'";
-		push (@$fields_array, $element);
-		$fields_hash->{$element} = "varchar";
-	}
-	
-	# Prompt user - did we read the file correctly?
-	my $question3 = "\n\n\t Is this correct?";
-	my $answer3 = $console->ask_yes_no_question($question3);
-	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
-		print "\n\t\t Aborted!\n\n\n"; exit;
-	}
-}
-
-############################################################################
 # DEVELOPMENT & VALIDATION FUNCTIONS
 ############################################################################
 
@@ -757,62 +580,6 @@ sub show_locus_chains {
 	}
 }
 
-#***************************************************************************
-# Subroutine:  show_nomenclature_chains
-# Description: Show nomenclature chains for all consolidated annotations
-#***************************************************************************
-sub show_nomenclature_chains {
-	
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};
-	unless ($db) { die; } # Sanity checking
-
-	# Get relevant variables and objects
-	my $dbh = $db->{dbh};
-	$db->load_nomenclature_table($dbh);
-	$db->load_nomenclature_chains_table($dbh);
-	my $nomenclature_table = $db->{nomenclature_table}; 
-	my $chains_table  = $db->{nomenclature_chains_table};
-	unless ($nomenclature_table and $chains_table) { die; } # Sanity checking
-
-	# Get all named loci
-	my $nom_where = " ORDER BY record_id ";
-	my @loci;
-	my @fields = qw [ record_id full_id ];
-	$nomenclature_table->select_rows(\@fields, \@loci, $nom_where);	 
-	
-	# Iterate through loci
-	foreach my $locus_ref (@loci) {
-
-		my $locus_id = $locus_ref->{record_id};
-		print "\n\t ### Chain $locus_id: ";	
-		my $chain_where = " WHERE nomenclature_locus_id = $locus_id ";
-		my @results;
-		@fields = qw [ record_id track_id nomenclature_locus_id ];
-		$chains_table->select_rows(\@fields, \@results, $chain_where);	 
-		
-		foreach my $result_ref (@results) {
-
-			my @digs_results;
-			my $track_entry_id = $result_ref->{track_id};
-			my @fields = qw [ assigned_name assigned_gene ];
-			my $where  = " WHERE record_id = $track_entry_id ";
-			$nomenclature_table->select_rows(\@fields, \@digs_results, $where);
-			
-			foreach my $result_ref (@digs_results) {
-		
-				my $assigned_name = $result_ref->{assigned_name};
-				my $assigned_gene = $result_ref->{assigned_gene};
-				print " $track_entry_id ";
-	
-			}
-		}
-	}
-}
-
 #===========================================================================
 # TEMPORARY
 #===========================================================================
@@ -894,6 +661,75 @@ sub fix_searches_performed_table_2 {
 		print "\n\t  UPDATED organism field for $record_id to '$organism'";
 	}
 }
+
+############################################################################
+# INITIALISATION
+############################################################################
+
+#***************************************************************************
+# Subroutine:  parse_ctl_file_and_connect_to_db
+# Description: connect to a DIGS screening DB by parsing a DIGS control file
+#***************************************************************************
+sub parse_ctl_file_and_connect_to_db {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+	
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($infile, $digs_obj);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+}
+
+#***************************************************************************
+# Subroutine:  do_load_db_dialogue
+# Description: connect to a DIGS screening DB
+#***************************************************************************
+sub do_load_db_dialogue {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+
+	# Load/create the screening database
+	my $question = "\t  Enter the name of a DIGS screening database";
+	my $db_name = $console->ask_question($question);
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->{mysql_server}   = 'localhost';
+
+	# Create the screening DB object
+	my $db_obj = ScreeningDB->new($digs_obj);
+
+	# Check if this screening DB exists, if not then create it
+	my $db_exists = $db_obj->does_db_exist($db_name);
+	unless ($db_exists) {
+		print "\n\t  Could not connect to screening DB '$db_name'";
+		print "\n\t  Exiting.\n\n\n"; exit;	
+	}
+	
+	# Load the database
+	print   "\n\t  Connecting to DB:  $db_name";
+	$db_obj->load_screening_db($db_name);	
+	$digs_obj->{db} = $db_obj; # Store the database object reference 
+
+}
+
 
 ############################################################################
 # EOF
