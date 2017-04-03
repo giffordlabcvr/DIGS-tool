@@ -1541,7 +1541,7 @@ sub compose_clusters {
 		my $scaffold      = $locus_ref->{scaffold};
 		my $target_name   = $locus_ref->{target_name};
 		my $assigned_name = $locus_ref->{assigned_name};
-		my $probe_gene    = $locus_ref->{probe_gene};
+		my $probe_gene    = $locus_ref->{probe_gene}; # TODO: document why
 		my $assigned_gene = $locus_ref->{assigned_gene};
 		my $orientation   = $locus_ref->{orientation};
 		my $start         = $locus_ref->{$start_token};
