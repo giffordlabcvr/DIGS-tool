@@ -236,6 +236,58 @@ sub ask_list_question {
 	return $answer;
 }
 
+#***************************************************************************
+# Subroutine:  do_read_tabdelim_dialogue
+# Description: read in a tab delimited file, capture column headers as field names
+#***************************************************************************
+sub do_read_tabdelim_dialogue {
+
+	my ($self, $path, $data_ref, $fields_array, $fields_hash) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+	
+	my @infile;
+	$fileio->read_file($path, \@infile);
+
+	my $line_number = 0;
+	foreach my $line (@infile) {
+		$line_number++;
+		if     ($line =~ /^\s*$/)  { next; } # discard blank line
+		elsif  ($line =~ /^\s*#/)  { next; } # discard comment line 
+		unless ($line =~ /\t/)     { print "\n\t Incorrect formatting at line '$line_number'"; die; }
+		push (@$data_ref, $line);
+	}
+	my $data = scalar @$data_ref;
+	unless ($data) {
+		die "\n\t Couldn't read input file\n\n";
+	}
+	
+	# DISPLAY the column headers read from the tab-delimited file
+	my $header_row = shift @$data_ref;
+	my @header_row = split ("\t", $header_row);		
+	print "\n\n\t The following cleaned column headers (i.e. table fields) were obtained\n";
+	my $i;
+	foreach my $element (@header_row) {
+		chomp $element;
+		$i++;
+		$element =~ s/\s+/_/g;  # Remove whitespace
+		$element =~ s/-/_/g;    # Remove hyphens (avoid in mysql field names)
+		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
+		print "\n\t\t Column $i: '$element'";
+		push (@$fields_array, $element);
+		$fields_hash->{$element} = "varchar";
+	}
+	
+	# Prompt user - did we read the file correctly?
+	my $question3 = "\n\n\t Is this correct?";
+	my $answer3 = $self->ask_yes_no_question($question3);
+	if ($answer3 eq 'n') { # Exit if theres a problem with the infile
+		print "\n\t\t Aborted!\n\n\n"; exit;
+	}
+}
+
+
 ############################################################################
 # Private Member Functions
 ############################################################################
