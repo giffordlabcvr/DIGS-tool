@@ -747,7 +747,7 @@ sub create_nomenclature_table {
 	  `namespace_id`     varchar(100) NOT NULL default '0',
 	  `locus_class`      varchar(100) NOT NULL default '0',
 	  `organism_code`    varchar(100) NOT NULL default '0',
-	  `namespace_id`     varchar(100) NOT NULL default '0',
+	  `full_id`     varchar(100) NOT NULL default '0',
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -845,6 +845,7 @@ sub do_track_table_dialogue {
 	if ($option eq '1') { # Get name of new table
 		my $table_name_question = "\n\t What is the name of the new table?";
 		$table_name = $console->ask_question($table_name_question);
+		$table_to_use = $table_name;
 	}
 	# or choose one of the ancillary tables already in the DB
 	else {
@@ -853,10 +854,10 @@ sub do_track_table_dialogue {
 		$self->get_ancillary_table_names(\@extra_tables);
 		
 		my $table_num = 0;
-		foreach my $table_name (@extra_tables) {
+		foreach my $extra_table_name (@extra_tables) {
 			$table_num++;
-			$extra_tables{$table_num} = $table_name;
-			print "\n\t\t Table $table_num: '$table_name'";
+			$extra_tables{$table_num} = $extra_table_name;
+			print "\n\t\t Table $table_num: '$extra_table_name'";
 		}
 		my @table_choices = keys %extra_tables;
 
@@ -867,12 +868,16 @@ sub do_track_table_dialogue {
 	}
 
 	if ($option eq 1) { # Create table 
-		$self->create_nomenclature_tracks_table($dbh, $table_name);
+		$self->create_nomenclature_tracks_table($dbh, $table_to_use);
 	}
 
 	# Load the table
-	$self->load_tracks_table($dbh, $table_name);
-	my $track_table = $self->{$table_to_use};
+	$self->load_tracks_table($dbh, $table_to_use);
+	my $track_table = $self->{nomenclature_tracks_table};
+	unless ($track_table) {
+		$devtools->print_hash($self);
+		die;
+	}
 	
 	if ($option eq 3)   {  # Flush the table if requested
 		$track_table->flush();

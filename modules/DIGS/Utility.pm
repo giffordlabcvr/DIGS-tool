@@ -131,9 +131,6 @@ sub run_utility_process {
 	if ($genomes) {
 		$self->run_target_utility_process($genomes);		
 	}
-	elsif ($utility) {
-		$self->run_data_utility_process($utility, $infile);	
-	}
 	else {
 
 		# Use a control file to connect to database
@@ -239,7 +236,7 @@ sub run_dev_validation_process {
 	}
 	elsif ($option eq 4) { # Show the alternative annotations breakdown for each ID-allocated locus
 		my $nomenclature_obj = Nomenclature->new($self); 
-		$nomenclature_obj->show_nomenclature_chains();
+		$nomenclature_obj->show_nomenclature_chains($digs_obj);
 	}
 	elsif ($option eq 5) {
 		$self->fix_searches_performed_table();

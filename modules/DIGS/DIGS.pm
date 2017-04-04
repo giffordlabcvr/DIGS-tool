@@ -173,6 +173,7 @@ sub prepare_target_files_for_blast {
 	# Format targets files for BLAST searching
 	my $target_db_obj = TargetDB->new($self);
 	$target_db_obj->format_targets_for_blast();
+
 }
 
 #***************************************************************************

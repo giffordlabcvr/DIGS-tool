@@ -157,8 +157,8 @@ sub get_sorted_tracks {
 	                  namespace_id  ];
 	$nomenclature_table->select_rows(\@fields, \@sorted, $where);
 
-	my $total_loci = scalar @sorted;
-	print "\n\n\t # $total_loci rows in the nomenclature table";
+	my $total_annotations = scalar @sorted;
+	print "\n\n\t # $total_annotations rows in the track table";
 	#$devtools->print_array(\@sorted); die;
 
 	# Format for DIGS clustering	
@@ -276,7 +276,7 @@ sub apply_standard_names_to_clusters {
 		push (@id, $numeric_id);
 		push (@id, $organism_code);	 
 		my $id = join('.', @id);
-		print "\n\t # ID: $id";
+		#print "\n\t # ID: $id";
 
 		# Update the nomenclature table
 		$composite{full_id} = $id;
@@ -412,12 +412,12 @@ sub do_console_setup_dialogue {
 	my ($self) = @_;
 
 	print "\n\n\t  #≈#~# SETUP: overview\n";
-	print "\n\t  # Please define the following:\n";
-	print "\n\t  #   1.   Locus class (e.g. ERV)";
-	print "\n\t  #   2.   A source of tracks (required)";
-	print "\n\t  #   3.   A taxonomy translation table for the locus class (optional)";
-	print "\n\t  #   4.   An alternative name translation table for gene names (optional)";
-	print "\n\t  #   5.   An organism ID, or a translation table linking organism name with an ID";
+	#print "\n\t  # Please define the following:\n";
+	#print "\n\t  #   1.   Locus class (e.g. ERV)";
+	#print "\n\t  #   2.   A source of tracks (required)";
+	#print "\n\t  #   3.   A taxonomy translation table for the locus class (optional)";
+	#print "\n\t  #   4.   An alternative name translation table for gene names (optional)";
+	#print "\n\t  #   5.   An organism ID, or a translation table linking organism name with an ID";
 
 	# Get the locus class
 	print "\n\n\t  #≈#~# 1: SET LOCUS CLASS\n";
@@ -689,11 +689,20 @@ sub initialise_nomenclature_db {
 	}
 
 	# Load nomenclature tables
-	$db_ref->load_nomenclature_chains_table($dbh);
+	print "\n\n\t  #        Loading nomenclature table";
 	$db_ref->load_nomenclature_table($dbh);	
+	print "\n\t  #        Loading nomenclature chains table";
+	$db_ref->load_nomenclature_chains_table($dbh);
 
-	# Flush nomenclature core tables
-	$self->flush_nomenclature_core_tables();
+	# Flush nomenclature table
+	my $nom_table    = $db_ref->{nomenclature_table};
+	print "\n\t  #        Flushing nomenclature table";
+	$nom_table->flush();
+
+	# Flush nomenclature chains table
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	print "\n\t  #        Flushing nomenclature chains table";
+	$chains_table->flush();
 
 }
 
@@ -728,23 +737,6 @@ sub parse_ctl_file_and_connect_to_db {
 	$digs_obj->initialise_screening_db($db_name);
 }
 
-#***************************************************************************
-# Subroutine:  flush_nomenclature_core_tables
-# Description: ask user whether or not to flush the core nomenclature tables
-#***************************************************************************
-sub flush_nomenclature_core_tables {
-
-	my ($self) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	unless ($nom_table and $chains_table) { die; }
-	$nom_table->flush();
-	$chains_table->flush();
-}
 
 ############################################################################
 # UTILITY / DEV
@@ -756,10 +748,10 @@ sub flush_nomenclature_core_tables {
 #***************************************************************************
 sub show_nomenclature_chains {
 	
-	my ($self) = @_;
+	my ($self, $digs_obj) = @_;
 
 	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
+	unless ($digs_obj) { die; } # Sanity checking
 	my $db = $digs_obj->{db};
 	unless ($db) { die; } # Sanity checking
 
