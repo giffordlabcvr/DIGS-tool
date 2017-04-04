@@ -1553,7 +1553,9 @@ sub compose_clusters {
 	    if ($initialised) {
 
 			# Sanity checking - are sequences in sorted order for this scaffold?
-			if ( $scaffold eq $last_scaffold and $start < $last_start) { die; }
+			if ( $scaffold eq $last_scaffold and $start < $last_start) {
+				$devtools->print_hash($locus_ref); die; 
+			}
            
             # Work out wether to merge this hit with the last
             my $merge = $self->compare_adjacent_loci($locus_ref, \%last_locus, $settings_ref);

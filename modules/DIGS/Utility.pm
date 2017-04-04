@@ -178,8 +178,9 @@ sub run_screening_db_utility_process {
 		if ($answer1 eq 'y') { $db->flush_screening_db(); }
 	}
 	elsif ($option eq 3) {	# Drop tables
-		die;
-		$self->drop_ancillary_table();
+		my $db = $digs_obj->{db};
+		my $db_name = $db->{db_name};
+		$self->drop_db_table();
 	}
 	elsif ($option eq 4) { # Drop screening DB 
 		my $db = $digs_obj->{db};
@@ -257,7 +258,7 @@ sub run_dev_validation_process {
 
 #***************************************************************************
 # Subroutine:  upload_data
-# Description: upload data to DOGS screening DB tables
+# Description: upload data to DIGS screening DB tables
 #***************************************************************************
 sub upload_data {
 
@@ -294,6 +295,45 @@ sub upload_data {
 	print "\n\n\t #### IMPORTING to table '$anc_table'";
 	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
 	my $row_count = $db->import_data_to_ancillary_table($anc_table, \@data, \@fields, \%fields, $verbose);
+
+}
+
+#***************************************************************************
+# Subroutine:  drop_db_table
+# Description: drop a DIGS screening DB table
+#***************************************************************************
+sub drop_db_table {
+
+	my ($self) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+
+	my $db = $digs_obj->{db};
+	unless ($db) { die; }
+	my $dbh = $db->{dbh};
+	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
+
+	# Get the ancillary tables in this DB
+	my @tables;
+	my %tables;
+	$db->get_ancillary_table_names(\@tables);
+
+	print "\n\n\t  # Drop ancillary tables in DIGS screening DB\n";	
+	my $table_num = 0;
+	foreach my $table_name (@tables) {
+		$table_num++;
+		$tables{$table_num} = $table_name;
+		print "\n\t\t Table $table_num: '$table_name'";
+	}
+	my @table_choices = keys %tables;
+	my $num_choices = scalar @table_choices;
+	
+	my $question = "\n\n\t Apply to which of the above tables?";
+	my $answer   = $console->ask_list_question($question, $num_choices);
+	my $table_to_drop = $tables{$answer};
+	unless ($table_to_drop) { die; }	
+	$db->drop_ancillary_table($table_to_drop);
 
 }
 

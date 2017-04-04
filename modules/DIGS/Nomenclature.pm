@@ -87,365 +87,15 @@ sub create_standard_locus_ids {
 	# Do console dialogue to get input parameters
 	$self->do_console_setup_dialogue();
 
+	# Get sorted tracks from nomenclature table
+	$self->get_sorted_tracks();
+		
 	# Get the locus data and created clustered annotations
 	$self->cluster_annotations();
-
+	
 	# Apply standard names to locus clusters
 	$self->apply_standard_names_to_clusters();
 
-}
-
-############################################################################
-# INITIALISATION: top level handlers
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise_nomenclature_process
-# Description: set up the program to execute the ID allocation process 
-#***************************************************************************
-sub do_console_setup_dialogue {
-
-	my ($self) = @_;
-
-	print "\n\n\t  #≈#~# SETUP: overview\n";
-	print "\n\t  # Please define the following:\n";
-	print "\n\t  #   1.   Locus class (e.g. ERV)";
-	print "\n\t  #   2.   A source of tracks (required)";
-	print "\n\t  #   3.   A taxonomy translation table for the locus class (optional)";
-	print "\n\t  #   4.   An alternative name translation table for gene names (optional)";
-	print "\n\t  #   5.   An organism ID, or a translation table linking organism name with an ID";
-
-	# Get the locus class
-	print "\n\n\t  #≈#~# 1: SET LOCUS CLASS\n";
-	my $question2 = "\n\t  What locus class name to use?";
-	#my $locus_class = $console->ask_question($question2);	
-	my $locus_class = 'ERV';	
-	print "\n\t      - locus class set to '$locus_class'";
-	$self->{locus_class} = $locus_class;	
-
-	# Set the source for nomenclature tracks
-	my $track_table = $self->set_nomenclature_tracks();
-	print "\n\t      - annotations sourced from table '$track_table'";
-	
-	# Set the rules for using translation tables (options)
-	my $taxonomy_table = $self->load_taxonomy_table();
-	print "\n\t      - taxonomy translations sourced from table '$taxonomy_table'";
-
-	# Set the rules for handling gene names (options)
-	my $gene_name_table = $self->load_gene_name_translation_table();
-	print "\n\t      - gene name translations sourced from table '$gene_name_table'";
-	
-	# Get the organism ID
-	print "\n\n\t  #≈#~# 5: SET ORGANISM CODE\n";
-	my $question1 = "\n\t  What is the organism code to use?";
-	#my $organism_code = $console->ask_yes_no_question($question1);	
-	my $organism_code = 'HoSa';
-	$self->{organism_code} = $organism_code;
-	print "\n\t      - organism code set to '$organism_code'";
-
-}
-
-############################################################################
-# INITIALISATION: core database tables for ID allocation
-############################################################################
-
-#***************************************************************************
-# Subroutine:  set_nomenclature_tracks
-# Description: set the source of annotations for ID allocation
-#***************************************************************************
-sub set_nomenclature_tracks {
-
-	my ($self) = @_;
-
-	# Option to load a taxon translation table
-	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t  #≈#~# 2: SET SOURCE OF ANNOTATION TRACKS\n";
-	my $table_name;
-	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
-	my @choices = qw [ l t ];
-	#my $load_from_file = $console->ask_simple_choice_question($question1, \@choices);
-	my $load_from_file = 't';
-	if ($load_from_file eq 'l') {
-		$self->do_load_tracks_to_tables_dialogue();
-	}
-	elsif ($load_from_file eq 't') {
-		$table_name = 'herv_input';
-	}
-
-	# Set table 
-	$self->{input_track_table_name} = $table_name;
-
-	return $table_name;
-
-}
-
-#***************************************************************************
-# Subroutine:  do_load_tracks_to_tables_dialogue
-# Description: 
-#***************************************************************************
-sub do_load_tracks_to_tables_dialogue {
-
-	my ($self, $track_data_ref) = @_;
-
-	# Get DIGS object and DB
-	my $digs_obj  = $self->{digs_obj};
-	my $db        = $digs_obj->{db};  
-	my $dbh       = $db->{dbh};  
-
-	# Get the file path
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	#my $infile = $self->ask_question($question);
-	my $infile = '../local/human/hg19_combined_tracks.txt';
-	unless ($infile) { die; }
-
-	# Read in the data from a tab delimited file
-	my @data;
-	my %fields;
-	my @fields;
-	$console->do_read_tabdelim_dialogue($infile, \@data, \@fields, \%fields);
-	#$devtools->print_array(\@data); die;
-
-	# Get a reference to a table object for the ancillary table
-	my $anc_table = $db->do_ancillary_table_dialogue(\@fields, \%fields);
-	#$devtools->print_hash(\%fields); die;
-	#$devtools->print_array(\@fields); die;	
-
-	# Insert the data	
-	print "\n\n\t #### IMPORTING to table '$anc_table'";
-	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
-	my $row_count = $db->import_data_to_ancillary_table($anc_table, \@data, \@fields, \%fields, $verbose);
-
-}
-
-#***************************************************************************
-# Subroutine:  choose_nomenclature_table
-# Description: 
-#***************************************************************************
-sub choose_nomenclature_table {
-
-	my ($self, $answer) = @_;
-
-	# Get DIGS object and DB
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};  
-
-
-	my %fields;
-	my @fields;
-
-	my %extra_tables;
-	my @extra_tables = qw [ digs_results ];
-
-	# Create new table if option 1 selected
-	my $table_name;
-	if ($answer eq '1') {	
-		my $table_name_question = "\n\t What is the name of the new table?";
-		$table_name = $console->ask_question($table_name_question);
-		$db->create_ancillary_table($table_name, \@fields, \%fields);	
-
-	}
-	# or choose one of the ancillary tables already in the DB
-	else {
-
-		# Get the ancillary tables in this DB
-		$db->get_ancillary_table_names(\@extra_tables);
-		
-		my $table_num = 0;
-		foreach my $extra_table_name (@extra_tables) {
-		
-			if ($extra_table_name eq 'digs_results'
-			or  $extra_table_name eq 'nomenclature') {
-				next;
-			}
-			else {
-				$table_num++;
-				$extra_tables{$table_num} = $extra_table_name;
-				print "\n\t\t Table $table_num: '$extra_table_name'";
-			}
-		}
-		my @table_choices = keys %extra_tables;
-
-		my $question5 = "\n\n\t Apply to which of the above tables?";
-		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
-		$table_name = $extra_tables{$answer5};
-		unless ($table_name) { die; }
-	}
-	return $table_name;
-}
-
-#***************************************************************************
-# Subroutine:  set_table_as_track_source
-# Description: set a DIGS screening DB table as a track source
-#***************************************************************************
-sub set_table_as_track_source {
-
-	my ($self) = @_;
-
-
-	die;
-
-	# Get DIGS object and DB
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};  
-	
-	# Get the ancillary tables in this DB
-	my %extra_tables;
-	my @extra_tables = qw [ digs_results ];
-	$db->get_ancillary_table_names(\@extra_tables);
-		
-	my $table_num = 0;
-	foreach my $table_name (@extra_tables) {
-		$table_num++;
-		$extra_tables{$table_num} = $table_name;
-		print "\n\t\t Table $table_num: '$table_name'";
-	}
-
-	my $table_to_use;	
-	my $question = "\n\n\t Use which table as a source";
-	my $answer   = $console->ask_list_question($question, $table_num);
-	$table_to_use = $extra_tables{$answer};
-	unless ($table_to_use) { die; }
-}
-
-############################################################################
-# INITIALISATION: load taxonomy & gene name translation tables
-############################################################################
-
-#***************************************************************************
-# Subroutine:  load_taxonomy_table
-# Description: load a table that captures taxonomic definitions
-# Reason: tables allow IDs to be based on alternative taxonomic levels
-#***************************************************************************
-sub load_taxonomy_table {
-
-	my ($self) = @_;
-
-	my $table_name;
-	print "\n\n\t  #≈#~# 3: LOAD TAXONOMY TRANSLATION TABLE\n";
-	$table_name = 'taxonomy_translations';
-	$self->{taxonomy_table_name} = $table_name;
-	my %translations;
-	#$self->load_taxonomy_translations_from_table(\%translations);
-	#$self->{taxonomy_translations} = \%translations;
-
-	return $table_name;
-}
-
-#***************************************************************************
-# Subroutine:  load_gene_name_translation_tables
-# Description: load a table that captures alternative names of homologous genes
-#***************************************************************************
-sub load_gene_name_translation_table {
-
-	my ($self) = @_;
-
-	my $table_name;
-	print "\n\n\t  #≈#~# 4: LOAD GENE NAME TRANSLATION TABLE\n";
-	$table_name = 'gene_translations';
-	$self->{gene_names_table_name} = $table_name;
-	my %translations;
-	#$self->load_genename_translations_from_table(\%translations);
-	#$self->{gene_name_translations} = \%translations;
-
-	return $table_name;
-
-}
-
-############################################################################
-# INITIALISATION: core database tables for ID allocation
-############################################################################
-
-#***************************************************************************
-# Subroutine:  initialise_nomenclature_db
-# Description: load core nomenclature tables, create if they don't exist
-#***************************************************************************
-sub initialise_nomenclature_db {
-
-	my ($self, $infile) = @_;
-	
-	# Parse control file and connect to DB
-	unless($infile) {
-		die "\n\t This option requires an infile\n\n";
-	}
-
-	# Parse control file and connect to DB
-	$self->parse_ctl_file_and_connect_to_db($infile);
-
-	# Create nomenclature tables if they don't exist already
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
-	unless ($nomenclature_exists) {
-		$db_ref->create_nomenclature_table($dbh);
-	}
-	my $nom_tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
-	unless ($nom_tracks_exists) {
-		$db_ref->create_nomenclature_tracks_table($dbh);
-	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
-
-	# Load nomenclature tables
-	$db_ref->load_nomenclature_tracks_table($dbh);
-	$db_ref->load_nomenclature_chains_table($dbh);
-	$db_ref->load_nomenclature_table($dbh);	
-
-	# Flush nomenclature core tables
-	$self->flush_nomenclature_core_tables();
-
-}
-
-#***************************************************************************
-# Subroutine:  parse_ctl_file_and_connect_to_db
-# Description: connect to a DIGS screening DB by parsing a DIGS control file
-#***************************************************************************
-sub parse_ctl_file_and_connect_to_db {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($infile, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
-	}
-	
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file} = $infile;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($infile, $digs_obj);
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-
-	# Load/create the screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-}
-
-#***************************************************************************
-# Subroutine:  flush_nomenclature_core_tables
-# Description: ask user whether or not to flush the core nomenclature tables
-#***************************************************************************
-sub flush_nomenclature_core_tables {
-
-	my ($self) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	my $dbh = $db_ref->{dbh};
-	my $nom_table    = $db_ref->{nomenclature_table};
-	my $chains_table = $db_ref->{nomenclature_chains_table};
-	unless ($nom_table and $chains_table) { die; }
-	$nom_table->flush();
-	$chains_table->flush();
 }
 
 ############################################################################
@@ -460,9 +110,6 @@ sub cluster_annotations {
 
 	my ($self) = @_;
 
-	# Get sorted tracks from nomenclature table
-	$self->get_sorted_nomenclature_tracks();
-		
 	# Compose clusters of related sequences
 	my %settings;
 	$settings{range} = '0';
@@ -474,7 +121,7 @@ sub cluster_annotations {
 	$digs_obj->compose_clusters(\%clusters, $sorted_ref, \%settings);
 	#$devtools->print_hash(\%clusters); die;
 
-	# Cluster IDs
+	# Show the results of clustering
 	my @cluster_ids  = keys %clusters;
 	my $num_clusters = scalar @cluster_ids;
 	print "\n\t # $num_clusters locus groups in total";
@@ -483,35 +130,52 @@ sub cluster_annotations {
 }
 
 #***************************************************************************
-# Subroutine:  get_sorted_nomenclature_tracks
+# Subroutine:  get_sorted_tracks
 # Description: get nomenclature set rows, sorted by scaffold, in order of location
 #***************************************************************************
-sub get_sorted_nomenclature_tracks {
+sub get_sorted_tracks {
 
 	my ($self) = @_;;
 
 	# Set SQL 'where' clause to sort the rows
-	my $where  = " ORDER BY scaffold, extract_start ";
+	my $where  = " ORDER BY scaffold, start_position ";
 
 	# Get database tables
 	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};
-	my $nomenclature_table = $db->{nomenclature_tracks_table};
+	my $db_ref = $digs_obj->{db};	
+	my $nomenclature_table = $db_ref->{nomenclature_tracks_table};
 	unless ($nomenclature_table) {  
-		$devtools->print_hash($db); die; 
+		$devtools->print_hash($db_ref); die; 
 	}
 		
 	# Set the fields to get values for
 	my @sorted;
 	my @fields = qw [ record_id track_name
-	                  assigned_name assigned_gene
-	                  scaffold orientation namespace_id
-                      extract_start extract_end sequence_length ];
+	                  organism_code locus_class
+	                  taxon gene scaffold orientation
+	                  start_position end_position
+	                  namespace_id  ];
 	$nomenclature_table->select_rows(\@fields, \@sorted, $where);
 
 	my $total_loci = scalar @sorted;
 	print "\n\n\t # $total_loci rows in the nomenclature table";
 	#$devtools->print_array(\@sorted); die;
+
+	# Format for DIGS clustering	
+	my $start;
+	my $last_start;
+	my $scaffold;
+	my $last_scaffold;
+	
+	my $count = 0;
+	foreach my $row (@sorted) {
+		$count++;
+		$row->{assigned_name} = $row->{taxon};
+		$row->{extract_start} = $row->{start_position};
+		$row->{extract_end}   = $row->{end_position};
+		$row->{assigned_gene} = $row->{gene};
+	}
+	
 	$self->{sorted_loci} = \@sorted;	
 }
 
@@ -529,10 +193,9 @@ sub apply_standard_names_to_clusters {
 
 	my $digs_obj      = $self->{digs_obj};
 	my $db_ref        = $digs_obj->{db};
-	my $chains_table  = $db_ref->{nomenclature_chains_table};
+	my $chains_table  = $db_ref->{nomenclature_chains_table};	
 	my $nom_table     = $db_ref->{nomenclature_table};
 	unless ($nom_table and $chains_table) { die; }
-
 	my $organism_code = $self->{organism_code};
 	my $locus_class   = $self->{locus_class};
 	unless ($organism_code and $locus_class) { die; } # Sanity checking
@@ -734,6 +397,353 @@ sub translate_taxaname {
 	my $taxonomy_ref = $translations_ref->{$original_name};	
 	my $translated_name = $taxonomy_ref->{$taxonomic_level};	
 	return $translated_name;
+}
+
+############################################################################
+# INITIALISATION: top level handlers
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_process
+# Description: set up the program to execute the ID allocation process 
+#***************************************************************************
+sub do_console_setup_dialogue {
+
+	my ($self) = @_;
+
+	print "\n\n\t  #≈#~# SETUP: overview\n";
+	print "\n\t  # Please define the following:\n";
+	print "\n\t  #   1.   Locus class (e.g. ERV)";
+	print "\n\t  #   2.   A source of tracks (required)";
+	print "\n\t  #   3.   A taxonomy translation table for the locus class (optional)";
+	print "\n\t  #   4.   An alternative name translation table for gene names (optional)";
+	print "\n\t  #   5.   An organism ID, or a translation table linking organism name with an ID";
+
+	# Get the locus class
+	print "\n\n\t  #≈#~# 1: SET LOCUS CLASS\n";
+	my $question2 = "\n\t  What locus class name to use?";
+	#my $locus_class = $console->ask_question($question2);	
+	my $locus_class = 'ERV';	
+	print "\n\t      - locus class set to '$locus_class'";
+	$self->{locus_class} = $locus_class;	
+
+	# Set the source for nomenclature tracks
+	my $track_table = $self->set_nomenclature_tracks();
+	print "\n\t      - annotations sourced from table '$track_table'";
+	
+	# Set the rules for using translation tables (options)
+	my $taxonomy_table = $self->load_taxonomy_table();
+	print "\n\t      - taxonomy translations sourced from table '$taxonomy_table'";
+
+	# Set the rules for handling gene names (options)
+	my $gene_name_table = $self->load_gene_name_translation_table();
+	print "\n\t      - gene name translations sourced from table '$gene_name_table'";
+	
+	# Get the organism ID
+	print "\n\n\t  #≈#~# 5: SET ORGANISM CODE\n";
+	my $question1 = "\n\t  What is the organism code to use?";
+	#my $organism_code = $console->ask_yes_no_question($question1);	
+	my $organism_code = 'HoSa';
+	$self->{organism_code} = $organism_code;
+	print "\n\t      - organism code set to '$organism_code'";
+
+}
+
+############################################################################
+# INITIALISATION: core database tables for ID allocation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  set_nomenclature_tracks
+# Description: set the source of annotations for ID allocation
+#***************************************************************************
+sub set_nomenclature_tracks {
+
+	my ($self) = @_;
+
+	# Get DIGS object and DB
+	my $digs_obj  = $self->{digs_obj};
+	my $db        = $digs_obj->{db};  
+	my $dbh       = $db->{dbh};  
+
+	# Option to load a taxon translation table
+	# Reason: tables allow IDs to be based on alternative taxonomic levels
+	print "\n\n\t  #≈#~# 2: SET SOURCE OF ANNOTATION TRACKS\n";
+	my $table_name;
+	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
+	my @choices = qw [ l t ];
+	my $load_from_file = $console->ask_simple_choice_question($question1, \@choices);
+
+	#my $load_from_file = 't';
+	if ($load_from_file eq 'l') {
+		$table_name = $self->do_load_tracks_to_tables_dialogue();
+	}
+	elsif ($load_from_file eq 't') {
+		$table_name = 'herv_input';
+		$db->load_tracks_table($dbh, $table_name);
+	}
+
+	# Set table 
+	$self->{input_track_table_name} = $table_name;
+	return $table_name;
+
+}
+
+#***************************************************************************
+# Subroutine:  do_load_tracks_to_tables_dialogue
+# Description: 
+#***************************************************************************
+sub do_load_tracks_to_tables_dialogue {
+
+	my ($self, $track_data_ref) = @_;
+
+	# Get DIGS object and DB
+	my $digs_obj  = $self->{digs_obj};
+	my $db        = $digs_obj->{db};  
+	my $dbh       = $db->{dbh};  
+
+	# Get the file path
+	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
+	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	#my $infile = $self->ask_question($question);
+	my $infile = '../local/human/hg19_combined_tracks.txt';
+	unless ($infile) { die; }
+
+	# Read in the data from a tab delimited file
+	my @data;
+	my %fields;
+	my @fields;
+	$console->do_read_tabdelim_dialogue($infile, \@data, \@fields, \%fields);
+
+	# Get a reference to a table object for the ancillary table
+	my $table_name = $db->do_track_table_dialogue(\@data, \@fields, \%fields);		
+	return $table_name;
+
+}
+
+#***************************************************************************
+# Subroutine:  choose_nomenclature_table
+# Description: 
+#***************************************************************************
+sub choose_nomenclature_table {
+
+	my ($self, $answer) = @_;
+
+	# Get DIGS object and DB
+	my $digs_obj = $self->{digs_obj};
+	my $db = $digs_obj->{db};  
+
+
+	my %fields;
+	my @fields;
+
+	my %extra_tables;
+	my @extra_tables = qw [ digs_results ];
+
+	# Create new table if option 1 selected
+	my $table_name;
+	if ($answer eq '1') {	
+		my $table_name_question = "\n\t What is the name of the new table?";
+		$table_name = $console->ask_question($table_name_question);
+		$db->create_ancillary_table($table_name, \@fields, \%fields);	
+
+	}
+	# or choose one of the ancillary tables already in the DB
+	else {
+
+		# Get the ancillary tables in this DB
+		$db->get_ancillary_table_names(\@extra_tables);
+		
+		my $table_num = 0;
+		foreach my $extra_table_name (@extra_tables) {
+		
+			if ($extra_table_name eq 'digs_results'
+			or  $extra_table_name eq 'nomenclature') {
+				next;
+			}
+			else {
+				$table_num++;
+				$extra_tables{$table_num} = $extra_table_name;
+				print "\n\t\t Table $table_num: '$extra_table_name'";
+			}
+		}
+		my @table_choices = keys %extra_tables;
+
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
+		$table_name = $extra_tables{$answer5};
+		unless ($table_name) { die; }
+	}
+	return $table_name;
+}
+
+#***************************************************************************
+# Subroutine:  set_table_as_track_source
+# Description: set a DIGS screening DB table as a track source
+#***************************************************************************
+sub set_table_as_track_source {
+
+	my ($self) = @_;
+
+
+	die;
+
+	# Get DIGS object and DB
+	my $digs_obj = $self->{digs_obj};
+	my $db = $digs_obj->{db};  
+	
+	# Get the ancillary tables in this DB
+	my %extra_tables;
+	my @extra_tables = qw [ digs_results ];
+	$db->get_ancillary_table_names(\@extra_tables);
+		
+	my $table_num = 0;
+	foreach my $table_name (@extra_tables) {
+		$table_num++;
+		$extra_tables{$table_num} = $table_name;
+		print "\n\t\t Table $table_num: '$table_name'";
+	}
+
+	my $table_to_use;	
+	my $question = "\n\n\t Use which table as a source";
+	my $answer   = $console->ask_list_question($question, $table_num);
+	$table_to_use = $extra_tables{$answer};
+	unless ($table_to_use) { die; }
+}
+
+############################################################################
+# INITIALISATION: load taxonomy & gene name translation tables
+############################################################################
+
+#***************************************************************************
+# Subroutine:  load_taxonomy_table
+# Description: load a table that captures taxonomic definitions
+# Reason: tables allow IDs to be based on alternative taxonomic levels
+#***************************************************************************
+sub load_taxonomy_table {
+
+	my ($self) = @_;
+
+	my $table_name;
+	print "\n\n\t  #≈#~# 3: LOAD TAXONOMY TRANSLATION TABLE\n";
+	$table_name = 'taxonomy_translations';
+	$self->{taxonomy_table_name} = $table_name;
+	my %translations;
+	#$self->load_taxonomy_translations_from_table(\%translations);
+	#$self->{taxonomy_translations} = \%translations;
+
+	return $table_name;
+}
+
+#***************************************************************************
+# Subroutine:  load_gene_name_translation_tables
+# Description: load a table that captures alternative names of homologous genes
+#***************************************************************************
+sub load_gene_name_translation_table {
+
+	my ($self) = @_;
+
+	my $table_name;
+	print "\n\n\t  #≈#~# 4: LOAD GENE NAME TRANSLATION TABLE\n";
+	$table_name = 'gene_translations';
+	$self->{gene_names_table_name} = $table_name;
+	my %translations;
+	#$self->load_genename_translations_from_table(\%translations);
+	#$self->{gene_name_translations} = \%translations;
+
+	return $table_name;
+
+}
+
+############################################################################
+# INITIALISATION: core database tables for ID allocation
+############################################################################
+
+#***************************************************************************
+# Subroutine:  initialise_nomenclature_db
+# Description: load core nomenclature tables, create if they don't exist
+#***************************************************************************
+sub initialise_nomenclature_db {
+
+	my ($self, $infile) = @_;
+	
+	# Parse control file and connect to DB
+	unless($infile) {
+		die "\n\t This option requires an infile\n\n";
+	}
+
+	# Parse control file and connect to DB
+	$self->parse_ctl_file_and_connect_to_db($infile);
+
+	# Create nomenclature tables if they don't exist already
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
+	unless ($nomenclature_exists) {
+		$db_ref->create_nomenclature_table($dbh);
+	}
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}
+
+	# Load nomenclature tables
+	$db_ref->load_nomenclature_chains_table($dbh);
+	$db_ref->load_nomenclature_table($dbh);	
+
+	# Flush nomenclature core tables
+	$self->flush_nomenclature_core_tables();
+
+}
+
+#***************************************************************************
+# Subroutine:  parse_ctl_file_and_connect_to_db
+# Description: connect to a DIGS screening DB by parsing a DIGS control file
+#***************************************************************************
+sub parse_ctl_file_and_connect_to_db {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+	
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($infile, $digs_obj);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+}
+
+#***************************************************************************
+# Subroutine:  flush_nomenclature_core_tables
+# Description: ask user whether or not to flush the core nomenclature tables
+#***************************************************************************
+sub flush_nomenclature_core_tables {
+
+	my ($self) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	my $dbh = $db_ref->{dbh};
+	my $nom_table    = $db_ref->{nomenclature_table};
+	my $chains_table = $db_ref->{nomenclature_chains_table};
+	unless ($nom_table and $chains_table) { die; }
+	$nom_table->flush();
+	$chains_table->flush();
 }
 
 ############################################################################

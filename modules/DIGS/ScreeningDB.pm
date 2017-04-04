@@ -335,27 +335,30 @@ sub load_contigs_table {
 }     
 
 #***************************************************************************
-# Subroutine:  load_nomenclature_tracks_table
+# Subroutine:  load_tracks_table
 # Description: load screening database table 'nomenclature'
 #***************************************************************************
-sub load_nomenclature_tracks_table {
+sub load_tracks_table {
 
-	my ($self, $dbh) = @_;
+	my ($self, $dbh, $table_name) = @_;
 
 	# Definition of the table
-	my %fields = (	
+	my %nomenclature_fields = (	
         track_name       => 'varchar',
-		assigned_name    => 'varchar',
+		organism_code    => 'varchar',	
+		locus_class      => 'varchar',	
+		taxon            => 'varchar',
+		gene             => 'varchar',
 		scaffold         => 'varchar',
-		assigned_gene    => 'varchar',
-		extract_start    => 'varchar',
-		extract_end      => 'varchar',
-		orientation      => 'varchar',
-		sequence_length  => 'int',
+		start_position   => 'int',
+		end_position     => 'int',
+		orientation      => 'varchar',	
 		namespace_id     => 'varchar',	
 	);
 	
-	my $tracks_table = MySQLtable->new('nomenclature_tracks', $dbh, \%fields);
+	my $tracks_table = MySQLtable->new($table_name, $dbh, \%nomenclature_fields);
+
+	$tracks_table->{name} = $table_name;
 	$self->{nomenclature_tracks_table} = $tracks_table;
 }
 
@@ -388,6 +391,8 @@ sub load_nomenclature_table {
 	# Definition of the table
 	my %nomenclature_fields = (	
         track_name       => 'varchar',
+		organism_code    => 'varchar',	
+		locus_class      => 'varchar',	
 		assigned_name    => 'varchar',
 		scaffold         => 'varchar',
 		assigned_gene    => 'varchar',
@@ -396,8 +401,6 @@ sub load_nomenclature_table {
 		orientation      => 'varchar',
 		sequence_length  => 'int',
 		namespace_id     => 'varchar',	
-		locus_class      => 'varchar',	
-		organism_code    => 'varchar',	
 		full_id          => 'varchar',	
 	);
 	
@@ -680,18 +683,19 @@ sub create_contigs_table {
 #***************************************************************************
 sub create_nomenclature_tracks_table {
 
-	my ($self, $dbh) = @_;
+	my ($self, $dbh, $table_name) = @_;
 
 	#  Nomenclature table 
-	my $nomenclature = "CREATE TABLE `nomenclature_tracks` (
+	my $nomenclature = "CREATE TABLE `$table_name` (
 	  `record_id`        int(11) NOT NULL auto_increment,
-	  `track_name`       varchar(100) NOT NULL default '0',
-	  `assigned_name`    varchar(100) NOT NULL default '0',
+	  `track_name`       varchar(10)  NOT NULL default '0',
+	  `organism_code`    varchar(10)  NOT NULL default '0',
+	  `locus_class`      varchar(10)  NOT NULL default '0',
+	  `taxon`            varchar(10)  NOT NULL default '0',
+	  `gene`             varchar(100) NOT NULL default '0',
 	  `scaffold`         varchar(100) NOT NULL default '0',
-	  `extract_start`    int(11) NOT NULL default '0',
-	  `extract_end`      int(11) NOT NULL default '0',
-	  `sequence_length`  int(11) NOT NULL default '0',
-	  `assigned_gene`    varchar(100) NOT NULL default '0',
+	  `start_position`   int(11) NOT NULL default '0',
+	  `end_position`     int(11) NOT NULL default '0',
 	  `orientation`      varchar(100) NOT NULL default '0',
 	  `namespace_id`     varchar(100) NOT NULL default '0',
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
@@ -702,7 +706,7 @@ sub create_nomenclature_tracks_table {
 }
 
 #***************************************************************************
-# Subroutine:  create_nomenclature_table
+# Subroutine:  create_nomenclature_chains_table
 # Description: create MySQL 'nomenclature' table
 #***************************************************************************
 sub create_nomenclature_chains_table {
@@ -743,7 +747,7 @@ sub create_nomenclature_table {
 	  `namespace_id`     varchar(100) NOT NULL default '0',
 	  `locus_class`      varchar(100) NOT NULL default '0',
 	  `organism_code`    varchar(100) NOT NULL default '0',
-	  `full_id`          varchar(100) NOT NULL default '0',
+	  `namespace_id`     varchar(100) NOT NULL default '0',
 	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
@@ -816,6 +820,73 @@ sub flush_screening_db {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  do_track_table_dialogue
+# Description: create an annotation track table for the screening DB
+#***************************************************************************
+sub do_track_table_dialogue {
+
+	my ($self, $data_ref, $fields_array_ref, $fields_hash_ref) = @_;
+	
+	my $dbh = $self->{dbh};
+
+	# Show the options
+	my @choices = qw [ 1 2 3 ];
+	print "\n\t\t 1. Create new track table";
+	print "\n\t\t 2. Append data to existing track table";
+	print "\n\t\t 3. Flush existing track table and upload fresh data\n";
+	my $question = "\n\t Choose an option";
+	my $option = $console->ask_simple_choice_question($question, \@choices);
+
+	# Declare the variables & data structures we need
+	my $table_name;
+	my $table_to_use;
+	my %extra_tables;
+	my @extra_tables;
+	if ($option eq '1') { # Get name of new table
+		my $table_name_question = "\n\t What is the name of the new table?";
+		$table_name = $console->ask_question($table_name_question);
+	}
+	# or choose one of the ancillary tables already in the DB
+	else {
+
+		# Get the ancillary tables in this DB
+		$self->get_ancillary_table_names(\@extra_tables);
+		
+		my $table_num = 0;
+		foreach my $table_name (@extra_tables) {
+			$table_num++;
+			$extra_tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+		}
+		my @table_choices = keys %extra_tables;
+
+		my $question5 = "\n\n\t Apply to which of the above tables?";
+		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
+		$table_to_use = $extra_tables{$answer5};
+		unless ($table_to_use) { die; }
+	}
+
+	if ($option eq 1) { # Create table 
+		$self->create_nomenclature_tracks_table($dbh, $table_name);
+	}
+
+	# Load the table
+	$self->load_tracks_table($dbh, $table_name);
+	my $track_table = $self->{$table_to_use};
+	
+	if ($option eq 3)   {  # Flush the table if requested
+		$track_table->flush();
+		$track_table->reset_primary_keys();
+	}
+
+	# Insert the data	
+	print "\n\n\t #### IMPORTING to table '$table_name'";
+	my $row_count = $self->import_data_to_track_table($data_ref, $fields_array_ref, $fields_hash_ref);
+	
+	return $table_to_use;
+}
+
+#***************************************************************************
 # Subroutine:  do_ancillary_table_dialogue
 # Description: create an ancillary table for the screening DB
 #***************************************************************************
@@ -867,6 +938,7 @@ sub do_ancillary_table_dialogue {
 
 	my $dbh = $self->{dbh};
 	my $anc_table = MySQLtable->new($table_to_use, $dbh, $fields_hash_ref);
+	#my $table = $table_to_use . '_table';
 	$self->{$table_to_use} = $anc_table;
 
 	if ($option eq 3)   {  # Flush the table if requested
@@ -954,48 +1026,6 @@ sub create_ancillary_table {
 	unless ($sth->execute()) { print "\n\t$statement\n\n\n"; exit; }
 
 	return $table_name;
-}
-
-#***************************************************************************
-# Subroutine:  import_data_to_ancillary_table
-# Description: load data to ancillary table
-#***************************************************************************
-sub import_data_to_ancillary_table {
-
-	my ($self, $table_name, $data_ref, $fields_array_ref, $fields_hash_ref, $verbose) = @_;
-
-	my $anc_table = $self->{$table_name};
-	unless ($anc_table) { 
-		#$devtools->print_hash($self);
-		print "\n\t couldn't get table '$table_name'\n\n\n";
-		die; 
-	}
-	#$devtools->print_hash($fields_hash_ref);
-	#$devtools->print_array($data_ref); die;
-
-	my $row_count = 0;
-	foreach my $line (@$data_ref) { # Add data to the table
-		$row_count++;
-		chomp $line;
-		my %insert;
-		my @elements = split ("\t", $line);
-		my $column_num = 0;
-		foreach my $field (@$fields_array_ref) {
-			my $value = $elements[$column_num];
-			$column_num++;
-			my $type  = $fields_hash_ref->{$column_num};
-			if ($verbose) {
-				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
-			}
-			unless ($value) { 
-				$value = 'NULL';
-			}
-			$insert{$field} = $value;
-		}
-		$anc_table->insert_row(\%insert);
-	}
-	
-	return $row_count;
 }
 
 #***************************************************************************
@@ -1129,12 +1159,201 @@ sub does_db_exist {
 }
 
 ############################################################################
-# DEPRECATED
+# UPLOADING DATA
+############################################################################
+
+#***************************************************************************
+# Subroutine:  import_data_to_ancillary_table
+# Description: load data to ancillary table
+#***************************************************************************
+sub import_data_to_ancillary_table {
+
+	my ($self, $table_name, $data_ref, $fields_array_ref, $fields_hash_ref, $verbose) = @_;
+
+	my $anc_table = $self->{$table_name};
+	unless ($anc_table) { 
+		#$devtools->print_hash($self);
+		print "\n\t couldn't get table '$table_name'\n\n\n";
+		die; 
+	}
+	#$devtools->print_hash($fields_hash_ref);
+	#$devtools->print_array($data_ref); die;
+
+	my $row_count = 0;
+	foreach my $line (@$data_ref) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@$fields_array_ref) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields_hash_ref->{$column_num};
+			if ($verbose) {
+				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			}
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			$insert{$field} = $value;
+		}
+		$anc_table->insert_row(\%insert);
+	}
+	
+	return $row_count;
+}
+
+#***************************************************************************
+# Subroutine:  import_data_to_track_table
+# Description: load data to annotation track table
+#***************************************************************************
+sub import_data_to_track_table {
+
+	my ($self, $data_ref, $fields_array_ref, $fields_hash_ref) = @_;
+
+	my $tracks_table = $self->{nomenclature_tracks_table};
+	unless ($tracks_table) { 
+		$devtools->print_hash($self);
+		print "\n\t couldn't get track table'\n\n\n";
+		die; 
+	}
+	#$devtools->print_hash($fields_hash_ref);
+	#$devtools->print_array($data_ref); die;
+
+	my $row_count = 0;
+	foreach my $line (@$data_ref) { # Add data to the table
+		$row_count++;
+		chomp $line;
+		my %insert;
+		my @elements = split ("\t", $line);
+		my $column_num = 0;
+		foreach my $field (@$fields_array_ref) {
+			my $value = $elements[$column_num];
+			$column_num++;
+			my $type  = $fields_hash_ref->{$column_num};
+			unless ($value) { 
+				$value = 'NULL';
+			}
+			print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			if ($field eq 'track_name'
+			or  $field eq 'organism_code'
+			or  $field eq 'locus_class'
+			or  $field eq 'taxon'
+			or  $field eq 'organism_code'
+			or  $field eq 'gene'
+			or  $field eq 'scaffold'
+			or  $field eq 'start_position'
+			or  $field eq 'end_position'
+			or  $field eq 'orientation'
+			or  $field eq 'namespace_id') {
+				$insert{$field} = $value;
+			}
+		}
+		$tracks_table->insert_row(\%insert);
+	}
+	
+	return $row_count;
+}
+
+#***************************************************************************
+# Subroutine:  upload_data_to_searches_performed
+# Description: upload data to the 'searches_performed' table
+#***************************************************************************
+sub upload_data_to_searches_performed {
+
+	my ($self,  $data_path) = @_;
+
+	# Get the table object
+	my $searches_table = $self->{searches_table};
+
+	# Get the data	
+	my @data;
+	$fileio->read_file(\@data, $data_path);
+
+	# Iterate through the data and insert to the table
+	foreach my $line (@data) {
+		my %data;
+		chomp $line;
+		my @line = split("\t", $line);
+		$data{probe_id}        = shift @line;
+		$data{probe_name}      = shift @line;
+		$data{probe_gene}      = shift @line;
+		$data{target_id}       = shift @line;
+		$data{organism}        = shift @line;
+		$data{target_datatype} = shift @line;
+		$data{target_version}  = shift @line;
+		$data{target_name}     = shift @line;
+		$searches_table->insert_row(\%data);	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  upload_data_to_digs_results
+# Description: upload data to the 'digs_results' table
+#***************************************************************************
+sub upload_data_to_digs_results {
+
+	my ($self, $data_path) = @_;
+
+	# Get the table object
+	my $digs_results_table = $self->{digs_results_table};
+
+	# Get the data
+	my @data;
+	my $read = $fileio->read_file($data_path, \@data);
+	unless ($read) { die "\n\t\t Couldn't open file '$data_path'\n\n"; }
+	
+	# Remove header
+	shift @data;
+
+	# Iterate through the data and insert to the table
+	my $rows = '0';
+	foreach my $line (@data) {
+
+		chomp $line;
+		my @line = split(",", $line);
+
+		my %data;
+		#$devtools->print_array(\@line); die;
+		$data{record_id}       = shift @line;
+		$data{organism}        = shift @line;
+		$data{target_datatype} = shift @line;
+		$data{target_version}  = shift @line;
+		$data{target_name}     = shift @line;
+		$data{probe_type}      = shift @line;
+		$data{scaffold}        = shift @line;
+		$data{extract_start}   = shift @line;
+		$data{extract_end}     = shift @line;
+		$data{sequence_length} = shift @line;
+		$data{sequence}        = shift @line;
+		$data{assigned_name}   = shift @line;
+		$data{assigned_gene}   = shift @line;
+		$data{orientation}     = shift @line;
+		$data{bitscore}        = shift @line;
+		$data{identity}        = shift @line;
+		$data{evalue_num}      = shift @line;
+		$data{evalue_exp}      = shift @line;
+		$data{subject_start}   = shift @line;
+		$data{subject_end}     = shift @line;
+		$data{query_start}     = shift @line;
+		$data{query_end}       = shift @line;
+		$data{align_len}       = shift @line;
+		$data{gap_openings}    = shift @line;
+		$data{mismatches}      = shift @line;
+		$digs_results_table->insert_row(\%data);	
+		$rows++;
+	}	
+	return $rows;
+}
+
+############################################################################
+# UPDATE DB SCHEMA
 ############################################################################
 
 #***************************************************************************
 # Subroutine:  translate_schema
-# Description: 
+# Description: convert DIGS DB with previous schema into one with the new one
 #***************************************************************************
 sub translate_schema {
 
@@ -1273,100 +1492,6 @@ sub load_extracted_table {
 	$self->{extracted_table} = $extract_table;
 }
 
-############################################################################
-# TEST & DEBUGGING FXNS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  upload_data_to_searches_performed
-# Description:  
-#***************************************************************************
-sub upload_data_to_searches_performed {
-
-	my ($self,  $data_path) = @_;
-
-	# Get the table object
-	my $searches_table = $self->{searches_table};
-
-	# Get the data	
-	my @data;
-	$fileio->read_file(\@data, $data_path);
-
-	# Iterate through the data and insert to the table
-	foreach my $line (@data) {
-		my %data;
-		chomp $line;
-		my @line = split("\t", $line);
-		$data{probe_id}        = shift @line;
-		$data{probe_name}      = shift @line;
-		$data{probe_gene}      = shift @line;
-		$data{target_id}       = shift @line;
-		$data{organism}        = shift @line;
-		$data{target_datatype} = shift @line;
-		$data{target_version}  = shift @line;
-		$data{target_name}     = shift @line;
-		$searches_table->insert_row(\%data);	
-	}
-}
-
-#***************************************************************************
-# Subroutine:  upload_data_to_digs_results
-# Description:  
-#***************************************************************************
-sub upload_data_to_digs_results {
-
-	my ($self, $data_path) = @_;
-
-	# Get the table object
-	my $digs_results_table = $self->{digs_results_table};
-
-	# Get the data
-	my @data;
-	my $read = $fileio->read_file($data_path, \@data);
-	unless ($read) { die "\n\t\t Couldn't open file '$data_path'\n\n"; }
-	
-	# Remove header
-	shift @data;
-
-	# Iterate through the data and insert to the table
-	my $rows = '0';
-	foreach my $line (@data) {
-
-		chomp $line;
-		my @line = split(",", $line);
-
-		my %data;
-		#$devtools->print_array(\@line); die;
-		$data{record_id}       = shift @line;
-		$data{organism}        = shift @line;
-		$data{target_datatype} = shift @line;
-		$data{target_version}  = shift @line;
-		$data{target_name}     = shift @line;
-		$data{probe_type}      = shift @line;
-		$data{scaffold}        = shift @line;
-		$data{extract_start}   = shift @line;
-		$data{extract_end}     = shift @line;
-		$data{sequence_length} = shift @line;
-		$data{sequence}        = shift @line;
-		$data{assigned_name}   = shift @line;
-		$data{assigned_gene}   = shift @line;
-		$data{orientation}     = shift @line;
-		$data{bitscore}        = shift @line;
-		$data{identity}        = shift @line;
-		$data{evalue_num}      = shift @line;
-		$data{evalue_exp}      = shift @line;
-		$data{subject_start}   = shift @line;
-		$data{subject_end}     = shift @line;
-		$data{query_start}     = shift @line;
-		$data{query_end}       = shift @line;
-		$data{align_len}       = shift @line;
-		$data{gap_openings}    = shift @line;
-		$data{mismatches}      = shift @line;
-		$digs_results_table->insert_row(\%data);	
-		$rows++;
-	}	
-	return $rows;
-}
 
 ############################################################################
 # EOF
