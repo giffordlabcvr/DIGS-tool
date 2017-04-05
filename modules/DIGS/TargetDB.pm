@@ -23,10 +23,10 @@ use Base::Console;
 # Globals
 ############################################################################
 
-my $s_length      = 70;              # Standard line length
+my $s_length      = 70;              # Standard line length (for FASTA)
 my $line_limit    = 10000000000;     # Maximum number lines in file 
-#my $blast_program = 'formatdb';
 my $blast_program  = 'makeblastdb';
+#my $blast_program = 'formatdb';
 
 # Create base objects
 my $fileio    = FileIO->new();
@@ -175,16 +175,18 @@ sub summarise_targets_long {
 	push (@summary, $header);
 
 	# Iterate through, summarising target files
-	print "\n\n\t ### Summarising target files\n";
+	print "\n\n\t ### Generating detailed summary of target files under '\$DIGS_GENOMES'";
 	my @keys = keys %server_data;
 	foreach my $key (@keys) {
 		
 		# Get genome data
 		my $genome_ref  = $server_data{$key};
+		my $group       = $genome_ref->{grouping};
 		my $organism    = $genome_ref->{organism};
 		my $type        = $genome_ref->{source_type};
 		my $version     = $genome_ref->{version};
 		my $path        = $genome_ref->{version_path};
+		#$devtools->print_hash($genome_ref); die;
 		print "\n\t ### Summarising target files for '$organism'";
 
 		# Iterate through indexing by file stems
@@ -214,6 +216,7 @@ sub summarise_targets_long {
 			my @line;
 			push (@line, $file);
 			push (@line, $organism);
+			push (@line, $group);
 			push (@line, $type);
 			push (@line, $version);
 			push (@line, $num_scaffolds);
@@ -224,9 +227,9 @@ sub summarise_targets_long {
 		}
 	}
 
-	# write results to file
-	my $summary = "target_genomes_summary.txt";
-	print "\n\n\t ### Writing summary to '$summary'\n";
+	# Write results to file
+	my $summary = "digs-target-dbs-detailed-summary.txt";
+	print "\n\n\t ### Writing detailed summary to '$summary'\n";
 	$fileio->write_file($summary, \@summary);
 }
 
@@ -249,7 +252,8 @@ sub summarise_targets_short {
 	my @genome_files;
 	$fileio->read_directory_tree_leaves($genome_path, \@genome_files, $levels_ref);
 
-	# Iterate through the files
+	# Iterate through, summarising target files
+	print "\n\n\t ### Generating brief summary of target files under '\$DIGS_GENOMES'";
 	my %target_keys;
 	foreach my $file_ref (@genome_files) {
 		
@@ -261,17 +265,23 @@ sub summarise_targets_short {
 		$target_keys{$key} = 1;
 	}
 	
-	# add header row
+	# Add header row
 	my @summary;
 	my @header = ('Grouping', 'Organism', 'Data type', 'Version');
 	my $header = join("\t", @header);
 	push (@summary, "$header\n");
+
+	# Add the summary information rows 
 	my @keys = sort keys %target_keys;
 	foreach my $key (@keys) {
 		$key =~ s/\|/\t/g;
 		push (@summary, "$key\n");
 	}
-	$fileio->write_file('targets-file-summary.txt', \@summary);
+	
+	# Write results to file
+	my $summary = "digs-target-dbs-brief-summary.txt";
+	print "\n\n\t ### Writing brief summary to '$summary'\n";
+	$fileio->write_file($summary, \@summary);
 
 }
 
@@ -324,7 +334,7 @@ sub get_target_file_statistics {
 
 #***************************************************************************
 # Subroutine:  read_target_directory
-# Description: read in the contents of a structured directory containing genome data files
+# Description: read the contents of a 'target DB' directory containing 
 #***************************************************************************
 sub read_target_directory { 
 
@@ -377,7 +387,7 @@ sub read_target_directory {
 
 #***************************************************************************
 # Subroutine:  check_genome_formatting
-# Description: look for pre-existing BLAST indexes for sequence files in a genome directory 
+# Description: look for pre-existing BLAST indexes in a genome directory 
 #***************************************************************************
 sub check_genome_formatting {
 
