@@ -168,8 +168,8 @@ sub summarise_targets_long {
 
 	# add header row
 	my @summary;
-	my @header = ('File', 'Organism', 'Data type', 'Version', 'Scaffolds',
-                  '# nucleotides', '# lines');
+	my @header = ('File', 'Organism', 'Group', 'Data-type', 'Version', 'Scaffolds',
+                  '# bases', '# lines');
 	my $header = join ("\t", @header);
 	$header .= "\n";
 	push (@summary, $header);
