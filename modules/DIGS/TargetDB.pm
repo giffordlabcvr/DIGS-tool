@@ -127,7 +127,7 @@ sub format_targets_for_blast {
 			next;
 		}
 		
-		print "\n\t #~#~# Checking files in group $group;\t'$organism'\t'$type'\t'$version'";
+		print "\n\t #~#~# Checking: $group;\t'$organism'\t'$type'\t'$version'";
 		$self->check_genome_formatting($genome_ref);
 		my $unformatted_ref = $genome_ref->{unformatted};
 		my $num_unformatted = scalar @$unformatted_ref;
