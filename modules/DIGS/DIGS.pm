@@ -111,28 +111,28 @@ sub run_digs_process {
 
 	$self->show_title();  
 
-	# Initialise
+	# Process control file
 	my $valid = undef;
 	if ($ctl_file) {	
+	
+		# Initialise
 		$valid = $self->initialise($option, $ctl_file);
 	}
 
 	# Hand off to DIGS functions
-	if ($option eq 1) { 
-		
+	if ($option eq 1) { 	
 		# Check the target sequences are formatted for BLAST
 		$self->prepare_target_files_for_blast();
 	}
-
-	if ($valid) {
-	
+	elsif ($valid) {
+		
 		if ($option eq 2) { 
-	
+		
 			# Run a DIGS process
 			$self->perform_digs();	
 		}
 		elsif ($option eq 3) { 
-	
+		
 			# Reassign data in digs_results table
 			$self->reassign();	
 		}
@@ -146,13 +146,19 @@ sub run_digs_process {
 			# Combine digs_results into higher order locus structures
 			$self->consolidate_loci();
 		}
-		else {
+		else {	
 					
 			# Show error
 			print "\n\t  Unrecognized option '-m=$option'\n";
 		}
 	}
-
+	else {
+		# Show error
+		print "\n\t  Option '-m=$option' requires a control file\n\n\n";
+		exit;
+	}
+	
+	
 	# Show final summary and exit message
 	$self->wrap_up($option);
 
@@ -2358,6 +2364,8 @@ sub initialise {
 	my $log_file   = $report_dir . "/log.txt";
 	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
 	$self->{log_file} = $log_file;
+	
+	return 1;
 }
 
 #***************************************************************************

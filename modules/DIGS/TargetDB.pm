@@ -426,8 +426,11 @@ sub check_genome_formatting {
 		if ($stems{$stem}) { 
 			my $files_ref = $stems{$stem};
 			if ($files_ref->{$type}) { 
-				print "\n\t NAME $file: $stem";
-				die;
+                print "\n\t Showing hash of file extensions for this file stem\n";
+                $devtools->print_hash($files_ref);
+                print "\n\t NAME $file, TYPE '$type': $stem";
+                print "\n\t This file appears to be a duplicate, exiting....\n\n";
+                exit;
 			}
 			$files_ref->{$type} = 1;
 			if ($type eq 'fa') {
