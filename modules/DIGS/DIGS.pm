@@ -2216,9 +2216,10 @@ sub show_help_page {
 	my ($self) = @_;
 
 	# Create help menu
+	$console->refresh();
 	my $program_version = $self->{program_version};
 	
-    my $HELP   = "\n\t ### DIGS version $program_version";
+    my $HELP   = "\n\n\t ### DIGS version $program_version";
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
@@ -2227,9 +2228,9 @@ sub show_help_page {
 	   $HELP  .= "\n\t -m=3  Reassign loci"; 
 	   $HELP  .= "\n\t -m=4  Defragment loci"; 
 	   $HELP  .= "\n\t -m=5  Consolidate loci\n"; 
-	   $HELP  .= "\n\t Genome path = '$ENV{DIGS_GENOMES}'";
+	   $HELP  .= "\n\t Target path variable (\$DIGS_GENOMES) is set to '$ENV{DIGS_GENOMES}'";
 
-	   $HELP  .= "\n\t Run  $0 -e to see information on utility functions\n\n"; 
+	   $HELP  .= "\n\n\t Run  $0 -e to see information on utility functions\n\n\n"; 
 
 	print $HELP;
 }

@@ -154,6 +154,29 @@ sub run_utility_process {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  run_target_utility_process
+# Description: handler for functions summarising target databases
+#***************************************************************************
+sub run_target_utility_process {
+
+	my ($self, $option) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	if ($option eq 1)    { # Summarise target genome directory (short)
+		my $target_db_obj = TargetDB->new($digs_obj);
+		$target_db_obj->summarise_targets_short();
+	}
+	elsif ($option eq 2) { # Summarise target genome directory (long)
+		my $target_db_obj = TargetDB->new($digs_obj);
+		$target_db_obj->summarise_targets_long();
+	}
+	else {
+		print "\n\t  Unrecognized option '-g=$option'\n";
+	}
+}
+
+#***************************************************************************
 # Subroutine:  run_screening_db_utility_process
 # Description: handler for DIGS screening database utility fxns 
 #***************************************************************************
@@ -188,29 +211,6 @@ sub run_screening_db_utility_process {
 	}
 	else {
 		print "\n\t  Unrecognized option '-d=$option'\n";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  run_target_utility_process
-# Description: handler for functions summarising target databases
-#***************************************************************************
-sub run_target_utility_process {
-
-	my ($self, $option) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	if ($option eq 1)    { # Summarise target genome directory (short)
-		my $target_db_obj = TargetDB->new($digs_obj);
-		$target_db_obj->summarise_targets_short();
-	}
-	elsif ($option eq 2) { # Summarise target genome directory (long)
-		my $target_db_obj = TargetDB->new($digs_obj);
-		$target_db_obj->summarise_targets_long();
-	}
-	else {
-		print "\n\t  Unrecognized option '-g=$option'\n";
 	}
 }
 
@@ -617,6 +617,74 @@ sub show_locus_chains {
 	}
 }
 
+############################################################################
+# INITIALISATION
+############################################################################
+
+#***************************************************************************
+# Subroutine:  parse_ctl_file_and_connect_to_db
+# Description: connect to a DIGS screening DB by parsing a DIGS control file
+#***************************************************************************
+sub parse_ctl_file_and_connect_to_db {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	
+	# Try opening control file
+	my @ctl_file;
+	my $valid = $fileio->read_file($infile, \@ctl_file);
+	unless ($valid) {  # Exit if we can't open the file
+		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
+	}
+	
+	# If control file looks OK, store the path and parse the file
+	$self->{ctl_file} = $infile;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	$loader_obj->parse_control_file($infile, $digs_obj);
+
+	# Store the ScreenBuilder object (used later)
+	$self->{loader_obj} = $loader_obj;
+
+	# Load/create the screening database
+	my $db_name = $loader_obj->{db_name};
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->initialise_screening_db($db_name);
+}
+
+#***************************************************************************
+# Subroutine:  do_load_db_dialogue
+# Description: connect to a DIGS screening DB
+#***************************************************************************
+sub do_load_db_dialogue {
+
+	my ($self, $infile) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+
+	# Load/create the screening database
+	my $question = "\t  Enter the name of a DIGS screening database";
+	my $db_name = $console->ask_question($question);
+	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
+	$digs_obj->{mysql_server}   = 'localhost';
+
+	# Create the screening DB object
+	my $db_obj = ScreeningDB->new($digs_obj);
+
+	# Check if this screening DB exists, if not then create it
+	my $db_exists = $db_obj->does_db_exist($db_name);
+	unless ($db_exists) {
+		print "\n\t  Could not connect to screening DB '$db_name'";
+		print "\n\t  Exiting.\n\n\n"; exit;	
+	}
+	
+	# Load the database
+	print   "\n\t  Connecting to DB:  $db_name";
+	$db_obj->load_screening_db($db_name);	
+	$digs_obj->{db} = $db_obj; # Store the database object reference 
+
+}
+
 #===========================================================================
 # TEMPORARY
 #===========================================================================
@@ -698,75 +766,6 @@ sub fix_searches_performed_table_2 {
 		print "\n\t  UPDATED organism field for $record_id to '$organism'";
 	}
 }
-
-############################################################################
-# INITIALISATION
-############################################################################
-
-#***************************************************************************
-# Subroutine:  parse_ctl_file_and_connect_to_db
-# Description: connect to a DIGS screening DB by parsing a DIGS control file
-#***************************************************************************
-sub parse_ctl_file_and_connect_to_db {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-	
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($infile, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$infile'\n\n\n ";
-	}
-	
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file} = $infile;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($infile, $digs_obj);
-
-	# Store the ScreenBuilder object (used later)
-	$self->{loader_obj} = $loader_obj;
-
-	# Load/create the screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-}
-
-#***************************************************************************
-# Subroutine:  do_load_db_dialogue
-# Description: connect to a DIGS screening DB
-#***************************************************************************
-sub do_load_db_dialogue {
-
-	my ($self, $infile) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-
-	# Load/create the screening database
-	my $question = "\t  Enter the name of a DIGS screening database";
-	my $db_name = $console->ask_question($question);
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->{mysql_server}   = 'localhost';
-
-	# Create the screening DB object
-	my $db_obj = ScreeningDB->new($digs_obj);
-
-	# Check if this screening DB exists, if not then create it
-	my $db_exists = $db_obj->does_db_exist($db_name);
-	unless ($db_exists) {
-		print "\n\t  Could not connect to screening DB '$db_name'";
-		print "\n\t  Exiting.\n\n\n"; exit;	
-	}
-	
-	# Load the database
-	print   "\n\t  Connecting to DB:  $db_name";
-	$db_obj->load_screening_db($db_name);	
-	$digs_obj->{db} = $db_obj; # Store the database object reference 
-
-}
-
 
 ############################################################################
 # EOF

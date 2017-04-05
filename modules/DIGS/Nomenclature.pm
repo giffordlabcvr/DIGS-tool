@@ -479,8 +479,7 @@ sub set_nomenclature_tracks {
 		$table_name = $self->do_load_tracks_to_tables_dialogue();
 	}
 	elsif ($load_from_file eq 't') {
-		$table_name = 'herv_input';
-		$db->load_tracks_table($dbh, $table_name);
+		$table_name = $self->set_table_as_track_source();
 	}
 
 	# Set table 
@@ -491,7 +490,7 @@ sub set_nomenclature_tracks {
 
 #***************************************************************************
 # Subroutine:  do_load_tracks_to_tables_dialogue
-# Description: 
+# Description: load a file of annotations into a 'track-format' table
 #***************************************************************************
 sub do_load_tracks_to_tables_dialogue {
 
@@ -522,10 +521,10 @@ sub do_load_tracks_to_tables_dialogue {
 }
 
 #***************************************************************************
-# Subroutine:  choose_nomenclature_table
-# Description: 
+# Subroutine:  choose_input_track_table
+# Description: choose a 'track-format' table for ID allocation process
 #***************************************************************************
-sub choose_nomenclature_table {
+sub choose_input_track_table {
 
 	my ($self, $answer) = @_;
 
@@ -585,18 +584,17 @@ sub set_table_as_track_source {
 
 	my ($self) = @_;
 
-
-	die;
-
 	# Get DIGS object and DB
 	my $digs_obj = $self->{digs_obj};
 	my $db = $digs_obj->{db};  
+	my $dbh = $db->{dbh};  
 	
 	# Get the ancillary tables in this DB
 	my %extra_tables;
-	my @extra_tables = qw [ digs_results ];
+	my @extra_tables;
 	$db->get_ancillary_table_names(\@extra_tables);
-		
+
+	# Show the table options		
 	my $table_num = 0;
 	foreach my $table_name (@extra_tables) {
 		$table_num++;
@@ -609,6 +607,12 @@ sub set_table_as_track_source {
 	my $answer   = $console->ask_list_question($question, $table_num);
 	$table_to_use = $extra_tables{$answer};
 	unless ($table_to_use) { die; }
+
+	my $table_name = 'herv_input';
+
+	$db->load_tracks_table($dbh, $table_name);
+
+
 }
 
 ############################################################################
