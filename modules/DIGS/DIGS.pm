@@ -2274,9 +2274,11 @@ sub initialise {
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
 
-	# Create the output directories
-	$loader_obj->create_output_directories($self);
-
+	# Create the output directories if running a screen or re-assigning results table
+	if ($option eq 2 or $option eq 3) { # Need output directory for these options
+		$loader_obj->create_output_directories($self);
+	}
+	
 	# Load/create the screening database
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
@@ -2357,13 +2359,6 @@ sub initialise {
 		$consolidate_settings{end}   = 'extract_end';
 		$self->{consolidate_settings} = \%consolidate_settings;
 	}
-
-	# Create log file
-	my $report_dir = $self->{report_dir};
-	my $process_id = $self->{process_id};
-	my $log_file   = $report_dir . "/log.txt";
-	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
-	$self->{log_file} = $log_file;
 	
 	return 1;
 }

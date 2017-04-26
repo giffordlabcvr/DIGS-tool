@@ -293,7 +293,8 @@ sub create_reference_library {
 		else {
 			$refseq_ids{$refseq_id} = 1;
 		}
-		my $fasta = ">$name" . "_$gene_name" . "\n$seq\n\n";
+		
+		my $fasta = ">$refseq_id" . "\n$seq\n\n";
 		push (@references, $fasta);
 	}
 
@@ -1194,6 +1195,13 @@ sub create_output_directories {
 	$self->{tmp_path}   = $tmp_path . '/';
 	$pipeline_obj->{tmp_path}   = $tmp_path;
 	$pipeline_obj->{report_dir} = $report_dir;
+
+	# Create log file
+	my $log_file   = $report_dir . "/log.txt";
+	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
+	$pipeline_obj->{log_file} = $log_file;
+
+
 }
 
 #***************************************************************************
