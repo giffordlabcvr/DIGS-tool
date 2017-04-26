@@ -89,6 +89,7 @@ sub run_tests {
 	$digs_obj->{mysql_server}   = $server;
 	$digs_obj->{mysql_username} = $user;
 	$digs_obj->{mysql_password} = $password;
+	my $initialise_obj = Initialise->new($digs_obj);
 	$digs_obj->initialise_screening_db('digs_test_screen');
 	
 	# Flush the 'digs_test' database

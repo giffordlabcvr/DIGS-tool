@@ -31,6 +31,9 @@ use DIGS::ScreenBuilder; # Functions to set up screen
 my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
+
+# Program components
+use DIGS::Initialise;    # Initialises the DIGS tool
 1;
 
 ############################################################################
@@ -307,6 +310,8 @@ sub drop_db_table {
 	my $digs_obj = $self->{digs_obj};
 
 	my $db = $digs_obj->{db};
+	my $db_name = $db->{db_name};
+	
 	unless ($db) { die; }
 	my $dbh = $db->{dbh};
 	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
@@ -315,23 +320,29 @@ sub drop_db_table {
 	my @tables;
 	my %tables;
 	$db->get_ancillary_table_names(\@tables);
+	my $num_choices = scalar @tables;
+	if ($num_choices) {
 
-	print "\n\n\t  # Drop ancillary tables in DIGS screening DB\n";	
-	my $table_num = 0;
-	foreach my $table_name (@tables) {
-		$table_num++;
-		$tables{$table_num} = $table_name;
-		print "\n\t\t Table $table_num: '$table_name'";
+		print "\n\n\t  # Drop ancillary tables in DIGS screening DB '$db_name'\n";	
+		my $table_num = 0;
+		foreach my $table_name (@tables) {
+			$table_num++;
+			$tables{$table_num} = $table_name;
+			print "\n\t\t Table $table_num: '$table_name'";
+		}
+		my @table_choices = keys %tables;
+		
+		my $question = "\n\n\t Apply to which of the above tables?";
+		my $answer   = $console->ask_list_question($question, $num_choices);
+		my $table_to_drop = $tables{$answer};
+		unless ($table_to_drop) { die; }	
+
+		$db->drop_ancillary_table($table_to_drop);
 	}
-	my @table_choices = keys %tables;
-	my $num_choices = scalar @table_choices;
+	else {
+		print "\n\n\t  # There are no ancillary tables in DIGS screening DB '$db_name'\n";	
+	}
 	
-	my $question = "\n\n\t Apply to which of the above tables?";
-	my $answer   = $console->ask_list_question($question, $num_choices);
-	my $table_to_drop = $tables{$answer};
-	unless ($table_to_drop) { die; }	
-	$db->drop_ancillary_table($table_to_drop);
-
 }
 
 ############################################################################
@@ -649,7 +660,9 @@ sub parse_ctl_file_and_connect_to_db {
 	# Load/create the screening database
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
+	
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->initialise_screening_db($digs_obj, $db_name);
 }
 
 #***************************************************************************
