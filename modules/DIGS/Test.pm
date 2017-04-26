@@ -164,7 +164,7 @@ sub run_test_1 {
 		$digs_obj->{bitscore_minimum} = $loader_obj->{bitscore_min_tblastn};
 	}
 	$digs_obj->{bitscore_minimum}   = 100;
-	$digs_obj->setup_for_digs();
+	$digs_obj->setup_for_a_digs_run();
 	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;
 
@@ -259,7 +259,7 @@ sub run_test_3 {
 	push (@test_targets, $test1_target_path);
 	$loader_obj->{target_paths} = \@test_targets;
 
-	$digs_obj->setup_for_digs();
+	$digs_obj->setup_for_a_digs_run();
 	$digs_obj->perform_digs();
 
 	my $db = $digs_obj->{db}; # Get the database reference
@@ -376,7 +376,7 @@ sub run_test_5 {
 	$digs_obj->{defragment_mode}  = 'defragment';
 	$digs_obj->{defragment_range} = 100;
 
-	$digs_obj->setup_for_digs();
+	$digs_obj->setup_for_a_digs_run();
 	$digs_obj->perform_digs();
 
 	my @data;

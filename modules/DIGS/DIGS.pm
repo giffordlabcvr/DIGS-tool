@@ -2247,9 +2247,42 @@ sub show_help_page {
 
 #***************************************************************************
 # Subroutine:  initialise 
-# Description: set up, depending on what option we are running
+# Description: do general set-up, then hand off to option-specific set-up fxns
 #***************************************************************************
 sub initialise {
+
+	my ($self, $option, $ctl_file) = @_;
+
+	# DO GENERAL SET-UP 
+	my $db_name = $self->do_general_setup($option, $ctl_file);
+
+	# LOAD/CREATE THE DATABASE
+	$self->initialise_screening_db($db_name);
+
+	# SET-UP FOR DIGS SCREENING
+	if ($option eq 2) { 	
+		my $valid = $self->setup_for_a_digs_run();
+		unless ($valid) { return 0; }
+	}
+	
+	# SET-UP FOR REASSIGN
+	if ($option eq 3) { 
+		$self->setup_for_reassign();
+	}
+	
+	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
+	if ($option eq 4 or $option eq 5) { 
+		$self->setup_for_defrag_or_consolidate();
+	}
+	
+	return 1;
+}
+
+#***************************************************************************
+# Subroutine:  do_general_setup
+# Description: do general set up for DIGS tool processes
+#***************************************************************************
+sub do_general_setup {
 
 	my ($self, $option, $ctl_file) = @_;
 
@@ -2270,7 +2303,7 @@ sub initialise {
 	$self->{ctl_file} = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($self);
 	$loader_obj->parse_control_file($ctl_file, $self, $option);
-
+	
 	# Store the ScreenBuilder object (used later)
 	$self->{loader_obj} = $loader_obj;
 
@@ -2278,41 +2311,112 @@ sub initialise {
 	if ($option eq 2 or $option eq 3) { # Need output directory for these options
 		$loader_obj->create_output_directories($self);
 	}
-	
-	# Load/create the screening database
+
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$self->initialise_screening_db($db_name);
+	return $db_name
 
-	# SET-UP FOR DIGS SCREENING
-	if ($option eq 2) { 
-	
-		# If we're doing a screen, set up for the screen 
-		my $valid = $self->setup_for_digs();
-		unless ($valid) { return 0; }
-		$self->{defragment_mode} = 'defragment';
+}
+
+#***************************************************************************
+# Subroutine:  initialise_screening_db
+# Description: load a DIGS screening database (create if doesn't exist) 
+#***************************************************************************
+sub initialise_screening_db {
+
+	my ($self, $db_name) = @_;
+
+	# Create the screening DB object
+	my $db_obj = ScreeningDB->new($self);
+
+	# Check if this screening DB exists, if not then create it
+	my $db_exists = $db_obj->does_db_exist($db_name);
+	unless ($db_exists) {
+		$db_obj->create_screening_db($db_name);	
 	}
 	
-	# SET-UP FOR REASSIGN
-	if ($option eq 3) { 
+	# Load the table handles into screening database object
+	print   "\n\n\t  Connecting to DB:  $db_name";
+	$db_obj->load_screening_db($db_name);	
+	$self->{db} = $db_obj; # Store the database object reference 
+}
+
+#***************************************************************************
+# Subroutine:  setup_for_a_digs_run
+# Description: prepare database and DIGS query list prior to screening
+#***************************************************************************
+sub setup_for_a_digs_run {
+
+	my ($self) = @_;
+
+	# Flush active set
+	my $db         = $self->{db};
+	my $loader_obj = $self->{loader_obj};
+	unless ($loader_obj) { die; }  # Sanity checking
+	unless ($db)         { die "\n\t Error: no DB defined \n\n\n"; }
+
+	#print "\n\t  Flushing 'active_set' table\n";
+	my $active_set_table = $db->{active_set_table};
+	$active_set_table->flush();
 	
-		my $where = '';
-		unless ($self->{force}) {
-			# Option to enter a WHERE statement
-			my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
-			$where = $console->ask_question($question);
-		}
+	# Index previously executed searches
+	my %done;
+	$self->index_previously_executed_searches(\%done);
+	
+	# Get the list of queries that have been completed 
+	my %queries;
+	$loader_obj->{previously_executed_searches} = \%done;
 
-		# Get the assigned digs_results
-		my @reassign_loci;
-		$self->get_digs_results_sequences(\@reassign_loci, $where);
-		$self->{reassign_loci} = \@reassign_loci;
-
-		# Set up the reference library
-		$loader_obj->setup_reference_libraries($self);
+	# Set up the DIGS screen
+	my $total_queries = $loader_obj->setup_screen($self, \%queries);
+	unless ($total_queries)  { 
+		print "\n\t  Exiting DIGS setup";	
+		return 0
 	}
+		
+	# Record queries 
+	$self->{queries}         = \%queries;
+	$self->{total_queries}   = $total_queries;
+	$self->{defragment_mode} = 'defragment';
 	
-	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
+	return 1;
+}
+
+#***************************************************************************
+# Subroutine:  setup_for_reassign
+# Description: 
+#***************************************************************************
+sub setup_for_reassign {
+
+	my ($self) = @_;
+
+	my $loader_obj = $self->{loader_obj};
+	my $where = '';
+	unless ($self->{force}) {
+		# Option to enter a WHERE statement
+		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
+		$where = $console->ask_question($question);
+	}
+	# Get the assigned digs_results
+	my @reassign_loci;
+	$self->get_digs_results_sequences(\@reassign_loci, $where);
+	$self->{reassign_loci} = \@reassign_loci;
+	
+	# Set up the reference library
+	$loader_obj->setup_reference_libraries($self);
+
+}
+
+#***************************************************************************
+# Subroutine:  setup_for_defrag_or_consolidate
+# Description: 
+#***************************************************************************
+sub setup_for_defrag_or_consolidate {
+
+	my ($self, $option) = @_;
+
+	my $loader_obj = $self->{loader_obj};
+
 	if ($option eq 4 or $option eq 5) { 
 
 		# Set target sequence files for screening
@@ -2359,71 +2463,6 @@ sub initialise {
 		$consolidate_settings{end}   = 'extract_end';
 		$self->{consolidate_settings} = \%consolidate_settings;
 	}
-	
-	return 1;
-}
-
-#***************************************************************************
-# Subroutine:  setup_for_digs
-# Description: prepare database and DIGS query list prior to screening
-#***************************************************************************
-sub setup_for_digs {
-
-	my ($self) = @_;
-
-	# Flush active set
-	my $db         = $self->{db};
-	my $loader_obj = $self->{loader_obj};
-	unless ($loader_obj) { die; }  # Sanity checking
-	unless ($db)         { die "\n\t Error: no DB defined \n\n\n"; }
-
-	#print "\n\t  Flushing 'active_set' table\n";
-	my $active_set_table = $db->{active_set_table};
-	$active_set_table->flush();
-	
-	# Index previously executed searches
-	my %done;
-	$self->index_previously_executed_searches(\%done);
-	
-	# Get the list of queries that have been completed 
-	my %queries;
-	$loader_obj->{previously_executed_searches} = \%done;
-
-	# Set up the DIGS screen
-	my $total_queries = $loader_obj->setup_screen($self, \%queries);
-	unless ($total_queries)  { 
-		print "\n\t  Exiting DIGS setup";	
-		return 0;;
-	}
-		
-	# Record queries 
-	$self->{queries}       = \%queries;
-	$self->{total_queries} = $total_queries;
-
-	return 1;
-}
-
-#***************************************************************************
-# Subroutine:  initialise_screening_db
-# Description: load a DIGS screening database (create if doesn't exist) 
-#***************************************************************************
-sub initialise_screening_db {
-
-	my ($self, $db_name) = @_;
-
-	# Create the screening DB object
-	my $db_obj = ScreeningDB->new($self);
-
-	# Check if this screening DB exists, if not then create it
-	my $db_exists = $db_obj->does_db_exist($db_name);
-	unless ($db_exists) {
-		$db_obj->create_screening_db($db_name);	
-	}
-	
-	# Load the table handles into screening database object
-	print   "\n\n\t  Connecting to DB:  $db_name";
-	$db_obj->load_screening_db($db_name);	
-	$self->{db} = $db_obj; # Store the database object reference 
 }
 
 #***************************************************************************
@@ -2481,7 +2520,6 @@ sub calculate_contig_lengths {
 	
 	my $question1 = "\n\n\t # Refresh contig length table";
 	my $refresh = $console->ask_yes_no_question($question1);		
-	#my $refresh = 'y';
 
 	if ($refresh eq 'y') {
 	

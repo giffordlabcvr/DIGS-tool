@@ -1201,7 +1201,6 @@ sub create_output_directories {
 	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
 	$pipeline_obj->{log_file} = $log_file;
 
-
 }
 
 #***************************************************************************
