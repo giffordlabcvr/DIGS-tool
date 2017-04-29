@@ -124,7 +124,7 @@ sub run_digs_process {
 		$self->prepare_target_files_for_blast();
 	}
 
-	if ($valid) {
+	elsif ($valid) {
 	
 		if ($option eq 2) { 
 	
