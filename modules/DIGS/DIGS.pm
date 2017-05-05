@@ -100,7 +100,7 @@ sub new {
 # MAIN LOOP
 ############################################################################
 
-#***************************************************************************
+##***************************************************************************
 # Subroutine:  run_digs_process
 # Description: handler for main DIGS functions 
 #***************************************************************************
@@ -110,40 +110,40 @@ sub run_digs_process {
 
 	$self->show_title();  
 
-	# Process control file
+	# Initialise
 	my $valid = undef;
-	if  ($ctl_file) {	
-	
-		# Initialise
-		my $initialise_obj = Initialise->new($self);
-		$valid = $initialise_obj->initialise($self, $option, $ctl_file);
-	}
-	elsif ($option eq 1) {
-		$valid = 1;
+	if ($ctl_file) {	
+		$valid = $self->initialise($option, $ctl_file);
 	}
 	elsif ($option > 1 and $option <= 5) {
-		die "\n\t Option '$option' requires an infile\n\n";	
+		# Show error
+		print "\n\t  Option '-m=$option' requires an infile\n\n";	
+		exit;
 	}
-	else {
-		die "\n\t Unrecognised option 'm=$option'\n\n";			
+	# Hand off to DIGS functions
+	elsif ($option eq 1) { 
+		
+		# Check the target sequences are formatted for BLAST
+		$self->prepare_target_files_for_blast();
 	}
+	else {				
+		# Show error
+		print "\n\t  Unrecognized option '-m=$option'\n\n";
+		exit;
+	}
+
 
 	if ($valid) {
-
-		# Hand off to DIGS functions
-		if ($option eq 1) { 	
-			# Check the target sequences are formatted for BLAST
-			$self->prepare_target_files_for_blast();
-		}	
-		elsif ($option eq 2) { 
-		
+	
+		if ($option eq 2) { 
+	
 			# Run a DIGS process
 			$self->perform_digs();	
 		}
 		elsif ($option eq 3) { 
-				
-			# Reclassify sequences in digs_results table
-			$self->reclassify_digs_results_table_seqs();	
+	
+			# Reassign data in digs_results table
+			$self->reassign();	
 		}
 		elsif ($option eq 4) {
 		
@@ -155,14 +155,11 @@ sub run_digs_process {
 			# Combine digs_results into higher order locus structures
 			$self->consolidate_loci();
 		}
-		else {				
-			# Show error
-			print "\n\t  Unrecognized option '-m=$option'\n";
-		}
 	}
-	
+
 	# Show final summary and exit message
 	$self->wrap_up($option);
+
 }
 
 ############################################################################
