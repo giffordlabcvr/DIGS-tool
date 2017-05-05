@@ -54,6 +54,7 @@ sub new {
 
 		# Paths
 		genome_use_path      => $parameter_ref->{genome_use_path},
+		report_dir           => $parameter_ref->{report_dir},
 		
 		# Member classes 
 		blast_obj            => $parameter_ref->{blast_obj},
@@ -76,14 +77,14 @@ sub new {
 #***************************************************************************
 sub setup_screen  {
 	
-	my ($self, $pipeline_obj, $queries_ref) = @_;
+	my ($self, $digs_obj, $queries_ref) = @_;
 	
 	# Import the probes
 	my @probes;
 	$self->setup_blast_probes(\@probes);
 	
 	# Set up the reference library for BLAST
-	$self->setup_reference_libraries($pipeline_obj);
+	$self->setup_reference_libraries($digs_obj);
 	
 	# Set target sequence files for screening
 	my %targets;
@@ -97,7 +98,7 @@ sub setup_screen  {
 	# Record the target group designations
 	my %target_groups;
 	$self->set_target_groups(\%targets, \%target_groups);
-	$pipeline_obj->{target_groups} = \%target_groups; 
+	$digs_obj->{target_groups} = \%target_groups; 
 
 	# Show output about the number of oustanding targets and number of queries loaded
 	my @keys        = keys %targets;
@@ -106,7 +107,7 @@ sub setup_screen  {
 
 
 	# Create the BLAST queries for this screen
-	my $num_queries = $self->set_queries($pipeline_obj, \@probes, \%targets, $queries_ref);
+	my $num_queries = $self->set_queries($digs_obj, \@probes, \%targets, $queries_ref);
 	
 
 	unless ($num_queries) {
@@ -220,7 +221,7 @@ sub get_fasta_probes {
 #***************************************************************************
 sub setup_reference_libraries {
 
-	my ($self, $pipeline_obj) = @_;
+	my ($self, $digs_obj) = @_;
 
 	# Get reference library params
 	my $reference_type;
@@ -233,7 +234,7 @@ sub setup_reference_libraries {
  		$self->{reference_library_type} = 'aa';
 		$ref_fasta = $self->{reference_aa_fasta};
 		$reference_type = 'amino acid';
-		$self->create_reference_library($pipeline_obj, $ref_fasta, $reference_type);
+		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
 	
 	# Load a nucleotide sequence library	
@@ -241,17 +242,17 @@ sub setup_reference_libraries {
  		$self->{reference_library_type} = 'na';
 		$ref_fasta = $self->{reference_na_fasta};
 		$reference_type = 'nucleic acid';
-		$self->create_reference_library($pipeline_obj, $ref_fasta, $reference_type);
+		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
 }
 
 #***************************************************************************
 # Subroutine:  create_reference_library
-# Description: 
+# Description: Set up the references for BLAST-based classification
 #***************************************************************************
 sub create_reference_library {
 	
-	my ($self, $pipeline_obj, $ref_fasta, $reference_type) = @_;
+	my ($self, $digs_obj, $ref_fasta, $reference_type) = @_;
 
 	my @path = split(/\//, $ref_fasta);
 	my $lib_file = pop @path;
@@ -293,7 +294,8 @@ sub create_reference_library {
 		else {
 			$refseq_ids{$refseq_id} = 1;
 		}
-		my $fasta = ">$name" . "_$gene_name" . "\n$seq\n\n";
+		
+		my $fasta = ">$refseq_id" . "\n$seq\n\n";
 		push (@references, $fasta);
 	}
 
@@ -307,19 +309,17 @@ sub create_reference_library {
 	if ($num_fasta) {
 		if ($self->{reference_library_type} eq 'aa') {
 			$self->create_blast_lib(\@references, 'aa');
-			$pipeline_obj->{aa_reference_library} = $lib_file;
+			$digs_obj->{aa_reference_library} = $lib_file;
 		}
 		if ($self->{reference_library_type} eq 'na') {
 			$self->create_blast_lib(\@references, 'na');
-			$pipeline_obj->{na_reference_library} = $lib_file;
+			$digs_obj->{na_reference_library} = $lib_file;
 		}
 	}
 
 	# Set the paths to the BLAST-formatted libraries
-	$pipeline_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
-	$pipeline_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
-
-
+	$digs_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
+	$digs_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
 
 }
 
@@ -531,9 +531,9 @@ sub does_file_have_fasta_extension {
 #***************************************************************************
 sub set_queries {
 	
-	my ($self, $pipeline_obj, $probes_ref, $targets_ref, $queries_ref) = @_;
+	my ($self, $digs_obj, $probes_ref, $targets_ref, $queries_ref) = @_;
 
-	my $db = $pipeline_obj->{db};
+	my $db = $digs_obj->{db};
 	unless ($db) { die; }
 	
 	# Get data from self
@@ -648,7 +648,7 @@ sub set_queries {
 #***************************************************************************
 sub parse_control_file {
 
-	my ($self, $ctl_file, $pipeline_obj) = @_;
+	my ($self, $ctl_file, $digs_obj) = @_;
 	
 	# Read input file
 	my @ctl_file;
@@ -688,54 +688,44 @@ sub parse_control_file {
 	# Set parameters in pipeline object
 	
 	# Screening DB name and MySQL connection details
-	$pipeline_obj->{db_name}                = $self->{db_name};
-	$pipeline_obj->{mysql_server}           = $self->{mysql_server};
+	$digs_obj->{db_name}                = $self->{db_name};
+	$digs_obj->{mysql_server}           = $self->{mysql_server};
 
 	# Input and output file paths 	
-	$pipeline_obj->{output_path}            = $self->{output_path};
-	$pipeline_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$pipeline_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
-	$pipeline_obj->{target_paths}           = $self->{target_paths};
-	$pipeline_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
+	$digs_obj->{output_path}            = $self->{output_path};
+	$digs_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
+	$digs_obj->{blast_utr_lib_path}     = $self->{blast_utr_lib_path};
+	$digs_obj->{target_paths}           = $self->{target_paths};
+	$digs_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 	
 	# Set parameters for screening
-	$pipeline_obj->{defragment_range}       = $self->{defragment_range};
-	$pipeline_obj->{consolidate_range}      = $self->{consolidate_range};
-	$pipeline_obj->{extract_buffer}         = $self->{extract_buffer};
+	$digs_obj->{defragment_range}       = $self->{defragment_range};
+	$digs_obj->{consolidate_range}      = $self->{consolidate_range};
+	$digs_obj->{extract_buffer}         = $self->{extract_buffer};
 
 	# Set numthreads in the BLAST object 
 	my $num_threads = $self->{num_threads};
 	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$pipeline_obj->{blast_obj}->{num_threads} = $num_threads;
+	$digs_obj->{blast_obj}->{num_threads} = $num_threads;
 
 	# READ the 'NOMENCLATURE' block
 	$start_token  = 'BEGIN NOMENCLATURE';
 	$stop_token   = 'ENDBLOCK';
-	#$self->parse_nomenclature_block(\@ctl_file, $start_token, $stop_token);
+	$self->parse_nomenclature_block($digs_obj, \@ctl_file, $start_token, $stop_token);
 		
-	# Set paths for applying nomenclature 	
-	$pipeline_obj->{new_track_path}        = $self->{new_track_path};
-	$pipeline_obj->{translation_path}      = $self->{translation_path};
-	$pipeline_obj->{tax_level}             = $self->{tax_level};
-	$pipeline_obj->{organism_code}         = $self->{organism_code};
-	$pipeline_obj->{locus_class}           = $self->{locus_class};
-	$pipeline_obj->{nomenclature_version}  = $self->{nomenclature_version};
-	$pipeline_obj->{nomenclature_organism} = $self->{nomenclature_organism};
-	$pipeline_obj->{genome_structure}      = $self->{genome_structure};
-
 	# Indexing 
-	$pipeline_obj->{skipindexing_paths} = \%skipindex;
+	$digs_obj->{skipindexing_paths} = \%skipindex;
 	
 	# Set the thresholds for filtering results
-	$pipeline_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
+	$digs_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
 	# Set the bit score minimum for a tBLASTn screen
 	if ($self->{bitscore_min_tblastn}) {
-		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
+		$digs_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
 	}
 	# Set the bit score minimum for a BLASTn screen
 	if ($self->{bitscore_min_blastn}) {
-		$pipeline_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
+		$digs_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
 	}
 }
 
@@ -1010,8 +1000,9 @@ sub set_skipindex_targets {
 #***************************************************************************
 sub parse_nomenclature_block {
 
-	my ($self, $file_ref, $start, $stop) = @_;
+	my ($self, $digs_obj, $file_ref, $start, $stop) = @_;
 
+	return;
 	# Extract the block	
 	my %params;
 	$fileio->read_standard_field_value_block($file_ref, $start, $stop, \%params);
@@ -1045,6 +1036,16 @@ sub parse_nomenclature_block {
 	$self->{nomenclature_version}  = $version;   # Genome assembly ID
 	$self->{organism_code}         = $organism_code;
 	$self->{locus_class}           = $locus_class;
+
+	# Set paths for applying nomenclature 	
+	#$digs_obj->{new_track_path}        = $self->{new_track_path};
+	#$digs_obj->{translation_path}      = $self->{translation_path};
+	#$digs_obj->{tax_level}             = $self->{tax_level};
+	#$digs_obj->{organism_code}         = $self->{organism_code};
+	#$digs_obj->{locus_class}           = $self->{locus_class};
+	#$digs_obj->{nomenclature_version}  = $self->{nomenclature_version};
+	#$digs_obj->{nomenclature_organism} = $self->{nomenclature_organism};
+	#$digs_obj->{genome_structure}      = $self->{genome_structure};
 
 }
 
@@ -1172,29 +1173,6 @@ sub parse_fasta_header_data {
 ############################################################################
 # UTILITY FUNCTIONS ASSOCIATED  WITH SETTING UP DIGS
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  create output directories
-# Description: create a unique 'report' directory for this process
-#***************************************************************************
-sub create_output_directories {
-	
-	my ($self, $pipeline_obj) = @_;
-
-	# Create a unique ID and report directory for this run
-	my $process_id  = $self->{process_id};
-	my $output_path = $self->{output_path};
-	my $report_dir  = $output_path . 'result_set_' . $process_id;
-	$fileio->create_unique_directory($report_dir);
-	$self->{report_dir}  = $report_dir . '/';
-	
-	# Create print "\n\t Report dir $report_dir"; die;
-	my $tmp_path = $report_dir . '/tmp';
-	$fileio->create_unique_directory($tmp_path);
-	$self->{tmp_path}   = $tmp_path . '/';
-	$pipeline_obj->{tmp_path}   = $tmp_path;
-	$pipeline_obj->{report_dir} = $report_dir;
-}
 
 #***************************************************************************
 # Subroutine:  create_blast_lib

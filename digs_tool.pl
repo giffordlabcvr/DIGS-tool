@@ -59,8 +59,9 @@ use DIGS::Nomenclature;
 ############################################################################
 
 # Paths
-my $genome_use_path = $ENV{DIGS_GENOMES} . '/';    
-my $blast_bin_path  = '';  # leave blank if BLAST+ programs are in your path 
+my $genome_use_path = $ENV{DIGS_GENOMES} . '/'; 
+$genome_use_path =~ s/\/\//\//g; # Remove any double backslashes
+my $blast_bin_path  = '';  # left empty if BLAST+ programs are in your path 
 
 # Version number	
 my $program_version = '1.13';
