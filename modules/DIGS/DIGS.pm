@@ -116,15 +116,25 @@ sub run_digs_process {
 	if ($ctl_file) {	
 		$valid = $self->initialise($option, $ctl_file);
 	}
-
+	elsif ($option > 1 and $option <= 5) {
+		# Show error
+		print "\n\t  Option '-m=$option' requires an infile\n\n";	
+		exit;
+	}
 	# Hand off to DIGS functions
-	if ($option eq 1) { 
+	elsif ($option eq 1) { 
 		
 		# Check the target sequences are formatted for BLAST
 		$self->prepare_target_files_for_blast();
 	}
+	else {				
+		# Show error
+		print "\n\t  Unrecognized option '-m=$option'\n\n";
+		exit;
+	}
 
-	elsif ($valid) {
+
+	if ($valid) {
 	
 		if ($option eq 2) { 
 	
@@ -145,11 +155,6 @@ sub run_digs_process {
 	
 			# Combine digs_results into higher order locus structures
 			$self->consolidate_loci();
-		}
-		else {
-					
-			# Show error
-			print "\n\t  Unrecognized option '-m=$option'\n";
 		}
 	}
 
