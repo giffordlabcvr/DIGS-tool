@@ -43,9 +43,6 @@ sub new {
 	my ($invocant, $parameter_ref) = @_;
 	my $class = ref($invocant) || $invocant;
 
-	# Declare empty data structures
-	my %crossmatching;
-
 	# Set member variables
 	my $self = {
 		

@@ -66,18 +66,24 @@ sub new {
 		
 		# Member classes 
 		blast_obj              => $parameter_ref->{blast_obj},
+		crossmatch_obj         => $crossmatch_obj,
+		extract_obj            => $extract_obj,
+		classify_obj           => $classify_obj,
 
 		# MySQL database connection parameters
 		mysql_username         => $parameter_ref->{mysql_username}, 
 		mysql_password         => $parameter_ref->{mysql_password},
-		db_name                => '',   # Obtained from control file or user
-		mysql_server           => '',   # Obtained from control file or user
+		db_name                => '',   # Obtained from control file or console
+		mysql_server           => '',   # Obtained from control file or console
 
 		# Parameters for DIGS
 		query_na_fasta         => '',   # Obtained from control file
 		query_aa_fasta         => '',   # Obtained from control file
 		aa_reference_library   => '',   # Obtained from control file
 		na_reference_library   => '',   # Obtained from control file
+		reference_na_fasta     => '',   # Obtained from control file
+		reference_aa_fasta     => '',   # Obtained from control file
+
 		bitscore_min_tblastn   => '',   # Obtained from control file
 		bitscore_min_blastn    => '',   # Obtained from control file
 		seq_length_minimum     => '',   # Obtained from control file
@@ -86,12 +92,9 @@ sub new {
 		# Paths used in DIGS process
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
-		reference_na_fasta     => '',   
-		reference_aa_fasta     => '',   
+		tmp_path               => '',   # Created during set up
 		blast_threads          => '',   # Obtained from control file
 
-		# Data structures
-		crossmatch_obj         => $crossmatch_obj,
 
 	};
 	
@@ -264,6 +267,7 @@ sub reclassify_digs_results_table_seqs {
 	# Get data structures, paths and flags from self
 	my $blast_obj      = $self->{blast_obj};
 	my $crossmatch_obj = $self->{crossmatch_obj};
+	my $classify_obj   = $self->{classify_obj};
 	my $result_path    = $self->{report_dir};
 	my $verbose        = $self->{verbose};
 
