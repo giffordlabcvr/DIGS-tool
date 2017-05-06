@@ -1299,5 +1299,28 @@ sub show_cluster {
 }
 
 ############################################################################
+# Development
+############################################################################
+
+#***************************************************************************
+# Subroutine:  prepare_locus_update 
+# Description: 
+#***************************************************************************
+sub prepare_locus_update {
+
+	my ($self, $loci_ref) = @_;
+
+	# Get parameters from self
+	foreach my $hit_ref (@$loci_ref) {
+	
+		$hit_ref->{extract_start}   = $hit_ref->{start};
+		$hit_ref->{extract_end}     = $hit_ref->{end};
+		$hit_ref->{sequence}        = 'NULL';
+		$hit_ref->{sequence_length} = 0;
+		#$devtools->print_hash($hit_ref); die;
+	}
+}
+
+############################################################################
 # EOF
 ############################################################################
