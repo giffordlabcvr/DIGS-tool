@@ -118,20 +118,16 @@ sub interactive_defragment {
 #***************************************************************************
 sub consolidate_loci {
 
-	my ($self) = @_;
-
-	# Get the digs results sorted by scaffold and extract start
-	my @sorted;
-	$self->get_sorted_digs_results(\@sorted);
-	my $total_loci = scalar @sorted;
+	my ($self, $sorted_loci_ref) = @_;
 	
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my $total_loci = scalar @$sorted_loci_ref;
 	print "\n\t  Consolidating assigned extracted sequences into loci";
 	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
 	my $settings_ref = $self->{consolidate_settings};
 	unless ($settings_ref) { die; }
 	my %consolidated;
-	$self->compose_clusters(\%consolidated, \@sorted, $settings_ref);
+	$self->compose_clusters(\%consolidated, $sorted_loci_ref, $settings_ref);
 	
 	# Check the output
 	my @cluster_ids  = keys %consolidated;
@@ -449,74 +445,6 @@ sub annotate_consolidated_locus_flanks {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  compile_nonredundant_locus_set
-# Description: determine what to extract based on current results
-# Note similar to defragment_target fxn
-#***************************************************************************
-sub compile_nonredundant_locus_set {
-	
-	my ($self, $query_ref, $to_extract_ref) = @_;
-
-	# Get flag
-	my $verbose         = $self->{verbose};
-
-	# Compose SQL WHERE statement to retrieve relevant set of loci
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
-
-	# Get the relevant set of DIGS results
-	my @digs_results;
-	$self->get_sorted_digs_results(\@digs_results, $where);
-	my $num_loci = scalar @digs_results;
-	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
-		
-	# Add the digs results to the BLAST hits in the active_set table
-	$self->add_digs_results_to_active_set(\@digs_results);
-
-	# Get sorted list of digs results and BLAST hits from active_set table
-	my @combined;
-	$self->get_sorted_active_set(\@combined);
-	my $total_loci = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > 0) {
-			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
-		}
-	}
-	
-	# Compose clusters of overlapping/adjacent loci
-	my %settings;
-	my %defragmented;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	$self->compose_clusters(\%defragmented, \@combined, \%settings);
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > $num_clusters) {
-		}
-	}
-
-	# Get a resolved list of non-redundant, non-overlapping loci to extract
-	$self->merge_clustered_loci(\%defragmented, $to_extract_ref);
-	my $num_new = scalar @$to_extract_ref;
-	if ($num_new){
-		print "\n\t\t # $num_new sequences to extract";
-	}	
-	else {
-		print "\n\t\t # No new loci to extract";
-	}	
-}
-
-#***************************************************************************
 # Subroutine:  preview_defragment
 # Description: preview a defragmentation process
 #***************************************************************************
@@ -748,108 +676,6 @@ sub defragment_target {
 	return $num_new;
 }
 
-
-#***************************************************************************
-# Subroutine:  get_sorted_digs_results
-# Description: get digs_results table rows sorted by scaffold & coordinates
-#***************************************************************************
-sub get_sorted_digs_results {
-
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set statement to sort loci
-	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
-	if ($where) { $where .= $sort; }
-	else        { $where  = $sort; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $digs_results_table  = $db->{digs_results_table};
-		
-	# Set the fields to get values for
-	my @fields = qw [ record_id organism 
-	                  target_name target_version target_datatype
-	                  assigned_name assigned_gene probe_type
-	                  scaffold orientation
-	                  bitscore gap_openings
-	                  query_start query_end 
-	                  mismatches align_len
-                      evalue_num evalue_exp identity 
-                      extract_start extract_end sequence_length ];
-	$digs_results_table->select_rows(\@fields, $data_ref, $where);
-	
-	# Set record_ID as 'digs_result_id' in all results
-	foreach my $row_ref (@$data_ref) {
-		$row_ref->{digs_result_id} = $row_ref->{record_id};
-	}
-}
-
-
-#***************************************************************************
-# Subroutine:  add_digs_results_to_active_set 
-# Description: get all extracted loci for this target file (& probe)
-#***************************************************************************
-sub add_digs_results_to_active_set {
-	
-	my ($self, $data_ref) = @_;;
-
-	# Get database tables
-	my $db = $self->{db};
-	my $active_set_table  = $db->{active_set_table};
-
-	# Enter all relevant extracted loci into 'active_set' table 
-	my $num_loci = scalar @$data_ref;
-	foreach my $locus_ref (@$data_ref) {
-
-		#print "\n\t\t # inserting extract ID $digs_result_id";
-		#$devtools->print_hash($locus_ref);
-		my $digs_result_id = $locus_ref->{record_id};
-		
-		# Translations
-		$locus_ref->{digs_result_id}       = $digs_result_id;
-		$locus_ref->{probe_name}       = $locus_ref->{assigned_name};
-		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
-		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
-		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
-		$locus_ref->{organism}  = $locus_ref->{organism};
-		$active_set_table->insert_row($locus_ref);
-	}
-	
-	return $num_loci;
-}
-
-
-#***************************************************************************
-# Subroutine:  get sorted active set 
-# Description: get active set rows, sorted by scaffold, in order of location
-#***************************************************************************
-sub get_sorted_active_set {
-	
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set statement to sort loci
-	if ($where) { $where .= " ORDER BY scaffold, subject_start "; }
-	else        { $where  = " ORDER BY scaffold, subject_start "; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $active_set_table    = $db->{active_set_table};
-	
-	# Get sorted, combined extracted loci and new blast results	
-	my @blast_fields = qw [ record_id digs_result_id  
-	                        organism target_datatype target_version target_name
-	                        probe_name probe_gene probe_type
-	                        bitscore gap_openings
-	                        query_start query_end 
-	                        align_len mismatches 
-                            evalue_num evalue_exp identity 
-	                        scaffold orientation
-	                        subject_start subject_end ];
-	$active_set_table->select_rows(\@blast_fields, $data_ref, $where);
-}
-
-
-
 ############################################################################
 # INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
 ############################################################################
@@ -943,8 +769,8 @@ sub compare_adjacent_loci {
 	my $end_token   = $settings_ref->{end};
 	my $verbose     = $self->{verbose};
 	my $mode        = $self->{defragment_mode};
-
-
+	unless ($mode) { die; }
+	
 	# Get the current hit values
 	my $name             = $locus1_ref->{assigned_name};
 	my $gene             = $locus1_ref->{assigned_gene};					

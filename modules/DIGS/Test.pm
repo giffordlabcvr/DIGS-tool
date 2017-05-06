@@ -90,28 +90,25 @@ sub run_tests {
 	$digs_obj->{mysql_username} = $user;
 	$digs_obj->{mysql_password} = $password;
 	my $initialise_obj = Initialise->new($digs_obj);
-	$digs_obj->initialise_screening_db('digs_test_screen');
+	$initialise_obj->initialise_screening_db($digs_obj, 'digs_test_screen');
 	
 	# Flush the 'digs_test' database
 	my $db = $digs_obj->{db}; # Get the database reference
 	$db->flush_screening_db();
 
-	# Create the ScreenBuilder object
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	
-	# Set paths for processing etc
-	$loader_obj->{output_path}     = "./tmp/"; 
-	$loader_obj->{genome_use_path} = './test/targets/';
-	$loader_obj->create_output_directories($self);
-	$digs_obj->{loader_obj}       = $loader_obj;
-	$digs_obj->{report_dir}       = $loader_obj->{report_dir};
-	$digs_obj->{tmp_path}         = $loader_obj->{tmp_path};
+	# Initialise a DIGS object for these tests
+	$digs_obj->{output_path}     = "./tmp/"; 
+	$digs_obj->{genome_use_path} = './test/targets/';
+	$initialise_obj->create_output_directories($digs_obj);
 
-	#$devtools->print_hash($loader_obj); die;
+	# TODO - do we need this?
+	my $loader_obj = ScreenBuilder->new($digs_obj); # Create the ScreenBuilder object
+	$digs_obj->{loader_obj} = $loader_obj;
 
-	# Do a live screen using test control file and synthetic target data
+	# Do a screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 	$self->run_test_1();
+	die;
 	$self->run_test_2();
 	$self->run_test_3();
 	$self->run_test_4();
@@ -140,7 +137,7 @@ sub run_test_1 {
 
 	my ($self) = @_;
 
-	print "\n\t ### TEST 1: Running live nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
+	print "\n\t ### TEST 1: Running nucleotide screen against synthetic data ~ + ~ + ~ \n\n";
 	my $digs_obj   = $self->{digs_obj};
 	my $loader_obj = $digs_obj->{loader_obj};
 
@@ -165,7 +162,12 @@ sub run_test_1 {
 		$digs_obj->{bitscore_minimum} = $loader_obj->{bitscore_min_tblastn};
 	}
 	$digs_obj->{bitscore_minimum}   = 100;
-	$digs_obj->setup_for_a_digs_run();
+
+	# Initialise a DIGS object
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->setup_for_a_digs_run($digs_obj);
+	
+	# Perform DIGS
 	$digs_obj->perform_digs();
 	#$devtools->print_hash($self); die;
 
@@ -190,8 +192,8 @@ sub run_test_1 {
 	   and  $result2_ref->{extract_start} eq 10967)  { $correct_result = undef; }
 	unless ($result1_ref->{extract_end}   eq 703
 	   and  $result2_ref->{extract_end}   eq 11470)  { $correct_result = undef; }
-	if ($correct_result)  { print "\n\n\t  Live blastn screen test: ** PASSED **\n" }
-	else                  { die   "\n\n\t  Live blastn screen test: ** FAILED **\n" }
+	if ($correct_result)  { print "\n\n\t  blastn screen test: ** PASSED **\n" }
+	else                  { die   "\n\n\t  blastn screen test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 	sleep 1;
 }
@@ -243,7 +245,7 @@ sub run_test_3 {
 	$digs_obj->{defragment_range} = 100;
 
 	# Run a peptide screen
-	print "\n\t ### TEST 3: Running live partially deleted pol peptide screen against synthetic data ~ + ~ + ~ \n";
+	print "\n\t ### TEST 3: Running partially deleted pol peptide screen against synthetic data ~ + ~ + ~ \n";
 	my $test_ctl_file2 = './test/test3_erv_aa.ctl';
 	my $loader_obj     = $digs_obj->{loader_obj};
 	#$loader_obj->parse_control_file($test_ctl_file2, $self, 2);
@@ -281,8 +283,8 @@ sub run_test_3 {
 	   and  $result4_ref->{extract_start} eq 7481)   { $correct_result = undef; }
 	unless ($result3_ref->{extract_end}   eq 7144
 	   and  $result4_ref->{extract_end}   eq 9064)   { $correct_result = undef; }
-	if ($correct_result)  { print "\n\n\t  Live tblastn test: ** PASSED **\n" }
-	else                  { die   "\n\n\t  Live tblastn test: ** FAILED **\n" }
+	if ($correct_result)  { print "\n\n\t  tblastn test: ** PASSED **\n" }
+	else                  { die   "\n\n\t  tblastn test: ** FAILED **\n" }
 	#$devtools->print_hash($result1_ref); $devtools->print_hash($result2_ref); die;
 	sleep 1;
 }
@@ -343,14 +345,14 @@ sub run_test_4 {
 
 #***************************************************************************
 # Subroutine:  run_test_5
-# Description: Live gag + env peptide screen
+# Description: gag + env peptide screen
 #***************************************************************************
 sub run_test_5 {
 
 	my ($self) = @_;
 
 	# Run the second peptide screen
-	print "\n\t ### TEST 5: Running live gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ ";
+	print "\n\t ### TEST 5: Running gag + env peptide screen (entails merge of result rows) ~ + ~ + ~ ";
 
  	my $digs_obj   = $self->{digs_obj};
 	my $loader_obj = $digs_obj->{loader_obj};

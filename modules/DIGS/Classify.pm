@@ -58,17 +58,17 @@ sub new {
 
 		# Parameters for DIGS
 		# TODO: check why both these are neccessary
-		aa_reference_library   => '',   # Obtained from control file
-		na_reference_library   => '',   # Obtained from control file
-		blast_orf_lib_path     => '',   $parameter_ref->{blast_orf_lib_path},
-		blast_utr_lib_path     => '',   $parameter_ref->{blast_utr_lib_path},
+		aa_reference_library   => $parameter_ref->{aa_reference_library},
+		na_reference_library   => $parameter_ref->{na_reference_library},
+		blast_orf_lib_path     => $parameter_ref->{blast_orf_lib_path},
+		blast_utr_lib_path     => $parameter_ref->{blast_utr_lib_path},
 
 		# Paths used in DIGS process
 		tmp_path               => $parameter_ref->{tmp_path},
 		blast_threads          => $parameter_ref->{blast_threads},
 
 		# Data structures
-		crossmatch_obj         => $crossmatch_obj,
+		crossmatch_obj         => $parameter_ref->{crossmatch_obj},
 
 	};
 	
@@ -272,8 +272,9 @@ sub get_blast_library_path {
 		}
 	}
 	elsif ($probe_type eq 'ORF') { 
-		$lib_path = $self->{blast_utr_lib_path};
+		$lib_path = $self->{blast_orf_lib_path};
 		unless ($lib_path) {
+			$devtools->print_hash($self); 
 			die "\n\t NO ORF LIBRARY defined";
 		}
 	}	

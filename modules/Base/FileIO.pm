@@ -470,21 +470,16 @@ sub extract_text_block {
 # Subroutine:  create_unique_directory 
 # Description: create a unique directory 
 #***************************************************************************
-sub create_unique_directory {
+sub create_directory {
 	
-	my ($self, $unique_dir, $mode) = @_;
+	my ($self, $unique_dir) = @_;
 
 	my $mkdir_cmd = "mkdir $unique_dir";
 	my $result = system $mkdir_cmd;
 	if ($result > 0) {
-		if ($mode) {
-			die "<br>Internal error, contact webmaster<br>";
-		}
-		else {
-			print "\n\t ### Error: couldn't create output directory";
-			print "\n\t ### Check path and permissions\n\n";
-			die;
-		}
+		print "\n\t ### Error: couldn't create output directory using command 'mkdir $unique_dir'";
+		print "\n\t ### Check path and permissions\n\n";
+		die;
 	}
 }
 

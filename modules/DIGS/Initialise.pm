@@ -46,13 +46,14 @@ sub new {
 	my ($invocant, $parameter_ref) = @_;
 	my $class = ref($invocant) || $invocant;
 
-	# Declare empty data structures
-	my %crossmatching;
-
 	# Set member variables
 	my $self = {
 
-		
+		# Global settings
+		process_id             => $parameter_ref->{process_id},
+		program_version        => $parameter_ref->{program_version},
+
+
 	};
 	
 	bless ($self, $class);
@@ -118,16 +119,18 @@ sub do_general_setup {
 	
 	# Create the output directories if running a screen or re-assigning results table
 	if ($option eq 2 or $option eq 3) { # Need output directory for these options
+
 		$self->create_output_directories($digs_obj);
-		# Store the ScreenBuilder object (used later)
+
+		# Store the ScreenBuilder object (TODO check this is used later)
 		$loader_obj->{report_dir} = $digs_obj->{report_dir};
 		$loader_obj->{tmp_path}   = $digs_obj->{tmp_path};
-		$digs_obj->{loader_obj} = $loader_obj;
+		$digs_obj->{loader_obj}   = $loader_obj;
 	}
 
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	return $db_name
+	return $db_name;
 }
 
 #***************************************************************************
@@ -141,14 +144,19 @@ sub create_output_directories {
 	# Create a unique ID and report directory for this run
 	my $process_id  = $digs_obj->{process_id};
 	my $output_path = $digs_obj->{output_path};
+	unless ($process_id)  { die; }
+	unless ($output_path) { die; }
+	
 	# $devtools->print_hash($digs_obj); die;
 	my $report_dir  = $output_path . 'result_set_' . $process_id;
-	$fileio->create_unique_directory($report_dir);
+	$fileio->create_directory($report_dir);
 	$digs_obj->{report_dir}  = $report_dir . '/';
+	print "\n\t Created report directory";
+	print "\n\t Path: '$report_dir'";
 	
 	# Create the tmp directory inside the report directory
 	my $tmp_path = $report_dir . '/tmp';
-	$fileio->create_unique_directory($tmp_path);
+	$fileio->create_directory($tmp_path);
 	$digs_obj->{tmp_path}   = $tmp_path;
 
 	# Create log file

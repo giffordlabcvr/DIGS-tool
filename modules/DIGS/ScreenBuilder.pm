@@ -537,9 +537,10 @@ sub set_queries {
 	unless ($db) { die; }
 	
 	# Get data from self
-	my $report_dir = $self->{report_dir};
-	my $tmp_path   = $self->{tmp_path};
-	unless ($report_dir and $tmp_path) { die; } 
+	my $report_dir = $digs_obj->{report_dir};
+	my $tmp_path   = $digs_obj->{tmp_path};
+	unless ($report_dir) { die; } 
+	unless ($tmp_path)   { die; } 
 
 	# Get the target database information
 	my @target_names = sort keys %$targets_ref;
