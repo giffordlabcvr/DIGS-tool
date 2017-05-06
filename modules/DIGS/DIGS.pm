@@ -48,8 +48,10 @@ sub new {
 	my ($invocant, $parameter_ref) = @_;
 	my $class = ref($invocant) || $invocant;
 
-	# Declare empty data structures
-	my %crossmatching;
+	# Create objects for screening
+	my $crossmatch_obj = CrossMatch->new($parameter_ref);
+	my $extract_obj    = Extract->new($parameter_ref);
+	my $classify_obj   = Classify->new($parameter_ref);
 
 	# Set member variables
 	my $self = {
@@ -88,7 +90,7 @@ sub new {
 		blast_threads          => '',   # Obtained from control file
 
 		# Data structures
-		crossmatching          => \%crossmatching,
+		crossmatch_obj         => $crossmatch_obj,
 
 	};
 	
@@ -116,7 +118,7 @@ sub run_digs_process {
 	
 		if ($option eq 1) { 
 			# Check the target sequences are formatted for BLAST
-			$self->prepare_target_files_for_blast();	
+			$self->index_target_files_for_blast();	
 		}
 		elsif ($option eq 2) { 			
 			# Screen
@@ -179,10 +181,10 @@ sub validate_input {
 }
 
 #***************************************************************************
-# Subroutine:  prepare_target_files_for_blast
+# Subroutine:  index_target_files_for_blast
 # Description: create index files for all target databases
 #***************************************************************************
-sub prepare_target_files_for_blast {
+sub index_target_files_for_blast {
 
 	my ($self) = @_;
 
@@ -258,9 +260,10 @@ sub reclassify_digs_results_table_seqs {
 	my ($self) = @_;
 
 	# Get data structures, paths and flags from self
-	my $blast_obj   = $self->{blast_obj};
-	my $result_path = $self->{report_dir};
-	my $verbose     = $self->{verbose};
+	my $blast_obj      = $self->{blast_obj};
+	my $crossmatch_obj = $self->{crossmatch_obj};
+	my $result_path    = $self->{report_dir};
+	my $verbose        = $self->{verbose};
 
 	# Get the connection to the digs_results table (so we can update it)
 	my $db          = $self->{db};
@@ -305,7 +308,7 @@ sub reclassify_digs_results_table_seqs {
 			# Update the matrix
 			my $previous_key = $previous_assign . '_' . $previous_gene;
 			my $assigned_key = $assigned_name . '_' . $assigned_gene;	
-			$self->update_cross_matching($previous_key, $assigned_key);
+			$crossmatch_obj->update_cross_matching($previous_key, $assigned_key);
 				
 			# Insert the data
 			my $where = " WHERE record_id = $record_id ";
@@ -316,7 +319,7 @@ sub reclassify_digs_results_table_seqs {
 	}
 	
 	# Write out the cross-matching matrix
-	$self->show_cross_matching();
+	$crossmatch_obj->show_cross_matching();
 
 	# Cleanup
 	my $output_dir = $self->{report_dir};
@@ -325,7 +328,7 @@ sub reclassify_digs_results_table_seqs {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: MAIN DIGS LOOP
+# INTERNALS
 ############################################################################
 
 #***************************************************************************
@@ -560,339 +563,6 @@ sub show_digs_progress {
 	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
 }
 
-############################################################################
-# INTERNAL FUNCTIONS: EXTRACT
-############################################################################
-
-#***************************************************************************
-# Subroutine:  extract_sequences_from_target_file
-# Description: extract sequences from target databases
-#***************************************************************************
-sub extract_sequences_from_target_file {
-
-	my ($self, $target_path, $loci_ref, $extracted_ref) = @_;
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj = $self->{blast_obj};
-	my $verbose   = $self->{verbose};
-	my $buffer    = $self->{extract_buffer};
-
-	# Iterate through the list of sequences to extract
-	my $new_loci = 0;
-	foreach my $locus_ref (@$loci_ref) {
-			
-		# Add any buffer 
-		if ($buffer) { 
-			my $orientation = $locus_ref->{orientation};
-			$self->add_buffer_to_sequence($locus_ref, $orientation); 
-		}
-	
-		# Extract the sequence
-		my $sequence   = $blast_obj->extract_sequence($target_path, $locus_ref);
-		if ($sequence) {
-			
-			# If we extracted a sequence, update the data for this locus
-			my $seq_length = length $sequence; # Set sequence length
-			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
-			$locus_ref->{extract_start}   = $locus_ref->{start};
-			$locus_ref->{extract_end}     = $locus_ref->{end};
-			$locus_ref->{sequence}        = $sequence;
-			$locus_ref->{sequence_length} = $seq_length;
-			push (@$extracted_ref, $locus_ref);
-			$new_loci++;
-		}
-		elsif ($verbose) { 
-			print "\n\t\t    # Sequence extraction failed ";
-		}
-	}	
-	return $new_loci;
-}
-
-#***************************************************************************
-# Subroutine:  add_buffer_to_sequence
-# Description: eadd leading-and-trailing buffer to extract coordinates
-#***************************************************************************
-sub add_buffer_to_sequence {
-
-	my ($self, $hit_ref, $orientation) = @_;
-
-	my $buffer = $self->{extract_buffer};
-		
-	if ($orientation eq '-') {
-		$hit_ref->{start} = $hit_ref->{start} + $buffer;
-		$hit_ref->{end}   = $hit_ref->{end} - $buffer;
-		if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
-			$hit_ref->{end} = 1;
-		}	
-	}
-	else {
-		$hit_ref->{start} = $hit_ref->{start} - $buffer;
-		if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
-			$hit_ref->{start} = 1;
-		}	
-		$hit_ref->{end}   = $hit_ref->{end} + $buffer;
-	}
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: CLASSIFY
-############################################################################
-
-#***************************************************************************
-# Subroutine:  classify_sequences_using_blast
-# Description: classify a set of sequences using blast
-#***************************************************************************
-sub classify_sequences_using_blast {
-
-	my ($self, $extracted_ref, $query_ref) = @_;
-
-	my $verbose = $self->{verbose};
-	my $assigned_count   = 0;
-	my $crossmatch_count = 0;
-	unless ($query_ref) { die; }
-	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
-
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)
-		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
-		my $assigned  = $locus_ref->{assigned_name};
-		unless ($assigned) { die; }
-		if ($assigned) { $assigned_count++; }
-
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key   = $probe_name . '_' . $probe_gene; 		
-
-		# Record cross-matching
-		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
-			$self->update_cross_matching($probe_key, $assigned);
-		}
-	}
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences classified";
-	}
-	if ($verbose) {	
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  classify_sequence_using_blast
-# Description: classify a nucleotide sequence using blast 
-#***************************************************************************
-sub classify_sequence_using_blast {
-
-	my ($self, $locus_ref) = @_;
-
-	# Get paths and objects from self
-	my $result_path = $self->{tmp_path};
-	my $blast_obj   = $self->{blast_obj};
-	my $verbose     = $self->{verbose};
-	unless ($blast_obj)   { die; } 
-	unless ($result_path) { die; }
-	
-	# Get required data about the query sequence
-	my $sequence   = $locus_ref->{sequence};
-	my $probe_type = $locus_ref->{probe_type};
-	unless ($probe_type) { die; } # Sanity checking
-	unless ($sequence)   { die; } # Sanity checking
-
-	# Make a FASTA query file
-	$sequence =~ s/-//g;   # Remove any gaps that might happen to be there
-	$sequence =~ s/~//g;   # Remove any gaps that might happen to be there
-	$sequence =~ s/\s+//g; # Remove any gaps that might happen to be there
-	my $fasta      = ">TEMPORARY\n$sequence";
-	my $query_file = $result_path . '/TEMPORARY.fas';
-	$fileio->write_text_to_file($query_file, $fasta);
-	my $result_file = $result_path . '/TEMPORARY.blast_result';
-	
-	# Do the BLAST according to the type of sequence (AA or NA)
-	my $blast_alg = $self->get_blast_algorithm($probe_type);
-	my $lib_path  = $self->get_blast_library_path($probe_type);
-	my $lib_file;
-	if    ($probe_type eq 'ORF') {  $lib_file = $self->{aa_reference_library}; }
-	elsif ($probe_type eq 'UTR') {  $lib_file = $self->{na_reference_library}; }
-	else  { die; }
-	unless ($lib_file)  { die; }
-
-	# Execute the call to BLAST and parse the results
-	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
-	my @results;
-	$blast_obj->parse_tab_format_results($result_file, \@results);
-
-	# Define some variables for capturing the result
-	my $top_match = shift @results;
-	my $query_start   = $top_match->{query_start};
-	my $query_end     = $top_match->{query_stop};
-	my $subject_start = $top_match->{aln_start};
-	my $subject_end   = $top_match->{aln_stop};
-	my $assigned_key  = $top_match->{scaffold};	
-	my $assigned;
-
-	# Deal with a query that matched nothing in the 2nd BLAST search
-	unless ($assigned_key) {
-		$self->set_default_values_for_unassigned_locus($locus_ref);	
-		$assigned = undef;
-	}
-	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
-
-		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
-		my @assigned_key  = split('_', $assigned_key);
-		my $assigned_gene = pop @assigned_key;
-		my $assigned_name = shift @assigned_key;
-		#$assigned_name = join ('_', @assigned_name);
-		$locus_ref->{assigned_name}  = $assigned_name;
-		$locus_ref->{assigned_gene}  = $assigned_gene;
-		$locus_ref->{identity}       = $top_match->{identity};
-		$locus_ref->{bitscore}       = $top_match->{bitscore};
-		$locus_ref->{evalue_exp}     = $top_match->{evalue_exp};
-		$locus_ref->{evalue_num}     = $top_match->{evalue_num};
-		$locus_ref->{mismatches}     = $top_match->{mismatches};
-		$locus_ref->{align_len}      = $top_match->{align_len};
-		$locus_ref->{gap_openings}   = $top_match->{gap_openings};
-		$locus_ref->{query_end}      = $query_end;
-		$locus_ref->{query_start}    = $query_start;
-		$locus_ref->{subject_end}    = $subject_end;
-		$locus_ref->{subject_start}  = $subject_start;
-		if ($verbose) { 
-			my $id = $locus_ref->{record_id};
-			print "\n\t\t    - Record '$id' assigned as '$assigned_name ($assigned_gene)'";
-		 	print " via $blast_alg comparison to $lib_file";
-		 }
-		$assigned = $assigned_name . '_' . $assigned_gene;
-	}
-
-	# Clean up
-	my $command1 = "rm $query_file";
-	my $command2 = "rm $result_file";
-	system $command1;
-	system $command2;
-	
-	return $blast_alg;
-}
-
-#***************************************************************************
-# Subroutine:  set_default_values_for_unassigned_locus
-# Description: set default values for an unassigned extracted sequence
-#***************************************************************************
-sub set_default_values_for_unassigned_locus {
-
-	my ($self, $hit_ref) = @_;
-
-	$hit_ref->{assigned_name}    = 'Unassigned';
-	$hit_ref->{assigned_gene}    = 'Unassigned';
-	$hit_ref->{identity}         = 0;
-	$hit_ref->{bitscore}         = 0;
-	$hit_ref->{evalue_exp}       = 0;
-	$hit_ref->{evalue_num}       = 0;
-	$hit_ref->{mismatches}       = 0;
-	$hit_ref->{align_len}        = 0;
-	$hit_ref->{gap_openings}     = 0;
-	$hit_ref->{query_end}        = 0;
-	$hit_ref->{query_start}      = 0;
-	$hit_ref->{subject_end}      = 0;
-	$hit_ref->{subject_start}    = 0;
-	
-}
-
-#***************************************************************************
-# Subroutine:  get_blast_algorithm
-# Description: determine which blast algorithm to use based on settings
-#***************************************************************************
-sub get_blast_algorithm {
-
-	my ($self, $probe_type) = @_;
-	
-	my $blast_alg;
-	if    ($probe_type eq 'UTR') { $blast_alg = 'blastn'; }
-	elsif ($probe_type eq 'ORF') { $blast_alg = 'blastx'; }
-	else { die "\n\t Unknown probe type '$probe_type '\n\n"; }
-	
-	return $blast_alg;
-}
-
-#***************************************************************************
-# Subroutine:  get_blast_library_path
-# Description: get path to a reference library, based on settings
-#***************************************************************************
-sub get_blast_library_path {
-
-	my ($self, $probe_type) = @_;
-	my $lib_path;
-	
-	if ($probe_type eq 'UTR') { 
-		$lib_path = $self->{blast_utr_lib_path};
-		unless ($lib_path) {
-			$devtools->print_hash($self); 
-			die "\n\t NO UTR LIBRARY defined";
-		}
-	}
-	elsif ($probe_type eq 'ORF') { 
-		$lib_path = $self->{blast_orf_lib_path};
-		unless ($lib_path) {
-			die "\n\t NO ORF LIBRARY defined";
-		}
-	}	
-	return $lib_path;
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: recording cross-matching
-###########################################################################
-
-#***************************************************************************
-# Subroutine:  update_cross_matching
-# Description: update a hash to record cross-matches
-#***************************************************************************
-sub update_cross_matching {
-
-	my ($self, $probe_key, $assigned) = @_;
-	
-	my $crossmatch_ref = $self->{crossmatching};
-	
-	if ($crossmatch_ref->{$probe_key}) {
-		my $cross_matches_ref = $crossmatch_ref->{$probe_key};
-		if ($cross_matches_ref->{$assigned}) {
-			$cross_matches_ref->{$assigned}++;
-		}
-		else {
-			$cross_matches_ref->{$assigned} = 1;
-		}
-	}
-	else {
-		my %crossmatch;
-		$crossmatch{$assigned} = 1;
-		$crossmatch_ref->{$probe_key} = \%crossmatch;
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_cross_matching
-# Description: show contents of hash that records cross-matches
-#***************************************************************************
-sub show_cross_matching {
-
-	my ($self) = @_;
-
-	print "\n\n\t  Summary of cross-matching";   
-	my $crossmatch_ref = $self->{crossmatching};
-	my @probe_names = keys 	%$crossmatch_ref;
-	foreach my $probe_name (@probe_names) {
-		
-		my $cross_matches_ref = $crossmatch_ref->{$probe_name};
-		my @cross_matches = keys %$cross_matches_ref;
-		foreach my $cross_match (@cross_matches) {
-			my $count = $cross_matches_ref->{$cross_match};
-			print "\n\t\t #   $count x $probe_name to $cross_match";
-		}
-	}
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: title and help display
-############################################################################
-
 #***************************************************************************
 # Subroutine:  show_title
 # Description: show command line title blurb 
@@ -957,9 +627,11 @@ sub wrap_up {
 	}
 	
 	# Show cross matching at end if verbose output setting is on
+	my $crossmatch_obj = $self->{crossmatch_obj};
 	my $verbose = $self->{verbose};
-	if ($verbose and $option eq 2 and $option eq 3) { 
-		$self->show_cross_matching();
+	if ($verbose and $option eq 2
+	or  $verbose and $option eq 3) { 
+		$crossmatch_obj->show_cross_matching();
 	}
 
 	# Print finished message
