@@ -20,11 +20,6 @@ use Base::FileIO;
 use Base::Console;
 use Base::DevTools;
 
-# Program components
-use DIGS::Initialise;    # Initialises the DIGS tool
-use DIGS::ScreenBuilder; # To set up a DIGS run
-use DIGS::Defragment;    # Cluster/defragment/consolidate tools
-
 ############################################################################
 # Globals
 ############################################################################
