@@ -235,7 +235,8 @@ sub perform_digs {
 			# Extract newly identified or extended sequences
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
-			$self->extract_sequences_from_target_file($target_path, \@new_hits, \@extracted);	
+			my $extract_obj = $self->{extract_obj};
+			$extract_obj->extract_sequences_using_blast($target_path, \@new_hits, \@extracted);	
 			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->classify_sequences_using_blast(\@extracted, $query_ref);
