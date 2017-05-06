@@ -81,6 +81,7 @@ sub new {
 		bitscore_min_tblastn   => '',   # Obtained from control file
 		bitscore_min_blastn    => '',   # Obtained from control file
 		seq_length_minimum     => '',   # Obtained from control file
+		extract_buffer         => '',   # Obtained from control file
 
 		# Paths used in DIGS process
 		genome_use_path        => $parameter_ref->{genome_use_path},
