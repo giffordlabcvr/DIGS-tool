@@ -100,7 +100,7 @@ sub new {
 # MAIN LOOP
 ############################################################################
 
-##***************************************************************************
+#***************************************************************************
 # Subroutine:  run_digs_process
 # Description: handler for main DIGS functions 
 #***************************************************************************
@@ -110,34 +110,16 @@ sub run_digs_process {
 
 	$self->show_title();  
 
-	# Initialise
-	my $valid = undef;
-	if ($ctl_file) {	
-		$valid = $self->initialise($option, $ctl_file);
-	}
-	elsif ($option > 1 and $option <= 5) {
-		# Show error
-		print "\n\t  Option '-m=$option' requires an infile\n\n";	
-		exit;
-	}
-	# Hand off to DIGS functions
-	elsif ($option eq 1) { 
-		
-		# Check the target sequences are formatted for BLAST
-		$self->prepare_target_files_for_blast();
-	}
-	else {				
-		# Show error
-		print "\n\t  Unrecognized option '-m=$option'\n\n";
-		exit;
-	}
-
+	my $valid = $self->validate_input($ctl_file, $option);  
 
 	if ($valid) {
 	
-		if ($option eq 2) { 
-	
-			# Run a DIGS process
+		if ($option eq 1) { 
+			# Check the target sequences are formatted for BLAST
+			$self->prepare_target_files_for_blast();	
+		}
+		elsif ($option eq 2) { 			
+			# Screen
 			$self->perform_digs();	
 		}
 		elsif ($option eq 3) { 
@@ -155,16 +137,46 @@ sub run_digs_process {
 			# Combine digs_results into higher order locus structures
 			$self->consolidate_loci();
 		}
-	}
 
-	# Show final summary and exit message
-	$self->wrap_up($option);
+		# Show final summary and exit message
+		$self->wrap_up($option);
+	}
+	else { exit; }
 
 }
 
 ############################################################################
 # PRIMARY FUNCTIONS (TOP LEVEL)
 ############################################################################
+
+#***************************************************************************
+# Subroutine:  validate_input
+# Description: check the input file and options received are valid
+#***************************************************************************
+sub validate_input {
+
+	my ($self, $ctl_file, $option) = @_;
+
+	my $valid = undef;
+	
+	if ($option eq 1) { 
+		$valid = 1;	# An infile is optional for option -m=1
+	}
+	else {
+	
+		if ($ctl_file) { # Try to initialise using the input file
+			$valid = $self->initialise($option, $ctl_file);
+		}
+		elsif ($option > 1 and $option <= 5) { # Show error if no infile
+			print "\n\t  Option '-m=$option' requires an infile\n\n";	
+		}
+		else {	# Show error, these options are not available
+			print "\n\t  Unrecognized option '-m=$option'\n\n";
+		}
+	}
+
+	return $valid;
+}
 
 #***************************************************************************
 # Subroutine:  prepare_target_files_for_blast
@@ -312,7 +324,6 @@ sub reclassify_digs_results_table_seqs {
 	system $command1;
 }
 
-
 ############################################################################
 # INTERNAL FUNCTIONS: MAIN DIGS LOOP
 ############################################################################
@@ -456,6 +467,104 @@ sub insert_row_in_active_set_table {
 }
 
 #***************************************************************************
+# Subroutine:  update_db
+# Description: update the screening DB based on a completed round of DIGS
+#***************************************************************************
+sub update_db {
+
+	my ($self, $extracted_ref, $table_name, $update) = @_;
+		
+	# Get parameters from self
+	my $db_ref              = $self->{db};
+	my $verbose             = $self->{verbose};
+	my $digs_results_table  = $db_ref->{$table_name}; 
+	my $active_set_table    = $db_ref->{active_set_table}; 
+	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
+
+	# Iterate through the extracted sequences
+	my $deleted = '0';
+	foreach my $hit_ref (@$extracted_ref) {
+		
+		# Insert the data to the digs_results table
+		my $digs_result_id;
+		if ($update) {
+			$digs_result_id = $digs_results_table->insert_row($hit_ref);
+		}
+		else {
+			$digs_result_id = $hit_ref->{digs_result_id};
+			my $where = " WHERE record_id = $digs_result_id ";
+			my %update;
+			$update{extract_start} = $hit_ref->{extract_start};
+			$update{extract_end}   = $hit_ref->{extract_end};
+			$digs_results_table->update(\%update, $where);		
+		}
+		
+		# Insert the data to the BLAST_chains table
+		my $blast_chains = $hit_ref->{blast_chains};
+		if ($blast_chains) {		
+			my @blast_ids = keys %$blast_chains;
+			foreach my $blast_id (@blast_ids) {							
+				my $data_ref = $blast_chains->{$blast_id};
+				$data_ref->{digs_result_id} = $digs_result_id;	
+				$blast_chains_table->insert_row($data_ref);
+			}
+		}
+		unless ($digs_result_id) { die; }
+		
+		# Delete superfluous data from the digs_results table
+		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
+		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
+			
+			# Where we updated an existing record, keep that record
+			unless ($old_digs_result_id eq $digs_result_id) {
+
+				# Delete superfluous extract rows
+				my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
+				if ($verbose) { print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'"; }
+				$digs_results_table->delete_rows($extracted_where);
+				$deleted++;
+
+				# Update extract IDs			
+				my $chains_where = " WHERE record_id = $old_digs_result_id ";
+				my %new_id;
+				$new_id{digs_result_id} = $digs_result_id;	
+				$blast_chains_table->update(\%new_id, $chains_where);
+			}
+		}
+	}
+
+	# Flush the active set table
+	$active_set_table->flush();
+
+	# Return the number
+	return $deleted;
+}
+
+#***************************************************************************
+# Subroutine:  show_digs_progress
+# Description: show progress in DIGS screening
+#***************************************************************************
+sub show_digs_progress {
+
+	my ($self) = @_;
+
+	# Get the counts
+	my $total_queries   = $self->{total_queries};
+	my $completed       = $self->{queries_completed};	
+	unless ($completed and $total_queries) { die; } # Sanity checking
+	
+	# Calculate percentage progress
+	my $percent_prog    = ($completed / $total_queries) * 100;
+	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	#print "\n\t\t  ";
+	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
+}
+
+############################################################################
+# INTERNAL FUNCTIONS: EXTRACT
+############################################################################
+
+#***************************************************************************
 # Subroutine:  extract_sequences_from_target_file
 # Description: extract sequences from target databases
 #***************************************************************************
@@ -524,6 +633,10 @@ sub add_buffer_to_sequence {
 		$hit_ref->{end}   = $hit_ref->{end} + $buffer;
 	}
 }
+
+############################################################################
+# INTERNAL FUNCTIONS: CLASSIFY
+############################################################################
 
 #***************************************************************************
 # Subroutine:  classify_sequences_using_blast
@@ -724,126 +837,6 @@ sub get_blast_library_path {
 	return $lib_path;
 }
 
-#***************************************************************************
-# Subroutine:  update_db
-# Description: update the screening DB based on a completed round of DIGS
-#***************************************************************************
-sub update_db {
-
-	my ($self, $extracted_ref, $table_name, $update) = @_;
-		
-	# Get parameters from self
-	my $db_ref              = $self->{db};
-	my $verbose             = $self->{verbose};
-	my $digs_results_table  = $db_ref->{$table_name}; 
-	my $active_set_table    = $db_ref->{active_set_table}; 
-	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
-
-	# Iterate through the extracted sequences
-	my $deleted = '0';
-	foreach my $hit_ref (@$extracted_ref) {
-		
-		# Insert the data to the digs_results table
-		my $digs_result_id;
-		if ($update) {
-			$digs_result_id = $digs_results_table->insert_row($hit_ref);
-		}
-		else {
-			$digs_result_id = $hit_ref->{digs_result_id};
-			my $where = " WHERE record_id = $digs_result_id ";
-			my %update;
-			$update{extract_start} = $hit_ref->{extract_start};
-			$update{extract_end}   = $hit_ref->{extract_end};
-			$digs_results_table->update(\%update, $where);		
-		}
-		
-		# Insert the data to the BLAST_chains table
-		my $blast_chains = $hit_ref->{blast_chains};
-		if ($blast_chains) {		
-			my @blast_ids = keys %$blast_chains;
-			foreach my $blast_id (@blast_ids) {							
-				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->insert_row($data_ref);
-			}
-		}
-		unless ($digs_result_id) { die; }
-		
-		# Delete superfluous data from the digs_results table
-		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
-		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
-			
-			# Where we updated an existing record, keep that record
-			unless ($old_digs_result_id eq $digs_result_id) {
-
-				# Delete superfluous extract rows
-				my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
-				if ($verbose) { print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'"; }
-				$digs_results_table->delete_rows($extracted_where);
-				$deleted++;
-
-				# Update extract IDs			
-				my $chains_where = " WHERE record_id = $old_digs_result_id ";
-				my %new_id;
-				$new_id{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->update(\%new_id, $chains_where);
-			}
-		}
-	}
-
-	# Flush the active set table
-	$active_set_table->flush();
-
-	# Return the number
-	return $deleted;
-}
-
-#***************************************************************************
-# Subroutine:  show_digs_progress
-# Description: show progress in DIGS screening
-#***************************************************************************
-sub show_digs_progress {
-
-	my ($self) = @_;
-
-	# Get the counts
-	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{queries_completed};	
-	unless ($completed and $total_queries) { die; } # Sanity checking
-	
-	# Calculate percentage progress
-	my $percent_prog    = ($completed / $total_queries) * 100;
-	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
-	#print "\n\t\t  ";
-	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
-}
-
-#***************************************************************************
-# Subroutine:  wrap_up
-# Description: clean-up functions etc prior to exiting program
-#***************************************************************************
-sub wrap_up {
-
-	my ($self, $option) = @_;
-
-	# Remove the output directory
-	my $output_dir = $self->{report_dir};
-	if ($output_dir) {
-		my $command1 = "rm -rf $output_dir";
-		system $command1;
-	}
-	
-	# Show cross matching at end if verbose output setting is on
-	my $verbose = $self->{verbose};
-	if ($verbose and $option eq 2 and $option eq 3) { 
-		$self->show_cross_matching();
-	}
-
-	# Print finished message
-	print "\n\n\t ### Process completed ~ + ~ + ~";
-
-}
-
 ############################################################################
 # INTERNAL FUNCTIONS: recording cross-matching
 ###########################################################################
@@ -897,10 +890,6 @@ sub show_cross_matching {
 }
 
 ############################################################################
-# INTERNAL FUNCTIONS: interacting with screening DB (indexing, sorting)
-############################################################################
-
-############################################################################
 # INTERNAL FUNCTIONS: title and help display
 ############################################################################
 
@@ -952,27 +941,30 @@ sub show_help_page {
 	print $HELP;
 }
 
-############################################################################
-# Development
-############################################################################
-
 #***************************************************************************
-# Subroutine:  prepare_locus_update 
-# Description: 
+# Subroutine:  wrap_up
+# Description: clean-up functions etc prior to exiting program
 #***************************************************************************
-sub prepare_locus_update {
+sub wrap_up {
 
-	my ($self, $loci_ref) = @_;
+	my ($self, $option) = @_;
 
-	# Get parameters from self
-	foreach my $hit_ref (@$loci_ref) {
-	
-		$hit_ref->{extract_start}   = $hit_ref->{start};
-		$hit_ref->{extract_end}     = $hit_ref->{end};
-		$hit_ref->{sequence}        = 'NULL';
-		$hit_ref->{sequence_length} = 0;
-		#$devtools->print_hash($hit_ref); die;
+	# Remove the output directory
+	my $output_dir = $self->{report_dir};
+	if ($output_dir) {
+		my $command1 = "rm -rf $output_dir";
+		system $command1;
 	}
+	
+	# Show cross matching at end if verbose output setting is on
+	my $verbose = $self->{verbose};
+	if ($verbose and $option eq 2 and $option eq 3) { 
+		$self->show_cross_matching();
+	}
+
+	# Print finished message
+	print "\n\n\t ### Process completed ~ + ~ + ~";
+
 }
 
 ############################################################################
