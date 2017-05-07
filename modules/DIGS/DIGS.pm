@@ -177,7 +177,7 @@ sub hand_off_to_digs_fxns {
 		$self->perform_digs();	
 	}
 	elsif ($option eq 3) {   # Reassign data in digs_results table
-		$self->classify_sequences_using_blast();	
+		$self->reassign();	
 	}
 	elsif ($option eq 4) {   # Interactively defragment results 	
 		$self->interactive_defragment();	

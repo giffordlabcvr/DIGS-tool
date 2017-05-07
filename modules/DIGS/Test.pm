@@ -568,6 +568,7 @@ sub run_test_7 {
 
 	$digs_obj->{defragment_mode}  = 'defragment';
 	$digs_obj->{defragment_range} = 100;
+	$digs_obj->{force} = 'true';
 
 	# If we're doing a reassign, get the assigned digs_results
 	my @reassign_loci;
@@ -577,9 +578,7 @@ sub run_test_7 {
 	# Set up the reference library
 	my $initialise_obj = Initialise->new($digs_obj);
 	$initialise_obj->setup_for_reassign($digs_obj);
-
-	my @digs_results;	
-	$digs_obj->reassign(\@digs_results);	
+	$digs_obj->reassign();	
 	
 	# Get data and check reassign looks right
 	my @data;
