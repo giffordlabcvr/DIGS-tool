@@ -122,10 +122,10 @@ sub run_digs_process {
 	
 		# Hand off to the appropriate function, depending on the option received
 		$self->hand_off_to_digs_fxns($option);
-		
-		# Show final summary and exit message
-		$self->wrap_up($option);
 	}
+
+	# Show final summary and exit message
+	$self->wrap_up($option);
 	
 }
 

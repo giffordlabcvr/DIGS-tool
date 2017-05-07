@@ -108,12 +108,12 @@ sub run_tests {
 	# Do a screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 	$self->run_test_1();
-	die;
 	$self->run_test_2();
 	$self->run_test_3();
 	$self->run_test_4();
 	$self->run_test_5();
 	$self->run_test_6();
+	die;
 	$self->run_test_7();
 	#$self->run_test_10();
 
@@ -225,8 +225,23 @@ sub run_test_2 {
 	$settings{start}     = 'extract_start';
 	$settings{end}       = 'extract_end';
 	$settings{where_sql} = $where;
-	
-	my $num_new = $digs_obj->defragment_target(\%settings, $target_path, 'digs_results');
+
+	# Initialise the DIGS object
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->setup_for_a_digs_run($digs_obj);
+
+	# Get digs results ready for defragment process
+	my @sorted_digs_results;
+	$digs_obj->get_sorted_digs_results(\@sorted_digs_results, $where);
+	my $num_hits = scalar @sorted_digs_results;
+	print "\n\t\t # $num_hits digs results to defragment ";
+	#$devtools->print_array(\@sorted_digs_results); die;
+	$settings{defragment_loci} = \@sorted_digs_results;
+	$settings{digs_obj} = $digs_obj;
+ 
+	# Defragment results for this target file
+	my $defrag_obj = Defragment->new($digs_obj);	
+	my $num_new = $defrag_obj->defragment_target(\%settings, $target_path, 'digs_results');
 	if ($num_new eq '0' )  { print "\n\n\t  Defragment negative test: ** PASSED **\n" }
 	else                   { die   "\n\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
@@ -262,7 +277,8 @@ sub run_test_3 {
 	push (@test_targets, $test1_target_path);
 	$loader_obj->{target_paths} = \@test_targets;
 
-	$digs_obj->setup_for_a_digs_run();
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->setup_for_a_digs_run($digs_obj);
 	$digs_obj->perform_digs();
 
 	my $db = $digs_obj->{db}; # Get the database reference
@@ -314,7 +330,18 @@ sub run_test_4 {
 	$settings{end}       = 'extract_end';
 	$settings{where_sql} = $where;
 
-	my $num_new = $digs_obj->defragment_target(\%settings, $target_path, 'digs_results');
+	# Get digs results ready for defragment process
+	my @sorted_digs_results;
+	$digs_obj->get_sorted_digs_results(\@sorted_digs_results, $where);
+	my $num_hits = scalar @sorted_digs_results;
+	print "\n\t\t # $num_hits digs results to defragment ";
+	#$devtools->print_array(\@sorted_digs_results); die;
+	$settings{defragment_loci} = \@sorted_digs_results;
+	$settings{digs_obj} = $digs_obj;
+ 
+	# Defragment results for this target file
+	my $defrag_obj = Defragment->new($digs_obj);	
+	my $num_new = $defrag_obj->defragment_target(\%settings, $target_path, 'digs_results');
 	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table};	
 	my @data;
@@ -379,7 +406,8 @@ sub run_test_5 {
 	$digs_obj->{defragment_mode}  = 'defragment';
 	$digs_obj->{defragment_range} = 100;
 
-	$digs_obj->setup_for_a_digs_run();
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->setup_for_a_digs_run($digs_obj);
 	$digs_obj->perform_digs();
 
 	my @data;

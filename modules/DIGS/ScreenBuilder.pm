@@ -1096,6 +1096,7 @@ sub read_fasta {
 			# new header, store any sequence held in the buffer
 			if ($header and $sequence) {
 				$i++;
+				$header = $self->clean_fasta_header($header);
 				my $alias_id = $alias_stem . '_' . $i;
 				$sequence = uc $sequence;
 				my %seq_obj;
@@ -1118,6 +1119,7 @@ sub read_fasta {
 	# Before exit, store any sequence held in the buffer
 	if ($header and $sequence) {
 		$i++;
+		$header = $self->clean_fasta_header($header);
 		my $alias_id = $alias_stem . "_$i";
 		$sequence =~ s/\s+//g; # Remove whitespace
 		$sequence = uc $sequence;
@@ -1142,20 +1144,6 @@ sub parse_fasta_header_data {
 	my $gene_name;
 	my $valid = 1;
 
-	# Remove illegal characters from the header line: these include:
-	# / : * ? " < > |   because we need to write files using header elements
-	# '                 because quotes interfere with SQL statements
-	$header =~ s/\|//g;
-	$header =~ s/\///g;
-	$header =~ s/\*//g;
-	$header =~ s/\?//g;
-	$header =~ s/://g;
-	$header =~ s/"//g;
-	$header =~ s/<//g;
-	$header =~ s/>//g;
-	$header =~ s/'//g;
-	$header =~ s/\s+//g;
-
 	# Retrieve data from the header line
 	my @header = split (/_/, $header);
 	$gene_name  = pop   @header;
@@ -1169,6 +1157,33 @@ sub parse_fasta_header_data {
 	}
 	$data_ref->{name}     = $name;
 	$data_ref->{gene_name} = $gene_name;
+}
+
+#***************************************************************************
+# Subroutine:  clean_fasta_header
+# Description: 
+#***************************************************************************
+sub clean_fasta_header {
+	
+	my ($self, $header) = @_;
+
+	# Remove illegal characters from the header line: these include:
+	# / : * ? " < > |   because we need to write files using header elements
+	# '                 because quotes interfere with SQL statements
+	$header =~ s/\|//g;
+	$header =~ s/\(//g;
+	$header =~ s/\)//g;
+	$header =~ s/\///g;
+	$header =~ s/\*//g;
+	$header =~ s/\?//g;
+	$header =~ s/://g;
+	$header =~ s/"//g;
+	$header =~ s/<//g;
+	$header =~ s/>//g;
+	$header =~ s/'//g;
+	$header =~ s/\s+//g;
+
+	return $header;
 }
 
 ############################################################################

@@ -616,21 +616,15 @@ sub defragment_target {
 	my ($self, $settings_ref, $target_path, $copy_name) = @_;
 	
 	# Create the relevant set of previously extracted loci
-	my @combined;
 	my %target_defragmented;
-	my $where     = $settings_ref->{where_sql};
-    my $copy_table_name = $copy_name . '_table';
-
-	# Get digs results
-	$self->get_sorted_digs_results(\@combined, $where);
-	my $num_hits = scalar @combined;
-	print "\n\t\t # $num_hits digs results to defragment ";
-	#$devtools->print_array(\@combined); die;
-		
+	my $loci_ref = $settings_ref->{defragment_loci};
+ 	my $digs_obj = $settings_ref->{digs_obj};
+ 	my $num_hits = scalar @$loci_ref;
+			
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	$self->compose_clusters(\%target_defragmented, \@combined, $settings_ref);
+	$self->compose_clusters(\%target_defragmented, $loci_ref, $settings_ref);
 	my @cluster_ids  = keys %target_defragmented;
-	my $num_clusters = scalar @combined;
+	my $num_clusters = scalar @$loci_ref;
 	if ($num_clusters < $num_hits) {
 		#$self->show_clusters(\%target_defragmented);  # Show clusters
 		my $range = $settings_ref->{range};
@@ -644,7 +638,7 @@ sub defragment_target {
 	print "\n\t\t # $extended extensions to previously extracted sequences ";
 	my $num_new   = scalar @loci;
 	print "\n\t\t # $num_new loci to extract after defragment ";
-
+    my $copy_table_name = $copy_name . '_table';
 	if ($reextract and $num_new) {
 
 		# Extract newly identified or extended sequences
@@ -657,7 +651,8 @@ sub defragment_target {
 		my $num_extracted = scalar @extracted;
 		print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
 		foreach my $hit_ref (@extracted) { # Iterate through loci		
-			$self->classify_sequence_using_blast($hit_ref);
+			my $classify_obj = Classify->new($digs_obj);
+			$classify_obj->classify_sequence_using_blast($hit_ref);
 			$assigned_count++;
 			my $remainder = $assigned_count % 100;
 			if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
@@ -671,8 +666,10 @@ sub defragment_target {
 	else { # DEBUG
 		# Update DB
 		$self->prepare_locus_update(\@loci);
-		$self->update_db(\@loci, $copy_table_name);
+		$digs_obj->update_db(\@loci, $copy_table_name);
 	}
+
+
 	return $num_new;
 }
 
