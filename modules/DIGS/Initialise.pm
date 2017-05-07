@@ -151,8 +151,8 @@ sub create_output_directories {
 	my $report_dir  = $output_path . 'result_set_' . $process_id;
 	$fileio->create_directory($report_dir);
 	$digs_obj->{report_dir}  = $report_dir . '/';
-	print "\n\t Created report directory";
-	print "\n\t Path: '$report_dir'";
+	print "\n\t  Created report directory";
+	print "\n\t  Path: '$report_dir'";
 	
 	# Create the tmp directory inside the report directory
 	my $tmp_path = $report_dir . '/tmp';
@@ -376,10 +376,10 @@ sub setup_for_defrag_or_consolidate {
 #***************************************************************************
 sub set_up_consolidate_tables {
 
-	my ($self) = @_;
+	my ($self, $digs_obj) = @_;
 
  	# Create tables if they don't exist already
-	my $db_ref = $self->{db};
+	my $db_ref = $digs_obj->{db};
 	my $dbh = $db_ref->{dbh};
 	my $loci_exists = $db_ref->does_table_exist('loci');
 	unless ($loci_exists) {

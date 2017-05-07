@@ -67,9 +67,6 @@ sub new {
 		tmp_path               => $parameter_ref->{tmp_path},
 		blast_threads          => $parameter_ref->{blast_threads},
 
-		# Data structures
-		crossmatch_obj         => $parameter_ref->{crossmatch_obj},
-
 	};
 	
 	bless ($self, $class);
@@ -79,46 +76,6 @@ sub new {
 ############################################################################
 # INTERNAL FUNCTIONS: CLASSIFY
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  classify_sequences_using_blast
-# Description: classify a set of sequences using blast
-#***************************************************************************
-sub classify_sequences_using_blast {
-
-	my ($self, $extracted_ref, $query_ref) = @_;
-
-	my $verbose = $self->{verbose};
-	my $assigned_count   = 0;
-	my $crossmatch_count = 0;
-	unless ($query_ref) { die; }
-	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
-
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)
-		my $blast_alg = $self->classify_sequence_using_blast($locus_ref);
-		my $assigned  = $locus_ref->{assigned_name};
-		unless ($assigned) { die; }
-		if ($assigned) { $assigned_count++; }
-
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key   = $probe_name . '_' . $probe_gene; 		
-
-		# Record cross-matching
-		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
-			my $crossmatch_obj = $self->{crossmatch_obj};
-			$crossmatch_obj->update_cross_matching($probe_key, $assigned);
-		}
-	}
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences classified";
-	}
-	if ($verbose) {	
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
-	}
-}
 
 #***************************************************************************
 # Subroutine:  classify_sequence_using_blast

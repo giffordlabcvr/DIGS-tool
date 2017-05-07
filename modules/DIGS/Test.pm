@@ -37,6 +37,9 @@ my $server   = 'localhost';
 my $user     = ($ENV{DIGS_MYSQL_USER});
 my $password = ($ENV{DIGS_MYSQL_PASSWORD}); 
 
+# Test globals
+my $target_path = './test/targets/';
+
 1;
 
 ############################################################################
@@ -82,13 +85,21 @@ sub run_tests {
 
 	my $digs_obj = $self->{digs_obj};
 
+
  	# Show title
 	$digs_obj->show_title();  
+
+	# Capture the path for output
+	unless ($ENV{'DIGS_OUTPUT'}) {
+		print  "\n\t Required environment variable '\$DIGS_OUTPUT' is undefined\n\n";
+		exit;
+	}
 	
 	# Load the 'digs_test' database
 	$digs_obj->{mysql_server}   = $server;
 	$digs_obj->{mysql_username} = $user;
 	$digs_obj->{mysql_password} = $password;
+	$digs_obj->{genome_use_path} = $target_path;
 	my $initialise_obj = Initialise->new($digs_obj);
 	$initialise_obj->initialise_screening_db($digs_obj, 'digs_test_screen');
 	
@@ -97,8 +108,7 @@ sub run_tests {
 	$db->flush_screening_db();
 
 	# Initialise a DIGS object for these tests
-	$digs_obj->{output_path}     = "./tmp/"; 
-	$digs_obj->{genome_use_path} = './test/targets/';
+	$digs_obj->{output_path}     = $ENV{'DIGS_OUTPUT'}; 
 	$initialise_obj->create_output_directories($digs_obj);
 
 	# TODO - do we need this?
@@ -113,8 +123,8 @@ sub run_tests {
 	$self->run_test_4();
 	$self->run_test_5();
 	$self->run_test_6();
-	die;
 	$self->run_test_7();
+	die;
 	#$self->run_test_10();
 
 	# Print finished message
@@ -491,7 +501,8 @@ sub run_test_6 {
 	$digs_obj->{target_groups} = \%target_groups; 
 	$digs_obj->{genome_use_path} = './test/'; 
 
-	$digs_obj->set_up_consolidate_tables();
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->set_up_consolidate_tables($digs_obj);
 	$digs_obj->{defragment_mode} = 'consolidate';
 
 	# Get contig lengths and capture in a table
@@ -560,14 +571,14 @@ sub run_test_7 {
 
 	# If we're doing a reassign, get the assigned digs_results
 	my @reassign_loci;
-	$digs_obj->get_digs_results_sequences(\@reassign_loci);
+	$digs_obj->get_sorted_digs_results(\@reassign_loci);
 	$digs_obj->{reassign_loci} = \@reassign_loci;
 
 	# Set up the reference library
-	$loader_obj->setup_reference_libraries($digs_obj);
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->setup_for_reassign($digs_obj);
 
 	my @digs_results;	
-	#$digs_obj->initialise(\@digs_results); # Set up 
 	$digs_obj->reassign(\@digs_results);	
 	
 	# Get data and check reassign looks right

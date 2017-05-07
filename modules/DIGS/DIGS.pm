@@ -177,7 +177,7 @@ sub hand_off_to_digs_fxns {
 		$self->perform_digs();	
 	}
 	elsif ($option eq 3) {   # Reassign data in digs_results table
-		$self->reassign();	
+		$self->classify_sequences_using_blast();	
 	}
 	elsif ($option eq 4) {   # Interactively defragment results 	
 		$self->interactive_defragment();	
@@ -250,7 +250,7 @@ sub perform_digs {
 			$extract_obj->extract_sequences_using_blast($target_path, \@new_hits, \@extracted);	
 			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$classify_obj->classify_sequences_using_blast(\@extracted, $query_ref);
+			$self->classify_sequences_using_blast(\@extracted, $query_ref);
 			
 			# Update tables in the screening database to reflect new information
 			$self->update_db(\@extracted, 'digs_results_table', 1);
@@ -265,8 +265,8 @@ sub perform_digs {
 }
 
 #***************************************************************************
-# Subroutine:  validate_input
-# Description: check the input file and options received are valid
+# Subroutine:  consolidate_loci
+# Description: 
 #***************************************************************************
 sub consolidate_loci {
 
@@ -275,11 +275,10 @@ sub consolidate_loci {
 	# Get the digs results sorted by scaffold and extract start
 	my @sorted;
 	$self->get_sorted_digs_results(\@sorted);	
-	my $defragment_obj = $self->{defragment_obj};
+	my $defragment_obj = Defragment->new($self);;
 	$defragment_obj->consolidate_loci(\@sorted);
 	
 }
-
 
 ############################################################################
 # INTERNALS - BLAST searches and interactions with DIGS database
@@ -384,105 +383,44 @@ sub search_target_file_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  compile_nonredundant_locus_set
-# Description: determine what to extract based on current results
-# Note similar to defragment_target fxn
+# Subroutine:  classify_sequences_using_blast
+# Description: classify a set of sequences using blast
 #***************************************************************************
-sub compile_nonredundant_locus_set {
-	
-	my ($self, $query_ref, $to_extract_ref) = @_;
+sub classify_sequences_using_blast {
 
-	# Get flag
-	my $verbose        = $self->{verbose};
-	my $defragment_obj = Defragment->new($self);
+	my ($self, $extracted_ref, $query_ref) = @_;
 
-	# Compose SQL WHERE statement to retrieve relevant set of loci
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
+	my $verbose = $self->{verbose};
+	my $classifier = Classify->new($self);
+	my $assigned_count   = 0;
+	my $crossmatch_count = 0;
+	unless ($query_ref) { die; }
+	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
 
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)
+		my $blast_alg = $classifier->classify_sequence_using_blast($locus_ref);
+		my $assigned  = $locus_ref->{assigned_name};
+		unless ($assigned) { die; }
+		if ($assigned) { $assigned_count++; }
 
-	# Get the relevant set of DIGS results
-	my @digs_results;
-	$self->get_sorted_digs_results(\@digs_results, $where);
-	my $num_loci = scalar @digs_results;
-	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
-		
-	# Add the digs results to the BLAST hits in the active_set table
-	$self->add_digs_results_to_active_set(\@digs_results);
+		# Get the unique key for this probe
+		my $probe_name  = $query_ref->{probe_name};
+		my $probe_gene  = $query_ref->{probe_gene};
+		my $probe_key   = $probe_name . '_' . $probe_gene; 		
 
-	# Get sorted list of digs results and BLAST hits from active_set table
-	my @combined;
-	$self->get_sorted_active_set(\@combined);
-	my $total_loci = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > 0) {
-			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
+		# Record cross-matching
+		if ($probe_key ne $assigned) {
+			$crossmatch_count++;
+			my $crossmatch_obj = $self->{crossmatch_obj};
+			$crossmatch_obj->update_cross_matching($probe_key, $assigned);
 		}
 	}
-	
-	# Compose clusters of overlapping/adjacent loci
-	my %settings;
-	my %defragmented;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	$defragment_obj->compose_clusters(\%defragmented, \@combined, \%settings);
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > $num_clusters) {
-		}
+	if ($assigned_count > 0) {
+		print "\n\t\t # $assigned_count extracted sequences classified";
 	}
-
-	# Get a resolved list of non-redundant, non-overlapping loci to extract
-	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
-	my $num_new = scalar @$to_extract_ref;
-	if ($num_new){
-		print "\n\t\t # $num_new sequences to extract";
-	}	
-	else {
-		print "\n\t\t # No new loci to extract";
-	}	
-}
-
-#***************************************************************************
-# Subroutine:  add_digs_results_to_active_set 
-# Description: get all extracted loci for this target file (& probe)
-#***************************************************************************
-sub add_digs_results_to_active_set {
-	
-	my ($self, $data_ref) = @_;;
-
-	# Get database tables
-	my $db = $self->{db};
-	my $active_set_table  = $db->{active_set_table};
-
-	# Enter all relevant extracted loci into 'active_set' table 
-	my $num_loci = scalar @$data_ref;
-	foreach my $locus_ref (@$data_ref) {
-
-		#print "\n\t\t # inserting extract ID $digs_result_id";
-		#$devtools->print_hash($locus_ref);
-		my $digs_result_id = $locus_ref->{record_id};
-		
-		# Translations
-		$locus_ref->{digs_result_id}       = $digs_result_id;
-		$locus_ref->{probe_name}       = $locus_ref->{assigned_name};
-		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
-		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
-		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
-		$locus_ref->{organism}  = $locus_ref->{organism};
-		$active_set_table->insert_row($locus_ref);
+	if ($verbose) {	
+		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
 	}
-	
-	return $num_loci;
 }
 
 #***************************************************************************
@@ -559,9 +497,81 @@ sub update_db {
 	return $deleted;
 }
 
+############################################################################
+# DEFRAGMENT
+############################################################################
+
+#***************************************************************************
+# Subroutine:  compile_nonredundant_locus_set
+# Description: determine what to extract based on current results
+# Note similar to defragment_target fxn
+#***************************************************************************
+sub compile_nonredundant_locus_set {
+	
+	my ($self, $query_ref, $to_extract_ref) = @_;
+
+	# Get flag
+	my $verbose        = $self->{verbose};
+	my $defragment_obj = Defragment->new($self);
+
+	# Compose SQL WHERE statement to retrieve relevant set of loci
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{organism};
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
+
+	# Get the relevant set of DIGS results
+	my @digs_results;
+	$self->get_sorted_digs_results(\@digs_results, $where);
+	my $num_loci = scalar @digs_results;
+	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
+		
+	# Add the digs results to the BLAST hits in the active_set table
+	$self->add_digs_results_to_active_set(\@digs_results);
+
+	# Get sorted list of digs results and BLAST hits from active_set table
+	my @combined;
+	$self->get_sorted_active_set(\@combined);
+	my $total_loci = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > 0) {
+			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
+		}
+	}
+	
+	# Compose clusters of overlapping/adjacent loci
+	my %settings;
+	my %defragmented;
+	$settings{range} = $self->{defragment_range};
+	$settings{start} = 'subject_start';
+	$settings{end}   = 'subject_end';
+	$defragment_obj->compose_clusters(\%defragmented, \@combined, \%settings);
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > $num_clusters) {
+		}
+	}
+
+	# Get a resolved list of non-redundant, non-overlapping loci to extract
+	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
+	my $num_new = scalar @$to_extract_ref;
+	if ($num_new){
+		print "\n\t\t # $num_new sequences to extract";
+	}	
+	else {
+		print "\n\t\t # No new loci to extract";
+	}	
+}
 
 ############################################################################
-# DATABASE - Database table retrieval and insert functions
+# SCREENING DATABASE - Database table retrieval and insert functions
 ############################################################################
 
 #**************************************************************************
@@ -666,6 +676,39 @@ sub insert_row_in_active_set_table {
 	$hit_ref->{query_end}       = $hit_ref->{query_stop}; # Rename to match DB
 	$active_set_table->insert_row($hit_ref);
 
+}
+
+#***************************************************************************
+# Subroutine:  add_digs_results_to_active_set 
+# Description: get all extracted loci for this target file (& probe)
+#***************************************************************************
+sub add_digs_results_to_active_set {
+	
+	my ($self, $data_ref) = @_;;
+
+	# Get database tables
+	my $db = $self->{db};
+	my $active_set_table  = $db->{active_set_table};
+
+	# Enter all relevant extracted loci into 'active_set' table 
+	my $num_loci = scalar @$data_ref;
+	foreach my $locus_ref (@$data_ref) {
+
+		#print "\n\t\t # inserting extract ID $digs_result_id";
+		#$devtools->print_hash($locus_ref);
+		my $digs_result_id = $locus_ref->{record_id};
+		
+		# Translations
+		$locus_ref->{digs_result_id}       = $digs_result_id;
+		$locus_ref->{probe_name}       = $locus_ref->{assigned_name};
+		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
+		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
+		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
+		$locus_ref->{organism}  = $locus_ref->{organism};
+		$active_set_table->insert_row($locus_ref);
+	}
+	
+	return $num_loci;
 }
 
 
