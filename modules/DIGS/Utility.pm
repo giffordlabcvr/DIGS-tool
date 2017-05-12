@@ -94,20 +94,20 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t -d=2   Flush core tables"; 
 	   $HELP  .= "\n\t -d=3   Drop DB tables";
 	   $HELP  .= "\n\t -d=4   Drop a DIGS screening DB"; 
-	   $HELP  .= "\n\t -d=5   Extract data\n";
+	   #$HELP  .= "\n\t -d=5   Extract data\n";
 	   #$HELP  .= "\n\t -d=2   Upload data to the digs_results table";
 
        #$HELP  .= "\n\t ### Creating standard locus nomenclature"; 	   
-	   #$HELP  .= "\n\t -n=1   Create standard locus IDs\n"; 
+	   #$HELP  .= "\n\t -n=1   Create standard locus IDs"; 
 
-       $HELP  .= "\n\t ### Summarizing target databases"; 	   
+       $HELP  .= "\n\n\t ### Summarizing target databases"; 	   
 	   $HELP  .= "\n\t -g=1   Summarise targets (brief summary, by species)";
 	   $HELP  .= "\n\t -g=2   Summarise targets (long, by individual target file)\n";
 
-       $HELP  .= "\n\t ### Development and validation tools"; 	   
-	   $HELP  .= "\n\t -u=1   Translate DB schema"; 
-	   $HELP  .= "\n\t -u=2   Show BLAST chains (merged BLAST hits)"; 
-	   $HELP  .= "\n\t -u=3   Show locus chains (merged digs_results table rows)"; 
+       #$HELP  .= "\n\t ### Development and validation tools"; 	   
+	   #$HELP  .= "\n\t -u=1   Translate DB schema"; 
+	   #$HELP  .= "\n\t -u=2   Show BLAST chains (merged BLAST hits)"; 
+	   #$HELP  .= "\n\t -u=3   Show locus chains (merged digs_results table rows)"; 
 	   ##$HELP  .= "\n\t -u=4   Show nomenclature chains (merged annotations)\n"; 
 
 	   $HELP  .= "\n\n"; 
