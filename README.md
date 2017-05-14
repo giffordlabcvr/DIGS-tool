@@ -5,9 +5,11 @@
 
 Molecular sequence data are highly information rich, and are now being generated much faster than they can be analysed. Consequently, the immense quantities of genome, transcriptome, and metagenome data accumulating in public databases contain multitudes of gene, pseudogene, transposon, virus, and non-coding element sequences that have not been yet been identified, or are only poorly described.
 
-Database-integrated genome screening (DIGS) is an approach for exploring sequence data without relying on previous annotations. DIGS can be used to systematically search for sequences of interest, and to support investigations of their distribution, diversity and evolution.
-
-In DIGS, the output of sequence similarity-based searches is captured in a relational database. This allows for the interrogation and manipulation of output data using structured query language (SQL). In addition, it provides all the benefits of a relational database management system (RDBMS) with respect to features such as data recoverability, multi-user support and network access. 
+Database-integrated genome screening (DIGS) is an approach for exploring sequence data.
+In DIGS, the output of sequence similarity-based searches is captured in a relational database.
+This allows for the interrogation and manipulation of output data using structured query language (SQL).
+In addition, it provides all the benefits of a relational database management system (RDBMS)
+with respect to features such as data recoverability, multi-user support and network access. 
 
 ### **The DIGS tool**
 
@@ -15,6 +17,8 @@ The DIGS tool is a PERL program for implementing DIGS.
 It is designed for use with assembled sequence data (i.e. not short read data).
 It uses the [Basic Local Alignment Search Tool (BLAST)](http://blast.ncbi.nlm.nih.gov/Blast.cgi) to perform sequence similarity searches,
 and the [MySQL](https://www.mysql.com/) to capture their output. 
+
+The DIGS tool can be used to systematically search for sequences of interest, and to support investigations of their distribution, diversity and evolution.
 
 ### QUICK INSTALLATION GUIDE
 
