@@ -25,7 +25,8 @@ After downloading this repository, you will next need to:
 - Set $DIGS_HOME and $DIGS_GENOMES environment variables
 - $DIGS_HOME = path to this repository
 - $DIGS_GENOMES = path to the top level of the [target genomes directory](https://github.com/giffordlabcvr/DIGS-tool/wiki/Genome-data)
-- Create a MySQL user for DIGS 
+- Create a MySQL user for DIGS
+- Set $DIGS_MYSQL_USER and $DIGS_MYSQL_PASSWORD environment variables
 - Set up target genomes for screening
 - Create probe and reference sequence libraries for screening
 - Configure a DIGS control file (a template can be found under 'ctl/template.ctl')
