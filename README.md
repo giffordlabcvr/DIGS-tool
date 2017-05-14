@@ -39,7 +39,9 @@ Detailed instructions for installing and running the DIGS tool can be found on [
 
 ### Authors and Contributors
 
-**Main developer**: Robert J. Gifford (robert.gifford@glasgow.ac.uk).
+**Lead Developer**:
+
+Robert J. Gifford (robert.gifford@glasgow.ac.uk).
 
 
 **Contributors**: 
