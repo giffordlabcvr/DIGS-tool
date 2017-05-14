@@ -5,7 +5,7 @@
 
 Molecular sequence data are highly information rich, and are now being generated much faster than they can be analysed. Consequently, the immense quantities of genome, transcriptome, and metagenome data accumulating in public databases contain multitudes of gene, pseudogene, transposon, virus, and non-coding element sequences that have not been yet been identified, or are only poorly described.
 
-Database-integrated genome screening (DIGS) is an approach for exploring sequence data.
+Database-integrated genome screening (DIGS) is an approach for heuristically exploring genomes and transcriptomes using similarity/search.
 In DIGS, the output of sequence similarity-based searches is captured in a relational database.
 This allows for the interrogation and manipulation of output data using structured query language (SQL).
 In addition, it provides all the benefits of a relational database management system (RDBMS)
@@ -39,7 +39,8 @@ To see options for screening:
 ./digs_tool.pl -h
 ```
 
-Detailed instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
+Detailed instructions for installing and running the DIGS tool can be found on
+[these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
 
 ### Authors and Contributors
 
