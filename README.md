@@ -11,9 +11,10 @@ In DIGS, the output of sequence similarity-based searches is captured in a relat
 
 ### **The DIGS tool**
 
-The DIGS tool is a PERL program for implementing DIGS with assembled sequence data (not short read data). It uses the [Basic Local Alignment Search Tool (BLAST)](http://blast.ncbi.nlm.nih.gov/Blast.cgi) to perform sequence similarity searches, and the [MySQL](https://www.mysql.com/) RDBMS to capture their output. 
-
-Instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
+The DIGS tool is a PERL program for implementing DIGS.
+It is designed for use with assembled sequence data (i.e. not short read data).
+It uses the [Basic Local Alignment Search Tool (BLAST)](http://blast.ncbi.nlm.nih.gov/Blast.cgi) to perform sequence similarity searches,
+and the [MySQL](https://www.mysql.com/) to capture their output. 
 
 ### QUICK INSTALLATION GUIDE
 
@@ -34,6 +35,7 @@ To see options for screening:
 ./digs_tool.pl -h
 ```
 
+Detailed instructions for installing and running the DIGS tool can be found on [these pages](https://github.com/robjgiff/DIGS-tool/wiki/Installation-and-Setup)
 
 ### Authors and Contributors
 
