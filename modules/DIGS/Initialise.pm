@@ -1,7 +1,7 @@
 #!usr/bin/perl -w
 ############################################################################
 # Module:      Initialise.pm
-# Description: Functions for initialising DIGS
+# Description: Functions for carrying out basic initialisation in DIGS
 # History:     April  2017: Created by Robert Gifford 
 ############################################################################
 package Initialise;

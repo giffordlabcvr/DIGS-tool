@@ -1,7 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Module:      ScreenBuilder.pm
-# Description: Module for settings up a DIGS screen
+# Description: Functions for setting up a screen using the DIGS tool
+#              based on settings received in a DIGS file
 # History:     December 2012: Created by Robert Gifford 
 ############################################################################
 package ScreenBuilder;

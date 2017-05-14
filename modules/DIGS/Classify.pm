@@ -1,7 +1,7 @@
 #!usr/bin/perl -w
 ############################################################################
 # Module:      Classify.pm 
-# Description: Classify sequences using BLAST
+# Description: Capture information about cross-matching during DIGS
 # History:     May 2017: Created by Robert Gifford 
 ############################################################################
 package Classify;
