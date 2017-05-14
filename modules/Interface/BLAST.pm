@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Module:      BLAST.pm 
-# Description: Interface to BLAST
+# Description: A Perl interface to the BLAST executables
 # History:     Rob Gifford January 2007: Creation
 ############################################################################
 package BLAST;

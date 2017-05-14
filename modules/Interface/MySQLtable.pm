@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ############################################################################
 # Module:      MySQLtable.pm
-# Description: MySQL table functions
+# Description: A Perl interface to a MySQL table
 # History:     March  2011: Creation 
 ############################################################################
 package MySQLtable;
