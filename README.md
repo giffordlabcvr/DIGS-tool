@@ -42,12 +42,12 @@ To see options for screening:
 
 **Contributors**: 
 
-Henan Zhu (h.zhu.1@research.gla.ac.uk)
-
 Daniel Blanco-Melo (daniel.blancomelo@mssm.edu) 
+
+Henan Zhu (h.zhu.1@research.gla.ac.uk)
 
 
 **DISCLAIMER**
 
-This program may contain bugs, both apparent and less apparent ones. I do not accept responsibility for any problems that arise from use of this software. Use entirely at your own risk.  
+We do not accept responsibility for any problems that arise from use of this software.
 
