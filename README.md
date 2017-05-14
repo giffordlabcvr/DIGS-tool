@@ -17,9 +17,9 @@ Instructions for installing and running the DIGS tool can be found on [these pag
 
 ### QUICK INSTALLATION GUIDE
 
-DIGS requires PERL, BLAST and MySQL.
+DIGS requires PERL (with DBD::MySQL package), BLAST and MySQL.
 
-After downloading this repository, you will next need to:
+To install DIGS:
 
 - Install Perl DBI and DBD::MySQL packages (if they are not already installed)
 - Set $DIGS_HOME and $DIGS_GENOMES environment variables
@@ -27,11 +27,6 @@ After downloading this repository, you will next need to:
 - $DIGS_GENOMES = path to the top level of the [target genomes directory](https://github.com/giffordlabcvr/DIGS-tool/wiki/Genome-data)
 - Create a MySQL user for DIGS
 - Set $DIGS_MYSQL_USER and $DIGS_MYSQL_PASSWORD environment variables
-- Set up target genomes for screening
-- Create probe and reference sequence libraries for screening
-- Configure a DIGS control file (a template can be found under 'ctl/template.ctl')
-
-You can then start exploring genomes using the DIGS tool. Execute the pipeline.pl script as follows:
 
 To see options for screening: 
 
@@ -47,12 +42,9 @@ To see options for screening:
 
 **Contributors**: 
 
-Josh Singer (josh.singer@glasgow.ac.uk)
-
 Henan Zhu (h.zhu.1@research.gla.ac.uk)
 
-Tristan Dennis (t.dennis.1@research.gla.ac.uk) 
-
+Daniel Blanco-Melo (daniel.blancomelo@mssm.edu) 
 
 
 **DISCLAIMER**
