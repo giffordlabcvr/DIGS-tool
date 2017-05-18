@@ -6,11 +6,11 @@
 ### **Main modules**
 
 ```
-- TargetDB.pm         # Main module for managing the screening directory
-- DIGS.pm	            # Main module for running screening-related (-m) functions 2-5 
-- Utility.pm          # Main module for utility functions
-- Nomenclature.pm     # Main module for locus nomenclature functions 
-- Test.pm            
+- TargetDB.pm         # Managing the screening directory
+- DIGS.pm	            # Running screening-related (-m) functions 2-5 
+- Utility.pm          # Utility functions
+- Nomenclature.pm     # Genomic locus nomenclature merge & assignment functions 
+- Test.pm             # Tests
 ```
 
 ### **Modules for setting up**
