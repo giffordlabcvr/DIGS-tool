@@ -6,10 +6,10 @@
 ### **Main modules**
 
 ```
-- DIGS.pm             # Running screening-related functions 
+- DIGS.pm             # Database-integrated genome screening - main fxn
 - TargetDB.pm         # Managing the screening directory
 - Utility.pm          # Utility functions
-- Nomenclature.pm     # Genomic locus nomenclature merge & assignment functions 
+- Nomenclature.pm     # Locus ID creation and management 
 - Test.pm             # Tests
 ```
 
