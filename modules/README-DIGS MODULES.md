@@ -3,7 +3,7 @@
 
 ### **Modules in the DIGS directory**
 
-### **Main modules**
+### *Main modules*
 
 ```
 - DIGS.pm             # Database-integrated genome screening - main fxn
@@ -13,14 +13,14 @@
 - Test.pm             # Tests
 ```
 
-### **Modules for setting up**
+### *Modules for setting up*
 
 ```
 - Initialise.pm       # General set-up (loading the database etc)
 - ScreenBuilder.pm    # Setting up a screen
 ```
 
-### **Modules used for running screens and merging loci**
+### *Modules used for running screens and merging loci*
 
 ```
 - Classify.pm         # Classify sequences using BLAST
