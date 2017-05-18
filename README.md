@@ -1,4 +1,4 @@
-**The Database-Integrated Genome Screening (DIGS) Tool, Version 1.0**
+**The Database-Integrated Genome Screening (DIGS) Tool, Version 1.13**
 ------------------------------------------------------------------------------------
 
 ### **Database-integrated genome-screening (DIGS)**
