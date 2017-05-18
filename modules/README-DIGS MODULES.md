@@ -1,4 +1,4 @@
-**Organisation of the DIGS code**
+**Organisation of the DIGS code: PERL module library**
 ------------------------------------------------------------------------------------
 
 ### **Modules in the DIGS directory**
