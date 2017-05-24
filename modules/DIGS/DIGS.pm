@@ -185,7 +185,6 @@ sub hand_off_to_digs_fxns {
 	elsif ($option eq 5) {   # Combine digs_results into higher order locus structures
 		$self->consolidate_loci();
 	}
-
 }
 
 ############################################################################
@@ -262,6 +261,83 @@ sub perform_digs {
 			$self->show_digs_progress();			
 		}	
 	}
+}
+
+#***************************************************************************
+# Subroutine:  reassign
+# Description: classify sequences already in the digs_results_table 
+#***************************************************************************
+sub reassign {
+	
+	my ($self) = @_;
+
+	# Get data structures, paths and flags from self
+	my $blast_obj      = $self->{blast_obj};
+	my $crossmatch_obj = $self->{crossmatch_obj};
+	my $result_path    = $self->{report_dir};
+	my $verbose        = $self->{verbose};
+	my $classifier     = Classify->new($self);
+	
+	# Get the connection to the digs_results table (so we can update it)
+	my $db          = $self->{db};
+	my $digs_results_table = $db->{digs_results_table};
+	unless ($digs_results_table) { die; }
+	
+	# Get the sequences to reassign 
+	my $reassign_loci = $self->{reassign_loci};
+	unless ($reassign_loci) { die; }
+	my $num_to_reassign = scalar @$reassign_loci;
+	print "\n\n\t  Reassigning $num_to_reassign hits in the digs_results table\n";
+
+	# Iterate through the loci, doing the reassign process for each
+	my $count = 0;
+	foreach my $locus_ref (@$reassign_loci) {
+		
+		# Set the linking to the BLAST result table
+		my $record_id       = $locus_ref->{record_id};	
+		my $extract_start   = $locus_ref->{extract_start};
+		my $extract_end     = $locus_ref->{extract_end};
+		$locus_ref->{subject_start} = $extract_start;
+		$locus_ref->{subject_end}   = $extract_end;
+		delete $locus_ref->{extract_start};
+		delete $locus_ref->{extract_end};
+	
+		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)	
+		my $previous_assign = $locus_ref->{assigned_name};
+		my $previous_gene   = $locus_ref->{assigned_gene};
+		$classifier->classify_sequence_using_blast($locus_ref);
+		
+		$count++;
+		if (($count % 100) eq 0) { print "\n\t  Checked $count rows"; }
+
+		my $assigned_name = $locus_ref->{assigned_name};
+		my $assigned_gene = $locus_ref->{assigned_gene};
+		if ($assigned_name ne $previous_assign or  $assigned_gene ne $previous_gene) {
+				
+			if ($verbose) {  # Report the outcome
+				print "\n\t\t      - reassigned: was previously '$previous_assign ($previous_gene)'";
+			}
+			
+			# Update the matrix
+			my $previous_key = $previous_assign . '_' . $previous_gene;
+			my $assigned_key = $assigned_name . '_' . $assigned_gene;	
+			$crossmatch_obj->update_cross_matching($previous_key, $assigned_key);
+				
+			# Insert the data
+			my $where = " WHERE record_id = $record_id ";
+			delete $locus_ref->{record_id}; # Required to remove this
+			delete $locus_ref->{organism};  # Update not required for this field
+			$digs_results_table->update($locus_ref, $where);
+		}
+	}
+	
+	# Write out the cross-matching matrix
+	$crossmatch_obj->show_cross_matching();
+
+	# Cleanup
+	my $output_dir = $self->{report_dir};
+	my $command1 = "rm -rf $output_dir";
+	system $command1;
 }
 
 #***************************************************************************
