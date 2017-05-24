@@ -64,7 +64,7 @@ $genome_use_path =~ s/\/\//\//g; # Remove any double backslashes
 my $blast_bin_path  = '';  # left empty if BLAST+ programs are in your path 
 
 # Version number	
-my $program_version = '1.13';
+my $program_version = '1.13.1';
 
 # Create a unique process ID for this DIGS screening process
 my $pid  = $$;
