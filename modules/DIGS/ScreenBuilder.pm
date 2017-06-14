@@ -104,7 +104,7 @@ sub setup_screen  {
 	# Show output about the number of oustanding targets and number of queries loaded
 	my @keys        = keys %targets;
 	my $unique      = scalar @keys;
-	print "\n\t  Targets:           $unique target files";
+	print "\n\t  Targets:           $unique target files\n\n";
 
 
 	# Create the BLAST queries for this screen
@@ -166,7 +166,7 @@ sub get_fasta_probes {
 	my @fasta;
 	$self->read_fasta($query_fasta, \@fasta);
 	my $num_fasta = scalar @fasta;
-	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences";
+	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences\n\n";
 	my $i = 0;
 	my $type = $self->{probe_library_type};
 	my %probe_ids; # Hash to check probe names are unique
@@ -265,7 +265,7 @@ sub create_reference_library {
 	my $num_fasta = scalar @fasta;
 	unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-	print "\n\t  Reference library: $num_fasta $reference_type sequences";
+	print "\n\t  Reference library: $num_fasta $reference_type sequences\n\n";
 	my $i = 0;
 	#$devtools->print_array(\@fasta); die;
 	my @references;
@@ -336,7 +336,7 @@ sub set_targets {
 	my $genome_obj = TargetDB->new($self);
 	my $genome_use_path   = $self->{genome_use_path};
 	my $target_paths_ref  = $self->{target_paths};
-	unless ($target_paths_ref) { die; }  # Sanity checking
+	unless ($target_paths_ref) { $devtools->print_hash($self); die; }  # Sanity checking
 	
 	# Iterate through the list of paths 
 	my %paths;

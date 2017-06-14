@@ -59,10 +59,12 @@ sub new {
 		
 		# Member classes 
 		db                     => $parameter_ref->{db},  
+		blast_obj              => $parameter_ref->{blast_obj},
 		   
-		# Paths used in DIGS process
+		# Paths used in defragment & consolidate processes
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
+		target_groups          => $parameter_ref->{target_groups}
 
 	};
 	
@@ -80,36 +82,22 @@ sub new {
 #***************************************************************************
 sub interactive_defragment {
 
-	my ($self) = @_;
-
-	# Get a list of all the target files from the screening DB
-	$self->{defragment_mode} = 'defragment';
-	my $db = $self->{db};
-	my $digs_results_table = $db->{digs_results_table};
-	my @fields = qw [ organism target_datatype target_version target_name ];
-	my @targets;
-	$digs_results_table->select_distinct(\@fields, \@targets);
-
-	# Settings for clustering
-	my %settings;
-	$settings{total_loci}     = '0';
-	$settings{total_clusters} = '0';
-	$settings{range}          = undef;
-	$settings{reextract}      = 1;
+	my ($self, $targets_ref, $settings_ref) = @_;
 
 	# Preview changes 
 	my $choice = undef;
-	do    { 
-		$choice = $self->preview_defragment(\@targets, \%settings);
+	do { 
+		$choice = $self->preview_defragment($targets_ref, $settings_ref);
 	}   until ($choice > 1);
 
     # Apply the changes	if option is chosen
-	if    ($choice eq 2) { 
-		$self->defragment_target_files(\@targets, \%settings);
+	if ($choice eq 2) { 
+		$self->defragment_target_files($targets_ref, $settings_ref);
 	}
 	elsif ($choice eq 3) { 
 		print "\n"; exit;
 	}
+	
 	else { die; } # Should never get here
 }
 
@@ -353,6 +341,7 @@ sub extract_consolidated_locus {
 	my $db_ref    = $self->{db};
 	my $verbose   = $self->{verbose};
 	my $blast_obj = $self->{blast_obj};
+	unless ($blast_obj) { die; }
 	my $seq_len   = 0;
 	
 	my $genome_use_path  = $self->{genome_use_path};
@@ -370,7 +359,7 @@ sub extract_consolidated_locus {
 	my $full_id = $target_id . '|' . $target_name;
 	my $target_group = $target_group_ref->{$full_id};
 	unless ($target_group) {
-		print " \n\t No target group found for TARGET ID $full_id\n\n"; 
+		print " \n\t Defreag: No target group found for TARGET ID $full_id\n\n"; 
 		#$devtools->print_hash($target_group_ref);
         sleep 1;
 		return 0;
@@ -497,6 +486,8 @@ sub defragment_digs_results {
 	my $verbose = $self->{verbose};
 	my $total_loci = '0';
 	my $total_clusters = '0';
+	my $db = $self->{db};
+
 	foreach my $target_ref (@$targets_ref) {
 
 		my $organism        = $target_ref->{organism};
@@ -511,7 +502,7 @@ sub defragment_digs_results {
 		$where    .= " AND target_version  = '$target_version' ";
 		$where    .= " AND target_name     = '$target_name' "; 
 
-		$self->get_sorted_digs_results(\@loci, $where);
+		$db->get_sorted_digs_results(\@loci, $where);
 		my $num_hits = scalar @loci;
 		
 		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci

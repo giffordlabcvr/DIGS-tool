@@ -115,7 +115,7 @@ sub do_general_setup {
 	# Parse the control file
 	$digs_obj->{ctl_file} = $ctl_file;
 	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($ctl_file, $digs_obj, $option);
+	$loader_obj->parse_control_file($ctl_file, $digs_obj, $option); 
 	
 	# Create the output directories if running a screen or re-assigning results table
 	if ($option eq 2 or $option eq 3) { # Need output directory for these options
@@ -320,12 +320,15 @@ sub setup_for_defrag_or_consolidate {
 
 	my ($self, $digs_obj, $option) = @_;
 
-	my $loader_obj = $self->{loader_obj};
+	#my $loader_obj = $self->{loader_obj};
+	#$devtools->print_hash($digs_obj); die;
+	my $loader_obj = ScreenBuilder->new($digs_obj);
 
 	if ($option eq 4 or $option eq 5) { 
 
 		# Set target sequence files for screening
 		my %targets;
+		$loader_obj->{target_paths} = $digs_obj->{target_paths};
 		my $num_targets = $loader_obj->set_targets(\%targets);
 
 		# Show error and exit if no targets found
@@ -347,15 +350,22 @@ sub setup_for_defrag_or_consolidate {
 	}
 	# DO SET-UP NEEDED FOR CONSOLIDATE ONLY
 	elsif ($option eq 5) { 
-		$self->set_up_consolidate_tables();
+		$self->set_up_consolidate_tables($digs_obj);
 		$digs_obj->{defragment_mode} = 'consolidate';
 
-		# Get contig lengths and capture in a table
-		$self->calculate_contig_lengths($digs_obj);	
-
+		my $question1 = "\n\n\t # Refresh contig length table";
+		my $refresh = $console->ask_yes_no_question($question1);		
+		if ($refresh eq 'y') {
+			# Get contig lengths and capture in a table
+			$self->calculate_contig_lengths($digs_obj);			
+		}
+		
 		# Get the parameters for consolidation
 		my $range = $self->{consolidate_range};
 		my $d_range = $self->{defragment_range};
+
+		unless ($d_range) { $d_range = '0'; }
+
 		unless ($range) { 
 			my $question1 = "\n\n\t # Set the range for consolidating digs results";
 			$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
@@ -423,62 +433,57 @@ sub calculate_contig_lengths {
 	my $genome_use_path  = $digs_obj->{genome_use_path};
 	my $target_group_ref = $digs_obj->{target_groups};
 	
-	my $question1 = "\n\n\t # Refresh contig length table";
-	my $refresh = $console->ask_yes_no_question($question1);		
 
-	if ($refresh eq 'y') {
-	
-		my @targets;
-		my @fields = qw [ organism target_datatype target_version target_name ];
-		$digs_results->select_distinct(\@fields, \@targets);
-		foreach my $target_ref(@targets) {
-			
-			# Read the file and get the lengths of each contig	
-			# Get the target details (and thus the target path)	
-			#my $target_path = $self->get_target_file_path($target_ref);
-			my $organism        = $target_ref->{organism};
-			my $target_name     = $target_ref->{target_name};
-			my $target_datatype = $target_ref->{target_datatype};
-			my $target_version  = $target_ref->{target_version};
-			my @genome = ( $organism , $target_datatype, $target_version, $target_name );
-			my $target_id       = join ('|', @genome);
-			my $target_group = $target_group_ref->{$target_id};
-			unless ($target_group) { die; 
-				print " \n\t No target group found for TARGET ID $target_id\n\n"; 
-        		sleep 1;
-				next;
-			}
+	my @targets;
+	my @fields = qw [ organism target_datatype target_version target_name ];
+	$digs_results->select_distinct(\@fields, \@targets);
+	foreach my $target_ref(@targets) {
 		
-			# Construct the path to this target file
-			my @path;
-			push (@path, $genome_use_path);
-			push (@path, $target_group);
-			push (@path, $organism);
-			push (@path, $target_datatype);
-			push (@path, $target_version);
-			push (@path, $target_name);
-			my $target_path = join ('/', @path);
-			my @contigs;
-			$fileio->read_fasta($target_path, \@contigs, 'true');
-			
-			foreach my $contig_ref (@contigs) {
-			
-				my $header = $contig_ref->{header};
-				my $length = $contig_ref->{seq_length};
-				unless ($length and $header) {
-					$devtools->print_hash($contig_ref); die;
-				}
-				
-				$contig_ref->{organism}        = $organism;
-				$contig_ref->{target_datatype} = $target_datatype;
-				$contig_ref->{target_version}  = $target_version;
-				$contig_ref->{target_name}     = $target_name;
-				$contig_ref->{scaffold}        = $header;
-				print "\n\t # $header: $length";
-				
-				$contigs_table->insert_row($contig_ref);
-			}			
+		# Read the file and get the lengths of each contig	
+		# Get the target details (and thus the target path)	
+		#my $target_path = $self->get_target_file_path($target_ref);
+		my $organism        = $target_ref->{organism};
+		my $target_name     = $target_ref->{target_name};
+		my $target_datatype = $target_ref->{target_datatype};
+		my $target_version  = $target_ref->{target_version};
+		my @genome = ( $organism , $target_datatype, $target_version, $target_name );
+		my $target_id       = join ('|', @genome);
+		my $target_group = $target_group_ref->{$target_id};
+		unless ($target_group) { die; 
+			print " \n\t No target group found for TARGET ID $target_id\n\n"; 
+			sleep 1;
+			next;
 		}
+	
+		# Construct the path to this target file
+		my @path;
+		push (@path, $genome_use_path);
+		push (@path, $target_group);
+		push (@path, $organism);
+		push (@path, $target_datatype);
+		push (@path, $target_version);
+		push (@path, $target_name);
+		my $target_path = join ('/', @path);
+		my @contigs;
+		$fileio->read_fasta($target_path, \@contigs, 'true');
+		
+		foreach my $contig_ref (@contigs) {
+		
+			my $header = $contig_ref->{header};
+			my $length = $contig_ref->{seq_length};
+			unless ($length and $header) {
+				$devtools->print_hash($contig_ref); die;
+			}
+			
+			$contig_ref->{organism}        = $organism;
+			$contig_ref->{target_datatype} = $target_datatype;
+			$contig_ref->{target_version}  = $target_version;
+			$contig_ref->{target_name}     = $target_name;
+			$contig_ref->{scaffold}        = $header;
+			print "\n\t # $header: $length";
+			
+			$contigs_table->insert_row($contig_ref);
+		}			
 	}
 }
 

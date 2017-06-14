@@ -117,16 +117,15 @@ sub run_digs_process {
 	$self->show_title();  
 
 	my $valid = $self->initialise($ctl_file, $option);  
-
 	if ($valid) {
 	
 		# Hand off to the appropriate function, depending on the option received
 		$self->hand_off_to_digs_fxns($option);
-	}
 
-	# Show final summary and exit message
-	$self->wrap_up($option);
-	
+		# Show final summary and exit message
+		$self->wrap_up($option);
+
+	}
 }
 
 ############################################################################
@@ -341,6 +340,34 @@ sub reassign {
 }
 
 #***************************************************************************
+# Subroutine:  interactive_defragment
+# Description: 
+#***************************************************************************
+sub interactive_defragment {
+
+	my ($self) = @_;
+
+	# Get a list of all the target files from the screening DB
+	$self->{defragment_mode} = 'defragment';
+	my $db = $self->{db};
+	my $digs_results_table = $db->{digs_results_table};
+	my @fields = qw [ organism target_datatype target_version target_name ];
+	my @targets;
+	$digs_results_table->select_distinct(\@fields, \@targets);
+
+	# Settings for clustering
+	my %settings;
+	$settings{total_loci}     = '0';
+	$settings{total_clusters} = '0';
+	$settings{range}          = undef;
+	$settings{reextract}      = 1;
+
+	my $defragment_obj = Defragment->new($self);;
+	$defragment_obj->interactive_defragment(\@targets, \%settings);
+	
+}
+
+#***************************************************************************
 # Subroutine:  consolidate_loci
 # Description: 
 #***************************************************************************
@@ -350,14 +377,16 @@ sub consolidate_loci {
 
 	# Get the digs results sorted by scaffold and extract start
 	my @sorted;
-	$self->get_sorted_digs_results(\@sorted);	
+
+	my $db = $self->{db};
+	$db->get_sorted_digs_results(\@sorted);	
+
 	my $defragment_obj = Defragment->new($self);;
 	$defragment_obj->consolidate_loci(\@sorted);
-	
 }
 
 ############################################################################
-# INTERNALS - BLAST searches and interactions with DIGS database
+# INTERNALS - BLAST searches and interactions with DIGS database / defragment
 ############################################################################
 
 #***************************************************************************
@@ -573,10 +602,6 @@ sub update_db {
 	return $deleted;
 }
 
-############################################################################
-# DEFRAGMENT
-############################################################################
-
 #***************************************************************************
 # Subroutine:  compile_nonredundant_locus_set
 # Description: determine what to extract based on current results
@@ -645,148 +670,6 @@ sub compile_nonredundant_locus_set {
 		print "\n\t\t # No new loci to extract";
 	}	
 }
-
-############################################################################
-# SCREENING DATABASE - Database table retrieval and insert functions
-############################################################################
-
-#**************************************************************************
-# Subroutine:  get_sorted_digs_results
-# Description: get digs_results table rows sorted by scaffold & coordinates
-#***************************************************************************
-sub get_sorted_digs_results {
-
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set statement to sort loci
-	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
-	if ($where) { $where .= $sort; }
-	else        { $where  = $sort; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $digs_results_table  = $db->{digs_results_table};
-		
-	# Set the fields to get values for
-	my @fields = qw [ record_id organism 
-	                  target_name target_version target_datatype
-	                  assigned_name assigned_gene probe_type
-	                  scaffold orientation
-	                  bitscore gap_openings
-	                  query_start query_end 
-	                  mismatches align_len
-                      evalue_num evalue_exp identity 
-                      extract_start extract_end sequence_length ];
-	$digs_results_table->select_rows(\@fields, $data_ref, $where);
-	
-	# Set record_ID as 'digs_result_id' in all results
-	foreach my $row_ref (@$data_ref) {
-		$row_ref->{digs_result_id} = $row_ref->{record_id};
-	}
-}
-
-#***************************************************************************
-# Subroutine:  get sorted active set 
-# Description: get active set rows, sorted by scaffold, in order of location
-#***************************************************************************
-sub get_sorted_active_set {
-	
-	my ($self, $data_ref, $where) = @_;;
-
-	# Set statement to sort loci
-	if ($where) { $where .= " ORDER BY scaffold, subject_start "; }
-	else        { $where  = " ORDER BY scaffold, subject_start "; }
-
-	# Get database tables
-	my $db = $self->{db};
-	my $active_set_table    = $db->{active_set_table};
-	
-	# Get sorted, combined extracted loci and new blast results	
-	my @blast_fields = qw [ record_id digs_result_id  
-	                        organism target_datatype target_version target_name
-	                        probe_name probe_gene probe_type
-	                        bitscore gap_openings
-	                        query_start query_end 
-	                        align_len mismatches 
-                            evalue_num evalue_exp identity 
-	                        scaffold orientation
-	                        subject_start subject_end ];
-	$active_set_table->select_rows(\@blast_fields, $data_ref, $where);
-}
-
-#***************************************************************************
-# Subroutine:  insert_row_in_active_set_table
-# Description: insert a BLAST result as a row into the active set table
-#***************************************************************************
-sub insert_row_in_active_set_table {
-
-	my ($self, $query_ref, $hit_ref) = @_;
-
-	# Get screening database table objects
-	my $db_ref           = $self->{db};
-	my $active_set_table = $db_ref->{active_set_table};
-	unless ($db_ref)          { die; } 
-
-	my $probe_id        = $query_ref->{probe_id};
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-	my $probe_path      = $query_ref->{probe_path};
-	my $organism        = $query_ref->{organism};
-	my $version         = $query_ref->{target_version};
-	my $datatype        = $query_ref->{target_datatype};
-	my $target_name     = $query_ref->{target_name};
-	my $target_path     = $query_ref->{target_path};
-
-	$hit_ref->{digs_result_id}  = 0;
-	$hit_ref->{organism}        = $organism;
-	$hit_ref->{target_version}  = $version;
-	$hit_ref->{target_datatype} = $datatype;
-	$hit_ref->{target_name}     = $target_name;
-	$hit_ref->{probe_id}        = $probe_id;
-	$hit_ref->{probe_name}      = $probe_name;
-	$hit_ref->{probe_gene}      = $probe_gene;
-	$hit_ref->{probe_type}      = $probe_type;
-	$hit_ref->{subject_start}   = $hit_ref->{aln_start};  # Rename to match DB
-	$hit_ref->{subject_end}     = $hit_ref->{aln_stop};   # Rename to match DB
-	$hit_ref->{query_end}       = $hit_ref->{query_stop}; # Rename to match DB
-	$active_set_table->insert_row($hit_ref);
-
-}
-
-#***************************************************************************
-# Subroutine:  add_digs_results_to_active_set 
-# Description: get all extracted loci for this target file (& probe)
-#***************************************************************************
-sub add_digs_results_to_active_set {
-	
-	my ($self, $data_ref) = @_;;
-
-	# Get database tables
-	my $db = $self->{db};
-	my $active_set_table  = $db->{active_set_table};
-
-	# Enter all relevant extracted loci into 'active_set' table 
-	my $num_loci = scalar @$data_ref;
-	foreach my $locus_ref (@$data_ref) {
-
-		#print "\n\t\t # inserting extract ID $digs_result_id";
-		#$devtools->print_hash($locus_ref);
-		my $digs_result_id = $locus_ref->{record_id};
-		
-		# Translations
-		$locus_ref->{digs_result_id}       = $digs_result_id;
-		$locus_ref->{probe_name}       = $locus_ref->{assigned_name};
-		$locus_ref->{probe_gene}       = $locus_ref->{assigned_gene};
-		$locus_ref->{subject_start}    = $locus_ref->{extract_start};
-		$locus_ref->{subject_end}      = $locus_ref->{extract_end};
-		$locus_ref->{organism}  = $locus_ref->{organism};
-		$active_set_table->insert_row($locus_ref);
-	}
-	
-	return $num_loci;
-}
-
 
 ############################################################################
 # BASE FXNS AND HELP ETC
