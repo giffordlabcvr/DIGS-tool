@@ -735,10 +735,12 @@ sub show_help_page {
 	   $HELP  .= "\n\t -m=2  Do DIGS"; 
 	   $HELP  .= "\n\t -m=3  Reassign loci"; 
 	   $HELP  .= "\n\t -m=4  Defragment loci"; 
-	   $HELP  .= "\n\t -m=5  Consolidate loci\n"; 
-	   $HELP  .= "\n\t Target path variable (\$DIGS_GENOMES) is set to '$ENV{DIGS_GENOMES}'";
+	   $HELP  .= "\n\t -m=5  Consolidate loci"; 
+	   $HELP  .= "\n\t -m=6  Create standard locus IDs"; 
 
-	   $HELP  .= "\n\n\t Run '$0 -e' to see information on utility functions\n\n\n"; 
+	   $HELP  .= "\n\n\t Target path variable '\$DIGS_GENOMES' is set to '$ENV{DIGS_GENOMES}'";
+
+	   $HELP  .= "\n\n\t Run '$0 -e' to see additional utility functions\n\n\n"; 
 
 	print $HELP;
 }

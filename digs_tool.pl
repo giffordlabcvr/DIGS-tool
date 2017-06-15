@@ -177,7 +177,7 @@ sub main {
 	}
 	elsif ($test) { # Run inbuilt tests
 		my $test_obj = Test->new($digs_tool_obj);
-		$test_obj->run_tests();
+		$test_obj->show_test_validation_options();
 	}
 	elsif ($extra_help) {
 		my $utility_obj = Utility->new($digs_tool_obj);

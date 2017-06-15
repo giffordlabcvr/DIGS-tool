@@ -71,6 +71,80 @@ sub new {
 	return $self;
 }
 
+#***************************************************************************
+# Subroutine:  show_test_options
+# Description: show different options for testing / validation 
+#***************************************************************************
+sub show_test_validation_options {
+
+	my ($self) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+	$console->refresh();
+	$digs_obj->show_title();
+
+	# Capture the path for output
+	unless ($ENV{'DIGS_OUTPUT'}) {
+		print  "\n\t Required environment variable '\$DIGS_OUTPUT' is undefined\n\n";
+		exit;
+	}
+
+	print "\n\n\n\t ### Development and validation functions\n"; 	   
+	print "\n\t  1: Run general validation tests";
+	print "\n\t  2: Show screening db validation options ";
+
+	# Prompt for what to do next
+	my $list_question = "\n\n\t # Choose an option:";
+	my $option = $console->ask_list_question($list_question, 2);
+	
+	if ($option eq 1) { # DB schema translation
+		$self->run_tests();
+	}
+	elsif ($option eq 2) { # Show the BLAST chains for each extracted locus
+		$self->show_screening_db_validation_options();
+	}
+	
+}
+
+#***************************************************************************
+# Subroutine:  show_screening_db_validation_options
+# Description:  
+#***************************************************************************
+sub show_screening_db_validation_options {
+
+	my ($self) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+
+	# Show screening db validation options
+	print "\n\t  1: Translate DB schema";
+	print "\n\t  2: Show BLAST chains (merged BLAST hits)";
+	print "\n\t  3: Show locus chains (merged digs_results table rows)";
+	print "\n\t  4: Show nomenclature chains (merged annotations)";
+
+	# Prompt for what to do next
+	my $list_question = "\n\n\t # Choose an option:";
+	my $option = $console->ask_list_question($list_question, 4);
+
+	if ($option eq 1) { # DB schema translation
+		my $db_obj = $digs_obj->{db};
+		$db_obj->translate_schema();
+	}
+	elsif ($option eq 2) { # Show the BLAST chains for each extracted locus
+		$self->show_blast_chains();
+	}
+	elsif ($option eq 3) { # Show the digs_results breakdown for each consolidated locus
+		$self->show_locus_chains();
+	}
+	elsif ($option eq 4) { # Show the alternative annotations breakdown for each ID-allocated locus
+		my $nomenclature_obj = Nomenclature->new($self); 
+		$nomenclature_obj->show_nomenclature_chains($digs_obj);
+	}	
+	else {
+		print "\n\t  Unrecognized option '-u=$option'\n";
+	}
+}
+
 ############################################################################
 # TESTS
 ############################################################################
@@ -85,15 +159,6 @@ sub run_tests {
 
 	my $digs_obj = $self->{digs_obj};
 
- 	# Show title
-	$digs_obj->show_title();  
-
-	# Capture the path for output
-	unless ($ENV{'DIGS_OUTPUT'}) {
-		print  "\n\t Required environment variable '\$DIGS_OUTPUT' is undefined\n\n";
-		exit;
-	}
-	
 	# Load the 'digs_test' database
 	$digs_obj->{mysql_server}   = $server;
 	$digs_obj->{mysql_username} = $user;
@@ -101,13 +166,13 @@ sub run_tests {
 	$digs_obj->{genome_use_path} = $target_path;
 	my $initialise_obj = Initialise->new($digs_obj);
 	$initialise_obj->initialise_screening_db($digs_obj, 'digs_test_screen');
-	
+		
 	# Flush the 'digs_test' database
 	my $db = $digs_obj->{db}; # Get the database reference
 	$db->flush_screening_db();
 
 	# Initialise a DIGS object for these tests
-	$digs_obj->{output_path}     = $ENV{'DIGS_OUTPUT'}; 
+	$digs_obj->{output_path} = $ENV{'DIGS_OUTPUT'}; 
 	$initialise_obj->create_output_directories($digs_obj);
 
 	# TODO - do we need this?
@@ -653,6 +718,141 @@ sub run_test_10 {
 	print "\n\t ### Compressed from $original_num_rows to $num_rows rows\n\n\n";
 
 	exit;
+}
+
+############################################################################
+# DEVELOPMENT & VALIDATION FUNCTIONS
+############################################################################
+
+#***************************************************************************
+# Subroutine:  show_blast_chains
+# Description: Show BLAST chains for all extracted sequences
+#***************************************************************************
+sub show_blast_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $digs_obj = $self->{digs_obj};
+	my $db = $digs_obj->{db};
+	unless ($db) { die; } # Sanity checking
+	my $digs_results_table = $db->{digs_results_table}; 
+	my $blast_chains_table = $db->{blast_chains_table};
+	my $extract_where = " ORDER BY record_id ";
+	my @extracted_ids;
+	my @fields = qw [ record_id assigned_name assigned_gene ];
+	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
+
+	# Iterate through the digs result rows	
+	foreach my $hit_ref (@extracted_ids) {
+		my $digs_result_id = $hit_ref->{record_id};
+		my @chain;
+		my $assigned_name = $hit_ref->{assigned_name};
+		my $assigned_gene = $hit_ref->{assigned_gene};
+		my @chain_fields = qw [ record_id probe_name probe_gene 
+		                        organism target_name 
+		                        scaffold subject_start subject_end
+		                        bitscore identity align_len ];
+		my $blast_where  = " WHERE digs_result_id = $digs_result_id ";
+		   $blast_where .= " ORDER BY subject_start";
+		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
+		print "\n\t ### BLAST hit chain for extracted locus $digs_result_id";
+		print " ($assigned_name, $assigned_gene):";
+		foreach my $hit_ref (@chain) {
+			my $blast_id    = $hit_ref->{record_id};
+			my $probe_name  = $hit_ref->{probe_name};
+			my $probe_gene  = $hit_ref->{probe_gene};
+			my $organism    = $hit_ref->{organism};
+			my $scaffold    = $hit_ref->{scaffold};
+			my $start       = $hit_ref->{subject_start};
+			my $end         = $hit_ref->{subject_end};
+			my $bitscore    = $hit_ref->{bitscore};
+			my $identity    = $hit_ref->{identity};
+			my $f_identity  = sprintf("%.2f", $identity);
+			my $align_len   = $hit_ref->{align_len};
+			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
+			print "across $align_len aa ($start-$end) to:\t $probe_name ($probe_gene) ";
+		}
+	}
+}
+
+#***************************************************************************
+# Subroutine:  show_locus_chains
+# Description: Show composition of consolidated loci
+#***************************************************************************
+sub show_locus_chains {
+	
+	my ($self) = @_;
+
+	# Get relevant variables and objects
+	my $digs_obj = $self->{digs_obj};
+	my $db_ref = $digs_obj->{db};
+	unless ($db_ref) { die; } # Sanity checking
+	my $dbh = $db_ref->{dbh};
+
+	my $loci_exists = $db_ref->does_table_exist('loci');
+	unless ($loci_exists) {
+		print "\n\t  The locus tables don't seem to exist (have you ran consolidate?\n\n";
+		exit;
+	}
+
+	$db_ref->load_loci_table($dbh);
+	$db_ref->load_loci_chains_table($dbh);
+	#$devtools->print_hash($db); die;
+
+	my $digs_results_table = $db_ref->{digs_results_table}; 
+	my $loci_table         = $db_ref->{loci_table};
+	my $loci_chains_table  = $db_ref->{loci_chains_table};
+	unless ($digs_results_table and $loci_chains_table) {
+		print "\n\t # Locus tables not found - run consolidate first\n\n\n";
+		exit;
+	}
+
+	# Get all loci
+	my $loci_where = " ORDER BY record_id ";
+	my @loci;
+	my @fields = qw [ record_id locus_structure ];
+	$loci_table->select_rows(\@fields, \@loci, $loci_where);	 
+	
+	# Iterate through loci
+	foreach my $locus_ref (@loci) {
+
+		my $locus_id = $locus_ref->{record_id};
+		print "\n\t ### Chain $locus_id ";	
+		my $chain_where = " WHERE locus_id = $locus_id ";
+		my @results;
+		my @fields = qw [ record_id locus_id digs_result_id ];
+		$loci_chains_table->select_rows(\@fields, \@results, $chain_where);	 
+		
+		foreach my $result_ref (@results) {
+
+			my @digs_results;
+			my $digs_result_id = $result_ref->{digs_result_id};
+			my @result_fields = qw [ assigned_name assigned_gene 
+			                         organism target_name 
+			                         scaffold extract_start extract_end
+			                         bitscore identity align_len ];
+			my $where  = " WHERE record_id = $digs_result_id ";
+			$digs_results_table->select_rows(\@result_fields, \@digs_results, $where);			
+
+			foreach my $result_ref (@digs_results) {
+		
+				my $assigned_name = $result_ref->{assigned_name};
+				my $assigned_gene = $result_ref->{assigned_gene};
+				my $organism      = $result_ref->{organism};	
+				my $scaffold      = $result_ref->{scaffold};
+				my $start         = $result_ref->{extract_start};
+				my $end           = $result_ref->{extract_end};
+				my $bitscore      = $result_ref->{bitscore};
+				my $identity      = $result_ref->{identity};
+				my $align_len     = $result_ref->{align_len};
+				my $f_identity    = sprintf("%.2f", $identity);
+				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
+				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
+	
+			}
+		}
+	}
 }
 
 ############################################################################

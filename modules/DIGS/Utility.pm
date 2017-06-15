@@ -85,30 +85,20 @@ sub show_utility_help_page {
 	my ($self) = @_;
 
 	# Create utility help menu
+	$console->refresh();
 	my $program_version = $self->{program_version};
 
     my $HELP   = "\n\t ### DIGS version $program_version - utility functions help menu\n";
 
-       $HELP  .= "\n\t ### Managing DIGS screening DBs"; 
-	   $HELP  .= "\n\t -d=1   import data to tables"; 
-	   $HELP  .= "\n\t -d=2   Flush core tables"; 
-	   $HELP  .= "\n\t -d=3   Drop DB tables";
-	   $HELP  .= "\n\t -d=4   Drop a DIGS screening DB"; 
-	   #$HELP  .= "\n\t -d=5   Extract data\n";
-	   #$HELP  .= "\n\t -d=2   import data to the digs_results table";
+       $HELP  .= "\n\n\t ### Summarising target databases\n"; 	   
+	   $HELP  .= "\n\t   -g=1   Summarise targets (brief summary, by species)";
+	   $HELP  .= "\n\t   -g=2   Summarise targets (long, by individual target file)\n";
 
-       #$HELP  .= "\n\t ### Creating standard locus nomenclature"; 	   
-	   #$HELP  .= "\n\t -n=1   Create standard locus IDs"; 
-
-       $HELP  .= "\n\n\t ### Summarizing target databases"; 	   
-	   $HELP  .= "\n\t -g=1   Summarise targets (brief summary, by species)";
-	   $HELP  .= "\n\t -g=2   Summarise targets (long, by individual target file)\n";
-
-       #$HELP  .= "\n\t ### Development and validation tools"; 	   
-	   #$HELP  .= "\n\t -u=1   Translate DB schema"; 
-	   #$HELP  .= "\n\t -u=2   Show BLAST chains (merged BLAST hits)"; 
-	   #$HELP  .= "\n\t -u=3   Show locus chains (merged digs_results table rows)"; 
-	   #$HELP  .= "\n\t -u=4   Show nomenclature chains (merged annotations)\n"; 
+       $HELP  .= "\n\t ### Managing DIGS screening DBs\n"; 
+	   $HELP  .= "\n\t   -d=1   Import tab-delimited data"; 
+	   $HELP  .= "\n\t   -d=2   Flush core tables"; 
+	   $HELP  .= "\n\t   -d=3   Drop tables";
+	   $HELP  .= "\n\t   -d=4   Drop a screening DB"; 
 
 	   $HELP  .= "\n\n"; 
 
@@ -125,16 +115,16 @@ sub show_utility_help_page {
 #***************************************************************************
 sub run_utility_process {
 
-	my ($self, $infile, $database, $genomes, $utility) = @_;
+	my ($self, $infile, $database, $genomes) = @_;
 
  	# Show title
 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->show_title();  
 
-	if ($genomes) {
-		$self->run_target_utility_process($genomes);		
-	}
-	else {
+	if ($genomes) {	# Run a target database summary process
+		$self->run_target_db_summary_process($genomes);		
+	}	
+	else { # Run a screening database management process
 
 		# Use a control file to connect to database
 		if ($infile) {
@@ -144,10 +134,7 @@ sub run_utility_process {
 			$self->do_load_db_dialogue();		
 		}
 		if ($database) {
-			$self->run_screening_db_utility_process($database);
-		}
-		elsif ($utility) {
-			$self->run_dev_validation_process($utility);		
+			$self->run_screening_db_management_process($database);
 		}
 	}
 }
@@ -157,10 +144,10 @@ sub run_utility_process {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  run_target_utility_process
+# Subroutine:  run_target_db_summary_process
 # Description: handler for functions summarising target databases
 #***************************************************************************
-sub run_target_utility_process {
+sub run_target_db_summary_process {
 
 	my ($self, $option) = @_;
 
@@ -180,10 +167,10 @@ sub run_target_utility_process {
 }
 
 #***************************************************************************
-# Subroutine:  run_screening_db_utility_process
+# Subroutine:  run_screening_db_management_process
 # Description: handler for DIGS screening database utility fxns 
 #***************************************************************************
-sub run_screening_db_utility_process {
+sub run_screening_db_management_process {
 
 	my ($self, $option, $ctl_file) = @_;
 
@@ -214,41 +201,6 @@ sub run_screening_db_utility_process {
 	}
 	else {
 		print "\n\t  Unrecognized option '-d=$option'\n";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  run_dev_validation_process
-# Description: handler for DIGS development & validation functions
-#***************************************************************************
-sub run_dev_validation_process {
-
-	my ($self, $option) = @_;
-
-	my $digs_obj = $self->{digs_obj};
-		
-	if ($option eq 1) { # DB schema translation
-		my $db_obj = $digs_obj->{db};
-		$db_obj->translate_schema();
-	}
-	elsif ($option eq 2) { # Show the BLAST chains for each extracted locus
-		$self->show_blast_chains();
-	}
-	elsif ($option eq 3) { # Show the digs_results breakdown for each consolidated locus
-		$self->show_locus_chains();
-	}
-	elsif ($option eq 4) { # Show the alternative annotations breakdown for each ID-allocated locus
-		my $nomenclature_obj = Nomenclature->new($self); 
-		$nomenclature_obj->show_nomenclature_chains($digs_obj);
-	}
-	elsif ($option eq 5) {
-		$self->fix_searches_performed_table();
-	}
-	elsif ($option eq 6) {
-		$self->fix_searches_performed_table_2();
-	}
-	else {
-		print "\n\t  Unrecognized option '-u=$option'\n";
 	}
 }
 
@@ -493,141 +445,6 @@ sub extract_track_sequences {
 }
 
 ############################################################################
-# DEVELOPMENT & VALIDATION FUNCTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  show_blast_chains
-# Description: Show BLAST chains for all extracted sequences
-#***************************************************************************
-sub show_blast_chains {
-	
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};
-	unless ($db) { die; } # Sanity checking
-	my $digs_results_table = $db->{digs_results_table}; 
-	my $blast_chains_table = $db->{blast_chains_table};
-	my $extract_where = " ORDER BY record_id ";
-	my @extracted_ids;
-	my @fields = qw [ record_id assigned_name assigned_gene ];
-	$digs_results_table->select_rows(\@fields, \@extracted_ids, $extract_where);	 
-
-	# Iterate through the digs result rows	
-	foreach my $hit_ref (@extracted_ids) {
-		my $digs_result_id = $hit_ref->{record_id};
-		my @chain;
-		my $assigned_name = $hit_ref->{assigned_name};
-		my $assigned_gene = $hit_ref->{assigned_gene};
-		my @chain_fields = qw [ record_id probe_name probe_gene 
-		                        organism target_name 
-		                        scaffold subject_start subject_end
-		                        bitscore identity align_len ];
-		my $blast_where  = " WHERE digs_result_id = $digs_result_id ";
-		   $blast_where .= " ORDER BY subject_start";
-		$blast_chains_table->select_rows(\@chain_fields, \@chain, $blast_where);	
-		print "\n\t ### BLAST hit chain for extracted locus $digs_result_id";
-		print " ($assigned_name, $assigned_gene):";
-		foreach my $hit_ref (@chain) {
-			my $blast_id    = $hit_ref->{record_id};
-			my $probe_name  = $hit_ref->{probe_name};
-			my $probe_gene  = $hit_ref->{probe_gene};
-			my $organism    = $hit_ref->{organism};
-			my $scaffold    = $hit_ref->{scaffold};
-			my $start       = $hit_ref->{subject_start};
-			my $end         = $hit_ref->{subject_end};
-			my $bitscore    = $hit_ref->{bitscore};
-			my $identity    = $hit_ref->{identity};
-			my $f_identity  = sprintf("%.2f", $identity);
-			my $align_len   = $hit_ref->{align_len};
-			print "\n\t\t $blast_id:\t Score: $bitscore, \%$f_identity identity ";
-			print "across $align_len aa ($start-$end) to:\t $probe_name ($probe_gene) ";
-		}
-	}
-}
-
-#***************************************************************************
-# Subroutine:  show_locus_chains
-# Description: Show composition of consolidated loci
-#***************************************************************************
-sub show_locus_chains {
-	
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
-	my $db_ref = $digs_obj->{db};
-	unless ($db_ref) { die; } # Sanity checking
-	my $dbh = $db_ref->{dbh};
-
-	my $loci_exists = $db_ref->does_table_exist('loci');
-	unless ($loci_exists) {
-		print "\n\t  The locus tables don't seem to exist (have you ran consolidate?\n\n";
-		exit;
-	}
-
-	$db_ref->load_loci_table($dbh);
-	$db_ref->load_loci_chains_table($dbh);
-	#$devtools->print_hash($db); die;
-
-	my $digs_results_table = $db_ref->{digs_results_table}; 
-	my $loci_table         = $db_ref->{loci_table};
-	my $loci_chains_table  = $db_ref->{loci_chains_table};
-	unless ($digs_results_table and $loci_chains_table) {
-		print "\n\t # Locus tables not found - run consolidate first\n\n\n";
-		exit;
-	}
-
-	# Get all loci
-	my $loci_where = " ORDER BY record_id ";
-	my @loci;
-	my @fields = qw [ record_id locus_structure ];
-	$loci_table->select_rows(\@fields, \@loci, $loci_where);	 
-	
-	# Iterate through loci
-	foreach my $locus_ref (@loci) {
-
-		my $locus_id = $locus_ref->{record_id};
-		print "\n\t ### Chain $locus_id ";	
-		my $chain_where = " WHERE locus_id = $locus_id ";
-		my @results;
-		my @fields = qw [ record_id locus_id digs_result_id ];
-		$loci_chains_table->select_rows(\@fields, \@results, $chain_where);	 
-		
-		foreach my $result_ref (@results) {
-
-			my @digs_results;
-			my $digs_result_id = $result_ref->{digs_result_id};
-			my @result_fields = qw [ assigned_name assigned_gene 
-			                         organism target_name 
-			                         scaffold extract_start extract_end
-			                         bitscore identity align_len ];
-			my $where  = " WHERE record_id = $digs_result_id ";
-			$digs_results_table->select_rows(\@result_fields, \@digs_results, $where);			
-
-			foreach my $result_ref (@digs_results) {
-		
-				my $assigned_name = $result_ref->{assigned_name};
-				my $assigned_gene = $result_ref->{assigned_gene};
-				my $organism      = $result_ref->{organism};	
-				my $scaffold      = $result_ref->{scaffold};
-				my $start         = $result_ref->{extract_start};
-				my $end           = $result_ref->{extract_end};
-				my $bitscore      = $result_ref->{bitscore};
-				my $identity      = $result_ref->{identity};
-				my $align_len     = $result_ref->{align_len};
-				my $f_identity    = sprintf("%.2f", $identity);
-				print "\n\t\t $digs_result_id:\t Score: $bitscore, \%$f_identity identity ";
-				print "across $align_len aa ($start-$end) to:\t $assigned_name ($assigned_gene) ";
-	
-			}
-		}
-	}
-}
-
-############################################################################
 # INITIALISATION
 ############################################################################
 
@@ -673,7 +490,7 @@ sub do_load_db_dialogue {
 	my ($self, $infile) = @_;
 
 	my $digs_obj = $self->{digs_obj};
-
+	
 	# Load/create the screening database
 	my $question = "\t  Enter the name of a DIGS screening database";
 	my $db_name = $console->ask_question($question);
