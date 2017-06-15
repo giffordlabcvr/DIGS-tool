@@ -402,6 +402,7 @@ sub search_target_file_using_blast {
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
+	my $db_ref       = $self->{db};
 
 	# Sanity checking
 	unless ($min_length) { die; }
@@ -473,7 +474,7 @@ sub search_target_file_using_blast {
 		}	
 		unless ($skip) {		
 			# Insert values into 'active_set' table
-			$self->insert_row_in_active_set_table($query_ref, $hit_ref);
+			$db_ref->insert_row_in_active_set_table($query_ref, $hit_ref);
 			$num_retained_hits++;			
 		}
 	} 
@@ -611,9 +612,10 @@ sub compile_nonredundant_locus_set {
 	
 	my ($self, $query_ref, $to_extract_ref) = @_;
 
-	# Get flag
+	# Get flags and objects
 	my $verbose        = $self->{verbose};
 	my $defragment_obj = Defragment->new($self);
+	my $db_ref         = $self->{db};
 
 	# Compose SQL WHERE statement to retrieve relevant set of loci
 	my $target_name     = $query_ref->{target_name};
@@ -628,16 +630,16 @@ sub compile_nonredundant_locus_set {
 
 	# Get the relevant set of DIGS results
 	my @digs_results;
-	$self->get_sorted_digs_results(\@digs_results, $where);
+	$db_ref->get_sorted_digs_results(\@digs_results, $where);
 	my $num_loci = scalar @digs_results;
 	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
 		
 	# Add the digs results to the BLAST hits in the active_set table
-	$self->add_digs_results_to_active_set(\@digs_results);
+	$db_ref->add_digs_results_to_active_set(\@digs_results);
 
 	# Get sorted list of digs results and BLAST hits from active_set table
 	my @combined;
-	$self->get_sorted_active_set(\@combined);
+	$db_ref->get_sorted_active_set(\@combined);
 	my $total_loci = scalar @combined;
 	if ($verbose) {
 		if ($total_loci > 0) {
