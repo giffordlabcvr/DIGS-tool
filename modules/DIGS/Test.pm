@@ -397,9 +397,9 @@ sub run_test_5 {
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 	my $test5_path = './test/tabular/test5.txt';;
-	print "\n\t ### Flushed digs_results table & now uploading data from file '$test5_path'";
-	$db->upload_data_to_digs_results($test5_path);
-	print "\n\t ### Data uploaded, starting from point of having successfully conducted tests 1,2,3, & 4\n";
+	print "\n\t ### Flushed digs_results table & now importing data from file '$test5_path'";
+	$db->import_data_to_digs_results($test5_path);
+	print "\n\t ### Data imported, starting from point of having successfully conducted tests 1,2,3, & 4\n";
 
 	# Set the parameters for this test (directly rather than using control file)
 	$loader_obj->{seq_length_minimum}   = 100;
@@ -541,16 +541,16 @@ sub run_test_7 {
 	# Reassign test
 	print "\n\n\t ### TEST 7: Reassign test ~ + ~ + ~ \n";
 
-	# Upload a data set
+	# import a data set
 	my $digs_obj   = $self->{digs_obj};
 	my $loader_obj = $digs_obj->{loader_obj};
 	my $db = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 	my $test7_path = './test/tabular/test7.txt';;
-	print "\n\t ### Flushed digs_results table & now uploading data from file '$test7_path'";
-	$db->upload_data_to_digs_results($test7_path);
-	print "\n\t ### Data uploaded\n";
+	print "\n\t ### Flushed digs_results table & now importing data from file '$test7_path'";
+	$db->import_data_to_digs_results($test7_path);
+	print "\n\t ### Data imported\n";
 
 	# Set the parameters for this test (directly rather than using control file)
 	$loader_obj->{seq_length_minimum}   = 50;
@@ -628,18 +628,18 @@ sub run_test_10 {
 	$self->{defragment_mode} = 'defragment';
 
 	# Get digs_results table handle and flush the table
-	# Upload a data set
+	# import a data set
 	my $digs_obj      = $self->{digs_obj};
 	my $loader_obj    = $digs_obj->{loader_obj};
 	my $db            = $digs_obj->{db}; # Get the database reference
 	my $results_table = $db->{digs_results_table}; # Get the database reference
 	$results_table->flush();
 
-	# Upload the data
+	# import the data
 	my $test10_path = './test/tabular/test10.txt';;
-	print "\n\t ### Flushed digs_results table & now uploading data from file '$test10_path'";
-	my $original_num_rows = $db->upload_data_to_digs_results($test10_path);
-	print "\n\t ### EVE data uploaded\n";
+	print "\n\t ### Flushed digs_results table & now importing data from file '$test10_path'";
+	my $original_num_rows = $db->import_data_to_digs_results($test10_path);
+	print "\n\t ### EVE data imported\n";
 	die;
 	
 	$digs_obj->interactive_defragment();

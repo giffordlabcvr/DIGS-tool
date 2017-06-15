@@ -716,6 +716,10 @@ sub split_longline_contig {
 	close REFORMATTED_CHUNK;
 }
 
+############################################################################
+# Basic
+############################################################################
+
 #***************************************************************************
 # Subroutine:  by number
 # Description: sort an array of integers by ascending numerical order 

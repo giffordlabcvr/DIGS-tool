@@ -94,8 +94,7 @@ sub new {
 		output_path            => $parameter_ref->{output_path},
 		tmp_path               => '',   # Created during set up
 		blast_threads          => '',   # Obtained from control file
-
-
+		
 	};
 	
 	bless ($self, $class);
@@ -124,7 +123,6 @@ sub run_digs_process {
 
 		# Show final summary and exit message
 		$self->wrap_up($option);
-
 	}
 }
 
@@ -341,7 +339,7 @@ sub reassign {
 
 #***************************************************************************
 # Subroutine:  interactive_defragment
-# Description: 
+# Description: interactively test and apply the  
 #***************************************************************************
 sub interactive_defragment {
 
@@ -740,7 +738,7 @@ sub show_help_page {
 	   $HELP  .= "\n\t -m=5  Consolidate loci\n"; 
 	   $HELP  .= "\n\t Target path variable (\$DIGS_GENOMES) is set to '$ENV{DIGS_GENOMES}'";
 
-	   $HELP  .= "\n\n\t Run  $0 -e to see information on utility functions\n\n\n"; 
+	   $HELP  .= "\n\n\t Run '$0 -e' to see information on utility functions\n\n\n"; 
 
 	print $HELP;
 }

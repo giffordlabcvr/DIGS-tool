@@ -833,7 +833,7 @@ sub do_track_table_dialogue {
 	my @choices = qw [ 1 2 3 ];
 	print "\n\t\t 1. Create new track table";
 	print "\n\t\t 2. Append data to existing track table";
-	print "\n\t\t 3. Flush existing track table and upload fresh data\n";
+	print "\n\t\t 3. Flush existing track table and import fresh data\n";
 	my $question = "\n\t Choose an option";
 	my $option = $console->ask_simple_choice_question($question, \@choices);
 
@@ -907,7 +907,7 @@ sub do_ancillary_table_dialogue {
 	my @choices = qw [ 1 2 3 ];
 	print "\n\t\t 1. Create new ancillary table";
 	print "\n\t\t 2. Append data to existing ancillary table";
-	print "\n\t\t 3. Flush existing ancillary table and upload fresh data\n";
+	print "\n\t\t 3. Flush existing ancillary table and import fresh data\n";
 	my $question = "\n\t Choose an option";
 	my $option = $console->ask_simple_choice_question($question, \@choices);
 
@@ -929,7 +929,7 @@ sub do_ancillary_table_dialogue {
 			$extra_tables{$table_num} = $table_name;
 			print "\n\t\t Table $table_num: '$table_name'";
 		}
-		my @table_choices = keys %extra_tables;
+		my @table_choices = sort by_number keys %extra_tables;
 
 		my $question5 = "\n\n\t Apply to which of the above tables?";
 		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
@@ -1299,7 +1299,7 @@ sub add_digs_results_to_active_set {
 }
 
 ############################################################################
-# UPLOADING DATA
+# importING DATA
 ############################################################################
 
 #***************************************************************************
@@ -1331,7 +1331,7 @@ sub import_data_to_ancillary_table {
 			$column_num++;
 			my $type  = $fields_hash_ref->{$column_num};
 			if ($verbose) {
-				print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+				print "\n\t Row count $row_count: importing value '$value' to field '$field'";
 			}
 			unless ($value) { 
 				$value = 'NULL';
@@ -1375,7 +1375,7 @@ sub import_data_to_track_table {
 			unless ($value) { 
 				$value = 'NULL';
 			}
-			print "\n\t Row count $row_count: uploading value '$value' to field '$field'";
+			print "\n\t Row count $row_count: importing value '$value' to field '$field'";
 			if ($field eq 'track_name'
 			or  $field eq 'organism_code'
 			or  $field eq 'locus_class'
@@ -1397,10 +1397,10 @@ sub import_data_to_track_table {
 }
 
 #***************************************************************************
-# Subroutine:  upload_data_to_searches_performed
-# Description: upload data to the 'searches_performed' table
+# Subroutine:  import_data_to_searches_performed
+# Description: import data to the 'searches_performed' table
 #***************************************************************************
-sub upload_data_to_searches_performed {
+sub import_data_to_searches_performed {
 
 	my ($self,  $data_path) = @_;
 
@@ -1429,10 +1429,10 @@ sub upload_data_to_searches_performed {
 }
 
 #***************************************************************************
-# Subroutine:  upload_data_to_digs_results
-# Description: upload data to the 'digs_results' table
+# Subroutine:  import_data_to_digs_results
+# Description: import data to the 'digs_results' table
 #***************************************************************************
-sub upload_data_to_digs_results {
+sub import_data_to_digs_results {
 
 	my ($self, $data_path) = @_;
 
@@ -1632,6 +1632,15 @@ sub load_extracted_table {
 	$self->{extracted_table} = $extract_table;
 }
 
+############################################################################
+# Basic
+############################################################################
+
+#***************************************************************************
+# Subroutine:  by number
+# Description: sort an array of integers by ascending numerical order 
+#***************************************************************************
+sub by_number { $a <=> $b }	
 
 ############################################################################
 # EOF

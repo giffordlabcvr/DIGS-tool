@@ -90,12 +90,12 @@ sub show_utility_help_page {
     my $HELP   = "\n\t ### DIGS version $program_version - utility functions help menu\n";
 
        $HELP  .= "\n\t ### Managing DIGS screening DBs"; 
-	   $HELP  .= "\n\t -d=1   Upload data to tables"; 
+	   $HELP  .= "\n\t -d=1   import data to tables"; 
 	   $HELP  .= "\n\t -d=2   Flush core tables"; 
 	   $HELP  .= "\n\t -d=3   Drop DB tables";
 	   $HELP  .= "\n\t -d=4   Drop a DIGS screening DB"; 
 	   #$HELP  .= "\n\t -d=5   Extract data\n";
-	   #$HELP  .= "\n\t -d=2   Upload data to the digs_results table";
+	   #$HELP  .= "\n\t -d=2   import data to the digs_results table";
 
        #$HELP  .= "\n\t ### Creating standard locus nomenclature"; 	   
 	   #$HELP  .= "\n\t -n=1   Create standard locus IDs"; 
@@ -108,7 +108,7 @@ sub show_utility_help_page {
 	   #$HELP  .= "\n\t -u=1   Translate DB schema"; 
 	   #$HELP  .= "\n\t -u=2   Show BLAST chains (merged BLAST hits)"; 
 	   #$HELP  .= "\n\t -u=3   Show locus chains (merged digs_results table rows)"; 
-	   ##$HELP  .= "\n\t -u=4   Show nomenclature chains (merged annotations)\n"; 
+	   #$HELP  .= "\n\t -u=4   Show nomenclature chains (merged annotations)\n"; 
 
 	   $HELP  .= "\n\n"; 
 
@@ -191,7 +191,7 @@ sub run_screening_db_utility_process {
 
 	# Hand off to functions 
 	if ($option eq 1) { # Manage ancillary tables in a screening DB
-		$self->upload_data();
+		$self->import_data();
 	}
 	elsif ($option eq 2) { # Flush screening DB
 		my $db = $digs_obj->{db};
@@ -257,10 +257,10 @@ sub run_dev_validation_process {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  upload_data
-# Description: upload data to DIGS screening DB tables
+# Subroutine:  import_data
+# Description: import data to DIGS screening DB tables
 #***************************************************************************
-sub upload_data {
+sub import_data {
 
 	my ($self) = @_;
 
@@ -275,8 +275,7 @@ sub upload_data {
 	# Get the file path
 	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
 	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	#my $infile = $self->ask_question($question);
-	my $infile = '../local/human/translations.txt';
+	my $infile = $console->ask_question($question);
 	unless ($infile) { die; }
 
 	# Read in the data from a tab delimited file
@@ -330,7 +329,7 @@ sub drop_db_table {
 			$tables{$table_num} = $table_name;
 			print "\n\t\t Table $table_num: '$table_name'";
 		}
-		my @table_choices = keys %tables;
+		my @table_choices = sort keys %tables;
 		
 		my $question = "\n\n\t Apply to which of the above tables?";
 		my $answer   = $console->ask_list_question($question, $num_choices);
@@ -696,88 +695,6 @@ sub do_load_db_dialogue {
 	$db_obj->load_screening_db($db_name);	
 	$digs_obj->{db} = $db_obj; # Store the database object reference 
 
-}
-
-#===========================================================================
-# TEMPORARY
-#===========================================================================
-
-#***************************************************************************
-# Subroutine:  fix_searches_performed_table
-# Description: 
-#***************************************************************************
-sub fix_searches_performed_table {
-
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
-
-	my $db = $digs_obj->{db};
-	unless ($db) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-	my $searches_table = $db->{searches_table}; 
-	my $where1 = " ORDER BY record_id ";
-	my @searches;
-	my @fields = qw [ record_id organism target_datatype target_version ];
-	$searches_table->select_rows(\@fields, \@searches, $where1);	 
-
-	# Iterate through the digs result rows	
-	foreach my $row_ref (@searches) {
-	
-		my $record_id = $row_ref->{record_id};
-		my $organism  = $row_ref->{organism};
-		my $datatype  = $row_ref->{target_datatype};
-		my $version   = $row_ref->{target_version};
-		my @id = ( $organism, $datatype, $version );
-		my $target_id = join ('|', @id);
-		my $where2 = " WHERE record_id = $record_id ";
-		my %data;
-		$data{target_id} = $target_id;
-		$searches_table->update(\%data, $where2);
-		print "\n\t  UPDATED target_id field for $record_id to '$target_id'";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  fix_searches_performed_table_2
-# Description: 
-#***************************************************************************
-sub fix_searches_performed_table_2 {
-
-	my ($self) = @_;
-
-	# Get relevant variables and objects
-	my $digs_obj = $self->{digs_obj};
-
-	my $db = $digs_obj->{db};
-	unless ($db) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-	my $searches_table = $db->{searches_table}; 
-	my $where1 = " ORDER BY record_id ";
-	my @searches;
-	my @fields = qw [ record_id organism target_datatype target_version target_id ];
-	$searches_table->select_rows(\@fields, \@searches, $where1);	 
-
-	# Iterate through the digs result rows	
-	foreach my $row_ref (@searches) {
-	
-		my $record_id = $row_ref->{record_id};
-		my $datatype  = $row_ref->{target_datatype};
-		my $version   = $row_ref->{target_version};
-		my $target_id = $row_ref->{target_id};
-	
-		my @id = split (/\|/, $target_id);
-		my $organism  = shift @id;
-			
-		my $where2 = " WHERE record_id = $record_id ";
-		my %data;
-		$data{organism} = $organism;
-		$searches_table->update(\%data, $where2);
-		print "\n\t  UPDATED organism field for $record_id to '$organism'";
-	}
 }
 
 ############################################################################
