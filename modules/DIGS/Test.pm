@@ -85,7 +85,6 @@ sub run_tests {
 
 	my $digs_obj = $self->{digs_obj};
 
-
  	# Show title
 	$digs_obj->show_title();  
 
@@ -124,7 +123,6 @@ sub run_tests {
 	$self->run_test_5();
 	$self->run_test_6();
 	$self->run_test_7();
-	die;
 	#$self->run_test_10();
 
 	# Print finished message
@@ -216,10 +214,11 @@ sub run_test_2 {
 
 	my ($self) = @_;
 
-	my $digs_obj   = $self->{digs_obj};
+	my $digs_obj = $self->{digs_obj};
 	$digs_obj->{defragment_mode}  = 'defragment';
 	$digs_obj->{defragment_range} = 100;
- 
+ 	my $db_ref   = $digs_obj->{db};
+
 	## Check that defragment gives expected result (negative)
 	print "\n\t ### TEST 2: Defragment results test negative  ~ + ~ + ~ \n";	
 
@@ -242,7 +241,7 @@ sub run_test_2 {
 
 	# Get digs results ready for defragment process
 	my @sorted_digs_results;
-	$digs_obj->get_sorted_digs_results(\@sorted_digs_results, $where);
+	$db_ref->get_sorted_digs_results(\@sorted_digs_results, $where);
 	my $num_hits = scalar @sorted_digs_results;
 	print "\n\t\t # $num_hits digs results to defragment ";
 	#$devtools->print_array(\@sorted_digs_results); die;
@@ -326,9 +325,10 @@ sub run_test_4 {
 	## Check that defragment gives expected result	(should join gag and pol with range of 200)	
 	print "\n\t ### TEST 4: Defragment results test positive  ~ + ~ + ~ \n";
  
- 	my $digs_obj   = $self->{digs_obj};
+ 	my $digs_obj = $self->{digs_obj};
 	$digs_obj->{defragment_mode}  = 'defragment';
 	$digs_obj->{defragment_range} = 500;
+	my $db_ref   = $digs_obj->{db};
 
 	# Construct WHERE statement
 	my $where  = " WHERE probe_type = 'ORF' ";
@@ -342,7 +342,7 @@ sub run_test_4 {
 
 	# Get digs results ready for defragment process
 	my @sorted_digs_results;
-	$digs_obj->get_sorted_digs_results(\@sorted_digs_results, $where);
+	$db_ref->get_sorted_digs_results(\@sorted_digs_results, $where);
 	my $num_hits = scalar @sorted_digs_results;
 	print "\n\t\t # $num_hits digs results to defragment ";
 	#$devtools->print_array(\@sorted_digs_results); die;
@@ -572,7 +572,7 @@ sub run_test_7 {
 
 	# If we're doing a reassign, get the assigned digs_results
 	my @reassign_loci;
-	$digs_obj->get_sorted_digs_results(\@reassign_loci);
+	$db->get_sorted_digs_results(\@reassign_loci);
 	$digs_obj->{reassign_loci} = \@reassign_loci;
 
 	# Set up the reference library
