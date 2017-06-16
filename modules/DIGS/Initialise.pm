@@ -344,9 +344,30 @@ sub setup_for_defrag_or_consolidate {
 
 	# DO SET-UP NEEDED FOR DEFRAGMENT ONLY
 	if ($option eq 4) { 
+
 		$digs_obj->{defragment_mode} = 'defragment';	
+
+		# Get the target list
+		my $db = $digs_obj->{db};
+		my $digs_results_table = $db->{digs_results_table};
+		my @fields = qw [ organism target_datatype target_version target_name ];
+		my @targets;
+		$digs_results_table->select_distinct(\@fields, \@targets);
+
+		# Settings for clustering
+		my %settings;
+		$settings{total_loci}     = '0';
+		$settings{total_clusters} = '0';
+		$settings{range}          = undef;
+		$settings{reextract}      = 1;
+		$settings{start}          = 'extract_start';
+		$settings{end}            = 'extract_end';
+		$settings{targets}        = \@targets;
+		$digs_obj->{defragment_settings} = \%settings;
+
 		# Set up the reference library
 		$loader_obj->setup_reference_libraries($self);
+
 	}
 	# DO SET-UP NEEDED FOR CONSOLIDATE ONLY
 	elsif ($option eq 5) { 
