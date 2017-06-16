@@ -30,7 +30,7 @@ my $console   = Console->new();
 my $devtools  = DevTools->new();
 
 # Maximum range for defragment
-my $maximum   = 100000000;
+my $max = 100000000;
 1;
 
 ############################################################################
@@ -55,6 +55,7 @@ sub new {
 		# Set-up params
 		defragment_range       => $parameter_ref->{defragment_range}, 
 		defragment_mode        => $parameter_ref->{defragment_mode}, 
+	    defragment_settings    => $parameter_ref->{defragment_settings}, 
 	    consolidate_settings   => $parameter_ref->{consolidate_settings}, 
 		
 		# Member classes 
@@ -73,7 +74,7 @@ sub new {
 }
 
 ############################################################################
-# TOP LEVEL ENTRY 
+# DEFRAGMENT FUNCTIONS
 ############################################################################
 
 #***************************************************************************
@@ -84,31 +85,19 @@ sub interactive_defragment {
 
 	my ($self) = @_;
 
-	# Get a list of all the target files from the screening DB
-	$self->{defragment_mode} = 'defragment';
+	# Declarations etc
+	my $choice       = undef;
+	my $settings_ref = $self->{defragment_settings};
+ 
+	do { # Preview changes 
+	
+		$choice = $self->preview_defragment();
+		
+	} until ($choice > 1);
 
-	# Get the target list
-	my $db = $self->{db};
-	my $digs_results_table = $db->{digs_results_table};
-	my @fields = qw [ organism target_datatype target_version target_name ];
-	my @targets;
-	$digs_results_table->select_distinct(\@fields, \@targets);
-
-	# Settings for clustering
-	my %settings;
-	$settings{total_loci}     = '0';
-	$settings{total_clusters} = '0';
-	$settings{range}          = undef;
-	$settings{reextract}      = 1;
-
-	# Preview changes 
-	my $choice = undef;
-	do { 
-		$choice = $self->preview_defragment(\@targets, \%settings);
-	}   until ($choice > 1);
-
-	if ($choice eq 2)    {  # Apply the changes	
-		$self->defragment(\@targets, \%settings);
+	if ($choice eq 2) {  # Apply the changes
+		
+		$self->defragment();
 	}
 	elsif ($choice eq 3) {  # Exit
 		print "\n"; exit;
@@ -117,441 +106,78 @@ sub interactive_defragment {
 }
 
 #***************************************************************************
-# Subroutine:  consolidate_loci
-# Description: assemble digs_results rows into higher-order loci 
-#***************************************************************************
-sub consolidate_loci {
-
-	my ($self) = @_;
-
-	# Get the digs results sorted by scaffold and extract start
-	my $db = $self->{db};
-	my @sorted;
-	$db->get_sorted_digs_results(\@sorted);	
-	
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-	my $total_loci = scalar @sorted;
-	print "\n\t  Consolidating assigned extracted sequences into loci";
-	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
-	my $settings_ref = $self->{consolidate_settings};
-	unless ($settings_ref) { die; }
-	my %consolidated;
-	$self->compose_clusters(\%consolidated, \@sorted, $settings_ref);
-	
-	# Check the output
-	my @cluster_ids  = keys %consolidated;
-	my $num_clusters = scalar @cluster_ids;
-	if ($total_loci > $num_clusters) {
-		my $range = $settings_ref->{range};
-		print "\n\t  $num_clusters clusters of loci within '$range' bp of one another ";
-	}
-	
-	# Update locus data based on consolidated results
-	$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
-	
-	# Return the number of clusters
-	return $num_clusters;
-}
-
-############################################################################
-# MAIN FXNS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  derive_locus_table_from_clustered_digs_results
-# Description: compile locus information  and update the locus tables
-#***************************************************************************
-sub derive_locus_table_from_clustered_digs_results {
-
-	my ($self, $consolidated_ref) = @_;
-
-	unless ($consolidated_ref) { die; }
-	
-	# Get parameters and data structures
-	my $verbose           = $self->{verbose};
-	my $db_ref            = $self->{db};
-	my $loci_table        = $db_ref->{loci_table};
-	my $loci_chains_table = $db_ref->{loci_chains_table};
-	
-	# Flags for how to handle
-	#my $reextract = undef;
-	my $reextract = 'true';
-	#my $annotate_ends = undef;
-	my $annotate_ends = 'true';
-
-	# Iterate through the clusters	
-	my @cluster_ids  = keys %$consolidated_ref;
-	foreach my $cluster_id (@cluster_ids) {
-
-		# Get the loci in this cluster
-		my $cluster_ref = $consolidated_ref->{$cluster_id};
-
-		# Turn this cluster into an annotated locus
-		my %locus;
-		$self->derive_locus_structure(\%locus, $cluster_ref);
-		#$devtools->print_hash(\%locus); die;
-
-		# Extract the consolidate locus if the flag is set
-		if ($reextract) {
-			$self->extract_consolidated_locus(\%locus);
-		}
-
-		# Do the annotation for truncated versus non-truncated 	matches
-		if ($annotate_ends) {
-			#$self->annotate_consolidated_locus_flanks(\%locus);
-		}
-
-		# Insert the consolidated locus information
-		my $locus_array = $locus{locus_array};
-		my $locus_structure = join('-', @$locus_array);
-		$locus{locus_structure} = $locus_structure;
-	
-		# Insert the data	
-		my $locus_id  = $loci_table->insert_row(\%locus);
-				
-		# Create the links between the loci and digs_results tables
-		foreach my $digs_result_ref (@$cluster_ref) {
-			my $digs_result_id = $digs_result_ref->{record_id};
-			my %chain_data;
-			$chain_data{digs_result_id} = $digs_result_id;
-			$chain_data{locus_id}       = $locus_id;
-			$loci_chains_table->insert_row(\%chain_data);
-		}		
-	}
-}
-
-#***************************************************************************
-# Subroutine:  derive_locus_structure
-# Description: derive locus structure based on clustered digs results 
-#***************************************************************************
-sub derive_locus_structure {
-
-	my ($self, $consolidated_ref, $cluster_ref) = @_;
-
-	my $annotate_flanks = undef;
-	my $initialised = undef;
-	my $organism;
-	my $version;
-	my $target_name;
-	my $datatype;
-	my $assigned_name;
-	my $feature;
-	my $lowest;
-	my $highest;
-	my $scaffold;
-	my $orientation;
-	my $target_datatype;
-	my $target_version;
-	my @locus_structure;
-	my $target_id;
-	my $multiple_orientations = undef;
-	my $last_element = undef;
-	foreach my $element_ref (@$cluster_ref) {
-		
-		# Capture values from the previous iterations	
-		my $last_feature     = $feature;
-		my $last_orientation = $orientation;
-		#my $last_scaffold    = $scaffold;
-		
-		# Get the data about this digs_results table row
-		my $start       = $element_ref->{extract_start};
-		my $end         = $element_ref->{extract_end};
-
-		$feature        = $element_ref->{assigned_gene};
-		$assigned_name  = $element_ref->{assigned_name};
-		$version        = $element_ref->{target_version};
-		$datatype       = $element_ref->{target_datatype};
-		$orientation    = $element_ref->{orientation};
-		$scaffold       = $element_ref->{scaffold};
-		$organism       = $element_ref->{organism};
-		$target_name    = $element_ref->{target_name};
-		unless ($feature and $orientation) { die; } # Sanity checking
-		my $record      = "$feature($orientation)";
-		#print "\n\t RECORD $record";
-
-		# Create a target key
-		$organism        = $element_ref->{organism};
-		$target_name     = $element_ref->{target_name};
-		$target_datatype = $element_ref->{target_datatype};
-		$target_version  = $element_ref->{target_version};
-		my @genome = ( $organism , $target_datatype, $target_version );
-		my $this_target_id = join ('|', @genome);
-		if ($target_id) {
-			unless ($this_target_id eq $target_id) { 
-				print "\n\t WHY??? $target_id NE $this_target_id\n\n";
-				#die; 
-			} 
-		}
-		$target_id = $this_target_id;
-
-		
-		# Deal with first locus in a cluster
-		unless ($initialised) {
-			$highest      = $end;
-			$lowest       = $start;
-			$last_element = $element_ref;
-			$initialised  = 'true';								
-			push(@locus_structure, $record);
-			next;		
-		}
-
-
-		# Capture information about coordinates 			
-		if ($end > $highest) {
-			$highest = $end;
-		}
-		if ($start < $lowest) {
-			$lowest = $start;					
-		}
-
-		# Deal with loci that follow at least one previous locus
-		if ($orientation eq $last_orientation
-		and $feature eq $last_feature) {
-			next;
-		}
-		if ($orientation ne $last_orientation) {
-			$multiple_orientations = 'true';
-		}
-
-		# Add this element to the start or end of the locus array, based on orientation
-		if ($multiple_orientations) { # If multiple orientations, base it on last element
-			if ($start >= $last_element->{extract_start}) {
-				push(@locus_structure, $record);
-			}
-			else {
-				unshift(@locus_structure, $record);	
-			}
-		}
-		elsif ($orientation eq '+') {
-			#my $record = $feature;
-			push(@locus_structure, $record);
-		}
-		elsif ($orientation eq '-') {
-			unshift(@locus_structure, $record);			
-		}
-		$last_element = $element_ref;				
-	}
-
-	# Store the data
-	$consolidated_ref->{organism}        = $organism;
-	$consolidated_ref->{target_version}  = $version;
-	$consolidated_ref->{target_name}     = $target_name;
-	$consolidated_ref->{target_datatype} = $datatype;
-	$consolidated_ref->{scaffold}        = $scaffold;
-	$consolidated_ref->{target_id}       = $target_id;
-	$consolidated_ref->{orientation}     = $orientation;
-	$consolidated_ref->{start}           = $lowest;
-	$consolidated_ref->{end}             = $highest;
-	$consolidated_ref->{extract_start}   = $lowest;
-	$consolidated_ref->{extract_end}     = $highest;
-	$consolidated_ref->{assigned_name}   = $assigned_name;
-	$consolidated_ref->{assigned_name}   = $assigned_name;
-	$consolidated_ref->{locus_array}     = \@locus_structure;
-	
-}
-
-#***************************************************************************
-# Subroutine:  extract_consolidated_locus
-# Description: 
-#***************************************************************************
-sub extract_consolidated_locus {
-
-	my ($self, $consolidated_ref) = @_;
-
-	my $db_ref    = $self->{db};
-	my $verbose   = $self->{verbose};
-	my $blast_obj = $self->{blast_obj};
-	unless ($blast_obj) { die; }
-	my $seq_len   = 0;
-	
-	my $genome_use_path  = $self->{genome_use_path};
-	my $target_group_ref = $self->{target_groups};
-	#my $target_path = $self->get_target_file_path($target_ref);
-
-	my $organism        = $consolidated_ref->{organism};
-	my $target_version  = $consolidated_ref->{target_version};
-	my $target_datatype = $consolidated_ref->{target_datatype};
-	my $target_name     = $consolidated_ref->{target_name};
-	my $target_id       = $consolidated_ref->{target_id};
-	my $lowest          = $consolidated_ref->{start};
-	my $highest         = $consolidated_ref->{end};
-
-	my $full_id = $target_id . '|' . $target_name;
-	my $target_group = $target_group_ref->{$full_id};
-	unless ($target_group) {
-		print " \n\t Defreag: No target group found for TARGET ID $full_id\n\n"; 
-		#$devtools->print_hash($target_group_ref);
-        sleep 1;
-		return 0;
-	}
-	
-	# Construct the path to this target file
-	my @path;
-	push (@path, $genome_use_path);
-	push (@path, $target_group);
-	push (@path, $organism);
-	push (@path, $target_datatype);
-	push (@path, $target_version);
-	push (@path, $target_name);
-	my $target_path = join ('/', @path);
-
-	# Extract the sequence
-	#print "\n\t\t    # TARGET: '$target_path'";
-	my $sequence   = $blast_obj->extract_sequence($target_path, $consolidated_ref);
-	my $seq_length = length $sequence; # Set sequence length
-	if ($sequence) {
-		
-		# If we extracted a sequence, update the data for this locus
-		if ($verbose) { print "\n\t\t    - Re-extracted sequence: $seq_length nucleotides "; }
-		$consolidated_ref->{sequence}        = $sequence;
-		$consolidated_ref->{sequence_length} = $seq_length;
-	}
-	elsif ($verbose) { 
-		print "\n\t\t    # Sequence extraction failed ";
-	}
-}
-
-#***************************************************************************
-# Subroutine:  annotate_consolidated_locus_flanks
-# Description: 
-#***************************************************************************
-sub annotate_consolidated_locus_flanks {
-
-	my ($self, $consolidated_ref) = @_;
-
-	my $db_ref = $self->{db};
-	my $contigs_table = $db_ref->{contigs_table};
-	my $lowest   = $consolidated_ref->{start};
-	my $highest  = $consolidated_ref->{end};
-	my $scaffold = $consolidated_ref->{scaffold};
-
-	# Get the length of this contig
-	my %data;
-	my @fields = qw [ contig_id seq_length ];
-	my $where = " WHERE contig_id = '$scaffold'";
-	$contigs_table->select_row(\@fields, \%data, $where);
-	my $contig_length = $data{seq_length};
-	unless ($contig_length) { die; }
-
-	# Check the start of the match
-	my @locus_structure;
-	if ($lowest eq 1) {  
-		unshift(@locus_structure, 'T');
-	}
-	else {
-		unshift(@locus_structure, 'X');
-	}
-	# Check the end of the match
-	if ($highest eq $contig_length) { 
-		push(@locus_structure, 'T');
-	}
-	else {
-		push(@locus_structure, 'X');
-	}
-}
-
-############################################################################
-# INTERNAL FUNCTIONS: defragmenting results
-############################################################################
-
-#***************************************************************************
 # Subroutine:  preview_defragment
 # Description: preview a defragmentation process
 #***************************************************************************
 sub preview_defragment {
 
-	my ($self, $targets_ref, $settings_ref) = @_;
+	my ($self) = @_;
 
 	# Display current settings	
-	my $defragment_range = $self->{defragment_range};
-	unless ($defragment_range )  { die; } 
-	print "\n\n\t\t Current settings (based on control file)";
-	print "\n\t\t defragment range: $defragment_range";
+	$self->display_config();
 
 	# Get the range	
-	my $question1 = "\n\n\t # Set the range for merging hits";
-	my $t_range = $console->ask_int_with_bounds_question($question1, $defragment_range, $maximum);		
+	my $current_range  = $self->{defragment_range};
+	my $settings_ref   = $self->{defragment_settings};
+	my $targets_ref    = $settings_ref->{targets};
+	my $range_question = "\n\n\t # Set the range for merging hits";
+	my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
+
+	my $settings_ref = $self->{defragment_settings};
+	$settings_ref->{range} = $t_range;
 
 	# Defragment this set of DIGS results
-	print "\n\t # Defragmenting using range '$t_range'\n";
-	$self->defragment_digs_results($targets_ref, $settings_ref, $t_range);
-
+	print "\n\t # Previewing defragment'\n";
 	# Summarise the results of defragment process
-	my $total_loci     = $settings_ref->{total_loci};
-	my $total_clusters = $settings_ref->{total_clusters};
-	print "\n\t\t\t TOTAL LOCI:     $total_loci";
-	print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+	$self->defragment();
+
+	# Prompt for what to do next
 	print "\n\n\t\t Option 1: preview new parameters";
 	print "\n\t\t Option 2: apply these parameters";
 	print "\n\t\t Option 3: exit";
-
-	# Prompt for what to do next
 	my $list_question = "\n\n\t # Choose an option:";
 	my $choice = $console->ask_list_question($list_question, 3);
-	$settings_ref->{range} = $t_range;
 	return $choice;
+
 }
 
 #***************************************************************************
 # Subroutine:  defragment_target_files
-# Description: implement a defragmentation process for a set of target files
+# Description: identify overlapping or contiguous loci in digs_results tbl
 #***************************************************************************
 sub defragment {
 
-	my ($self, $targets_ref,  $settings_ref) = @_;
+	my ($self) = @_;
 
-	# Declare objects
+	# Initialise parameters
+	my $total_loci     = '0';
+	my $total_clusters = '0';
+	my $settings_ref   = $self->{defragment_settings};
+	my $targets_ref    = $settings_ref->{targets};
+	$settings_ref->{total_clusters} = $total_clusters;
+	$settings_ref->{total_loci}     = $total_loci;
+
+	# Get objects
 	my $db        = $self->{db};
-	my $t_range   = $settings_ref->{range};
 	my $reextract = $settings_ref->{reextract};
     my $digs_obj  = $settings_ref->{digs_obj};
-
+	
 	# Create a copy of the digs_results table (changes will be applied to copy)
 	my $copy_name = $db->backup_digs_results_table();
 	my $copy_table_name = $copy_name . '_table';
-	print "\n\t # Merging loci in table '$copy_name', using these params\n";
 	$settings_ref->{copy_table_name} = $copy_table_name;
 
-	# Defragment this set of DIGS results
-	print "\n\t # Defragmenting using range '$t_range'\n";
-	$self->defragment_digs_results($targets_ref, $settings_ref, $t_range);
-
-}
-
-#***************************************************************************
-# Subroutine:  reextract_and_reassign
-# Description: 
-#***************************************************************************
-sub reextract_and_reassign {
-
-	my ($self, $settings_ref) = @_;
-
-
-
-
-
-}
-
-#***************************************************************************
-# Subroutine:  defragment_digs_results
-# Description: identify overlapping or contiguous loci in digs_results tbl
-#***************************************************************************
-sub defragment_digs_results {
-
-    my ($self, $targets_ref, $cluster_params, $t_range) = @_;
-   
-	# Apply the settings
-	my $verbose = $self->{verbose};
-	my $total_loci = '0';
-	my $total_clusters = '0';
-	my $db = $self->{db};
-
+	# Defragment each target file in turn
+	print "\n\t # Merging loci in table '$copy_name'\n";
 	foreach my $target_ref (@$targets_ref) {
-
+	
 		my $organism        = $target_ref->{organism};
 		my $target_name     = $target_ref->{target_name};
 		my $target_datatype = $target_ref->{target_datatype};
 		my $target_version  = $target_ref->{target_version};
+		my $t_range         = $settings_ref->{range};
+		unless ($t_range) { die;}
+		print "\n\n\t # Defragmenting '$target_name' using range '$t_range'";
 			
 		# Create the relevant set of previously extracted loci
 		my @loci;
@@ -562,35 +188,90 @@ sub defragment_digs_results {
 
 		$db->get_sorted_digs_results(\@loci, $where);
 		my $num_hits = scalar @loci;
-		
-		# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-		my %settings;
-		my %target_defragmented;
-		$settings{range} = $t_range;
-		$settings{start} = 'extract_start';
-		$settings{end}   = 'extract_end';
-		$self->compose_clusters(\%target_defragmented, \@loci, \%settings);
-		
-		# Get number of clusters for this target file, and increment totals
-		my @cluster_ids  = keys %target_defragmented;
-		my $num_clusters = scalar @cluster_ids;
-		$total_loci     = $total_loci + $num_hits;
-		$total_clusters = $total_clusters + $num_clusters;
 
-		# Show clusters if verbose flag is set
-		if ($verbose) { 
-			print "\n\t\t '$target_name': Compressed from '$num_hits' to '$num_clusters' loci";
-		}
+		#$devtools->print_hash($settings_ref); die;
+		$self->defragment_target_file($target_name, \@loci);
+	}
+}
 
+#***************************************************************************
+# Subroutine:  defragment_target_file
+# Description: identify overlapping or contiguous loci in a target file
+#***************************************************************************
+sub defragment_target_file {
+
+    my ($self, $target_name, $loci_ref) = @_;
+
+	# Set flags
+	my $verbose      = $self->{verbose};
+	my $settings_ref = $self->{defragment_settings};
+    my $reextract    = $settings_ref->{reextract};
+  
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	my $total_loci     = $settings_ref->{total_loci};
+	my $total_clusters = $settings_ref->{total_clusters};
+	my $num_hits = scalar @$loci_ref;
+	
+	my %target_defragmented;
+	$self->compose_clusters(\%target_defragmented, $loci_ref, $settings_ref);
+		
+	# Get number of clusters for this target file, and increment totals
+	my @cluster_ids  = keys %target_defragmented;
+	my $num_clusters = scalar @cluster_ids;
+	
+	$total_loci     = $total_loci + $num_hits;
+	$total_clusters = $total_clusters + $num_clusters;
+
+	# Show clusters if verbose flag is set
+	if ($verbose) { 
+		print "\n\t\t '$target_name': Compressed from '$num_hits' to '$num_clusters' loci";
 	}
 
-	$cluster_params->{total_loci}     = $total_loci;
-	$cluster_params->{total_clusters} = $total_clusters;
+	# Derive a single, merged locus for clusters of loci that were grouped into a cluster
+	my $extended  = $self->merge_clustered_loci(\%target_defragmented, $loci_ref, $reextract);
+	print "\n\t\t # $extended extensions to previously extracted sequences ";
+	my $num_new   = scalar @$loci_ref;
+	print "\n\t\t # $num_new loci to extract after defragment ";
+	
+	# Extract & reassign
+	if ($reextract and $num_new) {
+		$self->reextract_and_reassign($settings_ref);
+	}
+	
+	else {  # Update DB
+		
+		die;
+		# Need to rename some fields
+		foreach my $hit_ref (@$loci_ref) {
+	
+			$hit_ref->{extract_start}   = $hit_ref->{start};
+			$hit_ref->{extract_end}     = $hit_ref->{end};
+			$hit_ref->{sequence}        = 'NULL';
+			$hit_ref->{sequence_length} = 0;
+			#$devtools->print_hash($hit_ref); die;
+		}
+		#$digs_obj->update_db(\@loci, $copy_table_name);
+	}
+
+	$settings_ref->{total_loci}     = $total_loci;
+	$settings_ref->{total_clusters} = $total_clusters;
 		
 }
 
+#***************************************************************************
+# Subroutine:  reextract_and_reassign
+# Description: 
+#***************************************************************************
+sub reextract_and_reassign {
+
+	my ($self) = @_;
+
+	die;
+
+}
+
 ############################################################################
-# INTERNAL FUNCTIONS: clustering/merging overlapping/adjacent loci
+# INTERNAL FUNCTIONS: base fxns for merging overlapping/adjacent loci
 ############################################################################
 
 #***************************************************************************
@@ -611,6 +292,7 @@ sub compose_clusters {
 	my %last_locus;
 	my %name_counts;
 	my $initialised = undef;
+	
 	foreach my $locus_ref (@$loci_ref)  {
 
 		# Get locus data
@@ -683,6 +365,7 @@ sub compare_adjacent_loci {
 	my $verbose     = $self->{verbose};
 	my $mode        = $self->{defragment_mode};
 	unless ($mode) { die; }
+	unless ($range) { die; }
 	
 	# Get the current hit values
 	my $name             = $locus1_ref->{assigned_name};
@@ -969,9 +652,13 @@ sub merge_cluster {
 	return $extended;
 }
 
+############################################################################
+# CONSOLE OUTPUT 
+############################################################################
+
 #***************************************************************************
 # Subroutine:  show_clusters
-# Description: print information about clustered loci to the screen
+# Description: print information about clustered loci to the console
 #***************************************************************************
 sub show_clusters {
 
@@ -1035,6 +722,38 @@ sub show_cluster {
 			print " (extract ID: $digs_result_id)";
 		}
 	}			
+}
+
+#***************************************************************************
+# Subroutine:  summarise_defragment_result
+# Description: summarise the extent to which digs_result table was compressed
+#***************************************************************************
+sub summarise_defragment_result {
+
+	my ($self) = @_;
+
+	my $settings_ref   = $self->{defragment_settings};
+	my $total_loci     = $settings_ref->{total_loci};
+	my $total_clusters = $settings_ref->{total_clusters};
+	print "\n\t\t\t TOTAL LOCI:     $total_loci";
+	print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+	
+}
+
+#***************************************************************************
+# Subroutine:  display_config
+# Description: diaplay current defragment configuration
+#***************************************************************************
+sub display_config {
+
+	my ($self) = @_;
+
+	#my $settings_ref = $self->{defragment_settings};
+
+	my $current_range = $self->{defragment_range};
+	unless ($current_range )  { die; } 
+	print "\n\n\t\t Current settings (based on control file)";
+	print "\n\t\t defragment range: $current_range";
 }
 
 ############################################################################
