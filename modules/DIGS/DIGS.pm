@@ -167,6 +167,8 @@ sub hand_off_to_digs_fxns {
 
 	my ($self, $option) = @_;
 
+
+	# Main screening functions
 	if ($option eq 1) {      # Check the target sequences are formatted for BLAST		
 		$self->index_target_files_for_blast();	
 	}
@@ -176,12 +178,31 @@ sub hand_off_to_digs_fxns {
 	elsif ($option eq 3) {   # Reassign data in digs_results table
 		$self->reassign();	
 	}
-	elsif ($option eq 4) {   # Interactively defragment results 	
-		$self->interactive_defragment();	
+	
+	# Defragmenting screening results
+	elsif ($option eq 4 or $option eq 5) {	
+
+		# Create a defragmenter module
+		my $defragment_obj = Defragment->new($self);
+	
+		if ($option eq 4) {
+		    # Interactively defragment contiguous hits to the same gene 	
+			$defragment_obj->interactive_defragment();
+		}
+		elsif ($option eq 5) {  
+			# Combine hits to different genes into higher order locus structures
+			$defragment_obj->consolidate_loci();
+		}
 	}
-	elsif ($option eq 5) {   # Combine digs_results into higher order locus structures
-		$self->consolidate_loci();
+	
+	# Assigning unique IDs
+	elsif ($option eq 6) {   # Enter locus ID assignment functions
+
+		# Create a defragmenter module
+		my $nomeclature_obj = Nomenclature->new($self);
+		die;
 	}
+	else { die; } # Shouldn't get here
 }
 
 ############################################################################
@@ -337,52 +358,6 @@ sub reassign {
 	system $command1;
 }
 
-#***************************************************************************
-# Subroutine:  interactive_defragment
-# Description: interactively test and apply the  
-#***************************************************************************
-sub interactive_defragment {
-
-	my ($self) = @_;
-
-	# Get a list of all the target files from the screening DB
-	$self->{defragment_mode} = 'defragment';
-	my $db = $self->{db};
-	my $digs_results_table = $db->{digs_results_table};
-	my @fields = qw [ organism target_datatype target_version target_name ];
-	my @targets;
-	$digs_results_table->select_distinct(\@fields, \@targets);
-
-	# Settings for clustering
-	my %settings;
-	$settings{total_loci}     = '0';
-	$settings{total_clusters} = '0';
-	$settings{range}          = undef;
-	$settings{reextract}      = 1;
-
-	my $defragment_obj = Defragment->new($self);;
-	$defragment_obj->interactive_defragment(\@targets, \%settings);
-	
-}
-
-#***************************************************************************
-# Subroutine:  consolidate_loci
-# Description: 
-#***************************************************************************
-sub consolidate_loci {
-
-	my ($self) = @_;
-
-	# Get the digs results sorted by scaffold and extract start
-	my @sorted;
-
-	my $db = $self->{db};
-	$db->get_sorted_digs_results(\@sorted);	
-
-	my $defragment_obj = Defragment->new($self);;
-	$defragment_obj->consolidate_loci(\@sorted);
-}
-
 ############################################################################
 # INTERNALS - BLAST searches and interactions with DIGS database / defragment
 ############################################################################
@@ -528,6 +503,76 @@ sub classify_sequences_using_blast {
 }
 
 #***************************************************************************
+# Subroutine:  compile_nonredundant_locus_set
+# Description: determine what to extract based on current results
+# Note similar to defragment_target fxn
+#***************************************************************************
+sub compile_nonredundant_locus_set {
+	
+	my ($self, $query_ref, $to_extract_ref) = @_;
+
+	# Get flags and objects
+	my $verbose        = $self->{verbose};
+	my $db_ref         = $self->{db};
+
+	# Create the defragmentor
+	my $defragment_obj = Defragment->new($self);
+
+	# Compose SQL WHERE statement to retrieve relevant set of loci
+	my $target_name     = $query_ref->{target_name};
+	my $organism        = $query_ref->{organism};
+	my $probe_name      = $query_ref->{probe_name};
+	my $probe_gene      = $query_ref->{probe_gene};
+	my $probe_type      = $query_ref->{probe_type};
+
+	my $where  = " WHERE organism = '$organism' ";
+	   $where .= " AND target_name = '$target_name' "; # Always limit by target
+	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
+
+	# Get the relevant set of DIGS results
+	my @digs_results;
+	$db_ref->get_sorted_digs_results(\@digs_results, $where);
+	my $num_loci = scalar @digs_results;
+	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
+		
+	# Add the digs results to the BLAST hits in the active_set table
+	$db_ref->add_digs_results_to_active_set(\@digs_results);
+
+	# Get sorted list of digs results and BLAST hits from active_set table
+	my @combined;
+	$db_ref->get_sorted_active_set(\@combined);
+	my $total_loci = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > 0) {
+			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
+		}
+	}
+
+
+	# Compose clusters of overlapping/adjacent loci
+	my %settings;
+	my %defragmented;
+	$settings{range} = $self->{defragment_range};
+	$settings{start} = 'subject_start';
+	$settings{end}   = 'subject_end';
+	$defragment_obj->compose_clusters(\%defragmented, \@combined, \%settings);
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @combined;
+	if ($verbose) {
+		if ($total_loci > $num_clusters) {
+		}
+	}
+
+	# Extract a merged locus for loci that were grouped into a cluster
+	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
+	my $num_new = scalar @$to_extract_ref;
+	
+	if ($num_new){  print "\n\t\t # $num_new sequences to extract"; }	
+	else         {  print "\n\t\t # No new loci to extract";        }	
+}
+
+#***************************************************************************
 # Subroutine:  update_db
 # Description: update the screening DB based on a completed round of DIGS
 #***************************************************************************
@@ -601,78 +646,8 @@ sub update_db {
 	return $deleted;
 }
 
-#***************************************************************************
-# Subroutine:  compile_nonredundant_locus_set
-# Description: determine what to extract based on current results
-# Note similar to defragment_target fxn
-#***************************************************************************
-sub compile_nonredundant_locus_set {
-	
-	my ($self, $query_ref, $to_extract_ref) = @_;
-
-	# Get flags and objects
-	my $verbose        = $self->{verbose};
-	my $defragment_obj = Defragment->new($self);
-	my $db_ref         = $self->{db};
-
-	# Compose SQL WHERE statement to retrieve relevant set of loci
-	my $target_name     = $query_ref->{target_name};
-	my $organism        = $query_ref->{organism};
-	my $probe_name      = $query_ref->{probe_name};
-	my $probe_gene      = $query_ref->{probe_gene};
-	my $probe_type      = $query_ref->{probe_type};
-
-	my $where  = " WHERE organism = '$organism' ";
-	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
-
-	# Get the relevant set of DIGS results
-	my @digs_results;
-	$db_ref->get_sorted_digs_results(\@digs_results, $where);
-	my $num_loci = scalar @digs_results;
-	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
-		
-	# Add the digs results to the BLAST hits in the active_set table
-	$db_ref->add_digs_results_to_active_set(\@digs_results);
-
-	# Get sorted list of digs results and BLAST hits from active_set table
-	my @combined;
-	$db_ref->get_sorted_active_set(\@combined);
-	my $total_loci = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > 0) {
-			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
-		}
-	}
-	
-	# Compose clusters of overlapping/adjacent loci
-	my %settings;
-	my %defragmented;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	$defragment_obj->compose_clusters(\%defragmented, \@combined, \%settings);
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > $num_clusters) {
-		}
-	}
-
-	# Get a resolved list of non-redundant, non-overlapping loci to extract
-	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
-	my $num_new = scalar @$to_extract_ref;
-	if ($num_new){
-		print "\n\t\t # $num_new sequences to extract";
-	}	
-	else {
-		print "\n\t\t # No new loci to extract";
-	}	
-}
-
 ############################################################################
-# BASE FXNS AND HELP ETC
+# CONSOLE OUTPUT 
 ############################################################################
 
 #***************************************************************************
