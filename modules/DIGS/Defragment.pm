@@ -56,16 +56,24 @@ sub new {
 		defragment_range       => $parameter_ref->{defragment_range}, 
 		defragment_mode        => $parameter_ref->{defragment_mode}, 
 	    defragment_settings    => $parameter_ref->{defragment_settings}, 
-	    consolidate_settings   => $parameter_ref->{consolidate_settings}, 
 		
 		# Member classes 
 		db                     => $parameter_ref->{db},  
 		blast_obj              => $parameter_ref->{blast_obj},
 		   
-		# Paths used in defragment & consolidate processes
+		# Paths used in defragment
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
-		target_groups          => $parameter_ref->{target_groups}
+
+		# Paths used in re-extract
+		target_groups          => $parameter_ref->{target_groups},
+
+		# Paths used for re-assign
+		tmp_path               => $parameter_ref->{tmp_path},
+		aa_reference_library   => $parameter_ref->{aa_reference_library},
+		na_reference_library   => $parameter_ref->{na_reference_library},
+		blast_orf_lib_path     => $parameter_ref->{blast_orf_lib_path},
+		blast_utr_lib_path     => $parameter_ref->{blast_utr_lib_path},
 
 	};
 	
@@ -122,14 +130,15 @@ sub preview_defragment {
 	my $targets_ref    = $settings_ref->{targets};
 	my $range_question = "\n\n\t # Set the range for merging hits";
 	my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
-
-	my $settings_ref = $self->{defragment_settings};
 	$settings_ref->{range} = $t_range;
 
 	# Defragment this set of DIGS results
 	print "\n\t # Previewing defragment'\n";
 	# Summarise the results of defragment process
-	$self->defragment();
+	my $preview = 'true';
+	$self->defragment($preview);
+	$self->display_config();
+	$self->summarise_defragment_result();
 
 	# Prompt for what to do next
 	print "\n\n\t\t Option 1: preview new parameters";
@@ -147,36 +156,38 @@ sub preview_defragment {
 #***************************************************************************
 sub defragment {
 
-	my ($self) = @_;
+	my ($self, $preview) = @_;
 
 	# Initialise parameters
 	my $total_loci     = '0';
 	my $total_clusters = '0';
 	my $settings_ref   = $self->{defragment_settings};
 	my $targets_ref    = $settings_ref->{targets};
+	my $reextract      = $settings_ref->{reextract};
+	my $t_range        = $settings_ref->{range};
+	unless ($t_range) { die;}
 	$settings_ref->{total_clusters} = $total_clusters;
 	$settings_ref->{total_loci}     = $total_loci;
+	$settings_ref->{preview}        = $preview;
 
 	# Get objects
 	my $db        = $self->{db};
-	my $reextract = $settings_ref->{reextract};
-    my $digs_obj  = $settings_ref->{digs_obj};
-	
+  	
 	# Create a copy of the digs_results table (changes will be applied to copy)
 	my $copy_name = $db->backup_digs_results_table();
 	my $copy_table_name = $copy_name . '_table';
-	$settings_ref->{copy_table_name} = $copy_table_name;
+	$settings_ref->{table_name} = $copy_table_name;
+	my $dbh       = $db->{dbh};
+	$db->load_digs_results_table($dbh, $copy_name);
 
 	# Defragment each target file in turn
-	print "\n\t # Merging loci in table '$copy_name'\n";
+	print "\n\t # Applying defragment loci in table '$copy_name'\n";
 	foreach my $target_ref (@$targets_ref) {
 	
 		my $organism        = $target_ref->{organism};
 		my $target_name     = $target_ref->{target_name};
 		my $target_datatype = $target_ref->{target_datatype};
 		my $target_version  = $target_ref->{target_version};
-		my $t_range         = $settings_ref->{range};
-		unless ($t_range) { die;}
 		print "\n\n\t # Defragmenting '$target_name' using range '$t_range'";
 			
 		# Create the relevant set of previously extracted loci
@@ -188,10 +199,9 @@ sub defragment {
 
 		$db->get_sorted_digs_results(\@loci, $where);
 		my $num_hits = scalar @loci;
-
-		#$devtools->print_hash($settings_ref); die;
-		$self->defragment_target_file($target_name, \@loci);
+		$self->defragment_target_file($target_ref, \@loci);
 	}
+	
 }
 
 #***************************************************************************
@@ -200,12 +210,14 @@ sub defragment {
 #***************************************************************************
 sub defragment_target_file {
 
-    my ($self, $target_name, $loci_ref) = @_;
+    my ($self, $target_ref, $loci_ref) = @_;
 
 	# Set flags
 	my $verbose      = $self->{verbose};
 	my $settings_ref = $self->{defragment_settings};
     my $reextract    = $settings_ref->{reextract};
+    my $preview      = $settings_ref->{preview};
+	my $target_name  = $target_ref->{target_name};
   
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
 	my $total_loci     = $settings_ref->{total_loci};
@@ -218,7 +230,6 @@ sub defragment_target_file {
 	# Get number of clusters for this target file, and increment totals
 	my @cluster_ids  = keys %target_defragmented;
 	my $num_clusters = scalar @cluster_ids;
-	
 	$total_loci     = $total_loci + $num_hits;
 	$total_clusters = $total_clusters + $num_clusters;
 
@@ -228,34 +239,28 @@ sub defragment_target_file {
 	}
 
 	# Derive a single, merged locus for clusters of loci that were grouped into a cluster
-	my $extended  = $self->merge_clustered_loci(\%target_defragmented, $loci_ref, $reextract);
+	my $extended  = $self->merge_clustered_loci(\%target_defragmented, $loci_ref);
 	print "\n\t\t # $extended extensions to previously extracted sequences ";
 	my $num_new   = scalar @$loci_ref;
 	print "\n\t\t # $num_new loci to extract after defragment ";
-	
-	# Extract & reassign
-	if ($reextract and $num_new) {
-		$self->reextract_and_reassign($settings_ref);
-	}
-	
-	else {  # Update DB
-		
-		die;
-		# Need to rename some fields
-		foreach my $hit_ref (@$loci_ref) {
-	
-			$hit_ref->{extract_start}   = $hit_ref->{start};
-			$hit_ref->{extract_end}     = $hit_ref->{end};
-			$hit_ref->{sequence}        = 'NULL';
-			$hit_ref->{sequence_length} = 0;
-			#$devtools->print_hash($hit_ref); die;
-		}
-		#$digs_obj->update_db(\@loci, $copy_table_name);
-	}
-
 	$settings_ref->{total_loci}     = $total_loci;
 	$settings_ref->{total_clusters} = $total_clusters;
-		
+	if ($preview) { return; }
+
+	# Need to rename some fields
+	foreach my $hit_ref (@$loci_ref) {
+		$hit_ref->{start} = $hit_ref->{extract_start};
+		$hit_ref->{end}   = $hit_ref->{extract_end};
+	}
+	
+	# Extract & reassign
+	if ($reextract) {
+		$self->reextract_and_reassign($target_ref, \%target_defragmented);
+	}	
+	else {  # Update DB	
+		die;
+		#$digs_obj->update_db($loci_ref, $copy_table_name);
+	}		
 }
 
 #***************************************************************************
@@ -264,9 +269,70 @@ sub defragment_target_file {
 #***************************************************************************
 sub reextract_and_reassign {
 
-	my ($self) = @_;
+	my ($self, $target_ref, $loci_ref) = @_;
 
-	die;
+	my $genome_use_path  = $self->{genome_use_path};
+	my $target_group_ref = $self->{target_groups};
+	my $settings_ref     = $self->{defragment_settings};
+	my $copy_table_name  = $settings_ref->{table_name};
+	my $extract_obj      = Extract->new($self);
+	my $db_ref           = $self->{db};
+
+	unless ($genome_use_path and $target_group_ref)  { die; }
+
+	# Defragment each target file in turn
+	# Get the target details (and thus the target path)
+	#my $target_path = $self->get_target_file_path($target_ref);
+	my $organism        = $target_ref->{organism};
+	my $target_datatype = $target_ref->{target_datatype};
+	my $target_version  = $target_ref->{target_version};
+	my $target_name     = $target_ref->{target_name};
+	my @genome = ( $organism , $target_datatype, $target_version, $target_name );
+	my $target_id       = join ('|', @genome);
+	print "\n\t\t # Defragmenting hits in '$target_name'";
+
+	# If we're re-extracting, get the path
+	my $target_group = $target_group_ref->{$target_id};
+	unless ($target_group) { 
+		$devtools->print_hash($target_group_ref);
+		print "\n\t Didn't get target group name for target file with id '$target_id'\n\n";
+		die; 
+	}
+		
+	# Construct the path to this target file
+	my @path;
+	push (@path, $genome_use_path);
+	push (@path, $target_group);
+	push (@path, $organism);
+	push (@path, $target_datatype);
+	push (@path, $target_version);
+	push (@path, $target_name);
+	my $target_path = join ('/', @path);
+
+	# Extract newly identified or extended sequences
+	my @extracted;
+	$extract_obj->extract_sequences_using_blast($target_path, $loci_ref, \@extracted);	
+			
+	# Do the genotyping step for the newly extracted locus sequences
+	my $assigned_count   = 0;
+	my $crossmatch_count = 0;
+	my $num_extracted = scalar @extracted;
+
+	print "\n\t\t # Genotyping $num_extracted newly extracted sequences:";
+	foreach my $hit_ref (@extracted) { # Iterate through loci	
+	
+		my $classify_obj = Classify->new($self);
+		$classify_obj->classify_sequence_using_blast($hit_ref);
+		$assigned_count++;
+		my $remainder = $assigned_count % 100;
+		if ($remainder eq 0) { print "\n\t\t\t # $assigned_count sequences classified "; }
+		
+	}
+	print "\n\t\t\t # $assigned_count sequences classified";
+
+	# Update DB
+	my $num_deleted = $db_ref->update_db(\@extracted, $copy_table_name, 1);
+	print "\n\t\t\t # $num_deleted rows deleted from digs_results table\n";
 
 }
 
@@ -486,7 +552,7 @@ sub extend_cluster {
 #***************************************************************************
 sub merge_clustered_loci {
 	
-	my ($self, $defragmented_ref, $to_extract_ref, $reextract) = @_;
+	my ($self, $defragmented_ref, $to_extract_ref) = @_;
 
 	#$devtools->print_hash($defragmented_ref); die;
 
@@ -502,7 +568,7 @@ sub merge_clustered_loci {
 		my $cluster_ref = $defragmented_ref->{$id};
 		unless ($cluster_ref) { die; }
 		my $num_cluster_loci = scalar @$cluster_ref;
-		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref, $reextract);
+		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref);
 		if   ($extended) { $extend_count = $extend_count + $extended; }
 	}
 	return $extend_count;
@@ -514,7 +580,7 @@ sub merge_clustered_loci {
 #***************************************************************************
 sub merge_cluster {
 	
-	my ($self, $cluster_id, $cluster_ref, $to_extract_ref, $reextract) = @_;
+	my ($self, $cluster_id, $cluster_ref, $to_extract_ref) = @_;
 
 	# Determine what to extract for this cluster
 	my $verbose = $self->{verbose}; # Get 'verbose' flag setting
@@ -590,15 +656,13 @@ sub merge_cluster {
 
 	# Determine whether or not we need to extract sequences for this cluster
 	# Extract if cluster is composed entirely of new loci (no previous result IDs)
-	unless ($reextract) {
-		unless ($previous_digs_result_id) { 
-			if ($verbose) {
-				print "\n\t\t # Cluster $cluster_id is comprised entirely of new loci ";
-			}
-			$extract = 'true';	
+	unless ($previous_digs_result_id) { 
+		if ($verbose) {
+			print "\n\t\t # Cluster $cluster_id is comprised entirely of new loci ";
 		}
+		$extract = 'true';	
 	}
-	
+ 	
 	# Is this a merge of multiple previously extracted loci?
 	my @previous_digs_result_ids = keys %previous_digs_result_ids;
 	my $num_previously_extracted_loci_in_cluster = scalar @previous_digs_result_ids;
@@ -665,7 +729,6 @@ sub show_clusters {
 	my ($self, $defragmented_ref) = @_;
 
 	#$devtools->print_hash($defragmented_ref); die;
-
 	my @cluster_ids = keys %$defragmented_ref;
 	my $cluster_count;
 	foreach my $id (@cluster_ids) {
@@ -725,6 +788,26 @@ sub show_cluster {
 }
 
 #***************************************************************************
+# Subroutine:  display_config
+# Description: display current defragment configuration
+#***************************************************************************
+sub display_config {
+
+	my ($self) = @_;
+
+	my $settings_ref = $self->{defragment_settings};
+	my $t_range      = $settings_ref->{range};
+
+	my $current_range = $self->{defragment_range};
+	unless ($current_range )  { die; } 
+	print "\n\n\t # Current settings:\n";
+	print "\n\t\t   defragment range:      $current_range";
+	if ($t_range) {
+		print "\n\t\t   current preview range: $t_range";
+	}
+}
+
+#***************************************************************************
 # Subroutine:  summarise_defragment_result
 # Description: summarise the extent to which digs_result table was compressed
 #***************************************************************************
@@ -735,25 +818,9 @@ sub summarise_defragment_result {
 	my $settings_ref   = $self->{defragment_settings};
 	my $total_loci     = $settings_ref->{total_loci};
 	my $total_clusters = $settings_ref->{total_clusters};
-	print "\n\t\t\t TOTAL LOCI:     $total_loci";
-	print "\n\t\t\t TOTAL CLUSTERS: $total_clusters ";
+	print "\n\t\t   TOTAL LOCI:            $total_loci";
+	print "\n\t\t   TOTAL CLUSTERS:        $total_clusters ";
 	
-}
-
-#***************************************************************************
-# Subroutine:  display_config
-# Description: diaplay current defragment configuration
-#***************************************************************************
-sub display_config {
-
-	my ($self) = @_;
-
-	#my $settings_ref = $self->{defragment_settings};
-
-	my $current_range = $self->{defragment_range};
-	unless ($current_range )  { die; } 
-	print "\n\n\t\t Current settings (based on control file)";
-	print "\n\t\t defragment range: $current_range";
 }
 
 ############################################################################
