@@ -82,7 +82,8 @@ sub extract_sequences_using_blast {
 	my $blast_obj = $self->{blast_obj};
 	my $verbose   = $self->{verbose};
 	my $buffer    = $self->{extract_buffer};
-
+	unless ($blast_obj) { die; }
+	
 	# Iterate through the list of sequences to extract
 	my $new_loci = 0;
 	foreach my $locus_ref (@$loci_ref) {
