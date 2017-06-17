@@ -270,7 +270,7 @@ sub perform_digs {
 			$self->classify_sequences_using_blast(\@extracted, $query_ref);
 			
 			# Update tables in the screening database to reflect new information
-			$self->update_db(\@extracted, 'digs_results_table', 1);
+			$db_ref->update_db(\@extracted, 'digs_results_table', 1);
 	
 			# Update the searches_performed table, indicating search has completed
 			$searches_table->insert_row($query_ref);
@@ -570,80 +570,6 @@ sub compile_nonredundant_locus_set {
 	
 	if ($num_new){  print "\n\t\t # $num_new sequences to extract"; }	
 	else         {  print "\n\t\t # No new loci to extract";        }	
-}
-
-#***************************************************************************
-# Subroutine:  update_db
-# Description: update the screening DB based on a completed round of DIGS
-#***************************************************************************
-sub update_db {
-
-	my ($self, $extracted_ref, $table_name, $update) = @_;
-		
-	# Get parameters from self
-	my $db_ref              = $self->{db};
-	my $verbose             = $self->{verbose};
-	my $digs_results_table  = $db_ref->{$table_name}; 
-	my $active_set_table    = $db_ref->{active_set_table}; 
-	my $blast_chains_table  = $db_ref->{blast_chains_table}; 
-
-	# Iterate through the extracted sequences
-	my $deleted = '0';
-	foreach my $hit_ref (@$extracted_ref) {
-		
-		# Insert the data to the digs_results table
-		my $digs_result_id;
-		if ($update) {
-			$digs_result_id = $digs_results_table->insert_row($hit_ref);
-		}
-		else {
-			$digs_result_id = $hit_ref->{digs_result_id};
-			my $where = " WHERE record_id = $digs_result_id ";
-			my %update;
-			$update{extract_start} = $hit_ref->{extract_start};
-			$update{extract_end}   = $hit_ref->{extract_end};
-			$digs_results_table->update(\%update, $where);		
-		}
-		
-		# Insert the data to the BLAST_chains table
-		my $blast_chains = $hit_ref->{blast_chains};
-		if ($blast_chains) {		
-			my @blast_ids = keys %$blast_chains;
-			foreach my $blast_id (@blast_ids) {							
-				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->insert_row($data_ref);
-			}
-		}
-		unless ($digs_result_id) { die; }
-		
-		# Delete superfluous data from the digs_results table
-		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
-		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
-			
-			# Where we updated an existing record, keep that record
-			unless ($old_digs_result_id eq $digs_result_id) {
-
-				# Delete superfluous extract rows
-				my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
-				if ($verbose) { print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'"; }
-				$digs_results_table->delete_rows($extracted_where);
-				$deleted++;
-
-				# Update extract IDs			
-				my $chains_where = " WHERE record_id = $old_digs_result_id ";
-				my %new_id;
-				$new_id{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->update(\%new_id, $chains_where);
-			}
-		}
-	}
-
-	# Flush the active set table
-	$active_set_table->flush();
-
-	# Return the number
-	return $deleted;
 }
 
 ############################################################################
