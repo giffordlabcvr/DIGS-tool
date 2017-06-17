@@ -182,12 +182,12 @@ sub run_tests {
 	# Do a screen using test control file and synthetic target data
 	print "\n\n\t ### Running DIGS tests ~ + ~ + ~ \n";
 	$self->run_test_1();
-	$self->run_test_2();
+	#$self->run_test_2();
 	$self->run_test_3();
-	$self->run_test_4();
+	#$self->run_test_4();
 	$self->run_test_5();
-	$self->run_test_6();
-	$self->run_test_7();
+	#$self->run_test_6();
+	#$self->run_test_7();
 	#$self->run_test_10();
 
 	# Print finished message
@@ -302,20 +302,21 @@ sub run_test_2 {
 
 	# Initialise the DIGS object
 	my $initialise_obj = Initialise->new($digs_obj);
-	$initialise_obj->setup_for_a_digs_run($digs_obj);
+	$initialise_obj->setup_for_defrag_or_consolidate($digs_obj);
 
 	# Get digs results ready for defragment process
 	my @sorted_digs_results;
 	$db_ref->get_sorted_digs_results(\@sorted_digs_results, $where);
 	my $num_hits = scalar @sorted_digs_results;
 	print "\n\t\t # $num_hits digs results to defragment ";
-	#$devtools->print_array(\@sorted_digs_results); die;
 	$settings{defragment_loci} = \@sorted_digs_results;
-	$settings{digs_obj} = $digs_obj;
- 
+	$settings{table_name}      = 'digs_results';
+	#$devtools->print_array(\@sorted_digs_results); die;
+
+
 	# Defragment results for this target file
 	my $defrag_obj = Defragment->new($digs_obj);	
-	my $num_new = $defrag_obj->defragment_target(\%settings, $target_path, 'digs_results');
+	my $num_new = $defrag_obj->defragment();
 	if ($num_new eq '0' )  { print "\n\n\t  Defragment negative test: ** PASSED **\n" }
 	else                   { die   "\n\n\t  Defragment negative test: ** FAILED **\n" }
 	sleep 1;
