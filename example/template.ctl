@@ -5,8 +5,8 @@ ENDBLOCK;
 
 BEGIN SCREENSETS;
 	output_path=./example/tmp/;
-	query_aa_fasta=/example/libraries/example-probe-library.faa;
-	reference_aa_fasta=/example/libraries/example-reference-library.faa;
+	query_aa_fasta=./example/libraries/erv_rt_probes.faa;
+	reference_aa_fasta=./example/libraries/erv_rt_references.faa;
 	seq_length_minimum=60;
 	bitscore_min_tblastn=40;
 	defragment_range=100;
