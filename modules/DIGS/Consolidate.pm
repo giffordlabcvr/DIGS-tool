@@ -1,3 +1,79 @@
+#!usr/bin/perl -w
+############################################################################
+# Module:      Consolidate.pm
+# Description: Functions for clustering merging matches to different probes
+#              into higher order structures
+# History:     April  2017: Created by Robert Gifford 
+############################################################################
+package Consolidate;
+
+############################################################################
+# Import statements/packages (externally developed packages)
+############################################################################
+use strict;
+
+############################################################################
+# Import statements/packages (internally developed packages)
+############################################################################
+
+# Base classes
+use Base::FileIO;
+use Base::Console;
+use Base::DevTools;
+
+############################################################################
+# Globals
+############################################################################
+
+# Base objects
+my $fileio    = FileIO->new();
+my $console   = Console->new();
+my $devtools  = DevTools->new();
+
+# Maximum range for Consolidate
+my $max = 100000000;
+1;
+
+############################################################################
+# LIFECYCLE
+############################################################################
+
+#***************************************************************************
+# Subroutine:  new
+# Description: create new Consolidate 'object'
+#***************************************************************************
+sub new {
+
+	my ($invocant, $parameter_ref) = @_;
+	my $class = ref($invocant) || $invocant;
+
+	# Declare empty data structures
+	my %crossmatching;
+
+	# Set member variables
+	my $self = {
+
+		# Set-up params
+		consolidate_range       => $parameter_ref->{Consolidate_range}, 
+		consolidate_mode        => $parameter_ref->{Consolidate_mode}, 
+	    consolidate_settings    => $parameter_ref->{Consolidate_settings}, 
+		
+		# Member classes 
+		db                     => $parameter_ref->{db},  
+		blast_obj              => $parameter_ref->{blast_obj},
+		   
+		# Paths used in consolidate processes
+		genome_use_path        => $parameter_ref->{genome_use_path},
+		output_path            => $parameter_ref->{output_path},
+		target_groups          => $parameter_ref->{target_groups},
+		tmp_path               => $parameter_ref->{tmp_path},
+
+	};
+	
+	bless ($self, $class);
+	return $self;
+}
+
 ############################################################################
 # CONSOLIDATION FXNS
 ############################################################################
@@ -22,7 +98,8 @@ sub consolidate_loci {
 	my $settings_ref = $self->{consolidate_settings};
 	unless ($settings_ref) { die; }
 	my %consolidated;
-	$self->compose_clusters(\%consolidated, \@sorted, $settings_ref);
+	my $defragment_obj = Defragment->new($self);
+	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	
 	# Check the output
 	my @cluster_ids  = keys %consolidated;
@@ -332,3 +409,6 @@ sub annotate_consolidated_locus_flanks {
 	}
 }
 
+############################################################################
+# EOF
+############################################################################
