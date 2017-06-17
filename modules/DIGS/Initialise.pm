@@ -86,7 +86,8 @@ sub initialise {
 	
 	# SET-UP FOR REASSIGN
 	if ($option eq 3) { 
-		$self->setup_for_reassign($digs_obj);
+		my $force = $digs_obj->{force};
+		$self->setup_for_reassign($digs_obj, $force);
 	}
 	
 	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
@@ -118,7 +119,7 @@ sub do_general_setup {
 	$loader_obj->parse_control_file($ctl_file, $digs_obj, $option); 
 	
 	# Create the output directories if running a screen or re-assigning results table
-	if ($option eq 2 or $option eq 3) { # Need output directory for these options
+	if ($option eq 2 or $option eq 3 or $option eq 4) { # Need output directory for these options
 
 		$self->create_output_directories($digs_obj);
 
@@ -285,11 +286,11 @@ sub index_previously_executed_searches {
 #***************************************************************************
 sub setup_for_reassign {
 
-	my ($self, $digs_obj) = @_;
+	my ($self, $digs_obj, $force) = @_;
 
 	my $loader_obj = $digs_obj->{loader_obj};
 	my $where = '';
-	unless ($digs_obj->{force}) {
+	unless ($force) {
 		# Option to enter a WHERE statement
 		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
 		$where = $console->ask_question($question);
@@ -367,6 +368,9 @@ sub setup_for_defrag_or_consolidate {
 
 		# Set up the reference library
 		$loader_obj->setup_reference_libraries($self);
+		
+		my $force = 'true'; # Prevents console prompting for a WHERE clause
+		$self->setup_for_reassign($digs_obj, $force);
 
 	}
 	# DO SET-UP NEEDED FOR CONSOLIDATE ONLY
