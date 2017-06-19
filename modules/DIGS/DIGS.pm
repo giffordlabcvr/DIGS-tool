@@ -258,13 +258,17 @@ sub perform_digs {
 			$self->search_target_file_using_blast($query_ref);
 		
 			# For this target, create a non-redundant locus set
-			my @new_hits;
-			$self->compile_nonredundant_locus_set($query_ref, \@new_hits);
+			my @combined;
+			$self->created_combined_locus_set($query_ref, \@combined);
 			
+			# Defragment the combined set of new and previously identified loci
+			my @to_extract;
+			$self->defragment_locus_set(\@combined, \@to_extract);
+					
 			# Extract newly identified or extended sequences
 			my @extracted;
 			my $target_path = $query_ref->{target_path};
-			$extract_obj->extract_sequences_using_blast($target_path, \@new_hits, \@extracted);	
+			$extract_obj->extract_sequences_using_blast($target_path, \@to_extract, \@extracted);	
 			
 			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
 			$self->classify_sequences_using_blast(\@extracted, $query_ref);
@@ -503,20 +507,16 @@ sub classify_sequences_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  compile_nonredundant_locus_set
-# Description: determine what to extract based on current results
-# Note similar to defragment_target fxn
+# Subroutine:  created_combined_locus_set
+# Description: combine a new set of hits with existing hits for a given target file
 #***************************************************************************
-sub compile_nonredundant_locus_set {
+sub created_combined_locus_set {
 	
-	my ($self, $query_ref, $to_extract_ref) = @_;
+	my ($self, $query_ref, $combined_ref) = @_;
 
 	# Get flags and objects
 	my $verbose        = $self->{verbose};
 	my $db_ref         = $self->{db};
-
-	# Create the defragmentor
-	my $defragment_obj = Defragment->new($self);
 
 	# Compose SQL WHERE statement to retrieve relevant set of loci
 	my $target_name     = $query_ref->{target_name};
@@ -524,7 +524,6 @@ sub compile_nonredundant_locus_set {
 	my $probe_name      = $query_ref->{probe_name};
 	my $probe_gene      = $query_ref->{probe_gene};
 	my $probe_type      = $query_ref->{probe_type};
-
 	my $where  = " WHERE organism = '$organism' ";
 	   $where .= " AND target_name = '$target_name' "; # Always limit by target
 	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
@@ -539,35 +538,46 @@ sub compile_nonredundant_locus_set {
 	$db_ref->add_digs_results_to_active_set(\@digs_results);
 
 	# Get sorted list of digs results and BLAST hits from active_set table
-	my @combined;
-	$db_ref->get_sorted_active_set(\@combined);
-	my $total_loci = scalar @combined;
+	$db_ref->get_sorted_active_set($combined_ref, $where);
+
+	# Show output 
+	my $total_loci = scalar @$combined_ref;
 	if ($verbose) {
 		if ($total_loci > 0) {
 			print "\n\t\t # $total_loci rows in active set (including $num_loci previously extracted) ";
 		}
 	}
+}
 
+#***************************************************************************
+# Subroutine:  defragment_locus_set
+# Description: create a non-redundant set of loci
+#***************************************************************************
+sub defragment_locus_set {
 
-	# Compose clusters of overlapping/adjacent loci
+	my ($self, $combined_ref, $to_extract_ref) = @_;
+
+	# Create the defragmentor
+	my $defragment_obj = Defragment->new($self);
+
+	# Define settings
 	my %settings;
-	my %defragmented;
 	$settings{range} = $self->{defragment_range};
 	$settings{start} = 'subject_start';
 	$settings{end}   = 'subject_end';
-	$defragment_obj->compose_clusters(\%defragmented, \@combined, \%settings);
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @combined;
-	if ($verbose) {
-		if ($total_loci > $num_clusters) {
-		}
-	}
+	
+	# Compose clusters of overlapping/adjacent loci		
+	my %defragmented;
+	$defragment_obj->compose_clusters(\%defragmented, $combined_ref, \%settings);
 
-	# Extract a merged locus for loci that were grouped into a cluster
+	# Derive a non-redundant set of loci
 	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
-	
+
+	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
+	my @cluster_ids  = keys %defragmented;
+	my $num_clusters = scalar @$combined_ref;
+
 	if ($num_new){  print "\n\t\t # $num_new sequences to extract"; }	
 	else         {  print "\n\t\t # No new loci to extract";        }	
 }
@@ -575,26 +585,6 @@ sub compile_nonredundant_locus_set {
 ############################################################################
 # CONSOLE OUTPUT 
 ############################################################################
-
-#***************************************************************************
-# Subroutine:  show_digs_progress
-# Description: show progress in DIGS screening
-#***************************************************************************
-sub show_digs_progress {
-
-	my ($self) = @_;
-
-	# Get the counts
-	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{queries_completed};	
-	unless ($completed and $total_queries) { die; } # Sanity checking
-	
-	# Calculate percentage progress
-	my $percent_prog    = ($completed / $total_queries) * 100;
-	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
-	#print "\n\t\t  ";
-	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
-}
 
 #***************************************************************************
 # Subroutine:  show_title
@@ -644,6 +634,26 @@ sub show_help_page {
 	   $HELP  .= "\n\n\t Run '$0 -e' to see additional utility functions\n\n\n"; 
 
 	print $HELP;
+}
+
+#***************************************************************************
+# Subroutine:  show_digs_progress
+# Description: show progress in DIGS screening
+#***************************************************************************
+sub show_digs_progress {
+
+	my ($self) = @_;
+
+	# Get the counts
+	my $total_queries   = $self->{total_queries};
+	my $completed       = $self->{queries_completed};	
+	unless ($completed and $total_queries) { die; } # Sanity checking
+	
+	# Calculate percentage progress
+	my $percent_prog    = ($completed / $total_queries) * 100;
+	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
+	#print "\n\t\t  ";
+	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
 }
 
 #***************************************************************************

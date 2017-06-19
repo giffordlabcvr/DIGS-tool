@@ -158,7 +158,7 @@ sub classify_sequence_using_blast {
 		#$devtools->print_hash($locus_ref); die;
 		if ($verbose) { 
 			my $id = $locus_ref->{record_id};
-			print "\n\t\t    - Record '$id' assigned as '$assigned_name ($assigned_gene)'";
+			print "\n\t\t    - Assigned as '$assigned_name ($assigned_gene)'";
 		 	print " via $blast_alg comparison to $lib_file";
 		 }
 		$assigned = $assigned_name . '_' . $assigned_gene;
