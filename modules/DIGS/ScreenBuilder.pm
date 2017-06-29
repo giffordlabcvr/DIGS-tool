@@ -188,7 +188,7 @@ sub get_fasta_probes {
 			$probe{sequence}        = $seq;
 			
 			if ($probe_ids{$probe_id}) {
-				print "\n\t   - Warning: non-unique probe name '$probe_id' in probe set";
+				print "\t   - Warning: non-unique probe name '$probe_id' in probe set\n";
 			}
 			else {
 				$probe_ids{$probe_id} = 1;
@@ -301,7 +301,7 @@ sub create_reference_library {
 	}
 
 	if ($nonunique) {
-		print "\n\t   - Warning: $nonunique non-unique names identified in reference library";
+		print "\t   - Warning: $nonunique non-unique names identified in reference library\n";
 		sleep 1;
 		#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
 	}
