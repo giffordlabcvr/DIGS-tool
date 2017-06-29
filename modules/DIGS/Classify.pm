@@ -140,7 +140,7 @@ sub classify_sequence_using_blast {
 		# Split assigned to into (i) refseq match (ii) refseq description (e.g. gene)	
 		my @assigned_key  = split('_', $assigned_key);
 		my $assigned_gene = pop @assigned_key;
-		my $assigned_name = shift @assigned_key;
+		my $assigned_name = join ('_', @assigned_key);
 		#$assigned_name = join ('_', @assigned_name);
 		$locus_ref->{assigned_name}  = $assigned_name;
 		$locus_ref->{assigned_gene}  = $assigned_gene;
