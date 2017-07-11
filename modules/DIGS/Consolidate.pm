@@ -54,9 +54,9 @@ sub new {
 	my $self = {
 
 		# Set-up params
-		consolidate_range       => $parameter_ref->{Consolidate_range}, 
-		consolidate_mode        => $parameter_ref->{Consolidate_mode}, 
-	    consolidate_settings    => $parameter_ref->{Consolidate_settings}, 
+		consolidate_range       => $parameter_ref->{consolidate_range}, 
+		consolidate_mode        => $parameter_ref->{consolidate_mode}, 
+	    consolidate_settings    => $parameter_ref->{consolidate_settings}, 
 		
 		# Member classes 
 		db                     => $parameter_ref->{db},  
@@ -98,6 +98,7 @@ sub consolidate_loci {
 	my $settings_ref = $self->{consolidate_settings};
 	unless ($settings_ref) { die; }
 	my %consolidated;
+	$self->{defragment_mode} = 'consolidate';
 	my $defragment_obj = Defragment->new($self);
 	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	
@@ -133,9 +134,8 @@ sub derive_locus_table_from_clustered_digs_results {
 	my $loci_chains_table = $db_ref->{loci_chains_table};
 	
 	# Flags for how to handle
-	#my $reextract = undef;
 	my $reextract = 'true';
-	#my $annotate_ends = undef;
+	#my $reextract = undef;
 	my $annotate_ends = 'true';
 
 	# Iterate through the clusters	
@@ -177,6 +177,7 @@ sub derive_locus_table_from_clustered_digs_results {
 			$loci_chains_table->insert_row(\%chain_data);
 		}		
 	}
+	
 }
 
 #***************************************************************************
@@ -193,7 +194,10 @@ sub derive_locus_structure {
 	my $version;
 	my $target_name;
 	my $datatype;
+	
 	my $assigned_name;
+	my $last_assigned_name;
+
 	my $feature;
 	my $lowest;
 	my $highest;
@@ -225,7 +229,7 @@ sub derive_locus_structure {
 		$organism       = $element_ref->{organism};
 		$target_name    = $element_ref->{target_name};
 		unless ($feature and $orientation) { die; } # Sanity checking
-		my $record      = "$feature($orientation)";
+		my $record      = "$feature\[$assigned_name($orientation)\]";
 		#print "\n\t RECORD $record";
 
 		# Create a target key

@@ -23,7 +23,8 @@ use Base::DevTools;
 # Program components
 use DIGS::Initialise;    # Initialises the DIGS tool
 use DIGS::ScreenBuilder; # To set up a DIGS run
-use DIGS::Defragment;    # Cluster/defragment/consolidate tools
+use DIGS::Defragment;    # Defragment tools
+use DIGS::Consolidate;   # Consolidate locus functions
 use DIGS::Extract;       # Extracting sequences for FASTA files using BLAST
 use DIGS::Classify;      # Classifying sequences using BLAST
 use DIGS::CrossMatch;    # Recording cross-matching during DIGS
@@ -182,16 +183,17 @@ sub hand_off_to_digs_fxns {
 	# Defragmenting screening results
 	elsif ($option eq 4 or $option eq 5) {	
 
-		# Create a defragmenter module
-		my $defragment_obj = Defragment->new($self);
-	
 		if ($option eq 4) {
+			# Create a defragmenter module
+			my $defragment_obj = Defragment->new($self);
 		    # Interactively defragment contiguous hits to the same gene 	
 			$defragment_obj->interactive_defragment();
 		}
 		elsif ($option eq 5) {  
+			# Create a consolidate module
+			my $consolidate_obj = Consolidate->new($self);
 			# Combine hits to different genes into higher order locus structures
-			$defragment_obj->consolidate_loci();
+			$consolidate_obj->consolidate_loci();
 		}
 	}
 	

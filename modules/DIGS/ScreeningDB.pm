@@ -1529,8 +1529,8 @@ sub import_data_to_digs_results {
 	foreach my $line (@data) {
 
 		chomp $line;
+		$line =~ s/"//g;
 		my @line = split(",", $line);
-
 		my %data;
 		#$devtools->print_array(\@line); die;
 		$data{record_id}       = shift @line;

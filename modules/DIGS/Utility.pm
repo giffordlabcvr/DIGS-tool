@@ -164,6 +164,9 @@ sub run_screening_db_management_process {
 		$db->drop_screening_db();    
 	}
 	elsif ($option eq 5) {
+		$self->append_to_digs_results($ctl_file);
+	}
+	elsif ($option eq 6) {
 		$self->extract_track_sequences($ctl_file);
 	}
 	else {
@@ -261,6 +264,32 @@ sub drop_db_table {
 		print "\n\n\t  # There are no ancillary tables in DIGS screening DB '$db_name'\n";	
 	}
 	
+}
+
+#***************************************************************************
+# Subroutine:  append_to_digs_results
+# Description: append to digs_result table
+#***************************************************************************
+sub append_to_digs_results {
+
+	my ($self) = @_;
+
+	# Get database handle, die if we can't 
+	my $digs_obj = $self->{digs_obj};
+
+	my $db = $digs_obj->{db};
+	unless ($db) { die; }
+
+	# Get the file path
+	print "\n\n\t #### WARNING: This function expects !";
+	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
+	my $infile = $console->ask_question($question);
+	unless ($infile) { die; }
+
+	# Insert the data	
+	print "\n\n\t #### IMPORTING '$infile' to digs_results table";
+	$db->import_data_to_digs_results($infile)
+
 }
 
 ############################################################################
@@ -509,6 +538,7 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t   -d=2   Flush core tables"; 
 	   $HELP  .= "\n\t   -d=3   Drop tables";
 	   $HELP  .= "\n\t   -d=4   Drop a screening DB"; 
+	   $HELP  .= "\n\t   -d=5   Append data to 'digs_results' table"; 
 
 	   $HELP  .= "\n\n"; 
 
