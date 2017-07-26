@@ -315,7 +315,7 @@ sub derive_locus_structure {
 
 #***************************************************************************
 # Subroutine:  extract_consolidated_locus
-# Description: 
+# Description: extract a sequence spanning a consolidated locus set
 #***************************************************************************
 sub extract_consolidated_locus {
 
