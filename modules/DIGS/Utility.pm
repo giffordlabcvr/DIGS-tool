@@ -98,6 +98,7 @@ sub run_utility_process {
 			$self->parse_ctl_file_and_connect_to_db($infile);
 		}
 		else {
+			print "\n\t  No infile was supplied: enter parameters below\n\n";
 			$self->do_load_db_dialogue();		
 		}
 		if ($database) {
