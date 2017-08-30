@@ -149,7 +149,7 @@ sub initialise {
 		if ($ctl_file) { # Try to initialise using the input file
 			$valid = $initialise_obj->initialise($self, $option, $ctl_file);
 		}
-		elsif ($option > 1 and $option <= 5) { # Show error if no infile
+		elsif ($option > 1 and $option <= 6) { # Show error if no infile
 			print "\n\t  Option '-m=$option' requires an infile\n\n";	
 		}
 		else {	# Show error, these options are not available
@@ -197,14 +197,12 @@ sub hand_off_to_digs_fxns {
 		}
 	}
 	
-	# Assigning unique IDs
+	# Creating unique IDs
 	elsif ($option eq 6) {   # Enter locus ID assignment functions
-
-		# Create a defragmenter module
-		my $nomeclature_obj = Nomenclature->new($self);
 		die;
 	}
 	else { die; } # Shouldn't get here
+
 }
 
 ############################################################################

@@ -135,7 +135,6 @@ sub main {
 	my $database     = undef;
 	my $utility      = undef;
 	my $genomes      = undef;
-	my $nomenclature = undef;
 	
 	# Options that don't require a value
 	my $help         = undef;
@@ -151,7 +150,6 @@ sub main {
 			    'database|d=i'   => \$database,
 			    'utility=i'      => \$utility,
 			    'genomes=i'      => \$genomes,
-			    'nomenclature=i' => \$nomenclature,
 			      
 			    'help'           => \$help,
 			    'extra_help'     => \$extra_help,
@@ -190,12 +188,7 @@ sub main {
 	elsif ($database or $utility or $genomes or $utility) { # Utility functions
 		my $utility_obj = Utility->new($digs_tool_obj);
 		$utility_obj->run_utility_process($infile, $database, $genomes, $utility); 
-	}
-	elsif ($nomenclature) { # Utility functions
-		my $nomenclature_obj = Nomenclature->new($digs_tool_obj);
-		$nomenclature_obj->create_standard_locus_ids($infile); 
-	}
-	
+	}	
 	else { die $USAGE; }
 
 	# Exit script
