@@ -177,7 +177,7 @@ sub main {
 		my $test_obj = Test->new($digs_tool_obj);
 		$test_obj->show_test_validation_options();
 	}
-	elsif ($extra_help) {
+	elsif ($extra_help) { # Show help for utility options
 		my $utility_obj = Utility->new($digs_tool_obj);
 		$utility_obj->show_utility_help_page();
 		exit;
