@@ -419,8 +419,6 @@ sub setup_for_nomenclature {
 	# Create a defragmenter module
 	my $nomeclature_obj = Nomenclature->new($digs_obj);
 
-	# Create a defragmenter module
-	my $nomeclature_obj = Nomenclature->new($digs_obj);
 
 }
 
