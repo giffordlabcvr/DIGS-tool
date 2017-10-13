@@ -128,6 +128,9 @@ sub show_screening_db_validation_options {
 
 	if ($option eq 1) { # DB schema translation
 		my $db_obj = $digs_obj->{db};
+		unless ($db_obj) {
+			die;
+		}
 		$db_obj->translate_schema();
 	}
 	elsif ($option eq 2) { # Show the BLAST chains for each extracted locus

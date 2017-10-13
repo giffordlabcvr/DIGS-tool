@@ -72,7 +72,7 @@ sub new {
 #***************************************************************************
 sub create_standard_locus_ids {
 
-	my ($self, $infile) = @_;
+	my ($self) = @_;
 
  	# Show title
 	my $digs_obj = $self->{digs_obj};
@@ -82,7 +82,8 @@ sub create_standard_locus_ids {
 	$digs_obj->{defragment_mode} = 'consolidate';
 	
 	# Initialise database
-	$self->initialise_nomenclature_db($infile);
+	$self->initialise_nomenclature_db();
+	die;
 
 	# Do console dialogue to get input parameters
 	$self->do_console_setup_dialogue();
@@ -669,7 +670,10 @@ sub load_gene_name_translation_table {
 #***************************************************************************
 sub initialise_nomenclature_db {
 
-	my ($self, $infile) = @_;
+	my ($self) = @_;
+	
+	# Get the infile
+	my $infile; die;
 	
 	# Parse control file and connect to DB
 	unless($infile) {

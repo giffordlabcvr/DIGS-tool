@@ -477,8 +477,7 @@ sub create_directory {
 	my $mkdir_cmd = "mkdir $unique_dir";
 	my $result = system $mkdir_cmd;
 	if ($result > 0) {
-		print "\n\t ### Error: couldn't create output directory using command 'mkdir $unique_dir'";
-		print "\n\t ### Check path and permissions\n\n";
+		print "\n\t ### Error: couldn't create output directory using command 'mkdir $unique_dir'\n\n";
 		die;
 	}
 }

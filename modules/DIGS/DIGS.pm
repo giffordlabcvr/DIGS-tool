@@ -149,8 +149,12 @@ sub initialise {
 		if ($ctl_file) { # Try to initialise using the input file
 			$valid = $initialise_obj->initialise($self, $option, $ctl_file);
 		}
-		elsif ($option > 1 and $option <= 6) { # Show error if no infile
+		elsif ($option > 1 and $option <= 5) { # Show error if no infile
 			print "\n\t  Option '-m=$option' requires an infile\n\n";	
+		}
+		elsif ($option eq 6) { 
+			print "\n\t  RUNNING LOCUS ID ASSIGNMENT TOOL\n\n";
+			$valid = 1;
 		}
 		else {	# Show error, these options are not available
 			print "\n\t  Unrecognized option '-m=$option'\n\n";
@@ -199,7 +203,9 @@ sub hand_off_to_digs_fxns {
 	
 	# Creating unique IDs
 	elsif ($option eq 6) {   # Enter locus ID assignment functions
-		die;
+		my $nomenclature_obj = Nomenclature->new($self);
+		$nomenclature_obj->create_standard_locus_ids();
+		
 	}
 	else { die; } # Shouldn't get here
 
