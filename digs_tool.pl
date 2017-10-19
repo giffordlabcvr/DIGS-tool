@@ -142,6 +142,7 @@ sub main {
 	my $verbose      = undef;
 	my $force        = undef;
 	my $test         = undef;
+	my $create_ids   = undef;
 	
 	# Read in options using GetOpt::Long
 	GetOptions ('infile|i=s'     => \$infile,
@@ -150,23 +151,18 @@ sub main {
 			    'database|d=i'   => \$database,
 			    'utility=i'      => \$utility,
 			    'genomes=i'      => \$genomes,
-			      
-			    'help'           => \$help,
+			    'create_ids'     => \$create_ids,			      
 			    'extra_help'     => \$extra_help,
 			    'verbose'        => \$verbose,
 			    'force'          => \$force,
+			    'help'           => \$help,
 			    'test'           => \$test,
 			    			    
 	) or die $USAGE;
 
-
 	# Set flags based on options received
-	if ($verbose) { 
-		$digs_tool_obj->{verbose} = 'true';
-	}
-	if ($force) { 
-		$digs_tool_obj->{force} = 'true';
-	}
+	if ($verbose) {  $digs_tool_obj->{verbose} = 'true'; }
+	if ($force)   {  $digs_tool_obj->{force} = 'true';   }
 
 	# Hand off to functions based on options received
 	if ($help) { # Show help page
@@ -184,6 +180,11 @@ sub main {
 	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($infile, $mode); 
+	}
+	elsif ($create_ids) { # Apply nomenclature rules to loci
+		my $nomenclature_obj = Nomenclature->new($digs_tool_obj);
+		$nomenclature_obj->create_standard_locus_ids($infile);
+		
 	}
 	elsif ($database or $utility or $genomes or $utility) { # Utility functions
 		my $utility_obj = Utility->new($digs_tool_obj);

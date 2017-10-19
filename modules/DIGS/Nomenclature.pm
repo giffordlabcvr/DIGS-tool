@@ -72,7 +72,7 @@ sub new {
 #***************************************************************************
 sub create_standard_locus_ids {
 
-	my ($self) = @_;
+	my ($self, $infile) = @_;
 
  	# Show title
 	my $digs_obj = $self->{digs_obj};
@@ -82,8 +82,7 @@ sub create_standard_locus_ids {
 	$digs_obj->{defragment_mode} = 'consolidate';
 	
 	# Initialise database
-	$self->initialise_nomenclature_db();
-	die;
+	$self->initialise_nomenclature_db($infile);
 
 	# Do console dialogue to get input parameters
 	$self->do_console_setup_dialogue();
@@ -670,11 +669,8 @@ sub load_gene_name_translation_table {
 #***************************************************************************
 sub initialise_nomenclature_db {
 
-	my ($self) = @_;
-	
-	# Get the infile
-	my $infile; die;
-	
+	my ($self, $infile) = @_;
+		
 	# Parse control file and connect to DB
 	unless($infile) {
 		die "\n\t This option requires an infile\n\n";
@@ -742,9 +738,10 @@ sub parse_ctl_file_and_connect_to_db {
 	# Load/create the screening database
 	my $db_name = $loader_obj->{db_name};
 	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-}
 
+	my $initialise_obj = Initialise->new($digs_obj);
+	$initialise_obj->initialise_screening_db($digs_obj, $db_name);
+}
 
 ############################################################################
 # UTILITY / DEV

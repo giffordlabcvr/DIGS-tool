@@ -200,13 +200,6 @@ sub hand_off_to_digs_fxns {
 			$consolidate_obj->consolidate_loci();
 		}
 	}
-	
-	# Creating unique IDs
-	elsif ($option eq 6) {   # Enter locus ID assignment functions
-		my $nomenclature_obj = Nomenclature->new($self);
-		$nomenclature_obj->create_standard_locus_ids();
-		
-	}
 	else { die; } # Shouldn't get here
 
 }
