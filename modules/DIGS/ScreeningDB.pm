@@ -417,25 +417,23 @@ sub load_contigs_table {
 #***************************************************************************
 sub load_tracks_table {
 
-	my ($self, $dbh, $table_name) = @_;
+	my ($self, $dbh) = @_;
 
 	# Definition of the table
 	my %nomenclature_fields = (	
-        track_name       => 'varchar',
-		organism_code    => 'varchar',	
-		locus_class      => 'varchar',	
-		taxon            => 'varchar',
-		gene             => 'varchar',
+        source           => 'varchar',
+		organism         => 'varchar',	
+		assembly         => 'varchar',	
+		short_name       => 'varchar',
 		scaffold         => 'varchar',
 		start_position   => 'int',
 		end_position     => 'int',
 		orientation      => 'varchar',	
+		gene             => 'varchar',
 		namespace_id     => 'varchar',	
 	);
 	
-	my $tracks_table = MySQLtable->new($table_name, $dbh, \%nomenclature_fields);
-
-	$tracks_table->{name} = $table_name;
+	my $tracks_table = MySQLtable->new('nomenclature_tracks', $dbh, \%nomenclature_fields);
 	$self->{nomenclature_tracks_table} = $tracks_table;
 }
 
@@ -758,24 +756,24 @@ sub create_contigs_table {
 # Subroutine:  create_nomenclature_tracks_table
 # Description: create MySQL 'nomenclature' table
 #***************************************************************************
-sub create_nomenclature_tracks_table {
+sub create_tracks_table {
 
-	my ($self, $dbh, $table_name) = @_;
+	my ($self, $dbh) = @_;
 
 	#  Nomenclature table 
-	my $nomenclature = "CREATE TABLE `$table_name` (
-	  `record_id`        int(11) NOT NULL auto_increment,
-	  `track_name`       varchar(10)  NOT NULL default '0',
-	  `organism_code`    varchar(10)  NOT NULL default '0',
-	  `locus_class`      varchar(10)  NOT NULL default '0',
-	  `taxon`            varchar(10)  NOT NULL default '0',
+	my $nomenclature = "CREATE TABLE `nomenclature_tracks` (
+	  `record_id`        int(11) NOT  NULL auto_increment,
+	  `source`           varchar(50)  NOT NULL default '0',
+	  `organism`         varchar(50)  NOT NULL default '0',
+	  `assembly`         varchar(10)  NOT NULL default '0',
+	  `short_name`       varchar(10)  NOT NULL default '0',
+	  `scaffold`         varchar(60)  NOT NULL default '0',
+	  `start_position`   int(11) NOT  NULL default '0',
+	  `end_position`     int(11) NOT  NULL default '0',
+	  `orientation`      varchar(10)  NOT NULL default '0',
 	  `gene`             varchar(100) NOT NULL default '0',
-	  `scaffold`         varchar(100) NOT NULL default '0',
-	  `start_position`   int(11) NOT NULL default '0',
-	  `end_position`     int(11) NOT NULL default '0',
-	  `orientation`      varchar(100) NOT NULL default '0',
-	  `namespace_id`     varchar(100) NOT NULL default '0',
-	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	  `namespace_id`     varchar(50)  NOT NULL default '0',
+	  `timestamp` timestamp NOT NULL  default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 	  PRIMARY KEY  (`record_id`)
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($nomenclature);

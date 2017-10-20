@@ -94,10 +94,6 @@ sub initialise {
 		$self->setup_for_defrag_or_consolidate($digs_obj, $option);
 	}
 
-	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
-	if ($option eq 6) { 
-		$self->setup_for_nomenclature($digs_obj);
-	}
 	return 1;
 }
 
@@ -406,20 +402,6 @@ sub setup_for_defrag_or_consolidate {
 		$consolidate_settings{end}   = 'extract_end';
 		$digs_obj->{consolidate_settings} = \%consolidate_settings;
 	}
-}
-
-#***************************************************************************
-# Subroutine:  setup_for_nomenclature
-# Description: 
-#***************************************************************************
-sub setup_for_nomenclature {
-
-	my ($self, $digs_obj, $force) = @_;
-
-	# Create a defragmenter module
-	my $nomeclature_obj = Nomenclature->new($digs_obj);
-
-
 }
 
 #***************************************************************************

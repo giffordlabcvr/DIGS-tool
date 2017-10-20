@@ -112,20 +112,23 @@ sub cluster_annotations {
 
 	# Compose clusters of related sequences
 	my %settings;
-	$settings{range} = '0';
+	$settings{range} = '1';
 	$settings{start} = 'extract_start';
 	$settings{end}   = 'extract_end';
+	
 	my %clusters;
 	my $digs_obj = $self->{digs_obj};
 	my $sorted_ref = $self->{sorted_loci};
-	$digs_obj->compose_clusters(\%clusters, $sorted_ref, \%settings);
-	#$devtools->print_hash(\%clusters); die;
+	my $defrag_object = Defragment->new($digs_obj);	
+	$defrag_object->compose_clusters(\%clusters, $sorted_ref, \%settings);
 
 	# Show the results of clustering
 	my @cluster_ids  = keys %clusters;
 	my $num_clusters = scalar @cluster_ids;
 	print "\n\t # $num_clusters locus groups in total";
 	$self->{nomenclature_clusters} = \%clusters;	
+	#$devtools->print_hash(\%clusters); die;
+	$defrag_object->show_clusters(\%clusters);
 	
 }
 
@@ -150,11 +153,10 @@ sub get_sorted_tracks {
 		
 	# Set the fields to get values for
 	my @sorted;
-	my @fields = qw [ record_id track_name
-	                  organism_code locus_class
-	                  taxon gene scaffold orientation
+	my @fields = qw [ record_id source organism
+	                  short_name scaffold orientation
 	                  start_position end_position
-	                  namespace_id  ];
+	                  gene namespace_id  ];
 	$nomenclature_table->select_rows(\@fields, \@sorted, $where);
 
 	my $total_annotations = scalar @sorted;
@@ -170,12 +172,13 @@ sub get_sorted_tracks {
 	my $count = 0;
 	foreach my $row (@sorted) {
 		$count++;
-		$row->{assigned_name} = $row->{taxon};
+		$row->{assigned_name} = $row->{short_name};
 		$row->{extract_start} = $row->{start_position};
 		$row->{extract_end}   = $row->{end_position};
 		$row->{assigned_gene} = $row->{gene};
 	}
 	
+	#$devtools->print_array(\@sorted);
 	$self->{sorted_loci} = \@sorted;	
 }
 
@@ -275,7 +278,7 @@ sub apply_standard_names_to_clusters {
 		push (@id, $taxname_final);
 		push (@id, $numeric_id);
 		push (@id, $organism_code);	 
-		my $id = join('.', @id);
+		my $id = join('-', @id);
 		#print "\n\t # ID: $id";
 
 		# Update the nomenclature table
@@ -466,153 +469,95 @@ sub set_nomenclature_tracks {
 	my $db        = $digs_obj->{db};  
 	my $dbh       = $db->{dbh};  
 
-	# Option to load a taxon translation table
-	# Reason: tables allow IDs to be based on alternative taxonomic levels
-	print "\n\n\t  #≈#~# 2: SET SOURCE OF ANNOTATION TRACKS\n";
-	my $table_name;
-	my $question1 = "\n\t  Load tracks from file, or use a screening DB table";
-	my @choices = qw [ l t ];
-	my $load_from_file = $console->ask_simple_choice_question($question1, \@choices);
-
-	#my $load_from_file = 't';
-	if ($load_from_file eq 'l') {
-		$table_name = $self->do_load_tracks_to_tables_dialogue();
-	}
-	elsif ($load_from_file eq 't') {
-		$table_name = $self->set_table_as_track_source();
-	}
-
-	# Set table 
-	$self->{input_track_table_name} = $table_name;
-	return $table_name;
-
-}
-
-#***************************************************************************
-# Subroutine:  do_load_tracks_to_tables_dialogue
-# Description: load a file of annotations into a 'track-format' table
-#***************************************************************************
-sub do_load_tracks_to_tables_dialogue {
-
-	my ($self, $track_data_ref) = @_;
-
-	# Get DIGS object and DB
-	my $digs_obj  = $self->{digs_obj};
-	my $db        = $digs_obj->{db};  
-	my $dbh       = $db->{dbh};  
-
 	# Get the file path
 	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
 	my $question = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
 	#my $infile = $self->ask_question($question);
-	my $infile = '../local/human/hg19_combined_tracks.txt';
+	my $infile = "ctl/human/hg19-assign-ids.ctl";
 	unless ($infile) { die; }
+	my @infile;
+	$fileio->read_file($infile, \@infile);
 
-	# Read in the data from a tab delimited file
-	my @data;
-	my %fields;
-	my @fields;
-	$console->do_read_tabdelim_dialogue($infile, \@data, \@fields, \%fields);
+	# READ the 'TARGETS' block (files to be screened)	
+	my @tracks;
+	my $start_token = 'BEGIN ASSIGN';
+	my $stop_token  = 'ENDBLOCK';
+	$self->parse_assign_block(\@infile, $start_token, $stop_token, \@tracks);
+	$self->{track_paths} = \@tracks;
 
-	# Get a reference to a table object for the ancillary table
-	my $table_name = $db->do_track_table_dialogue(\@data, \@fields, \%fields);		
-	return $table_name;
-
+	# For each path in the list 
+	my $track_table = $db->{nomenclature_tracks_table};
+	foreach my $track_path (@tracks) {
+		print "\n\t PATH: $track_path";
+		$self->load_track_to_table($track_path, $track_table);	
+	}
 }
 
 #***************************************************************************
-# Subroutine:  choose_input_track_table
-# Description: choose a 'track-format' table for ID allocation process
+# Subroutine:  load_track_to_table
+# Description: 
 #***************************************************************************
-sub choose_input_track_table {
+sub load_track_to_table {
 
-	my ($self, $answer) = @_;
+	my ($self, $track_path, $table_ref) = @_;
 
-	# Get DIGS object and DB
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};  
+	my @track;
+	$fileio->read_file($track_path, \@track);
 
-
-	my %fields;
-	my @fields;
-
-	my %extra_tables;
-	my @extra_tables = qw [ digs_results ];
-
-	# Create new table if option 1 selected
-	my $table_name;
-	if ($answer eq '1') {	
-		my $table_name_question = "\n\t What is the name of the new table?";
-		$table_name = $console->ask_question($table_name_question);
-		$db->create_ancillary_table($table_name, \@fields, \%fields);	
-
-	}
-	# or choose one of the ancillary tables already in the DB
-	else {
-
-		# Get the ancillary tables in this DB
-		$db->get_ancillary_table_names(\@extra_tables);
+	my $header = shift @track;
+	foreach my $line (@track) {
 		
-		my $table_num = 0;
-		foreach my $extra_table_name (@extra_tables) {
+		my %data;
+		#print $line;
+		chomp $line;
 		
-			if ($extra_table_name eq 'digs_results'
-			or  $extra_table_name eq 'nomenclature') {
-				next;
-			}
-			else {
-				$table_num++;
-				$extra_tables{$table_num} = $extra_table_name;
-				print "\n\t\t Table $table_num: '$extra_table_name'";
-			}
-		}
-		my @table_choices = keys %extra_tables;
-
-		my $question5 = "\n\n\t Apply to which of the above tables?";
-		my $answer5   = $console->ask_simple_choice_question($question5, \@table_choices);
-		$table_name = $extra_tables{$answer5};
-		unless ($table_name) { die; }
+		# All the other data
+		my @line = split("\t", $line);
+		$data{source}         = $line[0];
+		$data{organism}       = $line[1];
+		$data{assembly}       = $line[2];
+		$data{short_name}     = $line[3];
+		$data{scaffold}       = $line[4];
+		$data{start_position} = $line[5];
+		$data{end_position}   = $line[6];
+		$data{orientation}    = $line[7];
+		$data{gene}           = $line[8];
+		
+		# Numeric ID
+		my $numeric_id        = $line[9];
+		unless ($numeric_id) { $numeric_id = 'NULL'; }
+		$data{namespace_id}    = $numeric_id;
+		
+		# Insert row to table									
+		$table_ref->insert_row(\%data);
 	}
-	return $table_name;
 }
 
 #***************************************************************************
-# Subroutine:  set_table_as_track_source
-# Description: set a DIGS screening DB table as a track source
+# Subroutine:  parse_assign_block
+# Description: get paths to the tracks for locus assign
 #***************************************************************************
-sub set_table_as_track_source {
+sub parse_assign_block {
 
-	my ($self) = @_;
+	my ($self, $file_ref, $start, $stop, $assigns_ref) = @_;
 
-	# Get DIGS object and DB
-	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};  
-	my $dbh = $db->{dbh};  
+	unless ($start and $stop and $assigns_ref) { die; } # Sanity checking
+
+	# READ the 'ASSIGN' block
+	my @assign_block;
+	$fileio->extract_text_block($file_ref, \@assign_block, $start, $stop);
+	my $screenset_lines = scalar @assign_block;
 	
-	# Get the ancillary tables in this DB
-	my %extra_tables;
-	my @extra_tables;
-	$db->get_ancillary_table_names(\@extra_tables);
-
-	# Show the table options		
-	my $table_num = 0;
-	foreach my $table_name (@extra_tables) {
-		$table_num++;
-		$extra_tables{$table_num} = $table_name;
-		print "\n\t\t Table $table_num: '$table_name'";
-	}
-
-	my $table_to_use;	
-	my $question = "\n\n\t Use which table as a source";
-	my $answer   = $console->ask_list_question($question, $table_num);
-	$table_to_use = $extra_tables{$answer};
-	unless ($table_to_use) { die; }
-
-	my $table_name = 'herv_input';
-
-	$db->load_tracks_table($dbh, $table_name);
-
-
+	# Parse the track path strings
+	my @assigns;
+	foreach my $line (@assign_block) {
+		
+		chomp $line;
+		$line =~ s/\s+//g; # remove whitespace
+		if ($line =~ /^\s*$/)   { next; } # discard blank line
+		if ($line =~ /^\s*#/)   { next; } # discard comment line 
+		push (@$assigns_ref, $line);
+	}	
 }
 
 ############################################################################
@@ -679,24 +624,40 @@ sub initialise_nomenclature_db {
 	# Parse control file and connect to DB
 	$self->parse_ctl_file_and_connect_to_db($infile);
 
-	# Create nomenclature tables if they don't exist already
+	# Get required data structures and variables
 	my $digs_obj = $self->{digs_obj};
 	my $db_ref = $digs_obj->{db};
 	my $dbh = $db_ref->{dbh};
+
+	# Create nomenclature tables if they don't exist already	
+	my $tracks_exists = $db_ref->does_table_exist('nomenclature_tracks');
+	if ($tracks_exists) { # Delete existing tracks table	
+		$db_ref->drop_ancillary_table('nomenclature_tracks');
+	}
+	$db_ref->create_tracks_table($dbh);
+	
+	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
+	unless ($nom_chains_exists) {
+		$db_ref->create_nomenclature_chains_table($dbh);
+	}	
+	
 	my $nomenclature_exists = $db_ref->does_table_exist('nomenclature');
 	unless ($nomenclature_exists) {
 		$db_ref->create_nomenclature_table($dbh);
 	}
-	my $nom_chains_exists = $db_ref->does_table_exist('nomenclature_chains');
-	unless ($nom_chains_exists) {
-		$db_ref->create_nomenclature_chains_table($dbh);
-	}
 
 	# Load nomenclature tables
-	print "\n\n\t  #        Loading nomenclature table";
-	$db_ref->load_nomenclature_table($dbh);	
+	print "\n\t  #        Loading nomenclature table";
+	$db_ref->load_tracks_table($dbh);
 	print "\n\t  #        Loading nomenclature chains table";
 	$db_ref->load_nomenclature_chains_table($dbh);
+	print "\n\t  #        Loading nomenclature final outcome table\n";
+	$db_ref->load_nomenclature_table($dbh);	
+	
+	# Flush nomenclature table
+	my $tracks_table    = $db_ref->{nomenclature_tracks_table};
+	print "\n\t  #        Flushing tracks table";
+	#$tracks_table->flush();
 
 	# Flush nomenclature table
 	my $nom_table    = $db_ref->{nomenclature_table};

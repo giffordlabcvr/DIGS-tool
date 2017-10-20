@@ -430,7 +430,7 @@ sub compare_adjacent_loci {
 	my $end_token   = $settings_ref->{end};
 	my $verbose     = $self->{verbose};
 	my $mode        = $self->{defragment_mode};
-	unless ($mode) { die; }
+	unless ($mode)  { die; }
 	unless ($range) { die; }
 	
 	# Get the current hit values
@@ -737,7 +737,9 @@ sub show_clusters {
 		my $cluster_size = scalar @$cluster_ref;
 		if ($cluster_size > 1) {
 			$self->show_cluster($cluster_ref, $cluster_count);
-		}	
+			print "\n";	
+
+		}
 	}
 }
 
@@ -751,7 +753,6 @@ sub show_cluster {
 
  	#$devtools->print_array($cluster_ref); die;	
 	#print "\n";
-	
 	foreach my $locus_ref (@$cluster_ref) {
    		
    		#$devtools->print_hash($hit_ref); die;
@@ -760,7 +761,9 @@ sub show_cluster {
 		my $assigned_gene = $locus_ref->{probe_gene};
 		my $orientation   = $locus_ref->{orientation};
 		my $track_name    = $locus_ref->{track_name};
-		
+		unless ($track_name) {
+			$track_name  = $locus_ref->{source};
+		}
 		unless ($assigned_name) {
 			$assigned_name = $locus_ref->{assigned_name};
 		}
@@ -776,6 +779,7 @@ sub show_cluster {
 
 		my $digs_result_id    = $locus_ref->{digs_result_id};
 
+
 		print "\n\t\t $cluster_id $organism: ";
 		if ($track_name) {
 			print "TRACK '$track_name' ";
@@ -783,7 +787,7 @@ sub show_cluster {
 		print "$assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
 		if ($digs_result_id) {
 			print " (extract ID: $digs_result_id)";
-		}
+		}		
 	}			
 }
 
