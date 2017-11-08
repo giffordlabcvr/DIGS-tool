@@ -87,14 +87,23 @@ sub create_standard_locus_ids {
 	# Do console dialogue to get input parameters
 	$self->do_console_setup_dialogue();
 
-	# Get sorted tracks from nomenclature table
-	$self->get_sorted_tracks();
-		
-	# Get the locus data and created clustered annotations
-	$self->cluster_annotations();
+	my $bedtools = undef;
+	if ($bedtools) {
 	
-	# Apply standard names to locus clusters
-	$self->apply_standard_names_to_clusters();
+		
+	
+	}
+	else {
+
+		# Get sorted tracks from nomenclature table
+		$self->get_sorted_tracks();
+		
+		# Get the locus data and created clustered annotations
+		$self->cluster_annotations();
+	
+		# Apply standard names to locus clusters
+		$self->apply_standard_names_to_clusters();
+	}
 
 }
 
@@ -220,6 +229,7 @@ sub apply_standard_names_to_clusters {
 		my $highest;
 		my $taxname_final;
 		my $scaffold_final;
+		my $gene_final;
 		my $orientation_final;
 		my $namespace_id_final = undef;
 		
@@ -229,10 +239,10 @@ sub apply_standard_names_to_clusters {
 		my %composite;
 		foreach my $locus_ref (@$cluster_ref) {
 		
-			#$devtools->print_hash($locus_ref);
+			#$devtools->print_hash($locus_ref); exit;
 			my $start        = $locus_ref->{extract_start};
 			my $end          = $locus_ref->{extract_end};
-			my $track        = $locus_ref->{track_name};
+			my $track        = $locus_ref->{source};
 			my $taxname      = $locus_ref->{assigned_name};
 			my $namespace_id = $locus_ref->{namespace_id};
 			my $orientation  = $locus_ref->{orientation};
@@ -254,6 +264,9 @@ sub apply_standard_names_to_clusters {
 				$highest = $end;
 			}
 			
+			if ($track eq 'RetTec') {
+				$gene_final = $locus_ref->{assigned_gene};	
+			}
 			
 			$taxname_final = $taxname;
 			$scaffold_final = $scaffold;
@@ -263,6 +276,7 @@ sub apply_standard_names_to_clusters {
 		# Create numeric ID
 		$composite{track_name}    = 'MASTER';
 		$composite{assigned_name} = $taxname_final;
+		$composite{assigned_gene} = $gene_final;
 		$composite{scaffold}      = $scaffold_final;
 		$composite{extract_start} = $lowest;
 		$composite{extract_end}   = $highest;
@@ -275,9 +289,16 @@ sub apply_standard_names_to_clusters {
 		# Create the locus ID		
 		my @id;
 		push (@id, $locus_class);
+		$taxname_final =~ s/HERV.//g;
+		$taxname_final =~ s/ERV.//g;
+		
 		push (@id, $taxname_final);
-		push (@id, $numeric_id);
-		push (@id, $organism_code);	 
+
+		my @last_element;
+		push (@last_element, $numeric_id);
+		push (@last_element, $organism_code);	 
+		my $last_element = join('.', @last_element);
+		push (@id, $last_element);	 
 		my $id = join('-', @id);
 		#print "\n\t # ID: $id";
 

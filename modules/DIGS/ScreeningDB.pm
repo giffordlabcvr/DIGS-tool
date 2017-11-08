@@ -766,7 +766,7 @@ sub create_tracks_table {
 	  `source`           varchar(50)  NOT NULL default '0',
 	  `organism`         varchar(50)  NOT NULL default '0',
 	  `assembly`         varchar(10)  NOT NULL default '0',
-	  `short_name`       varchar(10)  NOT NULL default '0',
+	  `short_name`       varchar(20)  NOT NULL default '0',
 	  `scaffold`         varchar(60)  NOT NULL default '0',
 	  `start_position`   int(11) NOT  NULL default '0',
 	  `end_position`     int(11) NOT  NULL default '0',
