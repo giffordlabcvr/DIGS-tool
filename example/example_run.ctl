@@ -13,5 +13,5 @@ BEGIN SCREENSETS;
 ENDBLOCK;
 
 BEGIN TARGETS;
-	./example/targets/;
+	Mammalia/Homo_sapiens/complete/goldenpath_hg19/chrY.fa
 ENDBLOCK;
