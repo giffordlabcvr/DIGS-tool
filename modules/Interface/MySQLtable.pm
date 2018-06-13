@@ -174,7 +174,7 @@ sub select_rows {
 #***************************************************************************
 # Subroutine:  select distinct
 # Description: Generic select distinct 
-# Arguments:   $field:     the field to do the 'select distinct' on
+# Arguments:   $field_ref: list of fields to constrain the 'select' statement
 #              $data_ref:  reference to an array to store the rows
 #              $where:     the where clause of the select as a string
 #***************************************************************************
