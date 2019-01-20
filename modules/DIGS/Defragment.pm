@@ -344,75 +344,195 @@ sub reextract_and_reassign {
 # Subroutine:  compose_clusters 
 # Description: process a sorted list of loci and group into 'clusters' of
 #              overlapping feature annotations
+# Argument:    
 #***************************************************************************
 sub compose_clusters {
 
 	my ($self, $defragmented_ref, $loci_ref, $settings_ref) = @_;
 	
+	# Iterate through loci, grouping them into clusters when they are within range
+	my $i = 1;
+	my %cluster_tracking_data;
+	my $initialised = undef;
+	my $cluster_high_end = undef; # Variable to track highest end within a cluster of loci
+	my $end_token = $settings_ref->{end};
+	
+	foreach my $locus_ref (@$loci_ref)  {
+
+		my $end = $locus_ref->{$end_token}; # Get locus end
+		
+		unless ($initialised) { # Is this the first locus?
+			$self->initialise_cluster($defragmented_ref, $locus_ref, $i);
+            $initialised = 'true'; # Set flag 
+			$cluster_high_end = $end;
+		}
+		else {
+
+			# Work out wether to merge this hit with the last
+			#my $merge = $self->compare_adjacent_loci($locus_ref, \%cluster_tracking_data, $settings_ref);
+			my $merge = $self->is_distinct_locus($locus_ref, \%cluster_tracking_data, $settings_ref);
+			unless ($merge) { # Distinct locus - initialise record
+				$i++; # Increment the count
+				$self->initialise_cluster($defragmented_ref, $locus_ref, $i);
+				$cluster_high_end = $end;
+			}
+			else {             
+				# Extend record
+				$self->extend_cluster($defragmented_ref, $locus_ref, $i);
+				if ($end > $cluster_high_end) {
+					$cluster_high_end = $end;
+				}
+			}
+
+			# Update tracking data
+			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
+		}	
+	}
+}
+
+#***************************************************************************
+# Subroutine:  set tracking data
+# Description: 
+#***************************************************************************
+sub set_tracking_data {
+
+	my ($self, $locus_ref, $cluster_tracking_data_ref, $settings_ref) = @_;
+
 	# Get settings
 	my $start_token = $settings_ref->{start};
 	my $end_token   = $settings_ref->{end};
 	
-	# Iterate through loci, grouping them into clusters when they are within range
-	my $j = 1;
-	my %last_locus;
-	my %name_counts;
-	my $initialised = undef;
-	
-	foreach my $locus_ref (@$loci_ref)  {
-
-		# Get locus data
-		my $record_id     = $locus_ref->{record_id};
-		my $scaffold      = $locus_ref->{scaffold};
-		my $target_name   = $locus_ref->{target_name};
-		my $assigned_name = $locus_ref->{assigned_name};
-		my $probe_gene    = $locus_ref->{probe_gene}; # TODO: document why
-		my $assigned_gene = $locus_ref->{assigned_gene};
-		my $orientation   = $locus_ref->{orientation};
-		my $start         = $locus_ref->{$start_token};
-		my $end           = $locus_ref->{$end_token};
+	# Get locus data
+	my $scaffold      = $locus_ref->{scaffold};
+	my $target_name   = $locus_ref->{target_name};
+	my $assigned_name = $locus_ref->{assigned_name};
+	my $probe_gene    = $locus_ref->{probe_gene}; # TODO: document why
+	my $assigned_gene = $locus_ref->{assigned_gene};
+	my $orientation   = $locus_ref->{orientation};
+	my $start         = $locus_ref->{$start_token};
+	my $end           = $locus_ref->{$end_token};
 		
-		# Get last hit values
-		my $last_scaffold      = $last_locus{scaffold};
-		my $last_start         = $last_locus{$start_token};
-	    if ($initialised) {
+	# Get values required in this function 
+	my $last_scaffold      = $cluster_tracking_data_ref->{scaffold};
+	my $last_start         = $cluster_tracking_data_ref->{$start_token};
+	
+	# Sanity checking - are sequences in sorted order for this scaffold?
+	if ( $scaffold eq $last_scaffold and $start < $last_start) {
+		#$devtools->print_hash($locus_ref);
+		my $error = "\n\t Error: sequences do not appear to be correctly sorted"; 
+		$error   .= "\n\t (i.e. by unique scaffold ID and locus start position)\n\n"; 
+		die $error; 
+	}
 
-			# Sanity checking - are sequences in sorted order for this scaffold?
-			if ( $scaffold eq $last_scaffold and $start < $last_start) {
-				$devtools->print_hash($locus_ref); die; 
-			}
-           
-            # Work out wether to merge this hit with the last
-            my $merge = $self->compare_adjacent_loci($locus_ref, \%last_locus, $settings_ref);
-            
-            unless ($merge) {
-                 # Increment the count
-                $j++;       
-                # Initialise record
-                $self->initialise_cluster($defragmented_ref, $locus_ref, $j);
-            }
-            else {             
-                # Extend record
-                $self->extend_cluster($defragmented_ref, $locus_ref, $j);
-            }
-        }
-		else {
-            $initialised = 'true'; # Set flag - we have seen at least one   
-            $self->initialise_cluster($defragmented_ref, $locus_ref, $j);
-		}
-
-		# Update last hit data
-		$last_locus{record_id}     = $record_id;
-		$last_locus{assigned_name} = $assigned_name;
-		$last_locus{assigned_gene} = $assigned_gene;
-		$last_locus{probe_gene}    = $probe_gene;
-		$last_locus{scaffold}      = $scaffold;
-		$last_locus{orientation}   = $orientation;
-		$last_locus{$start_token}  = $start;
-		$last_locus{$end_token}    = $end;
-	}	
+	# Update cluster tracking data	
+	$cluster_tracking_data_ref->{assigned_name} = $assigned_name;
+	$cluster_tracking_data_ref->{assigned_gene} = $assigned_gene;
+	$cluster_tracking_data_ref->{probe_gene}    = $probe_gene;
+	$cluster_tracking_data_ref->{scaffold}      = $scaffold;
+	$cluster_tracking_data_ref->{orientation}   = $orientation;
+	$cluster_tracking_data_ref->{$start_token}  = $start;
+	$cluster_tracking_data_ref->{$end_token}    = $end;
 
 }
+
+#***************************************************************************
+# Subroutine:  is_distinct_locus
+# Description: determine whether or not to merge a locus into previous
+#***************************************************************************
+sub is_distinct_locus {
+
+	my ($self, $locus_ref, $data_ref, $settings_ref) = @_;
+
+	# Get settings
+	my $range       = $settings_ref->{range};
+	my $start_token = $settings_ref->{start};
+	my $end_token   = $settings_ref->{end};
+	my $verbose     = $self->{verbose};
+	my $mode        = $self->{defragment_mode};
+	unless ($mode)  { die; }
+	unless ($range) { die; }
+	
+	# Get the current hit values
+	my $name             = $locus_ref->{assigned_name};
+	my $gene             = $locus_ref->{assigned_gene};					
+	unless ($gene) { # If there is no assigned gene set, use probe gene	
+		$gene = $locus_ref->{probe_gene};
+	}			
+	my $scaffold         = $locus_ref->{scaffold};	
+	my $start            = $locus_ref->{$start_token};
+	my $end              = $locus_ref->{$end_token};
+	my $orientation      = $locus_ref->{orientation};			
+
+
+	# Get the last hit values
+	my $last_name        = $data_ref->{assigned_name};
+	my $last_gene        = $data_ref->{assigned_gene};		
+	unless ($last_gene) {  # If there is no assigned gene set, use probe gene	
+		$last_gene = $data_ref->{probe_gene};
+	}	
+	my $last_scaffold    = $data_ref->{scaffold};	
+	my $last_start       = $data_ref->{$start_token};
+	my $last_end         = $data_ref->{$end_token};
+	my $last_orientation = $data_ref->{orientation};			
+
+	
+	# Exclude the obvious cases
+	if ($scaffold ne $last_scaffold) { return 0; }  # different scaffolds
+
+	# Check orientation
+	if ($orientation ne $last_orientation) {
+		unless ($mode eq 'consolidate') { 
+			if ($verbose) {
+				print "\n\t\t Identified pair of loci that are in range, but different orientations";
+			}
+			return 0;
+		}
+		else {
+			unless ($last_gene and $gene) { die; } # Should never get here		
+		}
+	}
+
+	# Take action depending on whether we are DEFRAGMENTING or CONSOLIDATING
+	if ($gene and $last_gene) { 
+		if ($mode eq 'defragment') {
+			if ($gene ne $last_gene) { return 0; }  # different genes
+		}
+		elsif ($mode eq 'consolidate' or $mode eq 'consolidate2') { 
+			# do nothing (these loci can be merged, even though different genes)
+		}
+		else { # Shouldn't get here
+			die;
+		}
+	}
+	else { # Shouldn't get here
+		print "\n\t\t ERROR genes not found: ene $gene LAST $last_gene";;
+		$devtools->print_hash($data_ref);
+		die; 
+	}
+
+	# If on same scaffold in same orientation, determine how far apart 
+	my $gap = $start - $last_end;		
+	if ($verbose) {
+		#print "\n\t\t    - Defragment calculation '$scaffold': '$start'-'$last_end' = $gap";
+		print "\n\t\t    - Gap between loci = $gap";
+	}
+
+	# Test whether to combine this pair of loci into a single merged locus
+	if ($gap <= $range) {  # Combine
+		if ($verbose) {
+			if ($last_name and $last_gene) {
+				print "\n\t\t      - Added pair to cluster: $last_name";
+				print "($last_gene [$last_orientation]), $name ($gene [$orientation])"; 		
+			}
+			else { print "\n\t\t      - Added pair to cluster"; }
+		}
+		return 1;
+	}
+	else { # Don't combine
+		return 0;
+	}
+}
+
 
 #***************************************************************************
 # Subroutine:  compare_adjacent_loci
