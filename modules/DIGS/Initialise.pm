@@ -360,7 +360,7 @@ sub setup_for_defrag_or_consolidate {
 		$settings{total_loci}     = '0';
 		$settings{total_clusters} = '0';
 		$settings{range}          = undef;
-		$settings{reextract}      = 1;
+		$settings{reextract}      = undef;
 		$settings{start}          = 'extract_start';
 		$settings{end}            = 'extract_end';
 		$settings{targets}        = \@targets;

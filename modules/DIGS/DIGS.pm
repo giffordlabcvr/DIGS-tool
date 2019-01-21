@@ -573,10 +573,6 @@ sub defragment_locus_set {
 	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
 	my $num_new = scalar @$to_extract_ref;
 
-	# DEBUG $self->show_clusters(\%defragmented);  # Show clusters
-	my @cluster_ids  = keys %defragmented;
-	my $num_clusters = scalar @$combined_ref;
-
 	if ($num_new){  print "\n\t\t # $num_new sequences to extract"; }	
 	else         {  print "\n\t\t # No new loci to extract";        }	
 }

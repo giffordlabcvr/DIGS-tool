@@ -1251,7 +1251,7 @@ sub get_sorted_digs_results {
 	my ($self, $data_ref, $where) = @_;;
 
 	# Set statement to sort loci
-	my $sort  = " ORDER BY target_name, scaffold, extract_start ";
+	my $sort  = " ORDER BY organism, target_name, scaffold, extract_start ";
 	if ($where) { $where .= $sort; }
 	else        { $where  = $sort; }
 
