@@ -29,6 +29,14 @@ my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
 
+
+	my @ordered = qw [ digs_result_id organism target_datatype target_version target_name
+	              probe_type scaffold extract_start extract_end sequence_length sequence
+	              assigned_name assigned_gene orientation bitscore identity evalue_num evalue_exp
+                  subject_start subject_end query_start query_end align_len gap_openings mismatches ];
+	              
+
+
 # Maximum range for defragment
 my $max = 100000000;
 1;
@@ -93,12 +101,31 @@ sub interactive_defragment {
 
 	my ($self) = @_;
 
+	# Get objects
+	my $db        = $self->{db};
+	my $dbh       = $db->{dbh};
+	$db->load_digs_results_table($dbh, 'digs_results');
+
+	# Get the sorted list of results
+	my @loci;
+	$db->get_sorted_digs_results(\@loci);
+		
 	my $choice = undef;		
 	do { 
-		$choice = $self->preview_defragment();
+		$choice = $self->preview_defragment(\@loci);
+		
 	} until ($choice > 1);
 	if ($choice eq 2) {
-		$self->defragment(); # Apply the changes
+
+		# Insert data to digs results
+		my $copy_table = "digs_results_copy";
+		# Create a copy of the digs_results table (changes will be applied to copy)
+		my $copy_name = $db->create_empty_digs_results_table();
+		my $copy_table_name = $copy_name . '_table';
+		$db->load_digs_results_table($dbh, $copy_name);						
+		my $combined = 'combined_all_file.txt';
+		#$devtools->print_hash($db);
+		$db->import_data_to_digs_results($combined, $copy_table_name);
 	}	
 	elsif ($choice eq 3) {  # Exit
 		print "\n"; exit;
@@ -113,23 +140,22 @@ sub interactive_defragment {
 #***************************************************************************
 sub preview_defragment {
 
-	my ($self) = @_;
-
+	my ($self, $loci_ref) = @_;
+	
 	# Display current confi and set the range	
 	$self->display_config();
 	my $current_range  = $self->{defragment_range};
 	my $settings_ref   = $self->{defragment_settings};
 	my $targets_ref    = $settings_ref->{targets};
 	my $range_question = "\n\n\t # Set the range for merging hits";
-	#my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
-	my $t_range = 1050;
+	my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
 	$settings_ref->{range} = $t_range;
 
 	# Defragment this set of DIGS results
 	print "\n\t # Previewing defragment result using range '$t_range'\n";
 	my $preview = 'true';
 	my $reextract = undef;
-	$self->defragment($preview, $reextract);
+	$self->defragment($loci_ref);
 
 	# Display result and prompt for what to do next
 	$self->display_config();
@@ -150,42 +176,79 @@ sub preview_defragment {
 #***************************************************************************
 sub defragment {
 
-	my ($self, $preview, $reextract) = @_;
+	my ($self, $loci_ref) = @_;
 
-	# Get objects
-	my $db        = $self->{db};
-	my $dbh       = $db->{dbh};
-	$db->load_digs_results_table($dbh, 'digs_results');
-
-	# Get the sorted list of results
-	my @loci;
-	$db->get_sorted_digs_results(\@loci);
-
-	# Get the sorted results
+	# Identify clusters
 	my %clusters;
-	$self->compose_clusters(\%clusters, \@loci);
+	$self->compose_clusters(\%clusters, $loci_ref);
 	$self->show_clusters(\%clusters);
 
-	# Derive a single, merged locus for clusters of loci that were grouped into a cluster
+	# Derive a single, merged locus for each cluster
 	my %merged;
-	my @to_reextract;
-	$self->merge_clustered_loci(\%clusters, \%merged, @to_reextract);
+	my %singletons;
+	my $restart = $self->merge_clustered_loci(\%clusters, \%merged, \%singletons);
+	
+	# Convert singletons to tabular data
+	my @s_keys = keys %singletons;
+	my @singletons;
+	my $header = join(',', @ordered);
+	$header .= "\n";
+	push (@singletons, $header);
+	foreach my $key (@s_keys) {
+	
+		my $singleton_ref = $singletons{$key};
+		my $line = $self->convert_locus_hash_to_locus_line($singleton_ref);
+		push (@singletons, $line);
+	}
 
-	# Extract & reassign
-	if ($reextract) {
-		#$self->reextract_and_reassign($target_ref, \%merged);
-	}	
-	else {  # Update DB	
+	# Convert merged to tabular data
+	my @m_keys = keys %merged;
+	my @merged;
+	push (@merged, $header);
+	foreach my $key (@m_keys) {
+	
+		my $merged_ref = $merged{$key};
+		my $line = $self->convert_locus_hash_to_locus_line($merged_ref);
+		push (@merged, $line);
+	}
 
-		# Create file with merged loci
-		my $merged_file = 'merged_file.txt';
-		$self->write_merged_locus_file($merged_file, \@loci);
-		print "\n\t FILE WRITTEN!\n\n";
-		exit;
-		
-		#my $db = $self->{db};
-		#$db->import_data_to_digs_results($merged_file);
-	}		
+	# Create file with merged loci
+	my $merged_file = 'merged_file.txt';
+	$fileio->write_file($merged_file, \@merged);
+	my $singletons_file = 'singletons_file.txt';
+	$fileio->write_file($singletons_file, \@singletons);
+	my @combined = (@singletons, @merged);
+	unshift (@singletons, $header);
+	my $combined = 'combined_all_file.txt';
+	$fileio->write_file($combined, \@combined);
+	print "\n\t FILES WRITTEN!\n\n";
+	
+
+}
+
+#***************************************************************************
+# Subroutine:  convert_locus_hash_to_locus_line
+# Description: does what it says, pretty straightforward
+#***************************************************************************
+sub convert_locus_hash_to_locus_line {
+	
+	my ($self, $locus_ref, $separator) = @_;
+
+	unless ($separator) {
+		$separator = ',';
+	}
+
+	my @line;
+	foreach my $field (@ordered) {
+	
+		my $value = $locus_ref->{$field};
+		unless ($value) { $value = '0'; }
+		push (@line, $value);	
+	}
+	my $line = join($separator, @line);
+	$line .= "\n";
+
+	return $line;
 }
 
 ############################################################################
@@ -193,10 +256,103 @@ sub defragment {
 ############################################################################
 
 #***************************************************************************
+# Subroutine:  merge_clustered_loci
+# Description: resolve each of multiple clustered loci to one locus
+#***************************************************************************
+sub merge_clustered_loci {
+	
+	my ($self, $clusters_ref, $merged_ref, $singletons_ref) = @_;
+
+	# Iterate through the clusters
+	my $extend_count = '0';
+	my @cluster_ids  = keys %$clusters_ref;
+	foreach my $id (@cluster_ids) {
+
+		# Get data for this cluster
+		my $cluster_ref = $clusters_ref->{$id};
+		my $num_loci = scalar @$cluster_ref;
+
+		if ($num_loci eq 1) {	
+			$num_loci++;
+			my $locus_ref = shift @$cluster_ref;
+			$singletons_ref->{$id} = $locus_ref;
+			#$devtools->print_array($cluster_ref);
+		}
+		else {
+		
+			print "\n\t Merging cluster of $num_loci loci";
+			my $extended = $self->merge_cluster($id, $cluster_ref, $merged_ref);
+			if ($extended) { $extend_count = $extend_count + $extended; }						
+		}
+	}	
+	return $extend_count;	
+}
+
+#***************************************************************************
+# Subroutine:  merge_cluster
+# Description: resolve a cluster of overlapping loci to one single locus
+#***************************************************************************
+sub merge_cluster {
+	
+	my ($self, $cluster_id, $cluster_ref, $merged_ref) = @_;
+	
+	unless ($cluster_id and $cluster_ref) { die; }
+
+	# Create the data structures we need
+	my %previously_extracted_locus_ids;
+	my $highest_end   = undef;
+	my $lowest_start  = undef;
+	my $previous_digs_result_id = undef;
+	my %new_blast_chains;
+
+	foreach my $locus_ref (@$cluster_ref) {
+ 									
+		# Check if this is a previously extracted locus
+		my $digs_result_id = $locus_ref->{digs_result_id};					
+		if ($digs_result_id) {
+			$previously_extracted_locus_ids{$digs_result_id} = $locus_ref;
+			$previous_digs_result_id = $digs_result_id;		
+		}
+		
+		# Store this BLAST result as part of a chain if it is new
+		else {
+			my $record_id = $locus_ref->{record_id};					
+			my %data = %$locus_ref;
+			$new_blast_chains{$record_id} = \%data; 				
+		}
+		
+		# Record the start and stop parameters so we know whether or not to extend
+		my $start = $locus_ref->{extract_start};			
+		my $end   = $locus_ref->{extract_end};
+		if ($lowest_start and $highest_end ) {		
+			if ($start < $lowest_start) { $lowest_start = $start; }
+			if ($end > $highest_end)    { $highest_end  = $end;   }
+		}
+		elsif ($start and $end) {
+			$highest_end  = $end;
+			$lowest_start = $start;
+		}
+		else { die; }
+ 	}
+
+	my $template_ref = @$cluster_ref[0];
+	#$devtools->print_hash($template_ref); die;
+	my %data = %$template_ref;
+	$data{extract_start} = $lowest_start;
+	$data{extract_end} = $highest_end;
+	$data{sequence_length} = ($highest_end - $lowest_start) + 1;
+	$merged_ref->{$cluster_id} = \%data;
+	
+}
+
+############################################################################
+# COMPOSE clusters
+############################################################################
+
+#***************************************************************************
 # Subroutine:  compose_clusters 
 # Description: process a sorted list of loci and group into 'clusters' of
 #              overlapping feature annotations
-# Argument:    
 #***************************************************************************
 sub compose_clusters {
 
@@ -246,81 +402,6 @@ sub compose_clusters {
 		}	
 	}
 }
-
-#***************************************************************************
-# Subroutine:  merge_clustered_loci
-# Description: resolve each of multiple clustered loci to one locus
-#***************************************************************************
-sub merge_clustered_loci {
-	
-	my ($self, $clusters_ref, $merged_ref, $to_extract_ref) = @_;
-
-	# Iterate through the clusters
-	my $extend_count = '0';
-	my @cluster_ids  = keys %$clusters_ref;
-	foreach my $id (@cluster_ids) {
-
-		# Get data for this cluster
-		my $cluster_ref = $clusters_ref->{$id};
-		unless ($cluster_ref) { die; }
-		my $extended = $self->merge_cluster($id, $cluster_ref, $to_extract_ref);
-		if ($extended) { $extend_count = $extend_count + $extended; }
-		
-	}	
-	return $extend_count;	
-}
-
-#***************************************************************************
-# Subroutine:  merge_cluster
-# Description: resolve a cluster of overlapping loci to one single locus
-#***************************************************************************
-sub merge_cluster {
-	
-	my ($self, $cluster_id, $cluster_ref, $to_extract_ref) = @_;
-	
-	my $num_loci = '0';
-	foreach my $locus_ref (@$cluster_ref) {
-		
-		$num_loci++;			
-							
-		# Check if this is a a previously extracted locus
-
-		# Store this BLAST result as part of a chain if it is new
-
-		# Record the start and stop parameters so we know whether or not to extend
-
-	}
-
-	# Determine whether or not we need to extract sequences for this cluster
-	# Extract if cluster is composed entirely of new loci (no previous result IDs)
- 	
-	# Is this a merge of multiple previously extracted loci?
-
-	# If it includes a single extracted locus, does this locus need to be extended?	
-
-	# If the locus needs to be extracted record the details
-
-}
-
-
-#***************************************************************************
-# Subroutine:  is_distinct_locus
-# Description: 
-#***************************************************************************
-sub is_distinct_locus {
-
-
-}
-
-#***************************************************************************
-# Subroutine:  is_distinct_locus
-# Description: 
-#***************************************************************************
-sub extract_locus {
-
-
-}
-
 
 #***************************************************************************
 # Subroutine:  is_distinct_locus
@@ -491,65 +572,6 @@ sub set_tracking_data {
 }
 
 #***************************************************************************
-# Subroutine:  write_merged_locus_file
-# Description: write a set of merged loci to a file (can be imported to DB)
-# Arguments: loci_ref: empty array to store the merged loci
-#***************************************************************************
-sub write_merged_locus_file {
-
-    my ($self, $merged_file, $loci_ref) = @_;
-
-	unless ($merged_file and $loci_ref) { die; }
-	#$devtools->print_array($loci_ref) ; die;
-	
-	my @merged;
-	foreach my $locus_row_ref (@$loci_ref) {
-
-		my @line;
-		#$devtools->print_hash($locus_row_ref);
-
-		push (@line, $locus_row_ref->{record_id});
-		push (@line ,$locus_row_ref->{organism});
-		push (@line ,$locus_row_ref->{target_datatype});
-		push (@line ,$locus_row_ref->{target_version});
-		push (@line ,$locus_row_ref->{target_name});
-		push (@line ,$locus_row_ref->{probe_type});
-		push (@line ,$locus_row_ref->{scaffold});
-		push (@line ,$locus_row_ref->{extract_start});
-		push (@line ,$locus_row_ref->{extract_end});
-		push (@line ,$locus_row_ref->{sequence_length});
-		push (@line ,$locus_row_ref->{sequence});
-		push (@line ,$locus_row_ref->{assigned_name});
-		push (@line ,$locus_row_ref->{assigned_gene});
-		push (@line ,$locus_row_ref->{orientation});
-		push (@line ,$locus_row_ref->{bitscore});
-		push (@line ,$locus_row_ref->{identity});
-		push (@line ,$locus_row_ref->{evalue_num});
-		push (@line ,$locus_row_ref->{evalue_exp});
-		push (@line ,$locus_row_ref->{subject_start});
-		push (@line ,$locus_row_ref->{subject_end});
-		push (@line ,$locus_row_ref->{query_start});
-		push (@line ,$locus_row_ref->{query_end});
-		push (@line ,$locus_row_ref->{align_len});
-		push (@line ,$locus_row_ref->{gap_openings});
-		push (@line ,$locus_row_ref->{mismatches});
-
-		# Deal with empty rows 
-		foreach my $value (@line) {		
-			unless ($value) {
-				$value = '0';
-			} 
-		}
-
-		my $line = join("\t", @line);
-		push (@merged, "$line\n");		
-
-	}
-	
-	$fileio->write_file($merged_file, \@merged);
-}
-
-#***************************************************************************
 # Subroutine:  reextract_and_reassign
 # Description: 
 #***************************************************************************
@@ -672,11 +694,13 @@ sub show_clusters {
 		$cluster_count++;
 		my $cluster_ref = $defragmented_ref->{$id};
 		my $cluster_size = scalar @$cluster_ref;
-		print "\n\t CLUSTER '$id' SIZE = '$cluster_size'";
+		#print "\n\t CLUSTER '$id' SIZE = '$cluster_size'";
 		if ($cluster_size > 1) {
 			$self->show_cluster($cluster_ref, $cluster_count);
 		}
 	}
+	print "\n";
+
 }
 
 #***************************************************************************
@@ -715,7 +739,7 @@ sub show_cluster {
 		unless ($end)     { $end   = $locus_ref->{subject_end};	  }
 		my $digs_result_id    = $locus_ref->{digs_result_id};
 
-		print "\n\t\t CLUSTER locus $i: $assigned_name: $assigned_gene: $scaffold $start-$end ($orientation)";
+		print "\n\t\t Scaffold '$scaffold' CLUSTER locus $i: $assigned_name: $assigned_gene:  $start-$end ($orientation)";
 	}			
 }
 

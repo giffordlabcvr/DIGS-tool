@@ -1155,6 +1155,34 @@ sub backup_digs_results_table {
 
 }
 
+#***************************************************************************
+# Subroutine:  create_empty_digs_results_table 
+# Description: 
+#***************************************************************************
+sub create_empty_digs_results_table {
+
+    my ($self) = @_;
+
+	my $copy_name;
+	my $is_unique = undef;
+	my $i = 0;
+	do {
+		$i++;
+		$copy_name = 'digs_results_' . $i;
+		my $exists = $self->does_table_exist($copy_name);
+		unless ($exists) { $is_unique = 'true'; }
+	} until ($is_unique);
+	
+	my $copy_sql_1 = "CREATE TABLE $copy_name LIKE digs_results;";
+    my $dbh = $self->{dbh};
+	my $sth = $dbh->prepare($copy_sql_1);
+   	unless ($sth->execute()) { print $copy_sql_1; exit;}	
+   	
+   	return $copy_name;
+
+}
+
+
 ############################################################################
 # TESTING FOR EXISTENCE OF TABLES & DATABASES
 ############################################################################
@@ -1263,10 +1291,12 @@ sub get_sorted_digs_results {
 	                  assigned_name assigned_gene probe_type
 	                  scaffold orientation
 	                  bitscore gap_openings
-	                  query_start query_end 
+	                  query_start query_end
+	                  subject_start subject_end 
 	                  mismatches align_len
                       evalue_num evalue_exp identity 
                       extract_start extract_end sequence_length ];
+                      
 	$digs_results_table->select_rows(\@fields, $data_ref, $where);
 	
 	# Set record_ID as 'digs_result_id' in all results
@@ -1509,11 +1539,17 @@ sub import_data_to_searches_performed {
 #***************************************************************************
 sub import_data_to_digs_results {
 
-	my ($self, $data_path) = @_;
+	my ($self, $data_path, $alt_table_name) = @_;
 
 	# Get the table object
-	my $digs_results_table = $self->{digs_results_table};
-
+	my $digs_results_table;
+	if ($alt_table_name) { 
+		$digs_results_table = $self->{$alt_table_name}; 
+	}
+	else {
+		$digs_results_table = $self->{digs_results_table};
+	}
+	
 	# Get the data
 	my @data;
 	my $read = $fileio->read_file($data_path, \@data);
@@ -1530,7 +1566,6 @@ sub import_data_to_digs_results {
 		$line =~ s/"//g;
 		my @line = split(",", $line);
 		my %data;
-		#$devtools->print_array(\@line); die;
 		$data{record_id}       = shift @line;
 		$data{organism}        = shift @line;
 		$data{target_datatype} = shift @line;
@@ -1556,6 +1591,7 @@ sub import_data_to_digs_results {
 		$data{align_len}       = shift @line;
 		$data{gap_openings}    = shift @line;
 		$data{mismatches}      = shift @line;
+		#$devtools->print_hash(\%data);
 		$digs_results_table->insert_row(\%data);	
 		$rows++;
 	}	
