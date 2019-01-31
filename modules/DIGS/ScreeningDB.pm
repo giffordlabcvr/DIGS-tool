@@ -69,6 +69,10 @@ sub new {
 		blast_chains_table    => 0,	
 		loci_table            => 0,	
 		loci_chains_table     => 0,
+
+		# Flags
+		verbose                => $parameters->{verbose},
+		force                  => $parameters->{force},
 		
 	};
 	
@@ -86,66 +90,32 @@ sub new {
 #***************************************************************************
 sub update_db {
 
-	my ($self, $extracted_ref, $table_name, $update) = @_;
+	my ($self, $to_delete_ref, $extracted_ref, $table_name) = @_;
 		
 	# Get parameters from self
 	my $verbose             = $self->{verbose};
 	my $digs_results_table  = $self->{$table_name}; 
 	my $active_set_table    = $self->{active_set_table}; 
-	my $blast_chains_table  = $self->{blast_chains_table}; 
+	# DEBUG $devtools->print_array($extracted_ref); die;
 
-	# Iterate through the extracted sequences
+	# Delete superfluous data from the digs_results table
 	my $deleted = '0';
-	foreach my $hit_ref (@$extracted_ref) {
-		
-		# Insert the data to the digs_results table
-		my $digs_result_id;
-		if ($update) {
-			$digs_result_id = $digs_results_table->insert_row($hit_ref);
-		}
-		else {
-			$digs_result_id = $hit_ref->{digs_result_id};
-			my $where = " WHERE record_id = $digs_result_id ";
-			my %update;
-			$update{extract_start} = $hit_ref->{extract_start};
-			$update{extract_end}   = $hit_ref->{extract_end};
-			$digs_results_table->update(\%update, $where);		
-		}
-		
-		# Insert the data to the BLAST_chains table
-		my $blast_chains = $hit_ref->{blast_chains};
-		if ($blast_chains) {		
-			my @blast_ids = keys %$blast_chains;
-			foreach my $blast_id (@blast_ids) {							
-				my $data_ref = $blast_chains->{$blast_id};
-				$data_ref->{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->insert_row($data_ref);
-			}
-		}
-		unless ($digs_result_id) { die; }
-		
-		# Delete superfluous data from the digs_results table
-		my $digs_result_ids_ref = $hit_ref->{digs_result_ids};
-		foreach my $old_digs_result_id (@$digs_result_ids_ref) {			
-			
-			# Where we updated an existing record, keep that record
-			unless ($old_digs_result_id eq $digs_result_id) {
-
-				# Delete superfluous extract rows
-				my $extracted_where = " WHERE record_id = $old_digs_result_id ";	
-				if ($verbose) { print "\n\t\t    - Deleting redundant locus '$old_digs_result_id'"; }
-				$digs_results_table->delete_rows($extracted_where);
-				$deleted++;
-
-				# Update extract IDs			
-				my $chains_where = " WHERE record_id = $old_digs_result_id ";
-				my %new_id;
-				$new_id{digs_result_id} = $digs_result_id;	
-				$blast_chains_table->update(\%new_id, $chains_where);
-			}
-		}
+	foreach my $id (@$to_delete_ref) {
+		my $extracted_where = " WHERE record_id = $id ";	
+		if ($verbose) { print "\n\t\t    - Deleting redundant locus '$id'"; }
+		$digs_results_table->delete_rows($extracted_where);
+		$deleted++;
 	}
 
+	# Iterate through the extracted sequences
+	foreach my $locus_ref (@$extracted_ref) {
+		
+		# Insert the data to the digs_results table
+		my $digs_result_id = $digs_results_table->insert_row($locus_ref);
+		unless ($digs_result_id) { die; }
+		if ($verbose) { print "\n\t\t    - Created new result row '$digs_result_id'"; }
+	}	
+	
 	# Flush the active set table
 	$active_set_table->flush();
 
@@ -511,7 +481,7 @@ sub create_screening_db {
 	$self->create_searches_table($dbh);
 	$self->create_active_set_table($dbh);
 	$self->create_digs_results_table($dbh);
-	$self->create_blast_chains_table($dbh);
+	#$self->create_blast_chains_table($dbh);
 }
 
 #***************************************************************************

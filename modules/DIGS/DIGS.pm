@@ -230,15 +230,10 @@ sub perform_digs {
 
 	my ($self, $mode) = @_;
 
-	# Get handle for the 'searches_performed' table, updated in this loop
-	my $db_ref         = $self->{db};
-	my $searches_table = $db_ref->{searches_table};
-	my $classify_obj   = Classify->new($self);
-	my $extract_obj    = Extract->new($self);
 
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
-	my $queries_completed = 0;
+	my $current_query_num = 0;
 	my $queries_ref = $self->{queries};
 	unless ($queries_ref) { die; }   # Sanity checking
 	my @probes = keys %$queries_ref; # Get the list of queries
@@ -250,33 +245,16 @@ sub perform_digs {
 		foreach my $query_ref (@$probe_queries) {  
 	
 			# Increment query count
-			$queries_completed++;		
-			$self->{queries_completed} = $queries_completed;
+			$current_query_num++;		
+			$self->{current_query_num} = $current_query_num;
 
-			# Do the 1st BLAST (probe vs target)
-			$self->search_target_file_using_blast($query_ref);
-		
-			# For this target, create a non-redundant locus set
-			my @combined;
-			$self->created_combined_locus_set($query_ref, \@combined);
-			
-			# Defragment the combined set of new and previously identified loci
+			# DIGS round one
 			my @to_extract;
-			$self->defragment_locus_set(\@combined, \@to_extract);
-					
-			# Extract newly identified or extended sequences
-			my @extracted;
-			my $target_path = $query_ref->{target_path};
-			$extract_obj->extract_sequences_using_blast($target_path, \@to_extract, \@extracted);	
+			my @to_delete;
+			$self->digs_round_one($query_ref, \@to_extract, \@to_delete);
 			
-			# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
-			$self->classify_sequences_using_blast(\@extracted, $query_ref);
-			
-			# Update tables in the screening database to reflect new information
-			$db_ref->update_db(\@extracted, 'digs_results_table', 1);
-	
-			# Update the searches_performed table, indicating search has completed
-			$searches_table->insert_row($query_ref);
+			# DIGS round two
+			$self->digs_round_two($query_ref, \@to_extract, \@to_delete);
 		
 			# Show a status update in the console
 			$self->show_digs_progress();			
@@ -284,9 +262,64 @@ sub perform_digs {
 	}
 }
 
+
+#***************************************************************************
+# Subroutine:  digs_round_one
+# Description: execute a BLAST query and get non-redundant results
+#***************************************************************************
+sub digs_round_one {
+
+	my ($self, $query_ref, $to_extract_ref, $to_delete_ref) = @_;
+
+	# Do the 1st BLAST (probe vs target)
+	$self->search_target_file_using_blast($query_ref);
+
+	# Create a non-redundant result set for this query
+	my @combined;
+	$self->created_combined_locus_set($query_ref, \@combined);
+
+	# Defragment the combined set of new and previously identified loci
+	$self->defragment_locus_set(\@combined, $to_extract_ref, $to_delete_ref);
+
+}
+
+#***************************************************************************
+# Subroutine:  digs_round_two
+# Description: extract hits and classify 
+#***************************************************************************
+sub digs_round_two {
+
+	my ($self, $query_ref, $to_extract_ref, $to_delete_ref) = @_;
+
+	# Get/create the various objects we will use here
+	my $db_ref         = $self->{db};
+	my $classify_obj   = Classify->new($self);
+	my $extract_obj    = Extract->new($self);
+	
+	# Extract newly identified or extended sequences
+	my @extracted;
+	foreach my $locus_ref (@$to_extract_ref) {			
+		$locus_ref->{target_path} = $query_ref->{target_path};
+		$extract_obj->extract_locus_sequence_using_blast($locus_ref);	
+		my %copy_locus = %$locus_ref;
+		push (@extracted, \%copy_locus);
+	}	
+
+	# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+	$self->classify_sequences_using_blast(\@extracted, $query_ref);
+
+	# Update the digs_results table
+	$db_ref->update_db($to_delete_ref, \@extracted, 'digs_results_table');
+
+	# Update the searches_performed table
+	my $searches_table = $db_ref->{searches_table};
+	$searches_table->insert_row($query_ref);
+
+}
+
 #***************************************************************************
 # Subroutine:  reassign
-# Description: classify sequences already in the digs_results_table 
+# Description: re-classify sequences in the digs_results_table 
 #***************************************************************************
 sub reassign {
 	
@@ -402,7 +435,7 @@ sub search_target_file_using_blast {
 	unless ($probe_id and $blast_alg) { die; }
 
 	# Do BLAST similarity search
-	my $completed = $self->{queries_completed};	
+	my $completed = $self->{current_query_num};	
 	print "\n\n\t  $blast_alg: $completed: '$organism' ($version, $datatype)";
 	print   "\n\t  target: '$target_name'";
 	print   "\n\t  probe:  '$probe_id'";   
@@ -479,7 +512,7 @@ sub classify_sequences_using_blast {
 	unless ($query_ref) { die; }
 	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
 
-		# Execute the 'reverse' BLAST (2nd BLAST in a round of paired BLAST)
+		# Classify using BLAST
 		my $blast_alg = $classifier->classify_sequence_using_blast($locus_ref);
 		my $assigned  = $locus_ref->{assigned_name};
 		unless ($assigned) { die; }
@@ -554,27 +587,24 @@ sub created_combined_locus_set {
 #***************************************************************************
 sub defragment_locus_set {
 
-	my ($self, $combined_ref, $to_extract_ref) = @_;
+	my ($self, $combined_ref, $to_extract_ref, $to_delete_ref) = @_;
 
-	# Create the defragmentor
+	# Create the defragment object
 	my $defragment_obj = Defragment->new($self);
-
-	# Define settings
-	my %settings;
-	$settings{range} = $self->{defragment_range};
-	$settings{start} = 'subject_start';
-	$settings{end}   = 'subject_end';
-	
+		
 	# Compose clusters of overlapping/adjacent loci		
-	my %defragmented;
-	$defragment_obj->compose_clusters(\%defragmented, $combined_ref, \%settings);
+	my %clusters;
+	$defragment_obj->compose_clusters(\%clusters, $combined_ref);
+	# DEBUG $devtools->print_hash(\%clusters); die;
 
-	# Derive a non-redundant set of loci
-	$defragment_obj->merge_clustered_loci(\%defragmented, $to_extract_ref);
-	my $num_new = scalar @$to_extract_ref;
+	# Derive a non-redundant locus set (i.e. one merged locus for each cluster)
+	my %merged;
+	my %singletons;
+	$defragment_obj->merge_clustered_loci(\%clusters, \%merged, \%singletons, $to_delete_ref);
 
-	if ($num_new){  print "\n\t\t # $num_new sequences to extract"; }	
-	else         {  print "\n\t\t # No new loci to extract";        }	
+	# Work out what we need to extract and classify 
+	$defragment_obj->get_loci_to_extract(\%merged, \%singletons, $to_extract_ref);
+
 }
 
 ############################################################################
@@ -638,7 +668,7 @@ sub show_digs_progress {
 
 	# Get the counts
 	my $total_queries   = $self->{total_queries};
-	my $completed       = $self->{queries_completed};	
+	my $completed       = $self->{current_query_num};	
 	unless ($completed and $total_queries) { die; } # Sanity checking
 	
 	# Calculate percentage progress

@@ -71,48 +71,42 @@ sub new {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  extract_sequences_using_blast
-# Description: extract sequences from a  BLAST-indexed FASTA file, using BLAST 
+# Subroutine:  extract_locus_sequence_using_blast
+# Description: extract sequence from a  BLAST-indexed FASTA file using BLAST 
 #***************************************************************************
-sub extract_sequences_using_blast {
+sub extract_locus_sequence_using_blast {
 
-	my ($self, $target_path, $loci_ref, $extracted_ref) = @_;
+	my ($self, $locus_ref) = @_;
 
 	# Get paths, objects, data structures and variables from self
 	my $blast_obj = $self->{blast_obj};
 	my $verbose   = $self->{verbose};
 	my $buffer    = $self->{extract_buffer};
-	unless ($blast_obj) { die; }
-	
-	# Iterate through the list of sequences to extract
-	my $new_loci = 0;
-	foreach my $locus_ref (@$loci_ref) {
-			
-		# Add any buffer 
-		if ($buffer) { 
-			my $orientation = $locus_ref->{orientation};
-			$self->add_buffer_to_sequence($locus_ref, $orientation); 
-		}
-	
-		# Extract the sequence
-		my $sequence   = $blast_obj->extract_sequence($target_path, $locus_ref);
-		if ($sequence) {
-			
-			# If we extracted a sequence, update the data for this locus
-			my $seq_length = length $sequence; # Set sequence length
-			if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
-			$locus_ref->{extract_start}   = $locus_ref->{start};
-			$locus_ref->{extract_end}     = $locus_ref->{end};
-			$locus_ref->{sequence}        = $sequence;
-			$locus_ref->{sequence_length} = $seq_length;
-			push (@$extracted_ref, $locus_ref);
-			$new_loci++;
-		}
-		elsif ($verbose) { 
-			print "\n\t\t    # Sequence extraction failed ";
-		}
-	}	
-	return $new_loci;
+
+	# Add any buffer 
+	if ($buffer) { 
+		my $orientation = $locus_ref->{orientation};
+		$self->add_buffer_to_sequence($locus_ref, $orientation); 
+	}
+
+	# Extract the sequence
+	my $target_path = $locus_ref->{target_path};
+	my $sequence  = $blast_obj->extract_sequence($target_path, $locus_ref);
+	if ($sequence) {
+		
+		# If we extracted a sequence, update the data for this locus
+		my $seq_length = length $sequence; # Set sequence length
+		if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
+		$locus_ref->{extract_start}   = $locus_ref->{start};
+		$locus_ref->{extract_end}     = $locus_ref->{end};
+		$locus_ref->{sequence}        = $sequence;
+		$locus_ref->{sequence_length} = $seq_length;
+	}
+	else { 
+		print "\n\t\t    # Sequence extraction failed ";
+		die;
+	}
+
 }
 
 #***************************************************************************
@@ -121,23 +115,23 @@ sub extract_sequences_using_blast {
 #***************************************************************************
 sub add_buffer_to_sequence {
 
-	my ($self, $hit_ref, $orientation) = @_;
+	my ($self, $locus_ref, $orientation) = @_;
 
 	my $buffer = $self->{extract_buffer};
 		
 	if ($orientation eq '-') {
-		$hit_ref->{start} = $hit_ref->{start} + $buffer;
-		$hit_ref->{end}   = $hit_ref->{end} - $buffer;
-		if ($hit_ref->{end} < 1) { # Don't allow negative coordinates
-			$hit_ref->{end} = 1;
+		$locus_ref->{start} = $locus_ref->{start} + $buffer;
+		$locus_ref->{end}   = $locus_ref->{end} - $buffer;
+		if ($locus_ref->{end} < 1) { # Don't allow negative coordinates
+			$locus_ref->{end} = 1;
 		}	
 	}
 	else {
-		$hit_ref->{start} = $hit_ref->{start} - $buffer;
-		if ($hit_ref->{start} < 1) { # Don't allow negative coordinates
-			$hit_ref->{start} = 1;
+		$locus_ref->{start} = $locus_ref->{start} - $buffer;
+		if ($locus_ref->{start} < 1) { # Don't allow negative coordinates
+			$locus_ref->{start} = 1;
 		}	
-		$hit_ref->{end}   = $hit_ref->{end} + $buffer;
+		$locus_ref->{end} = $locus_ref->{end} + $buffer;
 	}
 }
 
