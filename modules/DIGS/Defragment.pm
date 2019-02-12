@@ -95,7 +95,7 @@ sub new {
 }
 
 ############################################################################
-# COMPOSE clusters
+# Compose clusters (this is the main defragment routine)
 ############################################################################
 
 #***************************************************************************
@@ -168,17 +168,20 @@ sub is_distinct_locus {
 	# Is it on the same scaffold?
 	my $same_scaffold = $self->is_locus_on_same_scaffold($locus_ref, $data_ref);
 
+	# Is it a match to the same gene?
+	my $same_gene = $self->is_locus_assigned_to_same_gene($locus_ref, $data_ref);
+
 	# Is it in range?
-	my $is_in_range;
-	if ($same_scaffold) {
-		$is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
-	}
-	if ($same_scaffold and $is_in_range) {
+	my $is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
+	
+	if ($same_scaffold and $same_gene and $is_in_range) {
 	
 		# Should locus be merged based on current rules
-		#$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
+		$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
 		$merge = 1;
+	
 	}
+	
 	return $merge;
 }
 
@@ -198,6 +201,24 @@ sub is_locus_on_same_scaffold {
 		$same_scaffold = 'true';
 	}
 	return $same_scaffold;
+}
+
+#***************************************************************************
+# Subroutine:  is_locus_assigned_to_same_gene
+# Description: determine if locus is assigned to same reference gene as another
+#***************************************************************************
+sub is_locus_assigned_to_same_gene {
+
+	my ($self, $locus_ref, $data_ref) = @_;
+
+	# Are loci on the same scaffold
+	my $same_gene = undef;
+	my $gene = $locus_ref->{assigned_gene};	
+	my $last_gene = $data_ref->{assigned_gene};	
+	if ($gene eq $last_gene) {
+		$same_gene = 'true';
+	}
+	return $same_gene;
 }
 
 #***************************************************************************
