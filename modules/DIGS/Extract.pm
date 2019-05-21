@@ -28,6 +28,9 @@ use Base::DevTools;
 my $fileio    = FileIO->new();
 my $console   = Console->new();
 my $devtools  = DevTools->new();
+
+my $maximum_extract_length = 30000;
+
 1;
 
 ############################################################################
@@ -89,24 +92,28 @@ sub extract_locus_sequence_using_blast {
 		$self->add_buffer_to_sequence($locus_ref, $orientation); 
 	}
 
+	
+	my $seq_length = ($locus_ref->{end} - $locus_ref->{start}) + 1;
+	#$seq_length = length $sequence; # Set sequence length
+	if ($seq_length > $maximum_extract_length) { 
+	
+		print "\n\t # Sequence too long - skipping!!"; 
+		sleep 1;
+		return;
+	}
+
 	# Extract the sequence
 	my $target_path = $locus_ref->{target_path};
 	my $sequence  = $blast_obj->extract_sequence($target_path, $locus_ref);
 	if ($sequence) {
 		
 		# If we extracted a sequence, update the data for this locus
-		my $seq_length = length $sequence; # Set sequence length
 		if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
 		$locus_ref->{extract_start}   = $locus_ref->{start};
 		$locus_ref->{extract_end}     = $locus_ref->{end};
 		$locus_ref->{sequence}        = $sequence;
 		$locus_ref->{sequence_length} = $seq_length;
 	}
-	else { 
-		print "\n\t\t    # Sequence extraction failed ";
-		die;
-	}
-
 }
 
 #***************************************************************************

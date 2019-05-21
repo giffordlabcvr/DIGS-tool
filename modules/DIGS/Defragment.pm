@@ -95,7 +95,7 @@ sub new {
 }
 
 ############################################################################
-# Compose clusters (this is the main defragment routine)
+# COMPOSE clusters
 ############################################################################
 
 #***************************************************************************
@@ -168,20 +168,17 @@ sub is_distinct_locus {
 	# Is it on the same scaffold?
 	my $same_scaffold = $self->is_locus_on_same_scaffold($locus_ref, $data_ref);
 
-	# Is it a match to the same gene?
-	my $same_gene = $self->is_locus_assigned_to_same_gene($locus_ref, $data_ref);
-
 	# Is it in range?
-	my $is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
-	
-	if ($same_scaffold and $same_gene and $is_in_range) {
+	my $is_in_range;
+	if ($same_scaffold) {
+		$is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
+	}
+	if ($same_scaffold and $is_in_range) {
 	
 		# Should locus be merged based on current rules
-		$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
+		#$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
 		$merge = 1;
-	
 	}
-	
 	return $merge;
 }
 
@@ -201,24 +198,6 @@ sub is_locus_on_same_scaffold {
 		$same_scaffold = 'true';
 	}
 	return $same_scaffold;
-}
-
-#***************************************************************************
-# Subroutine:  is_locus_assigned_to_same_gene
-# Description: determine if locus is assigned to same reference gene as another
-#***************************************************************************
-sub is_locus_assigned_to_same_gene {
-
-	my ($self, $locus_ref, $data_ref) = @_;
-
-	# Are loci on the same scaffold
-	my $same_gene = undef;
-	my $gene = $locus_ref->{assigned_gene};	
-	my $last_gene = $data_ref->{assigned_gene};	
-	if ($gene eq $last_gene) {
-		$same_gene = 'true';
-	}
-	return $same_gene;
 }
 
 #***************************************************************************
@@ -610,6 +589,7 @@ sub interactive_defragment {
 	# Get objects
 	my $db        = $self->{db};
 	my $dbh       = $db->{dbh};
+	my $force     = $self->{force};
 	$db->load_digs_results_table($dbh, 'digs_results');
 
 	# Get the sorted list of results
@@ -624,19 +604,27 @@ sub interactive_defragment {
 
 		my $current_range  = $self->{defragment_range};
 		my $range_question = "\n\n\t # Set the range for merging hits";
-		my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
-		$self->{defragment_range} = $t_range;
+		
+		my $t_range;
+		unless ($force) {
+			my $t_range = $console->ask_int_with_bounds_question($range_question, $current_range, $max);		
+			$self->{defragment_range} = $t_range;
+		}
 
-	    print "\n\t # Previewing defragment result using range '$t_range'\n";
+		print "\n\t # Previewing defragment result using range '$t_range'\n";
 	    my $preview = 'true';
 	    $self->defragment(\@loci, $preview);
 	    
-		print "\n\n\t\t Option 1: preview new parameters";
-		print "\n\t\t Option 2: apply these parameters";
-		print "\n\t\t Option 3: exit";
-		my $list_question = "\n\n\t # Choose an option:";
-		$choice = $console->ask_list_question($list_question, 3);
+		unless ($force) {
+			print "\n\n\t\t Option 1: preview new parameters";
+			print "\n\t\t Option 2: apply these parameters";
+			print "\n\t\t Option 3: exit";
+			my $list_question = "\n\n\t # Choose an option:";
+			$choice = $console->ask_list_question($list_question, 3);
+		}
+		else { $choice = 2 }
 		
+	
 	} until ($choice > 1);
 	if ($choice eq 2) {
 
@@ -697,6 +685,7 @@ sub defragment {
   	my %by_target;
 	my @extracted;
 
+	my @failed;
 	foreach my $locus_ref (@to_extract) {
   	    
 		# Extract sequence using BLAST
@@ -707,7 +696,14 @@ sub defragment {
 		my @path_parts  = ( $organism , $type, $version, $file );
 		my $target_key = join ('|', @path_parts); 
 		my $stem_group  = $target_groups_ref->{$target_key};
-		unless ($stem_group) { die; }
+
+		unless ($stem_group) { 
+			print "no stem group found for key '$target_key'";
+			my $line = $self->convert_locus_hash_to_locus_line($locus_ref);
+			push(@failed, $line); 
+			next;
+		}
+
 		my $genome_path = join ('/', @path_parts); 
 		my $use_path = $self->{genome_use_path};
 		unless ($use_path) { die; }
@@ -716,12 +712,22 @@ sub defragment {
 		$locus_ref->{target_path} = $target_path;
 		$extract_obj->extract_locus_sequence_using_blast($locus_ref, \@extracted);	
 
+		unless ($locus_ref->{sequence}) { 
+			print "no sequence obtained for locus in '$organism'";
+			my $line = $self->convert_locus_hash_to_locus_line($locus_ref);
+			push(@failed, $line); 
+			next;
+		}
+
 		# Classify using BLAST
 		$classify_obj->classify_sequence_using_blast($locus_ref);	
 		my %copy_locus = %$locus_ref;
 		push (@extracted, \%copy_locus);
 	}
 	
+	my $failed_file = "failed.txt";
+	$fileio->write_file($failed_file, \@failed);
+
 	# Update the digs_results table	
 	$db_ref->update_db(\@to_delete, \@extracted, 'digs_results_table');
 
