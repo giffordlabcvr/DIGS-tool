@@ -24,6 +24,8 @@ The DIGS tool can be used to systematically search for sequences of interest, an
 
 DIGS requires PERL (with DBD::MySQL package), BLAST and MySQL.
 
+If you want to install the DIGS tool on a mac, you will need to find a way to get the DBD::mysql package to install and work. I have been unable to do this despite many attempts. The problems with this perl library on macintosh are well known and have been an issue for years. There are many blog posts offering solutions, but none of these worked for me. In the end I have given up, so my suggestion is to stick with unix/linux when using this tool.
+
 To install DIGS:
 
 - Install Perl DBI and DBD::MySQL packages (if they are not already installed)
