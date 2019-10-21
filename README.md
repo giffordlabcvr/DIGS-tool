@@ -50,14 +50,6 @@ Detailed instructions for installing and running the DIGS tool can be found on
 
 Robert J. Gifford (robert.gifford@glasgow.ac.uk).
 
-
-**Contributors**: 
-
-Daniel Blanco-Melo (daniel.blancomelo@mssm.edu) 
-
-Henan Zhu (h.zhu.1@research.gla.ac.uk)
-
-
 **DISCLAIMER**
 
 We do not accept responsibility for any problems that arise from use of this software.
