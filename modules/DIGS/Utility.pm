@@ -63,6 +63,7 @@ sub new {
 		# MySQL database connection parameters
 		mysql_username         => $digs_obj->{mysql_username}, 
 		mysql_password         => $digs_obj->{mysql_password},
+		genome_use_path        => $digs_obj->{genome_use_path},
 		db_name                => '',   # Obtained from control file or user
 		mysql_server           => '',   # Obtained from control file or user
 
@@ -82,7 +83,7 @@ sub new {
 #***************************************************************************
 sub run_utility_process {
 
-	my ($self, $infile, $database, $genomes) = @_;
+	my ($self, $infile, $database, $genomes, $utility) = @_;
 
  	# Show title
 	my $digs_obj = $self->{digs_obj};
@@ -90,20 +91,29 @@ sub run_utility_process {
 
 	if ($genomes) {	# Run a target database summary process
 		$self->run_target_db_summary_process($genomes);		
-	}	
-	else { # Run a screening database management process
+	}
+	elsif ($database) { # Run a target database summary process
 
-		# Use a control file to connect to database
-		if ($infile) {
-			$self->parse_ctl_file_and_connect_to_db($infile);
+		if ($database eq 6) {
+			$self->extract_track_sequences($infile);
 		}
 		else {
-			print "\n\t  No infile was supplied: enter parameters below\n\n";
-			$self->do_load_db_dialogue();		
+
+			# Use a control file to connect to database
+			if ($infile) {
+				$self->parse_ctl_file_and_connect_to_db($infile);
+			}
+			else {
+				print "\n\t  No infile was supplied: enter parameters below\n\n";
+				$self->do_load_db_dialogue();		
+			}
+			if ($database) {
+				$self->run_screening_db_management_process($database);
+			}
 		}
-		if ($database) {
-			$self->run_screening_db_management_process($database);
-		}
+	}
+	else { 
+		die;
 	}
 }
 
@@ -166,9 +176,6 @@ sub run_screening_db_management_process {
 	}
 	elsif ($option eq 5) {
 		$self->append_to_digs_results($ctl_file);
-	}
-	elsif ($option eq 6) {
-		$self->extract_track_sequences($ctl_file);
 	}
 	else {
 		print "\n\t  Unrecognized option '-d=$option'\n";
@@ -303,49 +310,21 @@ sub append_to_digs_results {
 #***************************************************************************
 sub extract_track_sequences {
 	
-	my ($self, $ctl_file) = @_;
+	my ($self, $infile) = @_;
 
-	# Get database handle, die if we can't 
+ 	# Show title
 	my $digs_obj = $self->{digs_obj};
-	my $db = $digs_obj->{db};
-	unless ($db)       { die; }
-	unless ($ctl_file) { die; }
-	my $dbh = $db->{dbh};
-	unless ($dbh) { die "\n\t Couldn't retrieve database handle \n\n"; }
-
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj = $digs_obj->{blast_obj};
-	my $verbose   = $self->{verbose}; # Get 'verbose' flag setting
-
-	# Try opening control file
-	my @ctl_file;
-	my $valid = $fileio->read_file($ctl_file, \@ctl_file);
-	unless ($valid) {  # Exit if we can't open the file
-		die "\n\t ### Couldn't open control file '$ctl_file'\n\n\n ";
-	}
-
-	# If control file looks OK, store the path and parse the file
-	$self->{ctl_file} = $ctl_file;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
-	$loader_obj->parse_control_file($ctl_file, $digs_obj);
-
-	# Load/create the screening database
-	my $db_name = $loader_obj->{db_name};
-	unless ($db_name) { die "\n\t Error: no DB name defined \n\n\n"; }
-	$digs_obj->initialise_screening_db($db_name);
-
-	# Get all targets
+    my $genome_use_path  = $digs_obj->{genome_use_path};
+	unless ($genome_use_path) { die "\n\t Path to genomes is not set\n\n\n"; }
 	my $target_db_obj = TargetDB->new($digs_obj);
-	my %targets;
-	$target_db_obj->read_target_directory(\%targets);
-	#$devtools->print_hash(\%targets); die;
+	
+	# Index genomes by key ( organism | type | version )
+	my %server_data;
+	$target_db_obj->read_target_directory(\%server_data);
+	#$devtools->print_hash(\%server_data);
+	#die;
 
-	# Try to read the tab-delimited infile
-	print "\n\n\t #### WARNING: This function expects a tab-delimited data table with column headers!";
-	my $question1 = "\n\n\t Please enter the path to the file with the table data and column headings\n\n\t";
-	#my $infile = $console->ask_question($question1);
-	my $infile = 'loci.txt';
-	unless ($infile) { die; }
+	# Read infile
 	my @infile;
 	$fileio->read_file($infile, \@infile);
 
@@ -353,58 +332,69 @@ sub extract_track_sequences {
 	my $header_row = shift @infile;
 	my @header_row = split ("\t", $header_row);		
 	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
-	my $i;
-	my @fields;
+	my $i = '0';
 	my %fields;
 	foreach my $element (@header_row) {
 		chomp $element;
-		$i++;
 		$element =~ s/\s+/_/g;
-		if ($element eq '') { $element = 'EMPTY_COLUMN_' . $i; } 
 		print "\n\t\t Column $i: '$element'";
-		push (@fields, $element);
-		$fields{$element} = "varchar";
+		$fields{$element} = $i;
+		$i++;
 	}
+	#$devtools->print_hash(\%fields); # die;
 
 	# Prompt user - did we read the file correctly?
-	my $question2 = "\n\n\t Is this correct?";
+	#my $question2 = "\n\n\t Is this correct?";
 	#my $answer2 = $console->ask_yes_no_question($question2);
 	#if ($answer2 eq 'n') { # Exit if theres a problem with the infile
 	#	print "\n\t\t Aborted!\n\n\n"; exit;
 	#}
 
 	# Iterate through the tracks extracting
-	#$devtools->print_hash(\%targets);
 	my @fasta;	
 	foreach my $line (@infile) {
 		
 		chomp $line; # remove newline
 		my @line = split("\t", $line);
-		my $record_id     = shift @line;
-		my $organism      = shift @line;
-		my $type          = shift @line;
-		my $version       = shift @line;
-		my $name          = shift @line;
-        my $scaffold      = shift @line;
-        my $orientation   = shift @line;
-        my $assigned_name = shift @line;
-        my $extract_start = shift @line;
-        my $extract_end   = shift @line;
-        my $gene          = shift @line;
 		
-		unless ($organism and $version and $type and $name) { die; }
-		
+		my $organism_index = $fields{organism};
+		my $type_index     = $fields{target_datatype};
+		my $version_index  = $fields{target_version};
+		my $name_index     = $fields{target_name};
+		my $scaffold_index = $fields{scaffold};
+        my $orient_index   = $fields{orientation};
+		my $start_index    = $fields{extract_start};
+		my $end_index      = $fields{extract_end};
+
+		my $organism       = $line[$organism_index];
+		my $type           = $line[$type_index];
+		my $version        = $line[$version_index];
+		my $name           = $line[$name_index];
+		my $scaffold       = $line[$scaffold_index];
+		#my $orientation    = $line[$orient_index];
+		my $start          = $line[$start_index];
+		my $end            = $line[$end_index];
+
+		#print "\n\t end index = '$end_index' and end = '$end'";
+        unless ($organism and $version and $type and $name) { die; }
+	
 		my $key = $organism . '|' . $type . '|' . $version;
-		my $target_data = $targets{$key};
-		unless ($target_data) {
-			print "\n\t NO DATA FOR GENOME ID '$key'";
+		#print $header_row;
+		#print $line;	
+		#print "\n\t apparently this is the name '$name'";
+		#print "\n\t apparently this is the version '$version'";
+        my $genome_data = $server_data{$key};
+		unless ($genome_data) { 
+			
+			print "\n\t Skipping row - missing link data";
+			sleep 1;
+			next;
+
 		}
-		my $group = $target_data->{grouping};
-		#print "\n\t GROUP FOR '$key': '$group'";
-		
-		my $genome_use_path = $digs_obj->{genome_use_path};
-		unless ($genome_use_path) {	die; }
+		#$devtools->print_hash($genome_data);
+		#print "\n\t TARGET $organism - grouping $group";
 		my @target_path;
+		my $group = $genome_data->{grouping};
 		push (@target_path, $genome_use_path);
 		push (@target_path, $group);
 		push (@target_path, $organism);
@@ -414,25 +404,24 @@ sub extract_track_sequences {
 		my $target_path = join('/', @target_path);
 	
 		my %data;
-		$data{start}       = $extract_start;
-        $data{end}         = $extract_end;
+		$data{start}       = $start;
+        $data{end}         = $end;
         $data{scaffold}    = $scaffold; 
-        $data{orientation} = $orientation;	
+        $data{orientation} = '+ve'; # $orientation;	
+		$devtools->print_hash(\%data);
 		#print "\n\t TARGET $target_path";
-
+	
+		my $blast_obj = $self->{blast_obj};
 		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
 		unless ($sequence) {	
-			print  "\n\t Sequence extraction failed for record '$record_id'";
+			print  "\n\t Sequence extraction failed for record";
 			sleep 1;
 		}
 		else {
-			my $header = $key . '|' . $scaffold . '|' . $assigned_name . "_$gene";
-			#my $header = $name . "_$gene";
-			#$header =~ s/\(/\./g;
-			#$header =~ s/\)//g;
-			print "\n\t\t Got sequence for $record_id: $header";
+			my $header = $organism . '|' . $scaffold . '|' . $start;
+			print "\n\t\t Got sequence for $header";
 			my $digs_fasta = ">$header" . "\n$sequence\n";
-			push (@fasta, $digs_fasta);;
+			push (@fasta, $digs_fasta);
 		}
 	}
 
@@ -540,6 +529,7 @@ sub show_utility_help_page {
 	   $HELP  .= "\n\t   -d=3   Drop tables";
 	   $HELP  .= "\n\t   -d=4   Drop a screening DB"; 
 	   $HELP  .= "\n\t   -d=5   Append data to 'digs_results' table"; 
+	   $HELP  .= "\n\t   -d=6   Extract sequences using tabular file"; 
 
 	   $HELP  .= "\n\n"; 
 

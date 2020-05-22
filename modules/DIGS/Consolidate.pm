@@ -99,6 +99,8 @@ sub consolidate_loci {
 	unless ($settings_ref) { die; }
 	my %consolidated;
 	$self->{defragment_mode} = 'consolidate';
+	$self->{defragment_range} = $settings_ref->{defragment_range};
+	$self->{defragment_range} = 1000;
 	my $defragment_obj = Defragment->new($self);
 	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	
