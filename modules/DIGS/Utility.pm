@@ -312,13 +312,11 @@ sub extract_track_sequences {
 	
 	my ($self, $infile) = @_;
 
- 	# Show title
+	# Index genomes by key ( organism | type | version )
 	my $digs_obj = $self->{digs_obj};
     my $genome_use_path  = $digs_obj->{genome_use_path};
 	unless ($genome_use_path) { die "\n\t Path to genomes is not set\n\n\n"; }
 	my $target_db_obj = TargetDB->new($digs_obj);
-	
-	# Index genomes by key ( organism | type | version )
 	my %server_data;
 	$target_db_obj->read_target_directory(\%server_data);
 	#$devtools->print_hash(\%server_data);
@@ -330,103 +328,221 @@ sub extract_track_sequences {
 
 	# Get the header row
 	my $header_row = shift @infile;
-	my @header_row = split ("\t", $header_row);		
-	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
-	my $i = '0';
 	my %fields;
-	foreach my $element (@header_row) {
-		chomp $element;
-		$element =~ s/\s+/_/g;
-		print "\n\t\t Column $i: '$element'";
-		$fields{$element} = $i;
-		$i++;
-	}
-	#$devtools->print_hash(\%fields); # die;
+	my %params;
+    $self->check_input_and_set_flank_params($header_row, \%params, \%fields);
 
-	# Prompt user - did we read the file correctly?
-	#my $question2 = "\n\n\t Is this correct?";
-	#my $answer2 = $console->ask_yes_no_question($question2);
-	#if ($answer2 eq 'n') { # Exit if theres a problem with the infile
-	#	print "\n\t\t Aborted!\n\n\n"; exit;
-	#}
-
-	# Iterate through the tracks extracting
+    # Iterate through the tracks extracting
 	my @fasta;	
 	foreach my $line (@infile) {
 		
 		chomp $line; # remove newline
-		my @line = split("\t", $line);
+		#print "\n\t ## LINE: $line";
+        
+        # Index the line properties, using field_names as keys
+        my %indexed;
+        $self->create_indexed_line($line, $header_row, \%fields, \%indexed);
+         
+        # Get the correct path to the indexed target file
+		my $target_path = $self->create_target_path(\%server_data, \%indexed);
+		$params{target_path} = $target_path;
 		
-		my $organism_index = $fields{organism};
-		my $type_index     = $fields{target_datatype};
-		my $version_index  = $fields{target_version};
-		my $name_index     = $fields{target_name};
-		my $scaffold_index = $fields{scaffold};
-        my $orient_index   = $fields{orientation};
-		my $start_index    = $fields{extract_start};
-		my $end_index      = $fields{extract_end};
-
-		my $organism       = $line[$organism_index];
-		my $type           = $line[$type_index];
-		my $version        = $line[$version_index];
-		my $name           = $line[$name_index];
-		my $scaffold       = $line[$scaffold_index];
-		#my $orientation    = $line[$orient_index];
-		my $start          = $line[$start_index];
-		my $end            = $line[$end_index];
-
-		#print "\n\t end index = '$end_index' and end = '$end'";
-        unless ($organism and $version and $type and $name) { die; }
-	
-		my $key = $organism . '|' . $type . '|' . $version;
-		#print $header_row;
-		#print $line;	
-		#print "\n\t apparently this is the name '$name'";
-		#print "\n\t apparently this is the version '$version'";
-        my $genome_data = $server_data{$key};
-		unless ($genome_data) { 
-			
-			print "\n\t Skipping row - missing link data";
-			sleep 1;
-			next;
-
-		}
-		#$devtools->print_hash($genome_data);
-		#print "\n\t TARGET $organism - grouping $group";
-		my @target_path;
-		my $group = $genome_data->{grouping};
-		push (@target_path, $genome_use_path);
-		push (@target_path, $group);
-		push (@target_path, $organism);
-		push (@target_path, $type);
-		push (@target_path, $version);
-		push (@target_path, $name);
-		my $target_path = join('/', @target_path);
-	
-		my %data;
-		$data{start}       = $start;
-        $data{end}         = $end;
-        $data{scaffold}    = $scaffold; 
-        $data{orientation} = '+ve'; # $orientation;	
-		$devtools->print_hash(\%data);
-		#print "\n\t TARGET $target_path";
-	
-		my $blast_obj = $self->{blast_obj};
-		my $sequence = $blast_obj->extract_sequence($target_path, \%data);
-		unless ($sequence) {	
-			print  "\n\t Sequence extraction failed for record";
-			sleep 1;
-		}
-		else {
-			my $header = $organism . '|' . $scaffold . '|' . $start;
-			print "\n\t\t Got sequence for $header";
-			my $digs_fasta = ">$header" . "\n$sequence\n";
+        # Now do the extraction
+		if ($target_path) {
+        	my $digs_fasta =  $self->extract_seq_and_flanks(\%params, \%indexed);
 			push (@fasta, $digs_fasta);
 		}
 	}
 
 	my $outfile = 'extracted.DIGS.fna';
 	$fileio->write_file($outfile, \@fasta);
+
+}
+
+	
+#***************************************************************************
+# Subroutine:  check_input_and_set_flank_params
+# Description: 
+#***************************************************************************
+sub check_input_and_set_flank_params {
+
+	my ($self, $header_row, $params_ref, $fields_ref) = @_; 
+
+	my @header_row = split ("\t", $header_row);		
+	print "\n\n\t The following column headers (i.e. table fields) were obtained\n";
+	my $i = '0';
+	foreach my $element (@header_row) {
+		chomp $element;
+		$element =~ s/\s+/_/g;
+		print "\n\t\t Column $i: '$element'";
+		$fields_ref->{$element} = $i;
+		$i++;
+	}
+	print "\n\n\t\t CHECK COLUMN HEADINGS LOOK CORRECT!\n"; sleep 1; 
+    
+    my $question3 = "\n\t  Set 3' flank";
+    my $question5 = "\n\t  Set 5' flank";
+	my $flank3  = $console->ask_int_with_bounds_question($question3, '0', 100000);
+	my $flank5  = $console->ask_int_with_bounds_question($question5, '0', 100000);
+    $params_ref->{flank3} = $flank3;
+    $params_ref->{flank5} = $flank5;
+
+}
+	
+#***************************************************************************
+# Subroutine:  extract_seq_and_flanks
+# Description: 
+#***************************************************************************
+sub extract_seq_and_flanks {
+
+	my ($self, $params_ref, $indexed_ref) = @_;
+
+	my $blast_obj      = $self->{blast_obj};
+	my $target_path    = $params_ref->{'target_path'};
+	my $flank3         = $params_ref->{'flank3'};
+	my $flank5         = $params_ref->{'flank5'};
+	my $organism       = $indexed_ref->{'organism'};
+	my $scaffold       = $indexed_ref->{'scaffold'};
+	my $orientation    = $indexed_ref->{'orientation'};
+	my $start          = $indexed_ref->{'extract_start'};
+	my $end            = $indexed_ref->{'extract_end'};	
+	my $record_id      = $indexed_ref->{'record_ID'};	
+	my $virus_genus    = $indexed_ref->{'virus_genus'};	
+  
+    my $truncated3;
+    my $truncated5;
+    my $extract_start;
+    my $extract_end;
+    if ($orientation eq '+') {
+       my $adjust_start = $start - $flank5;
+       if ($adjust_start < 1) {
+	      print  "\n\t\t\t 5' TRUNCATED!!!";
+          $extract_start = 1;
+          $truncated5 = abs($adjust_start);
+	   }
+       else {
+          $extract_start = $adjust_start;
+       }
+       $extract_end = $end + $flank3;
+	}
+    elsif ($orientation eq '-') {
+       my $adjust_start = $start - $flank3;
+       if ($adjust_start < 1) {
+	      print  "\n\t\t\t 5' TRUNCATED!!!";
+          $extract_start = 1;
+          $truncated3 = abs($adjust_start);
+	   }
+       else {
+          $extract_start = $adjust_start;
+       }
+       $extract_end = $end + $flank5;
+	}
+ 
+	# Adjust the start coordinates according to NYT  
+	my %data;
+	$data{scaffold}    = $scaffold; 
+	$data{orientation} = $orientation; # $orientation;	
+	$data{start}       = $extract_start;
+	$data{end}         = $extract_end;
+	my $digs_fasta = '';
+
+    my $expected_length = ($extract_end - $extract_start) + 1;
+	my $sequence = $blast_obj->extract_sequence($target_path, \%data);
+    my $extracted_length = length $sequence;
+    if ($expected_length > $extracted_length) {
+       
+	   print  "\n\t\t\t 3' TRUNCATED!!!";
+	   #print  "\n\t\t\t Expected length: '$expected_length', extracted length: '$extracted_length'";
+       my $length_missing = ($expected_length - $extracted_length) + 1;
+       $truncated5 = abs($length_missing);
+	}
+
+    unless ($sequence) {	
+		print  "\n\t Sequence extraction failed for record";
+		sleep 1;
+	}
+	else {
+		my $header = $organism . ',' . $scaffold . ',' . $extract_start . ',' . $extracted_length;
+		if ($truncated5) {
+           $header .= "-T5($truncated5)";
+        }
+		if ($truncated3) {
+           $header .= "-T5(0)-T3($truncated3)" . $extracted_length;
+        }
+		print "\n\t\t Got sequence for $header";
+		$digs_fasta = ">$header" . "\n$sequence\n";
+	}
+	return $digs_fasta;
+
+}
+
+#***************************************************************************
+# Subroutine:  create_indexed_line
+# Description: 
+#***************************************************************************
+sub create_indexed_line {
+
+	my ($self, $property_row, $field_names_row, $field_name_index, $indexed_ref) = @_;
+
+	my @field_names_row = split ("\t", $field_names_row);		
+	my $field_i = '0';
+	my @line = split("\t", $property_row);
+	foreach my $field (@field_names_row) {
+		chomp $field;
+		$field =~ s/\s+/_/g;
+		my $property_i = $field_name_index->{$field};
+		my $property = $line[$property_i];
+		$indexed_ref->{$field} = $property;
+		$field_i++;
+		#print "\n\t ### Index: $field_i | $property_i: FIELD '$field' = '$property'";
+	}
+}
+
+#***************************************************************************
+# Subroutine:  create_target_path
+# Description: 
+#***************************************************************************
+sub create_target_path {
+
+	my ($self, $server_data, $indexed_ref) = @_;
+
+	my $digs_obj = $self->{digs_obj};
+    my $genome_use_path  = $digs_obj->{genome_use_path};
+	unless ($genome_use_path) { die "\n\t Path to genomes is not set\n\n\n"; }
+	my $target_path = '';
+	
+    #$devtools->print_hash($genome_data);
+	my $organism       = $indexed_ref->{'organism'};
+	my $type           = $indexed_ref->{'target_datatype'};
+	my $version        = $indexed_ref->{'target_version'};
+	my $target_name    = $indexed_ref->{'target_name'};
+	my $scaffold       = $indexed_ref->{'scaffold'};
+	my $orientation    = $indexed_ref->{'orientation'};
+
+    # Get the top level categorisation
+	my $key = $organism . '|' . $type . '|' . $version; # Create the key
+	my $genome_data = $server_data->{$key};
+	unless ($genome_data) { 
+		print "\n\t\t\t Skipping row '$key': missing link data";
+		sleep 1;
+		return $target_path;
+	}
+	my $group = $genome_data->{grouping};
+	unless ($group) { 
+		print "\n\t\t\t Skipping row - missing genome path data (group)";
+		return $target_path;
+	}
+	#print "\n\t TARGET $organism - grouping $group";
+    my @target_path;
+	push (@target_path, $genome_use_path);
+	push (@target_path, $group);
+	push (@target_path, $organism);
+	push (@target_path, $type);
+	push (@target_path, $version);
+	push (@target_path, $target_name);
+	$target_path = join('/', @target_path);
+
+	return $target_path;
 
 }
 
