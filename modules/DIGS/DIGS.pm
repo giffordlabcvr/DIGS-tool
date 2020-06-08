@@ -178,7 +178,7 @@ sub hand_off_to_digs_fxns {
 		$self->index_target_files_for_blast();	
 	}
 	elsif ($option eq 2) { 	 # Screen
-		$self->perform_digs();	
+		$self->do_digs();	
 	}
 	elsif ($option eq 3) {   # Reassign data in digs_results table
 		$self->reassign();	
@@ -223,13 +223,12 @@ sub index_target_files_for_blast {
 }
 
 #***************************************************************************
-# Subroutine:  perform_digs
+# Subroutine:  do_digs
 # Description: do the core database-integrated genome screening processes
 #***************************************************************************
-sub perform_digs {
+sub do_digs {
 
 	my ($self, $mode) = @_;
-
 
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
@@ -251,10 +250,10 @@ sub perform_digs {
 			# DIGS round one
 			my @to_extract;
 			my @to_delete;
-			$self->digs_round_one($query_ref, \@to_extract, \@to_delete);
+			$self->run_digs_search_phase($query_ref, \@to_extract, \@to_delete);
 			
 			# DIGS round two
-			$self->digs_round_two($query_ref, \@to_extract, \@to_delete);
+			$self->run_digs_classify_phase($query_ref, \@to_extract, \@to_delete);
 		
 			# Show a status update in the console
 			$self->show_digs_progress();			
@@ -264,10 +263,10 @@ sub perform_digs {
 
 
 #***************************************************************************
-# Subroutine:  digs_round_one
+# Subroutine:  run_digs_search_phase
 # Description: execute a BLAST query and get non-redundant results
 #***************************************************************************
-sub digs_round_one {
+sub run_digs_search_phase {
 
 	my ($self, $query_ref, $to_extract_ref, $to_delete_ref) = @_;
 
@@ -279,15 +278,15 @@ sub digs_round_one {
 	$self->created_combined_locus_set($query_ref, \@combined);
 
 	# Defragment the combined set of new and previously identified loci
-	$self->defragment_locus_set(\@combined, $to_extract_ref, $to_delete_ref);
+	$self->create_nonredundant_hit_set(\@combined, $to_extract_ref, $to_delete_ref);
 
 }
 
 #***************************************************************************
-# Subroutine:  digs_round_two
+# Subroutine:  run_digs_classify_phase
 # Description: extract hits and classify 
 #***************************************************************************
-sub digs_round_two {
+sub run_digs_classify_phase {
 
 	my ($self, $query_ref, $to_extract_ref, $to_delete_ref) = @_;
 
@@ -305,7 +304,7 @@ sub digs_round_two {
 		push (@extracted, \%copy_locus);
 	}	
 
-	# Do the 2nd BLAST (hits from 1st BLAST vs reference library)
+	# Do BLAST-based classification (new/extended hits from 1st search vs reference library)
 	$self->classify_sequences_using_blast(\@extracted, $query_ref);
 
 	# Update the digs_results table
@@ -582,10 +581,11 @@ sub created_combined_locus_set {
 }
 
 #***************************************************************************
-# Subroutine:  defragment_locus_set
-# Description: create a non-redundant set of loci
+# Subroutine:  create_nonredundant_hit_set
+# Description: combine most recent set of hits with previous 
+#              and derive a non-redundant set
 #***************************************************************************
-sub defragment_locus_set {
+sub create_nonredundant_hit_set {
 
 	my ($self, $combined_ref, $to_extract_ref, $to_delete_ref) = @_;
 
