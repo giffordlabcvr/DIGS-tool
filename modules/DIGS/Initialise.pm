@@ -184,7 +184,7 @@ sub initialise_screening_db {
 		$db_obj->create_screening_db($db_name);	
 	}
 	
-	# Load the table handles into screening database object
+	# Load map with table names into screening database 
 	print   "\n\n\t  Connecting to DB:  $db_name";
 	$db_obj->load_screening_db($db_name);	
 	$digs_obj->{db} = $db_obj; # Store the database object reference 
@@ -378,13 +378,6 @@ sub setup_for_defrag_or_consolidate {
 		$self->set_up_consolidate_tables($digs_obj);
 		$digs_obj->{defragment_mode} = 'consolidate';
 
-		my $question1 = "\n\n\t # Refresh contig length table";
-		my $refresh = $console->ask_yes_no_question($question1);		
-		if ($refresh eq 'y') {
-			# Get contig lengths and capture in a table
-			$self->calculate_contig_lengths($digs_obj);			
-		}
-		
 		# Get the parameters for consolidation
 		my $range = $self->{consolidate_range};
 		my $d_range = $self->{defragment_range};
@@ -424,15 +417,10 @@ sub set_up_consolidate_tables {
 	unless ($loci_chains_exists) {
 		$db_ref->create_loci_chains_table($dbh);
 	}
-	my $contigs_exists = $db_ref->does_table_exist('contigs');
-	unless ($contigs_exists) {
-		$db_ref->create_contigs_table($dbh);
-	}
-
+		
 	# Load tables
 	$db_ref->load_loci_table($dbh);
 	$db_ref->load_loci_chains_table($dbh);
-	$db_ref->load_contigs_table($dbh);
 
 	# Get table references and set up for this consolidation process
 	my $loci_table        = $db_ref->{loci_table};
@@ -440,76 +428,6 @@ sub set_up_consolidate_tables {
 	my $contigs_table     = $db_ref->{contigs_table};
 	$loci_table->flush();
 	$loci_chains_table->flush();
-	$contigs_table->flush();
-}
-
-#***************************************************************************
-# Subroutine:  calculate_contig_lengths
-# Description: 
-#***************************************************************************
-sub calculate_contig_lengths {
-
-	my ($self, $digs_obj) = @_;
-
-	# Get database and tables
-	my $db_ref = $self->{db};
-	my $digs_results     = $db_ref->{digs_results_table};
-	my $contigs_table    = $db_ref->{contigs_table};
-	my $genome_use_path  = $digs_obj->{genome_use_path};
-	my $target_group_ref = $digs_obj->{target_groups};
-	
-
-	my @targets;
-	my @fields = qw [ organism target_datatype target_version target_name ];
-	$digs_results->select_distinct(\@fields, \@targets);
-	foreach my $target_ref(@targets) {
-		
-		# Read the file and get the lengths of each contig	
-		# Get the target details (and thus the target path)	
-		#my $target_path = $self->get_target_file_path($target_ref);
-		my $organism        = $target_ref->{organism};
-		my $target_name     = $target_ref->{target_name};
-		my $target_datatype = $target_ref->{target_datatype};
-		my $target_version  = $target_ref->{target_version};
-		my @genome = ( $organism , $target_datatype, $target_version, $target_name );
-		my $target_id       = join ('|', @genome);
-		my $target_group = $target_group_ref->{$target_id};
-		unless ($target_group) { die; 
-			print " \n\t No target group found for TARGET ID $target_id\n\n"; 
-			sleep 1;
-			next;
-		}
-	
-		# Construct the path to this target file
-		my @path;
-		push (@path, $genome_use_path);
-		push (@path, $target_group);
-		push (@path, $organism);
-		push (@path, $target_datatype);
-		push (@path, $target_version);
-		push (@path, $target_name);
-		my $target_path = join ('/', @path);
-		my @contigs;
-		$fileio->read_fasta($target_path, \@contigs, 'true');
-		
-		foreach my $contig_ref (@contigs) {
-		
-			my $header = $contig_ref->{header};
-			my $length = $contig_ref->{seq_length};
-			unless ($length and $header) {
-				$devtools->print_hash($contig_ref); die;
-			}
-			
-			$contig_ref->{organism}        = $organism;
-			$contig_ref->{target_datatype} = $target_datatype;
-			$contig_ref->{target_version}  = $target_version;
-			$contig_ref->{target_name}     = $target_name;
-			$contig_ref->{scaffold}        = $header;
-			print "\n\t # $header: $length";
-			
-			$contigs_table->insert_row($contig_ref);
-		}			
-	}
 }
 
 ############################################################################

@@ -68,6 +68,9 @@ sub new {
 		target_groups          => $parameter_ref->{target_groups},
 		tmp_path               => $parameter_ref->{tmp_path},
 
+		# Flags
+		verbose                => $parameter_ref->{verbose},
+		force                  => $parameter_ref->{force},
 	};
 	
 	bless ($self, $class);
@@ -91,29 +94,51 @@ sub consolidate_loci {
 	my @sorted;
 	$db->get_sorted_digs_results(\@sorted);	
 	
-	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+	# Set up for consolidation
 	my $total_loci = scalar @sorted;
 	print "\n\t  Consolidating assigned extracted sequences into loci";
 	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
 	my $settings_ref = $self->{consolidate_settings};
 	unless ($settings_ref) { die; }
-	my %consolidated;
-	$self->{defragment_mode} = 'consolidate';
-	$self->{defragment_range} = $settings_ref->{defragment_range};
-	$self->{defragment_range} = 1000;
+	my $range = $settings_ref->{range};
+	unless ($range) { die; }
 	my $defragment_obj = Defragment->new($self);
+	$defragment_obj->{defragment_mode} = 'consolidate';
+	$defragment_obj->{defragment_range} = $range;
+
+	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
+    my %consolidated;
 	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
+	#$devtools->print_hash(\%consolidated);
 	
 	# Check the output
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
+	my $hit_count = 0;
+    my $cluster_count;
+    foreach my $cluster_id (@cluster_ids) {
+
+        my $cluster_array_ref = $consolidated{$cluster_id};
+		#$devtools->print_array($cluster_array_ref);
+        my $cluster_first_ref = @$cluster_array_ref[0];
+        my $organism = $cluster_first_ref->{organism};
+        my $scaffold = $cluster_first_ref->{scaffold};
+        my $num_hits = scalar @$cluster_array_ref;
+        if ($num_hits > 1) {
+			print "\n\t '$num_hits' hits'\t'$organism: $scaffold'"; 
+		}
+        $hit_count = $hit_count + $num_hits;
+        $cluster_count++;
+	}
+	#$devtools->print_hash(\%consolidated); exit;
+	print "\n\t HIT COUNT: $hit_count, CLUSTER COUNT: $cluster_count";
+
 	if ($total_loci > $num_clusters) {
-		my $range = $settings_ref->{range};
 		print "\n\t  $num_clusters clusters of loci within '$range' bp of one another ";
 	}
 	
 	# Update locus data based on consolidated results
-	$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
+	#$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
 	
 	# Return the number of clusters
 	return $num_clusters;

@@ -108,6 +108,8 @@ sub compose_clusters {
 	my ($self, $defragmented_ref, $loci_ref) = @_;
 	
 	my $i = 1;
+	my $locus_count = 0;
+	my $verbose = $self->{verbose};
 	my %cluster_tracking_data;
 	my $initialised = undef;
 	my $cluster_high_end = undef; # Variable to track highest end within a cluster of loci
@@ -115,42 +117,67 @@ sub compose_clusters {
 	# Iterate through loci, grouping them into clusters when they are within range
 	foreach my $locus_ref (@$loci_ref)  {
 
+	    $locus_count++;
 		my $id = $locus_ref->{digs_result_id};
 		my $sc = $locus_ref->{scaffold};
+		my $start = $locus_ref->{$start_token}; 
 		my $end = $locus_ref->{$end_token}; 
-		
-		# Get end variables for new hits 
-		unless ($end) { 
-			$end = $locus_ref->{subject_end}; 
+		if ($verbose) {
+			print "\n\t\t # Processing locus $locus_count in SCAFFOLD '$sc': '$start-$end'";
+			#$devtools->print_hash($locus_ref);
 		}
-		
-		unless ($initialised) { # Is this the first locus?
-			$self->initialise_cluster($defragmented_ref, $locus_ref, $i);
+	
+        # Have we seen this scaffold before?
+        $initialised = undef;
+        unless ($cluster_tracking_data{scaffold}) {  # This is the first hit
+			$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
 			$cluster_tracking_data{scaffold} = $locus_ref->{scaffold};
 			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
-            $initialised = 'true'; # Set flag 
 			$cluster_high_end = $end;
 		}
-		else {
+        elsif ($cluster_tracking_data{scaffold} ne $locus_ref->{scaffold}) { # This is the first hit on this scaffold
+			$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
+			$cluster_tracking_data{scaffold} = $locus_ref->{scaffold};
+			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
+			$cluster_high_end = $end;
+		}
+		else { # Seen this scaffold before
+            $initialised = 'true'; # Set flag 
+		}
 
-			# Test if we need to merge this one
-			my $merge = $self->is_distinct_locus($locus_ref, \%cluster_tracking_data, $cluster_high_end);
+        # if on same scaffold as last hit - should it be merged?
+		if ($initialised) {
+
+            # Test if we need to merge this one
+			my $is_distinct = $self->is_distinct_locus($locus_ref, \%cluster_tracking_data, $cluster_high_end);
 						
-			unless ($merge) { # Distinct locus - initialise record
-				$i++; # Increment the count
-				$self->initialise_cluster($defragmented_ref, $locus_ref, $i);
-				$cluster_high_end = $end;
+			if ($is_distinct) { # Distinct hit on same scaffold - create new cluster set
+				$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
 			}
-			else {             
-				# Extend record
-				$self->extend_cluster($defragmented_ref, $locus_ref, $i);
-				if ($end > $cluster_high_end) {
-					$cluster_high_end = $end;
+			else { # Non-distinct locus - check whether to merge
+               
+				my $merge;
+                if ($self->{defragment_mode} eq 'consolidate') { 
+                    # Should locus be merged based on consolidation rules?
+					#$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
+                    $merge = 'true';
+				}
+                else {
+                    # In normal/default defragment mode then simply merge if in range
+                    $merge = 'true';
+				}
+ 
+				if ($merge) { # Extend record
+					$self->extend_cluster($defragmented_ref, $locus_ref, $i);
 				}
 			}
 
 			# Update tracking data
 			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
+		   	if ($end > $cluster_high_end) {
+				$cluster_high_end = $end;
+			}
+			
 		}	
 	}
 }
@@ -163,7 +190,7 @@ sub is_distinct_locus {
 
 	my ($self, $locus_ref, $data_ref, $high_end) = @_;
 
-	my $merge = undef;
+	my $is_distinct = 'true';
 	
 	# Is it on the same scaffold?
 	my $same_scaffold = $self->is_locus_on_same_scaffold($locus_ref, $data_ref);
@@ -171,15 +198,21 @@ sub is_distinct_locus {
 	# Is it in range?
 	my $is_in_range;
 	if ($same_scaffold) {
+		if ($self->{verbose}) {
+			print "\n\t\t\t Checking a new match on scaffold '$locus_ref->{scaffold}'";
+		}
 		$is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
 	}
-	if ($same_scaffold and $is_in_range) {
-	
-		# Should locus be merged based on current rules
-		#$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
-		$merge = 1;
+
+    # If its on same scaffold and in range set merge flag to be 'true'
+	if ($same_scaffold and $is_in_range) {	
+		$is_distinct = undef;
 	}
-	return $merge;
+	elsif ($self->{verbose}) {
+		print "\n\t\t\t DISTINCT LOCUS";
+	}
+	
+	return $is_distinct;
 }
 
 #***************************************************************************
@@ -209,17 +242,24 @@ sub is_locus_in_range {
 	my ($self, $locus_ref, $high_end) = @_;
 
 	my $in_range = undef;
+	my $verbose = $self->{verbose};
 	
 	# Get data structures and values
 	my $range        = $self->{defragment_range};
+	unless ($range) { die; }	
 	my $start        = $self->get_locus_start($locus_ref);
 	my $end          = $self->get_locus_end($locus_ref);
+	unless ($start and $end) { die; }	
 
 	my $buffered_start = $start - $range;
-	unless ($range) { die; }	
-	#print "\n\t\t\t Check if '$buffered_start' < '$high_end'";
-	if ($buffered_start < $high_end) {
-		#print "\n\t\t\t MERGE cos '$buffered_start' < '$high_end'";
+	my $buffered_high_end = $high_end + $range;
+    if ($verbose) {
+		print "\n\t\t\t Checking if the start of this match ($start - $range = $buffered_start) < end of last match ($high_end + $range = $buffered_high_end) ";
+	}
+	if ($buffered_start < $buffered_high_end) {
+        if ($verbose) {
+			print "\n\t\t\t MERGING because '$buffered_start' < '$buffered_high_end'";
+		}
 		$in_range = 'true';
 	}
 	
@@ -282,36 +322,14 @@ sub set_tracking_data {
 
 	my ($self, $locus_ref, $cluster_tracking_data_ref) = @_;
 
-	# Get locus data
-	my $scaffold      = $locus_ref->{scaffold};
-	my $target_name   = $locus_ref->{target_name};
-	my $assigned_name = $locus_ref->{assigned_name};
-	my $probe_gene    = $locus_ref->{probe_gene}; # Currently needed for unassigned 
-	my $assigned_gene = $locus_ref->{assigned_gene};
-	my $orientation   = $locus_ref->{orientation};
-	my $start         = $locus_ref->{$start_token};
-	my $end           = $locus_ref->{$end_token};
-		
-	# Get values required in this function 
-	my $last_scaffold      = $cluster_tracking_data_ref->{scaffold};
-	my $last_start         = $cluster_tracking_data_ref->{$start_token};
-	
-	# Sanity checking - are sequences in sorted order for this scaffold?
-	#if ( $scaffold eq $last_scaffold and $start < $last_start) {
-	#	#$devtools->print_hash($locus_ref);
-	#	my $error = "\n\t Error: sequences do not appear to be correctly sorted"; 
-	#	$error   .= "\n\t (i.e. by unique scaffold ID and locus start position)\n\n"; 
-	#	die $error; 
-	#}
-
 	# Update cluster tracking data	
-	$cluster_tracking_data_ref->{assigned_name} = $assigned_name;
-	$cluster_tracking_data_ref->{assigned_gene} = $assigned_gene;
-	$cluster_tracking_data_ref->{probe_gene}    = $probe_gene;
-	$cluster_tracking_data_ref->{scaffold}      = $scaffold;
-	$cluster_tracking_data_ref->{orientation}   = $orientation;
-	$cluster_tracking_data_ref->{$start_token}  = $start;
-	$cluster_tracking_data_ref->{$end_token}    = $end;
+	$cluster_tracking_data_ref->{assigned_name} = $locus_ref->{assigned_name};
+	$cluster_tracking_data_ref->{assigned_gene} = $locus_ref->{assigned_gene};
+	$cluster_tracking_data_ref->{probe_gene}    = $locus_ref->{probe_gene};
+	$cluster_tracking_data_ref->{scaffold}      = $locus_ref->{scaffold};
+	$cluster_tracking_data_ref->{orientation}   = $locus_ref->{orientation};
+	$cluster_tracking_data_ref->{$start_token}  = $locus_ref->{$start_token};
+	$cluster_tracking_data_ref->{$end_token}    = $locus_ref->{$end_token};
 
 }
 
@@ -395,12 +413,17 @@ sub initialise_cluster {
 
 	my ($self, $defragmented_ref, $hit_ref, $count) = @_;
 
-    # Get the current hit values
-	#print "\n\t New record ($count)";
+	$count = $count + 1;
+	if ($self->{verbose}) {
+		print "\n\t\t # Initialising cluster '$count''";
+	}
+
     my @array;
     my %hit = %$hit_ref;
     push (@array, \%hit);
     $defragmented_ref->{$count} = \@array;
+
+	return $count;
 }
 
 #***************************************************************************
@@ -411,9 +434,9 @@ sub extend_cluster {
 
 	my ($self, $defragmented_ref, $hit_ref, $count) = @_;
 
-    # Get the current hit values
-	#print "\n\t Extending record ($count) ";
-    #$devtools->print_hash($hit_ref); die;
+	if ($self->{verbose}) {
+		print "\n\t\t # Extending cluster '$count''";
+	}
     my $array_ref = $defragmented_ref->{$count};
     push (@$array_ref, $hit_ref);
 

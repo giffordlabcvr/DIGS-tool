@@ -201,11 +201,24 @@ sub ask_int_with_bounds_question {
 	my ($self, $question, $lower_bound, $upper_bound) = @_;
 	
 	my $answer;
+	my $valid_answer;
+	my $is_number;
+	my $in_range;
 	do {
+	    $is_number = undef;
+	    $in_range = undef;
+	    $valid_answer = undef;
 		print "$question \($lower_bound-$upper_bound\): ";
 		$answer = <STDIN>;
-		chomp $answer; 
-	} until ($answer >= $lower_bound and $answer <= $upper_bound);
+		chomp $answer;
+        $is_number = $answer =~ /^\d*$/; 
+		if ($is_number) {
+            if ($answer >= $lower_bound and $answer <= $upper_bound) {
+				$valid_answer = 'true';
+		    }
+
+        }
+	} until ($valid_answer and $is_number);
 	return $answer;
 }
 

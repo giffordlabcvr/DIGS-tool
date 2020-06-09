@@ -152,11 +152,7 @@ sub initialise {
 		elsif ($option > 1 and $option <= 5) { # Show error if no infile
 			print "\n\t  Option '-m=$option' requires an infile\n\n";	
 		}
-		elsif ($option eq 6) { 
-			print "\n\t  RUNNING LOCUS ID ASSIGNMENT TOOL\n\n";
-			$valid = 1;
-		}
-		else {	# Show error, these options are not available
+		else {	# Unavailable option error
 			print "\n\t  Unrecognized option '-m=$option'\n\n";
 		}
 	}
@@ -171,7 +167,6 @@ sub initialise {
 sub hand_off_to_digs_fxns {
 
 	my ($self, $option) = @_;
-
 
 	# Main screening functions
 	if ($option eq 1) {      # Check the target sequences are formatted for BLAST		
