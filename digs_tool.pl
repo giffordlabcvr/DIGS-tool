@@ -12,7 +12,7 @@ unless ($ENV{'DIGS_GENOMES'}) {
 	exit;
 }
 unless ($ENV{'DIGS_HOME'}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
+	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
 unless ($ENV{'DIGS_MYSQL_USER'}) {
@@ -52,7 +52,6 @@ use DIGS::TargetDB;
 use DIGS::ScreeningDB;
 use DIGS::Test;
 use DIGS::Utility;
-use DIGS::Nomenclature;
 
 ############################################################################
 # Paths & Globals
@@ -152,7 +151,6 @@ sub main {
 			    'utility=i'      => \$utility,
 			    'genomes=i'      => \$genomes,
 			    'create_ids'     => \$create_ids,			      
-			    'extra_help'     => \$extra_help,
 			    'verbose'        => \$verbose,
 			    'force'          => \$force,
 			    'help'           => \$help,
@@ -169,27 +167,17 @@ sub main {
 		$digs_tool_obj->show_help_page();
 		exit;
 	}
-	elsif ($test) { # Run inbuilt tests
-		my $test_obj = Test->new($digs_tool_obj);
-		$test_obj->show_test_validation_options();
-	}
-	elsif ($extra_help) { # Show help for utility options
-		my $utility_obj = Utility->new($digs_tool_obj);
-		$utility_obj->show_utility_help_page();
-		exit;
-	}
 	elsif ($mode) { # Main DIGS tool functions 
 		$digs_tool_obj->run_digs_process($infile, $mode); 
-	}
-	elsif ($create_ids) { # Apply nomenclature rules to loci
-		my $nomenclature_obj = Nomenclature->new($digs_tool_obj);
-		$nomenclature_obj->create_standard_locus_ids($infile);
-		
 	}
 	elsif ($database or $utility or $genomes or $utility) { # Utility functions
 		my $utility_obj = Utility->new($digs_tool_obj);
 		$utility_obj->run_utility_process($infile, $database, $genomes, $utility); 
 	}	
+	elsif ($test) { # Run inbuilt tests
+		my $test_obj = Test->new($digs_tool_obj);
+		$test_obj->show_test_validation_options();
+	}
 	else { die $USAGE; }
 
 	# Exit script
