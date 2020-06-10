@@ -647,8 +647,21 @@ sub show_help_page {
 	   $HELP  .= "\n\t -m=3  Reassign loci"; 
 	   $HELP  .= "\n\t -m=4  Defragment loci"; 
 	   $HELP  .= "\n\t -m=5  Consolidate loci"; 
+
+       $HELP  .= "\n\n\t ### Summarising target databases\n"; 	   
+	   $HELP  .= "\n\t -g=1  Summarise targets (brief summary, by species)";
+	   $HELP  .= "\n\t -g=2  Summarise targets (long, by individual target file)\n";
+
+       $HELP  .= "\n\t ### Managing DIGS screening DBs\n"; 
+	   $HELP  .= "\n\t -d=1  Import tab-delimited data"; 
+	   $HELP  .= "\n\t -d=2  Flush core tables"; 
+	   $HELP  .= "\n\t -d=3  Drop tables";
+	   $HELP  .= "\n\t -d=4  Drop a screening DB"; 
+	   $HELP  .= "\n\t -d=5  Append data to 'digs_results' table"; 
+	   $HELP  .= "\n\t -d=6  Extract sequences using tabular file"; 
+
 	   $HELP  .= "\n\n\t Target path variable '\$DIGS_GENOMES' is set to '$ENV{DIGS_GENOMES}'";
-	   $HELP  .= "\n\n\t Run '$0 -e' to see additional utility functions\n\n\n"; 
+	   $HELP  .= "\n\n"; 
 
 	print $HELP;
 }

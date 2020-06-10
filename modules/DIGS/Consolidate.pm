@@ -138,7 +138,7 @@ sub consolidate_loci {
 	}
 	
 	# Update locus data based on consolidated results
-	#$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
+	$self->derive_locus_table_from_clustered_digs_results(\%consolidated);
 	
 	# Return the number of clusters
 	return $num_clusters;

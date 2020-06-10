@@ -617,41 +617,5 @@ sub do_load_db_dialogue {
 }
 
 ############################################################################
-# HELP INFO PAGE FOR UTILITY OPTIONS
-############################################################################
-
-#***************************************************************************
-# Subroutine:  show_utility_help_page
-# Description: show help page information for utility functions
-#***************************************************************************
-sub show_utility_help_page {
-
-	my ($self) = @_;
-
-	# Create utility help menu
-	$console->refresh();
-	my $program_version = $self->{program_version};
-
-    my $HELP   = "\n\t ### DIGS version $program_version - utility functions help menu\n";
-       $HELP .= "\n\t ### usage: $0 [options] -i=[control file]\n";
-
-       $HELP  .= "\n\n\t ### Summarising target databases\n"; 	   
-	   $HELP  .= "\n\t   -g=1   Summarise targets (brief summary, by species)";
-	   $HELP  .= "\n\t   -g=2   Summarise targets (long, by individual target file)\n";
-
-       $HELP  .= "\n\t ### Managing DIGS screening DBs\n"; 
-	   $HELP  .= "\n\t   -d=1   Import tab-delimited data"; 
-	   $HELP  .= "\n\t   -d=2   Flush core tables"; 
-	   $HELP  .= "\n\t   -d=3   Drop tables";
-	   $HELP  .= "\n\t   -d=4   Drop a screening DB"; 
-	   $HELP  .= "\n\t   -d=5   Append data to 'digs_results' table"; 
-	   $HELP  .= "\n\t   -d=6   Extract sequences using tabular file"; 
-
-	   $HELP  .= "\n\n"; 
-
-	print $HELP;
-}
-
-############################################################################
 # EOF
 ############################################################################
