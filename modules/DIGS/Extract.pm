@@ -92,7 +92,6 @@ sub extract_locus_sequence_using_blast {
 		$self->add_buffer_to_sequence($locus_ref, $orientation); 
 	}
 
-	
 	my $seq_length = ($locus_ref->{end} - $locus_ref->{start}) + 1;
 	#$seq_length = length $sequence; # Set sequence length
 	if ($seq_length > $maximum_extract_length) { 

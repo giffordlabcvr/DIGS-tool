@@ -89,25 +89,29 @@ sub consolidate_loci {
 
 	my ($self) = @_;
 
-	# Get the digs results sorted by scaffold and extract start
-	my $db = $self->{db};
-	my @sorted;
-	$db->get_sorted_digs_results(\@sorted);	
-	
-	# Set up for consolidation
-	my $total_loci = scalar @sorted;
-	print "\n\t  Consolidating assigned extracted sequences into loci";
-	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
+	# Get settings
 	my $settings_ref = $self->{consolidate_settings};
 	unless ($settings_ref) { die; }
 	my $range = $settings_ref->{range};
 	unless ($range) { die; }
+	#$devtools->print_hash($settings_ref); exit;
 	my $defragment_obj = Defragment->new($self);
 	$defragment_obj->{defragment_mode} = 'consolidate';
 	$defragment_obj->{defragment_range} = $range;
 
+	# Get the digs results sorted by scaffold and extract start
+	my $db = $self->{db};
+	my $where = $settings_ref->{where_clause};
+	my @sorted;
+	$db->get_sorted_digs_results(\@sorted, $where);	
+
+	# Set up for consolidation
+	my $total_loci = scalar @sorted;
+	print "\n\t  Consolidating assigned extracted sequences into loci";
+	print "\n\t  $total_loci loci in the digs_results table prior to consolidation'";
+    
 	# Compose clusters of overlapping/adjacent BLAST hits and extracted loci
-    my %consolidated;
+	my %consolidated;
 	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	#$devtools->print_hash(\%consolidated);
 	
@@ -369,7 +373,7 @@ sub extract_consolidated_locus {
 	my $full_id = $target_id . '|' . $target_name;
 	my $target_group = $target_group_ref->{$full_id};
 	unless ($target_group) {
-		print " \n\t Defreag: No target group found for TARGET ID $full_id\n\n"; 
+		print " \n\t Defrag set-up error: No target group found for TARGET ID $full_id\n\n"; 
 		#$devtools->print_hash($target_group_ref);
         sleep 1;
 		return 0;

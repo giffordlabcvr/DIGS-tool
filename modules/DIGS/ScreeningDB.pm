@@ -330,7 +330,6 @@ sub load_loci_table {
         target_name      => 'varchar',
         scaffold         => 'varchar',
         orientation      => 'varchar',
-        assigned_name    => 'varchar',
         extract_start    => 'int',
         extract_end      => 'int',
         locus_structure  => 'text',
@@ -567,12 +566,11 @@ sub create_loci_table {
         `scaffold`          varchar(100) default 'NULL',
         `orientation`       varchar(100) NOT NULL default '0',
 
-        `assigned_name`     varchar(100) NOT NULL default '0',
         `extract_start`     int(11) NOT NULL default '0',
         `extract_end`       int(11) NOT NULL default '0',
         `locus_structure`   text NOT NULL,
         `sequence_length`   int(11) NOT NULL default '0',
-        `sequence`          text NOT NULL,
+        `sequence`          longtext NOT NULL,
       
         `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
       PRIMARY KEY  (`record_id`)
@@ -602,14 +600,6 @@ sub create_loci_chains_table {
     my $sth = $dbh->prepare($loci);
     unless ($sth->execute()) { print "\n\t$loci\n\n\n"; exit;}
 }
-
-
-
-
-
-
-
-
 
 
 ############################################################################

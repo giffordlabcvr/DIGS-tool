@@ -295,7 +295,6 @@ sub setup_for_reassign {
 		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
 		$where = $console->ask_question($question);
 	}
-	# Get the assigned digs_results
 
 	# Get database tables
 	my @reassign_loci;
@@ -305,6 +304,8 @@ sub setup_for_reassign {
 	# Set the fields to get values for
 	my @fields = qw [ record_id assigned_name assigned_gene 
 	                  probe_type sequence ];
+	
+    # Get the assigned digs_results
 	$digs_results_table->select_rows(\@fields, \@reassign_loci, $where);
 	$digs_obj->{reassign_loci} = \@reassign_loci;
 	
@@ -388,12 +389,16 @@ sub setup_for_defrag_or_consolidate {
 			my $question1 = "\n\n\t # Set the range for consolidating digs results";
 			$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
 		}
+		# Option to enter a WHERE statement
+		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
+		my $where = $console->ask_question($question);
 	
 		# Set the parameters for consolidation
 		my %consolidate_settings;
 		$consolidate_settings{range} = $range;
 		$consolidate_settings{start} = 'extract_start';
 		$consolidate_settings{end}   = 'extract_end';
+		$consolidate_settings{where_clause} = $where;
 		$digs_obj->{consolidate_settings} = \%consolidate_settings;
 	}
 }

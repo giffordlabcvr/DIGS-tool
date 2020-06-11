@@ -94,17 +94,6 @@ sub new {
 	return $self;
 }
 
-
-
-
-
-
-
-
-
-
-
-
 ############################################################################
 # COMPOSE clusters
 ############################################################################
@@ -131,10 +120,11 @@ sub compose_clusters {
 	    $locus_count++;
 		my $id = $locus_ref->{digs_result_id};
 		my $sc = $locus_ref->{scaffold};
+		my $organism = $locus_ref->{organism};
 		my $start = $locus_ref->{$start_token}; 
 		my $end = $locus_ref->{$end_token}; 
 		if ($verbose) {
-			print "\n\t\t # Processing locus $locus_count in SCAFFOLD '$sc': '$start-$end'";
+			print "\n\t\t # Processing locus $locus_count in $organism - '$sc': '$start-$end'";
 			#$devtools->print_hash($locus_ref);
 		}
 	
@@ -210,7 +200,10 @@ sub is_distinct_locus {
 	my $is_in_range;
 	if ($same_scaffold) {
 		if ($self->{verbose}) {
-			print "\n\t\t\t Checking a new match on scaffold '$locus_ref->{scaffold}'";
+			print "\n\t\t\t\t # '$locus_ref->{organism}'";
+			print "\n\t\t\t\t # '$locus_ref->{scaffold}'";
+			print "\n\t\t\t\t # '$locus_ref->{assigned_name}'";
+			print "\n\t\t\t\t # '$locus_ref->{extract_start}' - '$locus_ref->{extract_end}'";
 		}
 		$is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
 	}
@@ -218,9 +211,6 @@ sub is_distinct_locus {
     # If its on same scaffold and in range set merge flag to be 'true'
 	if ($same_scaffold and $is_in_range) {	
 		$is_distinct = undef;
-	}
-	elsif ($self->{verbose}) {
-		print "\n\t\t\t DISTINCT LOCUS";
 	}
 	
 	return $is_distinct;
@@ -265,13 +255,18 @@ sub is_locus_in_range {
 	my $buffered_start = $start - $range;
 	my $buffered_high_end = $high_end + $range;
     if ($verbose) {
-		print "\n\t\t\t Checking if the start of this match ($start - $range = $buffered_start) < end of last match ($high_end + $range = $buffered_high_end) ";
+		print "\n\t\t\t\t Buffered start: $start - $range\t= $buffered_start";
+		print "\n\t\t\t\t Buffered end:   $high_end + $range\t= $buffered_high_end";
 	}
-	if ($buffered_start < $buffered_high_end) {
+	if ($buffered_start <= $buffered_high_end) {
         if ($verbose) {
-			print "\n\t\t\t MERGING because '$buffered_start' < '$buffered_high_end'";
+			print "\n\t\t\t ### MERGING because '$buffered_start' <= '$buffered_high_end'";
 		}
 		$in_range = 'true';
+	}
+	elsif ($self->{verbose}) {
+        my $diff = $buffered_start - $buffered_high_end; 
+		print "\n\t\t\t ### DISTINCT because '$buffered_start' > '$buffered_high_end'  (Difference = '$diff' nucleotides')";
 	}
 	
 	return $in_range;
@@ -426,7 +421,7 @@ sub initialise_cluster {
 
 	$count = $count + 1;
 	if ($self->{verbose}) {
-		print "\n\t\t # Initialising cluster '$count''";
+		print "\n\t\t\t ### INITIALISING NEW CLUSTER!";
 	}
 
     my @array;
