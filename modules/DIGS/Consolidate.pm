@@ -250,7 +250,6 @@ sub derive_locus_structure {
 		# Get the data about this digs_results table row
 		my $start       = $element_ref->{extract_start};
 		my $end         = $element_ref->{extract_end};
-
 		$feature        = $element_ref->{assigned_gene};
 		$assigned_name  = $element_ref->{assigned_name};
 		$version        = $element_ref->{target_version};
@@ -263,7 +262,7 @@ sub derive_locus_structure {
 		my $record      = "$feature\[$assigned_name($orientation)\]";
 		#print "\n\t RECORD $record";
 
-		# Create a target key
+		# Create a target key so we can extract a sequence later
 		$organism        = $element_ref->{organism};
 		$target_name     = $element_ref->{target_name};
 		$target_datatype = $element_ref->{target_datatype};
@@ -272,12 +271,11 @@ sub derive_locus_structure {
 		my $this_target_id = join ('|', @genome);
 		if ($target_id) {
 			unless ($this_target_id eq $target_id) { 
-				print "\n\t WHY??? $target_id NE $this_target_id\n\n";
+				print "\n\t Error Target '$target_id' NE '$this_target_id'\n\n";
 				#die; 
 			} 
 		}
 		$target_id = $this_target_id;
-
 		
 		# Deal with first locus in a cluster
 		unless ($initialised) {
@@ -285,44 +283,20 @@ sub derive_locus_structure {
 			$lowest       = $start;
 			$last_element = $element_ref;
 			$initialised  = 'true';								
-			push(@locus_structure, $record);
-			next;		
 		}
-
-
-		# Capture information about coordinates 			
-		if ($end > $highest) {
-			$highest = $end;
-		}
-		if ($start < $lowest) {
-			$lowest = $start;					
-		}
-
-		# Deal with loci that follow at least one previous locus
-		if ($orientation eq $last_orientation
-		and $feature eq $last_feature) {
-			next;
-		}
-		if ($orientation ne $last_orientation) {
-			$multiple_orientations = 'true';
-		}
-
-		# Add this element to the start or end of the locus array, based on orientation
-		if ($multiple_orientations) { # If multiple orientations, base it on last element
-			if ($start >= $last_element->{extract_start}) {
-				push(@locus_structure, $record);
+		else {
+	
+			if ($start < $lowest) {
+				$lowest  = $start;
 			}
-			else {
-				unshift(@locus_structure, $record);	
+			if ($end > $highest) {
+				$highest  = $end;
 			}
+
 		}
-		elsif ($orientation eq '+') {
-			#my $record = $feature;
-			push(@locus_structure, $record);
-		}
-		elsif ($orientation eq '-') {
-			unshift(@locus_structure, $record);			
-		}
+
+        push(@locus_structure, $record);
+
 		$last_element = $element_ref;				
 	}
 
