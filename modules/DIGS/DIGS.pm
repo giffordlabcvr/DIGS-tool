@@ -195,7 +195,10 @@ sub hand_off_to_digs_fxns {
 			$consolidate_obj->consolidate_loci();
 		}
 	}
-	else { die; } # Shouldn't get here
+	else { 
+		print  "\n\n\t # Unrecognised option m='$option'\n\n\n\n";
+		exit;
+	} # Shouldn't get here
 
 }
 
