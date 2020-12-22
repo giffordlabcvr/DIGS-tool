@@ -5,7 +5,9 @@
 
 Molecular sequence data are highly information rich, and are now being generated much faster than they can be analysed. Consequently, the immense quantities of genome, transcriptome, and metagenome data accumulating in public databases contain multitudes of gene, pseudogene, transposon, virus, and non-coding element sequences that have not been yet been identified, or are only poorly described.
 
-Database-integrated genome screening (DIGS) is an approach for exploring genomes and transcriptomes using similarity/search.
+Database-integrated genome screening (DIGS) is an approach for exploring genomes and transcriptomes using
+sequence similarity search tools.
+
 In DIGS, the output of sequence similarity-based searches is captured in a relational database.
 This allows for the interrogation and manipulation of output data using structured query language (SQL).
 In addition, it provides all the benefits of a relational database management system (RDBMS)
@@ -24,7 +26,14 @@ The DIGS tool can be used to systematically search for sequences of interest, an
 
 DIGS requires PERL (with DBD::MySQL package), BLAST and MySQL.
 
-If you want to install the DIGS tool on a mac, you will need to find a way to get the DBD::mysql package to install and work. The problems with this perl library on macintosh are well known and have been an issue for years . There are many online articles offering solutions (e.g. see [here](http://www.ensembl.info/2013/09/09/installing-perl-dbdmysql-and-ensembl-on-osx/), [here](http://www.dimasyusuf.com/installing-dbd-mysql-on-os-x-el-capitan/), and [here](https://josephhall.org/nqb2/index.php/dbdmysql_macosx)) but none of these worked for me. Last time I attempted a mac install I gave up, so my suggestion is to stick with unix/linux when using this tool.
+If you want to install the DIGS tool on a mac, you will need to find a way to get the
+DBD::mysql package to install and work. The problems with this perl library on macintosh
+are well known and have been an issue for years . There are many online articles offering
+solutions (e.g. see [here](http://www.ensembl.info/2013/09/09/installing-perl-dbdmysql-and-ensembl-on-osx/),
+[here](http://www.dimasyusuf.com/installing-dbd-mysql-on-os-x-el-capitan/), and
+[here](https://josephhall.org/nqb2/index.php/dbdmysql_macosx)) but none of these worked for me.
+Last time I attempted a mac install I gave up, so my suggestion is to stick with
+unix/linux when using this tool.
 
 To install DIGS:
 
