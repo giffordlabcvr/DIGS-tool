@@ -222,40 +222,47 @@ sub get_fasta_probes {
 #***************************************************************************
 sub setup_reference_libraries {
 
-	my ($self, $digs_obj) = @_;
+	my ($self, $digs_obj, $consolidate) = @_;
 
 	# Get reference library params
 	my $reference_type;
 	my $ref_fasta;
 	my @ref_fasta;
 	my $num_fasta;
+
+	if ($consolidate) {
 	
+		unless ($digs_obj->{consolidated_reference_aa_fasta} or $digs_obj->{consolidated_reference_na_fasta} ) {
+			die "\n\t No library defined for consolidate function"
+		}
+	}
+		
 	# Load a peptide sequence library
-	if ($self->{reference_aa_fasta} or $self->{consolidated_reference_aa_fasta}) {
+	if ($digs_obj->{reference_aa_fasta} or $digs_obj->{consolidated_reference_aa_fasta}) {
  		$self->{reference_library_type} = 'aa';
- 		if $self->{reference_aa_fasta}) {
-			$ref_fasta = $self->{reference_aa_fasta};
+ 		unless ($consolidate) {
+ 			$ref_fasta = $digs_obj->{reference_aa_fasta};
 		}
 		else {
- 			$ref_fasta = $self->{consolidated_reference_aa_fasta};
+ 			$ref_fasta = $digs_obj->{consolidated_reference_aa_fasta};
 		}
 		$reference_type = 'amino acid';
 		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
 	
 	# Load a nucleotide sequence library	
-	if ($self->{reference_na_fasta} or $self->{consolidated_reference_na_fasta}) {
+	if ($digs_obj->{reference_na_fasta} or $digs_obj->{consolidated_reference_na_fasta}) {
  		$self->{reference_library_type} = 'na';
- 		if $self->{reference_na_fasta}) {
- 			$ref_fasta = $self->{reference_na_fasta};
+ 		unless ($consolidate) {
+ 			$ref_fasta = $digs_obj->{reference_na_fasta};
 		}
 		else {
- 			$ref_fasta = $self->{consolidated_reference_na_fasta};
+ 			$ref_fasta = $digs_obj->{consolidated_reference_na_fasta};
 		}
 		$reference_type = 'nucleic acid';
 		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
-	
+
 }
 
 #***************************************************************************
@@ -702,7 +709,6 @@ sub parse_control_file {
 	$self->set_skipindex_targets(\@skipindex, \%skipindex);
 	$self->{skipindexing_paths} = \%skipindex;
 
-	# Set parameters in pipeline object
 	
 	# Screening DB name and MySQL connection details
 	$digs_obj->{db_name}                = $self->{db_name};
@@ -710,17 +716,19 @@ sub parse_control_file {
 
 	# Input and output file paths 	
 	$digs_obj->{output_path}            = $self->{output_path};
-	$digs_obj->{blast_orf_lib_path}     = $self->{blast_orf_lib_path};
-	$digs_obj->{conso_utr_lib_path}     = $self->{reference_nt_fasta_conso};
-	$digs_obj->{conso_orf_lib_path}     = $self->{reference_aa_fasta_conso};
 	$digs_obj->{target_paths}           = $self->{target_paths};
 	$digs_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
-	
+
 	# Set parameters for screening
 	$digs_obj->{defragment_range}       = $self->{defragment_range};
-	$digs_obj->{consolidate_range}      = $self->{consolidate_range};
 	$digs_obj->{extract_buffer}         = $self->{extract_buffer};
 
+	# Set parameters for consolidation
+	$digs_obj->{consolidate_range}                = $self->{consolidate_range};
+	$digs_obj->{consolidated_reference_aa_fasta}  = $self->{consolidated_reference_aa_fasta};
+	$digs_obj->{consolidated_reference_na_fasta}  = $self->{consolidated_reference_na_fasta};
+
+	
 	# Set numthreads in the BLAST object 
 	my $num_threads = $self->{num_threads};
 	unless ($num_threads) { $num_threads = 1; }  # Default setting
@@ -745,6 +753,9 @@ sub parse_control_file {
 	if ($self->{bitscore_min_blastn}) {
 		$digs_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
 	}
+
+	# DEV $devtools->print_hash($digs_obj); die;
+
 }
 
 #***************************************************************************
@@ -811,12 +822,9 @@ sub parse_screensets_block {
 	# Screen parameters
 	my $extract_buffer         = $self->{extract_buffer};
 	my $defragment_range       = $self->{defragment_range};
-	
-	
-	if ($self->{threadhit_gap_buffer}) {
-		$defragment_range = $self->{threadhit_gap_buffer}; # Deprecated
-	}
+	my $consolidate_range      = $self->{consolidate_range};
 
+	
 	unless ($output_path) {
 		print "\n\t  Warning no output path defined, results folder will be created in current directory\n\n\n";
 	}
@@ -1246,3 +1254,4 @@ sub create_blast_lib {
 ############################################################################
 # EOF
 ############################################################################
+

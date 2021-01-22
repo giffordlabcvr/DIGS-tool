@@ -72,6 +72,7 @@ sub initialise {
 
 	my ($self, $digs_obj, $option, $ctl_file) = @_;
 
+
 	# READ CONTROL FILE
 	my $loader_obj = ScreenBuilder->new($digs_obj);
 	my $db_name = $self->parse_digs_control_file($digs_obj, $loader_obj, $option, $ctl_file);
@@ -81,6 +82,7 @@ sub initialise {
 
 	# SET-UP OUTPUT DIRECTORIES
     $self->create_output_directories($digs_obj, $loader_obj, $option);
+
 
 	# SET-UP FOR DIGS SCREENING
 	if ($option eq 2) { 	
@@ -93,6 +95,7 @@ sub initialise {
 		my $force = $digs_obj->{force};
 		$self->setup_for_reassign($digs_obj, $force);
 	}
+	#print "\n\nOPTION IS '$option'\n\n\n";die;
 
 	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
 	if ($option eq 4 or $option eq 5) { 
@@ -137,8 +140,8 @@ sub create_output_directories {
 	my ($self, $digs_obj, $loader_obj, $option) = @_;
 
 	# Create the output directories if running a screen or re-assigning results table
-	if ($option eq 2 or $option eq 3 or $option eq 4) { # Need output directory for these options
-   
+	if ($option >= 2 and $option <=5) { # Need output directory for options 2-5
+    
 		# Create a unique ID and report directory for this run
 		my $process_id  = $digs_obj->{process_id};
 		my $output_path = $digs_obj->{output_path};
@@ -285,38 +288,6 @@ sub index_previously_executed_searches {
 }
 
 #***************************************************************************
-# Subroutine:  setup_for_reassign
-# Description: do general set up for a reassign process
-#***************************************************************************
-sub setup_for_reassign {
-
-	my ($self, $digs_obj, $force) = @_;
-
-	my $loader_obj = $digs_obj->{loader_obj};
-	my $where = '';
-	unless ($force) {
-		# Option to enter a WHERE statement
-		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
-		$where = $console->ask_question($question);
-	}
-
-	# Get database tables
-	my @reassign_loci;
-	my $db = $digs_obj->{db};
-	my $digs_results_table  = $db->{digs_results_table};
-		
-	# Set the fields to get values for
-	my @fields = qw [ record_id assigned_name assigned_gene 
-	                  probe_type sequence ];
-	
-    # Get the assigned digs_results
-	$digs_results_table->select_rows(\@fields, \@reassign_loci, $where);
-	$digs_obj->{reassign_loci} = \@reassign_loci;
-	
-
-}
-
-#***************************************************************************
 # Subroutine:  setup_for_defrag_or_consolidate
 # Description: do general set up for a defragment or consolidate process
 #***************************************************************************
@@ -350,6 +321,7 @@ sub setup_for_defrag_or_consolidate {
 	if ($option eq 4) { 
 
 		$digs_obj->{defragment_mode} = 'defragment';	
+		$devtools->print_hash($digs_obj); die;
 
 		# Get the target list
 		my $db = $digs_obj->{db};
@@ -381,10 +353,11 @@ sub setup_for_defrag_or_consolidate {
 	elsif ($option eq 5) { 
 		$self->set_up_consolidate_tables($digs_obj);
 		$digs_obj->{defragment_mode} = 'consolidate';
+		#$devtools->print_hash($digs_obj); die;
 
 		# Get the parameters for consolidation
-		my $c_range = $self->{consolidate_range};
-		my $d_range = $self->{defragment_range};
+		my $c_range = $digs_obj->{consolidate_range};
+		my $d_range = $digs_obj->{defragment_range};
 		my $consolidate_refseq_library;
 		unless ($d_range) { $d_range = '0'; }  # Default defragment setting
 
@@ -408,11 +381,44 @@ sub setup_for_defrag_or_consolidate {
 
 
 		# Set up the reference library
-		$loader_obj->setup_reference_libraries($self);
+		$loader_obj->setup_reference_libraries($digs_obj, 'consolidate');
 	
-
 	}
 }
+
+
+#***************************************************************************
+# Subroutine:  setup_for_reassign
+# Description: do general set up for a reassign process
+#***************************************************************************
+sub setup_for_reassign {
+
+	my ($self, $digs_obj, $force) = @_;
+
+	my $loader_obj = $digs_obj->{loader_obj};
+	my $where = '';
+	unless ($force) {
+		# Option to enter a WHERE statement
+		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
+		$where = $console->ask_question($question);
+	}
+
+	# Get database tables
+	my @reassign_loci;
+	my $db = $digs_obj->{db};
+	my $digs_results_table  = $db->{digs_results_table};
+		
+	# Set the fields to get values for
+	my @fields = qw [ record_id assigned_name assigned_gene 
+	                  probe_type sequence ];
+	
+    # Get the assigned digs_results
+	$digs_results_table->select_rows(\@fields, \@reassign_loci, $where);
+	$digs_obj->{reassign_loci} = \@reassign_loci;
+	
+
+}
+
 
 #***************************************************************************
 # Subroutine:  set_up_consolidate_tables
@@ -449,3 +455,4 @@ sub set_up_consolidate_tables {
 ############################################################################
 # EOF
 ############################################################################
+

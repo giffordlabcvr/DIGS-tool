@@ -56,8 +56,14 @@ sub new {
 		# Set-up params
 		consolidate_range       => $parameter_ref->{consolidate_range}, 
 		consolidate_mode        => $parameter_ref->{consolidate_mode}, 
-	    consolidate_settings    => $parameter_ref->{consolidate_settings}, 
-		
+	    consolidate_settings    => $parameter_ref->{consolidate_settings},
+	    na_reference_library    => $parameter_ref->{na_reference_library},
+	    aa_reference_library    => $parameter_ref->{aa_reference_library},
+	    blast_utr_lib_path      => $parameter_ref->{blast_utr_lib_path},
+	    blast_orf_lib_path      => $parameter_ref->{blast_orf_lib_path},
+	    blast_threads           => $parameter_ref->{blast_threads},
+	    program_version         => $parameter_ref->{program_version},
+	
 		# Member classes 
 		db                     => $parameter_ref->{db},  
 		blast_obj              => $parameter_ref->{blast_obj},
@@ -163,13 +169,16 @@ sub derive_locus_table_from_clustered_digs_results {
 	my $db_ref            = $self->{db};
 	my $loci_table        = $db_ref->{loci_table};
 	my $loci_chains_table = $db_ref->{loci_chains_table};
+	my $classify_obj      = Classify->new($self);
 	
+		
 	# Flags for how to handle
 	my $reextract = 'true';
 	#my $reextract = undef;
 	my $annotate_ends = 'true';
 
-	# Iterate through the clusters	
+	# Iterate through the clusters
+	my $assigned_count = 0;
 	my @cluster_ids  = keys %$consolidated_ref;
 	foreach my $cluster_id (@cluster_ids) {
 
@@ -191,8 +200,19 @@ sub derive_locus_table_from_clustered_digs_results {
 			#$self->annotate_consolidated_locus_flanks(\%locus);
 		}
 
-		# Classify the extracted locus
-		
+		# Classify the extracted locus using BLAST
+		if ($locus{sequence}) {
+			$locus{probe_type} = 'ORF';
+			$classify_obj->classify_sequence_using_blast(\%locus);
+			my $assigned  = $locus{assigned_name};
+			unless ($assigned) { die; }
+			if ($assigned) { $assigned_count++; }
+		}
+		else {
+			print "\n\n\t No sequence retrieved for hit in '$locus{organism}', '$locus{scaffold}'\n";
+			$locus{assigned_name} = 'Not extracted';
+			#devtools->print_hash{\%locus};
+		}
 
         # Insert the consolidated locus information
 		my $locus_array = $locus{locus_array};
@@ -424,3 +444,4 @@ sub annotate_consolidated_locus_flanks {
 ############################################################################
 # EOF
 ############################################################################
+

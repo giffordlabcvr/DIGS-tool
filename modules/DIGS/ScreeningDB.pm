@@ -218,10 +218,6 @@ sub load_active_set_table {
 		identity         => 'varchar',
 		evalue_num       => 'float',
 		evalue_exp       => 'int',
-	  	subject_start    => 'int',
-	  	subject_end      => 'int',
-		query_start      => 'int',
-	  	query_end        => 'int',
 		gap_openings     => 'int',
 		mismatches       => 'int',
 	);
@@ -332,7 +328,21 @@ sub load_loci_table {
         orientation      => 'varchar',
         extract_start    => 'int',
         extract_end      => 'int',
-        locus_structure  => 'text',
+		
+		assigned_name    => 'varchar',
+		subject_start    => 'int',
+		subject_end      => 'int',
+		query_start      => 'int',
+		query_end        => 'int',
+		align_len        => 'int',
+		bitscore         => 'float',
+		identity         => 'varchar',
+		evalue_num       => 'float',
+		evalue_exp       => 'int',
+		gap_openings     => 'int',
+        
+
+		locus_structure  => 'text',
         sequence_length  => 'int',
         sequence         => 'text',
         
@@ -565,9 +575,23 @@ sub create_loci_table {
 
         `scaffold`          varchar(100) default 'NULL',
         `orientation`       varchar(100) NOT NULL default '0',
-
         `extract_start`     int(11) NOT NULL default '0',
         `extract_end`       int(11) NOT NULL default '0',
+
+        `assigned_name`     varchar(100) NOT NULL default '0',
+	    `subject_start`     int(11) NOT NULL default '0',
+	    `subject_end`       int(11) NOT NULL default '0',
+	    `query_start`       int(11) NOT NULL default '0',
+	    `query_end`         int(11) NOT NULL default '0',
+	    `align_len`         int(11) NOT NULL default '0',
+
+	    `bitscore`          float   NOT NULL default '0',
+	    `identity`          float   NOT NULL default '0',
+	    `evalue_num`        float   NOT NULL default '0',
+	    `evalue_exp`        int(11) NOT NULL default '0',
+	    `gap_openings`    int(11) NOT NULL default '0',
+	    `mismatches`      int(11) NOT NULL default '0',
+
         `locus_structure`   text NOT NULL,
         `sequence_length`   int(11) NOT NULL default '0',
         `sequence`          longtext NOT NULL,
