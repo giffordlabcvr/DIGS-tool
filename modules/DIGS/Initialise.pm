@@ -72,11 +72,15 @@ sub initialise {
 
 	my ($self, $digs_obj, $option, $ctl_file) = @_;
 
-	# DO GENERAL SET-UP 
-	my $db_name = $self->do_general_setup($digs_obj, $option, $ctl_file);
+	# READ CONTROL FILE
+	my $loader_obj = ScreenBuilder->new($digs_obj);
+	my $db_name = $self->parse_digs_control_file($digs_obj, $loader_obj, $option, $ctl_file);
 
 	# LOAD/CREATE THE DATABASE
 	$self->initialise_screening_db($digs_obj, $db_name);
+
+	# SET-UP OUTPUT DIRECTORIES
+    $self->create_output_directories($digs_obj, $loader_obj, $option);
 
 	# SET-UP FOR DIGS SCREENING
 	if ($option eq 2) { 	
@@ -89,7 +93,7 @@ sub initialise {
 		my $force = $digs_obj->{force};
 		$self->setup_for_reassign($digs_obj, $force);
 	}
-	
+
 	# DO SET-UP NEEDED FOR BOTH DEFRAGMENT & CONSOLIDATE
 	if ($option eq 4 or $option eq 5) { 
 		$self->setup_for_defrag_or_consolidate($digs_obj, $option);
@@ -99,12 +103,12 @@ sub initialise {
 }
 
 #***************************************************************************
-# Subroutine:  do_general_setup
-# Description: do general set up for DIGS tool processes
+# Subroutine:  parse_digs_control_file
+# Description: parse control file and extract DIGS run parameters
 #***************************************************************************
-sub do_general_setup {
+sub parse_digs_control_file {
 
-	my ($self, $digs_obj, $option, $ctl_file) = @_;
+	my ($self, $digs_obj, $loader_obj, $option, $ctl_file) = @_;
 
 	# Try opening control file
 	my @ctl_file;
@@ -115,20 +119,7 @@ sub do_general_setup {
 
 	# Parse the control file
 	$digs_obj->{ctl_file} = $ctl_file;
-	my $loader_obj = ScreenBuilder->new($digs_obj);
 	$loader_obj->parse_control_file($ctl_file, $digs_obj, $option); 
-	
-	# Create the output directories if running a screen or re-assigning results table
-	if ($option eq 2 or $option eq 3 or $option eq 4) { # Need output directory for these options
-   
-        # Create a unique output directory for this DIGS run
-		$self->create_output_directories($digs_obj);
-
-		# Store the ScreenBuilder object 
-		$loader_obj->{report_dir} = $digs_obj->{report_dir};
-		$loader_obj->{tmp_path}   = $digs_obj->{tmp_path};
-		$digs_obj->{loader_obj}   = $loader_obj;
-	}
 
     # Return the database name as obtained from the control file
 	my $db_name = $loader_obj->{db_name};
@@ -136,36 +127,47 @@ sub do_general_setup {
 	return $db_name;
 }
 
+
 #***************************************************************************
 # Subroutine:  create output directories
 # Description: create a unique 'report' directory for this process
 #***************************************************************************
 sub create_output_directories {
 	
-	my ($self, $digs_obj) = @_;
+	my ($self, $digs_obj, $loader_obj, $option) = @_;
 
-	# Create a unique ID and report directory for this run
-	my $process_id  = $digs_obj->{process_id};
-	my $output_path = $digs_obj->{output_path};
-	unless ($process_id)  { die; }
-	unless ($output_path) { die; }
+	# Create the output directories if running a screen or re-assigning results table
+	if ($option eq 2 or $option eq 3 or $option eq 4) { # Need output directory for these options
+   
+		# Create a unique ID and report directory for this run
+		my $process_id  = $digs_obj->{process_id};
+		my $output_path = $digs_obj->{output_path};
+		unless ($process_id)  { die; }
+		unless ($output_path) { die; }
 	
-	# $devtools->print_hash($digs_obj); die;
-	my $report_dir  = $output_path . 'result_set_' . $process_id;
-	$fileio->create_directory($report_dir);
-	$digs_obj->{report_dir}  = $report_dir . '/';
-	print "\n\t  Created report directory";
-	print "\n\t  Path: '$report_dir'";
+		# $devtools->print_hash($digs_obj); die;
+		my $report_dir  = $output_path . 'result_set_' . $process_id;
+		$fileio->create_directory($report_dir);
+		$digs_obj->{report_dir}  = $report_dir . '/';
+		print "\n\t  Created report directory";
+		print "\n\t  Path: '$report_dir'";
 	
-	# Create the tmp directory inside the report directory
-	my $tmp_path = $report_dir . '/tmp';
-	$fileio->create_directory($tmp_path);
-	$digs_obj->{tmp_path}   = $tmp_path;
+		# Create the tmp directory inside the report directory
+		my $tmp_path = $report_dir . '/tmp';
+		$fileio->create_directory($tmp_path);
+		$digs_obj->{tmp_path}   = $tmp_path;
 
-	# Create log file
-	my $log_file   = $report_dir . "/log.txt";
-	$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
-	$digs_obj->{log_file} = $log_file;
+		# Create log file
+		my $log_file = $report_dir . "/log.txt";
+		$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
+		$digs_obj->{log_file} = $log_file;
+
+		# Add tore the ScreenBuilder object 
+		$loader_obj->{report_dir} = $digs_obj->{report_dir};
+		$loader_obj->{tmp_path}   = $digs_obj->{tmp_path};
+		$digs_obj->{loader_obj}   = $loader_obj;
+
+	}
 
 }
 
@@ -311,8 +313,6 @@ sub setup_for_reassign {
 	$digs_results_table->select_rows(\@fields, \@reassign_loci, $where);
 	$digs_obj->{reassign_loci} = \@reassign_loci;
 	
-	# Set up the reference library
-	$loader_obj->setup_reference_libraries($digs_obj);
 
 }
 
@@ -368,40 +368,49 @@ sub setup_for_defrag_or_consolidate {
 		$settings{end}            = 'extract_end';
 		$settings{targets}        = \@targets;
 		$digs_obj->{defragment_settings} = \%settings;
-
-		# Set up the reference library
-		$loader_obj->setup_reference_libraries($self);
 		
 		my $force = 'true'; # Prevents console prompting for a WHERE clause
 		$self->setup_for_reassign($digs_obj, $force);
 
+		# Set up the reference library
+		$loader_obj->setup_reference_libraries($digs_obj);
+
 	}
+	
 	# DO SET-UP NEEDED FOR CONSOLIDATE ONLY
 	elsif ($option eq 5) { 
 		$self->set_up_consolidate_tables($digs_obj);
 		$digs_obj->{defragment_mode} = 'consolidate';
 
 		# Get the parameters for consolidation
-		my $range = $self->{consolidate_range};
+		my $c_range = $self->{consolidate_range};
 		my $d_range = $self->{defragment_range};
+		my $consolidate_refseq_library;
+		unless ($d_range) { $d_range = '0'; }  # Default defragment setting
 
-		unless ($d_range) { $d_range = '0'; }
-
-		unless ($range) { 
-			my $question1 = "\n\n\t # Set the range for consolidating digs results";
-			$range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
+		unless ($c_range) { 
+			print "\n\n\t # Control file parameter 'consolidate_range' is not set";
+ 			my $question1 = "\n\t # Please set the nucleotide length range for consolidating digs results";
+			$c_range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
 		}
+		
 		# Option to enter a WHERE statement
-		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";
+		my $question = "\n\n\t  Enter a WHERE statement to limit re-assign (Optional)";
 		my $where = $console->ask_question($question);
 	
 		# Set the parameters for consolidation
 		my %consolidate_settings;
-		$consolidate_settings{range} = $range;
+		$consolidate_settings{range} = $c_range;
 		$consolidate_settings{start} = 'extract_start';
 		$consolidate_settings{end}   = 'extract_end';
 		$consolidate_settings{where_clause} = $where;
 		$digs_obj->{consolidate_settings} = \%consolidate_settings;
+
+
+		# Set up the reference library
+		$loader_obj->setup_reference_libraries($self);
+	
+
 	}
 }
 

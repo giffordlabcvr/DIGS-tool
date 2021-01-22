@@ -231,20 +231,31 @@ sub setup_reference_libraries {
 	my $num_fasta;
 	
 	# Load a peptide sequence library
-	if ($self->{reference_aa_fasta}) {
+	if ($self->{reference_aa_fasta} or $self->{consolidated_reference_aa_fasta}) {
  		$self->{reference_library_type} = 'aa';
-		$ref_fasta = $self->{reference_aa_fasta};
+ 		if $self->{reference_aa_fasta}) {
+			$ref_fasta = $self->{reference_aa_fasta};
+		}
+		else {
+ 			$ref_fasta = $self->{consolidated_reference_aa_fasta};
+		}
 		$reference_type = 'amino acid';
 		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
 	
 	# Load a nucleotide sequence library	
-	if ($self->{reference_na_fasta}) {
+	if ($self->{reference_na_fasta} or $self->{consolidated_reference_na_fasta}) {
  		$self->{reference_library_type} = 'na';
-		$ref_fasta = $self->{reference_na_fasta};
+ 		if $self->{reference_na_fasta}) {
+ 			$ref_fasta = $self->{reference_na_fasta};
+		}
+		else {
+ 			$ref_fasta = $self->{consolidated_reference_na_fasta};
+		}
 		$reference_type = 'nucleic acid';
 		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
+	
 }
 
 #***************************************************************************
@@ -406,7 +417,10 @@ sub set_target_groups {
 		#print "\n\t ### old '$target_id' \n\t ### new '$new_target_id'";
 		
 		# Set a key to get the top level group name in the target path
-		print "\n\t ORGANISM $organism: '$group'";
+		if ($self->{verbose}) {
+			print "\n\t Based on your target directory structure, organism $organism is a member of group '$group'";
+
+		}
 		$target_groups_ref->{$target_id} = $group;
 	}
 }
