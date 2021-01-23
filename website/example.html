@@ -33,30 +33,39 @@
        <hr>
 
 	   <p>
-		  This example assumes that you have installed the DIGS tool.
+		  This tutorial assumes that you have installed the DIGS tool and comprises the following steps:
+
+		 <ol>
+		   <li> Set up target library.</li>
+		   <li> Set up reference library.</li>
+		   <li> Set up probe library.</li>
+		   <li> Run a screen.</li>
+		   <li> Inspecting results.</li>
+		   <li> Update reference sequences and reassign.</li>
+		   <li> Consolidate.</li>
+		 </ol>
+
  	   </p>
-
-
-	   <p>
-		  Check you've set the $DIGS_HOME environment.
-	   <br>
- 
-   <pre>
-   <code>rob@alpha:~$ echo $DIGS_HOME
-
-   /home2/giff01r/DIGS/DIGS-tool/
-   
-   rob@alpha:~$</code></pre>
-   
-	   </p>
-
-
+ 	   
        <br>
 	   <h3>
 		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up target library</strong>
 	   </h3>
        <hr>
 
+	   <p>
+		  The DIGS tool is designed to perform systematic, simialrity-search based screening
+		  of local DNA sequence 'databases'.
+		  A local DNA sequence 'database' is a collection of FASTA formatted DNA sequences.
+		  This is the form that most genome and transcriptome assemblies are distributed. 
+ 	   </p>
+
+
+	   <p>
+		  The DIGS tool uses the BLAST program suite to perform similarity searches. 
+		  BLAST can be used to search any file containing FASTA-formatted sequences for
+		  similar sequences. 
+ 	   </p>
 
        <br>
 	   <h3>
@@ -79,9 +88,27 @@
        <hr>
 
 
+	   <p>
+          Run the DIGS tool as follows.
+ 	   
+ 
+   <pre>
+   <code>./digs_tool.pl -m=2 -i input.ctl</code></pre>
+   
+	   </p>
+
+
+
        <br>
 	   <h3>
 		 <a id="InspectResults" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Inspecting results</strong>
+	   </h3>
+       <hr>
+
+
+       <br>
+	   <h3>
+		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Update reference sequences and reassign</strong>
 	   </h3>
        <hr>
 
