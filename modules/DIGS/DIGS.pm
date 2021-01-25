@@ -79,10 +79,12 @@ sub new {
 		# Parameters for DIGS
 		query_na_fasta         => '',   # Obtained from control file
 		query_aa_fasta         => '',   # Obtained from control file
-		aa_reference_library   => '',   # Obtained from control file
-		na_reference_library   => '',   # Obtained from control file
 		reference_na_fasta     => '',   # Obtained from control file
 		reference_aa_fasta     => '',   # Obtained from control file
+		
+
+        aa_reference_library   => '',   # Obtained from control file
+		na_reference_library   => '',   # Obtained from control file
 
 		bitscore_min_tblastn   => '',   # Obtained from control file
 		bitscore_min_blastn    => '',   # Obtained from control file

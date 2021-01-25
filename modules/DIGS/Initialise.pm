@@ -76,13 +76,13 @@ sub initialise {
 	# READ CONTROL FILE
 	my $loader_obj = ScreenBuilder->new($digs_obj);
 	my $db_name = $self->parse_digs_control_file($digs_obj, $loader_obj, $option, $ctl_file);
+    # DEV $devtools->print_hash($digs_obj); die;
 
 	# LOAD/CREATE THE DATABASE
 	$self->initialise_screening_db($digs_obj, $db_name);
 
 	# SET-UP OUTPUT DIRECTORIES
     $self->create_output_directories($digs_obj, $loader_obj, $option);
-
 
 	# SET-UP FOR DIGS SCREENING
 	if ($option eq 2) { 	
@@ -93,7 +93,7 @@ sub initialise {
 	# SET-UP FOR REASSIGN
 	if ($option eq 3) { 
 		my $force = $digs_obj->{force};
-		$self->setup_for_reassign($digs_obj, $force);
+		$self->setup_for_reassign($digs_obj, $force);	
 	}
 	#print "\n\nOPTION IS '$option'\n\n\n";die;
 
@@ -379,13 +379,11 @@ sub setup_for_defrag_or_consolidate {
 		$consolidate_settings{where_clause} = $where;
 		$digs_obj->{consolidate_settings} = \%consolidate_settings;
 
-
 		# Set up the reference library
 		$loader_obj->setup_reference_libraries($digs_obj, 'consolidate');
 	
 	}
 }
-
 
 #***************************************************************************
 # Subroutine:  setup_for_reassign
@@ -396,7 +394,12 @@ sub setup_for_reassign {
 	my ($self, $digs_obj, $force) = @_;
 
 	my $loader_obj = $digs_obj->{loader_obj};
-	my $where = '';
+	
+    # Set up the reference library
+	$loader_obj->setup_reference_libraries($digs_obj);
+	# DEV $devtools->print_hash($digs_obj); die;
+	
+    my $where = '';
 	unless ($force) {
 		# Option to enter a WHERE statement
 		my $question = "\n\n\t  Enter a WHERE statement to limit reaasign (Optional)";

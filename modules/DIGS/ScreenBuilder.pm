@@ -224,6 +224,8 @@ sub setup_reference_libraries {
 
 	my ($self, $digs_obj, $consolidate) = @_;
 
+	# DEV $devtools->print_hash($digs_obj); die;
+	
 	# Get reference library params
 	my $reference_type;
 	my $ref_fasta;
@@ -262,6 +264,8 @@ sub setup_reference_libraries {
 		$reference_type = 'nucleic acid';
 		$self->create_reference_library($digs_obj, $ref_fasta, $reference_type);
 	}
+
+	#$devtools->print_hash($digs_obj); die;
 
 }
 
@@ -339,6 +343,8 @@ sub create_reference_library {
 	# Set the paths to the BLAST-formatted libraries
 	$digs_obj->{blast_utr_lib_path} = $self->{blast_utr_lib_path};
 	$digs_obj->{blast_orf_lib_path} = $self->{blast_orf_lib_path};
+
+	#$devtools->print_hash($digs_obj); die;
 
 }
 
@@ -710,6 +716,8 @@ sub parse_control_file {
 	$self->{skipindexing_paths} = \%skipindex;
 
 	
+    # DEV $devtools->print_hash($self); die;
+	
 	# Screening DB name and MySQL connection details
 	$digs_obj->{db_name}                = $self->{db_name};
 	$digs_obj->{mysql_server}           = $self->{mysql_server};
@@ -723,7 +731,13 @@ sub parse_control_file {
 	$digs_obj->{defragment_range}       = $self->{defragment_range};
 	$digs_obj->{extract_buffer}         = $self->{extract_buffer};
 
-	# Set parameters for consolidation
+	# Set paths to query/probe files
+	$digs_obj->{query_na_fasta}         = $self->{query_na_fasta};
+	$digs_obj->{reference_na_fasta}     = $self->{reference_na_fasta};
+	$digs_obj->{query_aa_fasta}         = $self->{query_aa_fasta};
+	$digs_obj->{reference_aa_fasta}     = $self->{reference_aa_fasta};
+	
+    # Set parameters for consolidation step
 	$digs_obj->{consolidate_range}                = $self->{consolidate_range};
 	$digs_obj->{consolidated_reference_aa_fasta}  = $self->{consolidated_reference_aa_fasta};
 	$digs_obj->{consolidated_reference_na_fasta}  = $self->{consolidated_reference_na_fasta};
