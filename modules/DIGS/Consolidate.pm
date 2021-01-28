@@ -141,10 +141,10 @@ sub consolidate_loci {
         $cluster_count++;
 	}
 	#$devtools->print_hash(\%consolidated); exit;
-	print "\n\t HIT COUNT: $hit_count, CLUSTER COUNT: $cluster_count";
+	print "\n\n\t HIT COUNT: $hit_count, CLUSTER COUNT: $cluster_count";
 
 	if ($total_loci > $num_clusters) {
-		print "\n\t  $num_clusters clusters of loci within '$range' bp of one another ";
+		print "\n\n\t $num_clusters clusters of loci within '$range' bp of one another ";
 	}
 	
 	# Update locus data based on consolidated results
@@ -195,7 +195,7 @@ sub derive_locus_table_from_clustered_digs_results {
 			$self->extract_consolidated_locus(\%locus);
 		}
 
-		# Do the annotation for truncated versus non-truncated 	matches
+		# Annotate extracted sequences (identify truncated ends if they occur) 
 		if ($annotate_ends) {
 			#$self->annotate_consolidated_locus_flanks(\%locus);
 		}

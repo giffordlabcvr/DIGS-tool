@@ -367,16 +367,12 @@ sub setup_for_defrag_or_consolidate {
 			$c_range = $console->ask_int_with_bounds_question($question1, $d_range, $maximum);		
 		}
 		
-		# Option to enter a WHERE statement
-		my $question = "\n\n\t  Enter a WHERE statement to limit re-assign (Optional)";
-		my $where = $console->ask_question($question);
-	
 		# Set the parameters for consolidation
 		my %consolidate_settings;
 		$consolidate_settings{range} = $c_range;
 		$consolidate_settings{start} = 'extract_start';
 		$consolidate_settings{end}   = 'extract_end';
-		$consolidate_settings{where_clause} = $where;
+		$consolidate_settings{where_clause} = '';
 		$digs_obj->{consolidate_settings} = \%consolidate_settings;
 
 		# Set up the reference library
