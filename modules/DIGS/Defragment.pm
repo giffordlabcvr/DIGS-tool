@@ -126,7 +126,12 @@ sub compose_clusters {
 		unless ($end) {
 			$start = $locus_ref->{subject_start};
 			$end = $locus_ref->{subject_start};
-			unless ($start and $end) { die; }
+			unless ($start and $end) { 
+				
+				print "\n\t # WARNING! start and end not found!\n";
+				sleep 1; 
+
+			}
 		}
 
 		if ($verbose) {

@@ -330,6 +330,7 @@ sub load_loci_table {
         extract_end      => 'int',
 		
 		assigned_name    => 'varchar',
+		assigned_gene    => 'varchar',
 		subject_start    => 'int',
 		subject_end      => 'int',
 		query_start      => 'int',
@@ -579,7 +580,9 @@ sub create_loci_table {
         `extract_end`       int(11) NOT NULL default '0',
 
         `assigned_name`     varchar(100) NOT NULL default '0',
-	    `subject_start`     int(11) NOT NULL default '0',
+        `assigned_gene`     varchar(100) NOT NULL default '0',
+	    
+        `subject_start`     int(11) NOT NULL default '0',
 	    `subject_end`       int(11) NOT NULL default '0',
 	    `query_start`       int(11) NOT NULL default '0',
 	    `query_end`         int(11) NOT NULL default '0',

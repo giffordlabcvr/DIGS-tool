@@ -311,8 +311,9 @@ sub create_reference_library {
 			$nonunique++;
 			if   ($nonunique{$refseq_id}) { $nonunique{$refseq_id}=1; }
 			else                          { $nonunique{$refseq_id}++; } 
-			#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
-			#sleep 1;
+			if ($self->{verbose}) {
+				print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
+			}
 		}
 		else {
 			$refseq_ids{$refseq_id} = 1;
