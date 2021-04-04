@@ -35,22 +35,105 @@
 	   </p> 
 
 	   <p>
-	     DIGS-for-EVEs project is an effort to systematically screen eukaryotic genome assemblies
+	     'DIGS-for-EVEs' is an effort to systematically screen eukaryotic genome assemblies
 	     for endogenous viral elements (EVEs) using
 		 <a href="http://giffordlabcvr.github.io/DIGS-tool/">database integrated genome screening (DIGS) tool</a>
 		 to systematically screen eukaryotic whole genome sequence (WGS) data for endogenous viral elements (EVEs).
 	   </p> 
 
-
 	   <h3>
-		 <a id="eveCatalog" class="anchor" href="#eveCatalog" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>The EVE catalog</strong>
+		 <a id="glueResources" class="anchor" href="#glueResources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>GLUE projects</strong>
 	   </h3>
-
+	   
 	   <p>
-		 DIGS for EVEs curates a catalog of endogenous viral element (EVE) sequences identified 
-		 by systematic <i>in silico</i> screening of published genome sequence data using the
-		 <a href="http://giffordlabcvr.github.io/DIGS-tool/">database integrated genome screening (DIGS) tool</a>.
-	   </p> 
+		 We have incorporated data recovered in the DIGS-for-EVEs project into 
+		 'sequence-based resources' constructed using <a href="http://tools.glue.cvr.ac.uk/"><b>GLUE</b></a>.
+	   </p>
+	   
+
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/CRESS-GLUE/"><strong>CRESS-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Parvoviridae-GLUE/"><strong>Parvoviridae-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Hepadnaviridae-GLUE/"><strong>Hepadnaviridae-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Flaviviridae-GLUE/"><strong>Flaviviridae-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Filoviridae-GLUE/"><strong>Filoviridae-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Peribunyaviridae-GLUE/"><strong>Peribunyaviridae-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/HHV6-GLUE/"><strong>HHV6-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Deltaretrovirus-GLUE/"><strong>Deltaretrovirus-GLUE</strong></a></p>
+	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Lentivirus-GLUE/"><strong>Lentivirus-GLUE</strong></a></p>
+	   
+	   
+	   
+
+
+
+
+
+
+ 	   <br>
+	   <h3>
+		 <a id="Nomenclature" class="anchor" href="#Nomenclature" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Nomenclature for ERVs and EVEs</strong>
+	   </h3>
+	   <hr>
+
+		<p>
+          We have applied a systematic approach to naming ERVs and EVEs,
+         <a target="_blank" href="https://retrovirology.biomedcentral.com/articles/10.1186/s12977-018-0442-1"><b>described here</b></a>.
+		  EVEs and ERVs are assigned a unique identifier (ID) constructed from a defined
+		  set of components.
+  		</p>
+
+
+ 
+        <p><img src="./images/nomenclature-lenti.jpg" alt="EVE Nomenclature - Lenti example" /></p>
+
+ 		
+
+
+		<p>
+          The first component is a classifier that usually denotes the virus family
+          that the EVE derives from.
+          For example, the classifier 'ERV' is applied to all endogenous retroviruses.
+          Classifiers usually follow the conventions established previously, as far as possible.
+          For example, endogenous hepadnaviruses are given the classifier eHBV (endogenous
+          hepatitis B virus), as this term has generally been used to describe endogenous 
+          hepadnaviruses.
+          For segmented viruses it may also designate a gene or segment.
+		</p>
+
+		<p>
+          The second component is a composite of two distinct subcomponents separated by a period:
+          
+          (i)  the name of the specific subgroup it derives from;
+          (ii) a numeric ID that uniquely identifies the insertion.
+          The numeric ID is an integer that identifies a unique insertion locus that arose as a
+          consequence of an initial germline infection. Thus, orthologous copies in different
+          species are given the same number. 
+ 		</p>
+		
+		<p>
+          Where an EVE sequence is thought to have been duplicated within the germline
+          following it's initial incorporation (e.g. via segmental duplication or transposition)
+          we have appended an additional 'duplicate id' to the numeric ID, separated by a period.
+          Please note that we have not yet resolved the orthologous relationships among
+          sets of eHBV sequences belonging to multicopy eHBV lineages. We
+          have therefore assigned unique duplicate IDs to each sequence within these lineages. 
+		</p>
+		
+		<p>
+          The third component of the ID defines the set of host species in which
+          the ortholog occurs, or did occur prior to being deleted.
+  		</p>
+
+
+
+
+
+
+
+
+
+
+
 
 	   <h3>
 		 <a id="digsFiles" class="anchor" href="#digsFiles" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>DIGS screening files</strong>
@@ -73,31 +156,6 @@
 -->
 
 	   <h3>
-<<<<<<< HEAD
-		 <a id="glueResources" class="anchor" href="#glueResources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>GLUE projects</strong>
-	   </h3>
-	   
-	   <p>
-		 We have incorporated data recovered in the DIGS-for-EVEs project into 
-		 'sequence-based resources' constructed using <a href="http://tools.glue.cvr.ac.uk/"><b>GLUE</b></a>.
-	   </p>
-	   
-
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/CRESS-GLUE/"><strong>CRESS-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Parvoviridae-GLUE/"><strong>Parvoviridae-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Hepadnaviridae-GLUE/"><strong>Hepadnaviridae-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Flaviviridae-GLUE/"><strong>Flaviviridae-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Filoviridae-GLUE/"><strong>Filoviridae-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Peribunyaviridae-GLUE/"><strong>Peribunyaviridae-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/HHV6-GLUE/"><strong>HHV6-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Deltaretrovirus-GLUE/"><strong>Deltaretrovirus-GLUE</strong></a></p>		
-	   <p><a target="_blank" href="https://giffordlabcvr.github.io/Lentivirus-GLUE/"><strong>Lentivirus-GLUE</strong></a></p>		
-
-
-
-	   <h3>
-=======
->>>>>>> master
 		 <a id="scopeTimeframe" class="anchor" href="#scopeTimeframe" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Scope</strong>
 	   </h3>
 
