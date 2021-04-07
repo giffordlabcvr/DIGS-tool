@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+
+
+	<meta charset="UTF-8">
+	<title>Exploring Genomes Using DIGS</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" type="text/css" href="./stylesheets/normalize.css" media="screen">
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" type="text/css" href="./stylesheets/stylesheet.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="./stylesheets/github-light.css" media="screen">
+	
+  </head>
+  
+  <body>
+  
+    <section class="page-header">
+
+
+    
+      <h1 class="project-name">The DIGS Tool</h1>
+      <h2 class="project-tagline">Explore genomes interactively using BLAST and a relational database.</h2>
+      
+      
+      <a href="../index.html" class="btn">Home</a>
+      <a href="https://github.com/giffordlabcvr/DIGS-tool/wiki/Installation-and-Setup" class="btn">User Guide</a>
+      <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
+      <a href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
+
+    </section>
+
+    <section class="main-content">
+
+
+
+
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>The genomic frontier - exploring the dark genome</strong>
+	</h3>
+	<hr>
+
+	<p>
+
+	  The genomes of Metazoan organisms are packed with dense layers of information,
+	  and <strong>genome annotation</strong> is a challenging, long-term endeavour.
+	  Consequently, most published genome
+	  sequences are comprised of DNA  that is incompletely understood in terms of its
+	  evolutionary origins and functional significance.
+	</p>
+
+	<p>
+	  Sequence similarity searches, such as those implemented in the  
+	  <a target="blank" href='https://blast.ncbi.nlm.nih.gov/Blast.cgi'>basic local alignment search tool</a>
+	  (BLAST) program, are extremely useful devices for investigating genomes <i>in silico</i>
+	  without relying on previously generated annatations.
+	  Because similarity searches function independently of annotations,
+	  they are extremely useful tools for exploring uncharted genomic territory.
+
+	</p>
+
+
+		<img src="images/terra-incognita.jpg"alt="Terra incognita"/>
+
+
+
+
+	<p>
+	  An exciting aspect of this is that a great deal can now  be discovered simply by examining genomes "<i>in silico</i>"
+	  - in other words, by analysing genome sequence data using a computer.
+	  While experimental studies are required to characterise genome
+	  features at a functional level, comparative sequence analysis
+	  can provide insights into how genomes have evolved. 
+	  These insights can inform the development of hypotheses,
+	  and the design of experiments to test them. 
+	
+	</p>
+
+
+<blockquote>
+		<p>
+		  <i>"As more scientists come to rely on genome annotation,
+              it will become more important for the scientific community as a whole to
+              contribute to this continuing process."
+          </i>
+          - <b>Lincoln Stein</b> (2001)
+		</p>
+</blockquote>
+
+
+
+	<p>
+
+	   Using similarity search tools and strategically chosen
+	   reference datasets, poorly characterised parts of the genomic landscape can be explored
+	   and described in ways that provide insights into genome biology and evolutionary
+	   history. 
+	</p>
+
+	
+		 
+<br>
+
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>The dark genome's buried treasure</strong>
+	</h3>
+	<hr>
+
+
+	<p>
+
+	  Progress in genomics has underlined the dynamic nature of genomes,
+	  which can not only diverge through macrogenomic processes such as chromosomal
+	  rearrangements and karyotype evolution, but also through the activity of
+	  transposable elements, and the incorporation of horizontally transferred
+	  genetic material. 
+
+	  </p>
+
+	<p>
+
+	 These phenomena make genome annotation more challenging, because often much of the
+	 information we are interested in is obscured. 
+	 There are a number of processes that contribute to this:
+
+	</p>
+
+
+	<p>
+
+	Similar processes operate on genomes, which are partly shaped by
+	mutational decay of redundant information.) 
+
+	</p>
+
+	<p>
+
+	(i) <b>Evolutionary dynamism</b>: as genomes evolve, new genes arise through a
+	variety of processes, including segmental duplication, retrotransposition, and gene
+	fusion. Whereas some genes undergo relatively measured change under natural 
+	selection, others evolve according to selective forces that favor diversification. 
+	For example, genes with antiviral functions evolve under powerful selective forces
+	(known as Red Queen dynamics) driven by competition with viral parasites.
+	The dynamics can strongly favor divergence and diversification. 
+
+	</p>
+
+	<p>
+	  Whereas much of the evolutionary dynamism of the genomes is driven by competition with
+	  parasites in the external environment, another driver is the struggle to suppress 
+	  intragenomic parasites - such as the various transposable elements that infest eukaryotic
+	  genomes.
+	  For example, mammalian genomes contain an army of genes encoding
+	  KRAB zinc finger proteins (KZFPs), that specifically target transposable
+	  elements for epigenetic silencing. 
+
+	</p>
+
+
+
+	<p>
+
+	(ii) <b>Erosion</b>: a by-product of evolutionary dynamism is reduncancy, and
+	redundant genes decay, being gradually eroded and fragmented by substitutions, insertions,
+	and genomic rearrangements. The degenerated molecular  
+	sequences of previously functional genes are called ‘pseudogenes’. 
+
+	</p>
+
+
+	<img src="./images/bryce-erosion.jpg"alt="Bryce Canyon"/>
+
+
+
+<blockquote>
+		<p>
+		  Bryce Canyon: Geological structures show the impact of erosion over macroevolutionary time scales.
+		  
+		</p>
+</blockquote>
+		 
+	<p>
+
+
+	  The genome sequences of most species are a largely unexplored wilderness of
+	  decayed genes, transposons, and non-coding DNA elements.
+	  These sequences, even when non-functional, contain a wealth of useful biological information.
+
+	</p>
+
+
+		 
+	<p>
+
+	  Pseudogenes can contain useful information about the evolution of genes and genomes,
+	  and for this reason are worth annotating.
+	  For example, online resources such as
+	  <a href='http://pseudogene.org'>pseudogene.org</a>
+	  that focus specifically on pseudogene annotations.
+
+	</p>
+
+	<p>
+
+	  Nonetheless, it's probably fair to say that pseudogenes are somewhat down
+	  the list of priorities when it comes to genome annotation.
+	  Furthermore, some will inevitably difficult to recognise if they are very old,
+	  particularly if they bear little similarity to contemporary functional genes.
+
+	</p>
+
+
+		<img src="./images/palimpsest.jpg"alt="Palimpsest"/>
+
+
+	<p>
+
+	  (iii) <b>Overwriting</b>: another way of thinking about the hidden information in the genome is 
+	  through comparison to  palimpsests - manuscript pages used in archaeology that
+	  have been written on more than once, with earlier writing incompletely erased.
+	  Its important not to take this metaphor too far, but there is a similarity in the way
+	  that information can be layered.
+
+	</p>
+
+
+	<p>
+
+	Another way of thinking about the hidden information in the genome is 
+	through comparison to  palimpsests - manuscript pages used in archaeology that
+	have been written on more than once, with earlier writing incompletely erased.
+
+	</p>
+
+	<p>
+
+	Of course, it is important not to take this metaphor too far, but there is a similarity in
+	the way that information can be layered.
+
+	</p>
+
+
+
+	<p>
+
+	(ii) <b>Horizontal transfer</b>:
+
+	</p>
+
+	<p>
+
+	Horizontal acquisition of genes from TEs, viruses and bacteria.
+	Sequences that have arisen through horizontal transmission have an unpredictable
+	distribution across genomes. This is one reason why they are frequently not captured
+	by automated annotation. Other factors include the fact that many are highly degraded
+	pseudogenes. 
+
+	</p>
+
+
+
+    <br>
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring genomes *in silico*</strong>
+	</h3>
+	<hr>
+
+
+
+	<p>
+
+	  There's a lot of interesting and poorly characterised stuff out there in
+	  public sequence databases.
+
+	</p>
+
+	<p>
+
+	Much like a web search engine, BLAST can be used to monitor and
+	explore an unstable data
+	source – the expanding pool of molecular
+	sequence data represented in genome sequence
+	databases. 
+
+	</p>
+
+	<p>
+
+	  Indeed, similarity searches can be used to perform the further characterization of
+	  sequences retrieved via BLAST. For example, BLAST can be used to detect specific sequence
+	  features at protein or nucleic acid level (e.g. inversions, repeats, conserved protein
+	  motifs, oligonucleotide primer sites).  BLAST is also a useful tool for performing rapid
+	  genotyping of sequences, and for generating alignments, particularly when the sequences
+	  being aligned have heterogeneous structures.
+
+	</p>
+
+
+    <p><img src="./images/terra-incognita-squares.png" alt="Here be dragons" /></p>
+
+
+<blockquote>
+		<p>
+	      Siren song: there are a variety of ways in which similarity search-based investigations can go awry. 
+		</p>
+</blockquote>
+
+
+	<p>
+
+	I say 'seem like' because this kind of loose, heuristic approach to surveying
+	genomes involves
+	exploring a lot of speculative ideas, many of which (if not most) turn out to be
+	unproductive flights of fancy. 
+
+	</p>
+
+	<p>
+
+	Beyond the pitfalls of overactive imagination,
+	there are more prosaic challenges to overcome. 
+	Simply put - there's an awful lot of molecular sequence data out there.
+	Screening this efficiently can be less than straightforward.
+
+	</p>
+
+	<p>
+
+	It can be worthwhile overcoming these challenges though, because sometimes similarity
+	search-based investigations lead directly to something interesting and informative
+	- like an
+	<a href='http://www.pnas.org/content/104/15/6261'>unexpected endogenous virus</a>
+
+	</p>
+
+	<p>
+
+	To facilitate efficient heuristic, similarity
+	search-based investigations, we developed an approach called
+	<strong>database-integrated genome screening</strong>
+	(DIGS), in which the output of similarity searches is captured in a
+	relational database.
+
+	</p>
+
+
+
+
+
+	 <footer class="site-footer">
+	   <span class="site-footer-owner"><a href="https://github.com/giffordlabcvr/DIGS-tool">DIGS for EVEs</a> is maintained by <a href="https://github.com/giffordlabcvr">giffordlabcvr</a>.</span>
+
+	   <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+	 </footer>
+
+    </section>
+
+
+  </body>
+  
+</html>
