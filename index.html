@@ -15,7 +15,7 @@
     <section class="page-header">
     
       <h1 class="project-name">DIGS Tool</h1>
-      <h2 class="project-tagline">Database-Integrated Genome Screening (DIGS).</h2>
+      <h2 class="project-tagline">A software framework for implementing Database-Integrated Genome Screening (DIGS).</h2>
       
       <a href="https://github.com/giffordlabcvr/DIGS-tool/wiki/Installation-and-Setup" class="btn">User Guide</a>
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
@@ -27,73 +27,61 @@
 
 
 	  <h3>
-		<a id="the-digs-tool" class="anchor" href="#the-digs-tool" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Explore the dark genome using BLAST and a relational database</strong>
+		<a id="the-digs-tool" class="anchor" href="#the-digs-tool" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Explore uncharted genomic territory using BLAST and a relational database</strong>
 	  </h3>
       <hr>
 
 		<p>
 		  The
 		  <strong>database-integrated genome-screening (DIGS) tool</strong>
-		  is an open source software framework
-		  for implementing '<strong><i>in silico</i> genome screening</strong>'.
-		  This entails using sequence similarity search tools to 
-		  systematically search molecular sequence databanks for groups of related sequences,
-		  usually  with a view to better understanding their evolution, and thereby gaining 
-		  insights into their biology.
+		  is an open source software framework for '<strong><i>in silico</i></strong>'
+		  screening of molecular sequence databases .
 		</p>
 
 	  
 		  
 		<p>
-		  The DIGS tool allows users to leverage the combined power of
-		  <b>sequence similarity searches</b> and <b>structured query language (SQL)</b>
-		  to investigate the <b>distribution, diversity and evolution</b> of conserved genome
-		  features, including those that have not yet been recognised or annotated.
+		  Similarity search-based screening entails using sequence similarity search tools
+		  to systematically search genome
+		  and transcriptome data for groups of related sequences,
+		  usually with a view to reconstructing the evolutionary history of a 
+		  particular genome feature (e.g. a gene, pseudogene or transposon)
+		  and thereby gaining insights into its biology.
 		</p>
-		<br>
 
-
+	  
+		  
+		<p>
+		  DIGS leverages the combined power of
+		  <b>sequence similarity searches</b> and <b>structured query language (SQL)</b>
+		  to drive comparative investigations of <b>conserved genome
+		  features</b> - including those that have not yet been recognised or annotated.
+		  This approach can often reveal new information about the function and evolution 
+		  of genes and genomes. 
+		</p>
 
       <p><img src="./website/images/digs-screenshot.png" alt="DIGS screenshot" /></p>
           
 
 	  <blockquote>
 		  <b>Database integrated genome screening</b>: this screenshot shows 
-		  querying of a DIGS project database. 
-		  In this example, the
+		  querying of a DIGS project database via the
           <a target="_blank" href="https://www.sequelpro.com/"><strong>SequelPro</strong></a>
-		  SQL client has been used to connect.
+		  SQL client.
 		  The screening database shown here contains the results of a broad screen
 		  across mammalian species to identify rare 'endogenous lentivirus'
 		  sequences, such as 'rabbit endogenous lentivirus K' 
-          (<a target="_blank" href="https://doi.org/10.1073/pnas.0700471104"><strong>RELIK</strong></a>).           
+          (<a target="_blank" href="https://doi.org/10.1073/pnas.0700471104">RELIK</a>).
+          The panel on the left shows the screening database tables, reflecting the 
+          standard schema of a DIGS project database.
+          The uppermost panel contains a database query, written in            
+          <a target="_blank" href="https://www.w3schools.com/sql/"><strong>structured query language (SQL)</strong></a>
+          - a standard language for storing, manipulating and retrieving data in databases.
+          The main panel shows a subset of the database entries returned by the query shown.
+          Note that SQL query uses a 'where' clause to limit results based on their 
+          BLAST bitscore.
 	  </blockquote>
-
-
-
-        
-        
 	   <br>
-
-
-		
-		
-
-	  <h3>
-	  <a id="database-integrated-genome-screening-digs" class="anchor" href="#database-integrated-genome-screening-digs" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Background</strong>
-	  </h3>
-      <hr>
-
-
-		<p>
-		  Molecular sequence data are highly information rich, and are now being generated
-		  much faster than they can be analysed. Consequently, published genome sequences
-		  contain many features (e.g. genes, pseudogenes, transposons) that have not been yet
-		  been formally described, or are unreliably annotated.
-         However, <b>sequence similarity searches</b> provide a means to 
-         recover sets of related sequences from databanks
-         without relying on previously generated annotations. 
-		</p>
 
 
 
@@ -104,25 +92,39 @@
       <hr>
 
 
-	  <p>
-		<strong>Similarity searches</strong>: the DIGS tool uses the
-		<a target="_blank" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi">
-		<strong>Basic Local Alignment Search Tool (BLAST)</strong></a>
-		to perform sequence similarity searches. 
-	  </p>
+		<p>
+		  <strong>Similarity searches</strong>: the DIGS tool uses the
+		  <a target="_blank" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi">
+		  <strong>Basic Local Alignment Search Tool (BLAST)</strong></a>
+		  program suite to perform sequence similarity searches. BLAST is freely available 
+		  to download and install
+		  <a target="_blank" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi">via it's NCBI web page</a>.
+		</p>
 
-	  <p>
-		<strong>Relational Database</strong>: the DIGS tool uses the
-		<a target="_blank" href="https://www.mysql.com/"><strong>MySQL</strong></a>
-		relational database management system (RDBMS) to coordinate  <i>in silico</i>
-		screens and to capture their output.
+		<p>
+		  <strong>Relational Database</strong>: the DIGS tool uses the
+		  <a target="_blank" href="https://www.mysql.com/"><strong>MySQL</strong></a>
+		  relational database management system (RDBMS) to coordinate  <i>in silico</i>
+		  screens and to capture their output. The 'community server' version of 
+		  MySQL is freely available for use in education and research. 
 
-	  </p>
+		</p>
 
 
-		Instructions for installing and running the DIGS tool can be found on
-		<a href="https://github.com/giffordlabcvr/DIGS-tool/wiki">the DIGS tool wiki</a>
-	  </p>
+		<p>
+		  <strong>GUI Client for Relational Database (Optional)</strong>:  to interface with 
+		  DIGS project databases via a graphical user interface (GUI), please install 
+		  one of the many SQL client programs that are compatible with MySQL, most of which 
+		  are free to use - e.g.
+		  <a target="_blank" href="https://www.sequelpro.com/"><strong>SequelPro</strong></a>.
+
+
+		</p>
+
+
+		  Instructions for installing and running the DIGS tool can be found on
+		  <a href="https://github.com/giffordlabcvr/DIGS-tool/wiki">the DIGS tool wiki</a>
+		</p>
 
 
 
@@ -133,8 +135,22 @@
       <hr>
 
 
-	  <p>Robert J. Gifford (<a href="mailto:robert.gifford@glasgow.ac.uk">robert.gifford@glasgow.ac.uk</a>)</p>
+		<p>Robert J. Gifford (<a href="mailto:robert.gifford@glasgow.ac.uk">robert.gifford@glasgow.ac.uk</a>)</p>
 
+
+
+	  <h3>
+	    <a id="cotributors" class="anchor" href="#author" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Contributors</strong>
+	  </h3>
+      <hr>
+
+
+		<p>Dan Blanco Melo</p>
+		<p>Henan Zhu</p>
+		<p>Tristan Dennis</p>
+		<p>Joseph Hughes</p>
+		<p>Spyros Lytras</p>
+		<p>Mac Campbell</p>
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/giffordlabcvr/DIGS-tool">The Database-Integrated Genome Screening (DIGS) Tool</a> is maintained by <a href="https://github.com/giffordlabcvr">giffordlabcvr</a>.</span>
