@@ -27,20 +27,49 @@
 
 
 	  <h3>
-		<a id="the-digs-tool" class="anchor" href="#the-digs-tool" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>The DIGS tool</strong>
+		<a id="the-digs-tool" class="anchor" href="#the-digs-tool" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>The DIGS tool: About</strong>
 	  </h3>
       <hr>
 
 		<p>
 		  The
 		  <strong>database-integrated genome-screening (DIGS) tool</strong>
-		  is an open source
-		  <a target="_blank" href="https://www.perl.org/"><strong>PERL</strong></a>
-		  program for implementing systematic <i>in silico</i> <strong>genome screening</strong>.
+		  is an open source software framework
+		  for implementing systematic <i>in silico</i> <strong>genome screening</strong>.
+		  The framework allows users to leverage the combined power of
+		  <b>sequence similarity searches</b> and <b>structured query language (SQL)</b>
+		  to investigate the <b>distribution, diversity and evolution</b> of conserved genome
+		  features, including those that have not yet been recognised or annotated.
 		</p>
 
+        <br>
+
+      <p><img src="./website/images/digs-screenshot.png" alt="DIGS screenshot" /></p>
+          
+
+	  <blockquote>
+		  <b>Database integrated genome screening</b>: The screenshot above shows 
+		  querying of a 'screening database' generated 
+		  by <strong>database-integrated genome-screening</strong> of mammalian genomes
+		  using the <strong>(DIGS) tool</strong>. In this example, the
+          <a target="_blank" href="https://www.sequelpro.com/"><strong>SequelPro</strong></a>
+		  SQL client has been used to connect to the database.
+		  The database shown here contains <b>endogenous lentivirus</b> sequences that 
+		  were identified using the DIGS tool. 
+	  </blockquote>
+
+
+
+        
+        
+	   <br>
+
+
+		
+		
+
 	  <h3>
-	  <a id="genome-screening" class="anchor" href="#database-integrated-genome-screening-digs" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>What is <i>in silico</i> genome-screening?</strong>
+	  <a id="database-integrated-genome-screening-digs" class="anchor" href="#database-integrated-genome-screening-digs" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Background</strong>
 	  </h3>
       <hr>
 
@@ -50,42 +79,12 @@
 		  much faster than they can be analysed. Consequently, published genome sequences
 		  contain many features (e.g. genes, pseudogenes, transposons) that have not been yet
 		  been formally described, or are unreliably annotated.
+         However, <b>sequence similarity searches</b> provide a means to 
+         recover sets of related sequences from databanks
+         without relying on previously generated annotations. 
 		</p>
 
 
-		<p>
-         <b>Sequence similarity search tools</b>, such as those implemented in the
-         <a target="_blank" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi">
-		 <strong>Basic Local Alignment Search Tool (BLAST)</strong></a>
-         can be used to systematically screen
-         whole genome data and recover sets of related sequences
-         <b>without relying on previously generated genome annotations</b>. 
-		</p>
-
-
-		<p>
-
-         This approach can form the basis for comparative studies focussing on specific
-         genome features such as genes, mobile genetic elements, or conserved protein
-         domains. In addition, similarity searches can in themselves provide
-         useful insights into the distribution of conserved sequence features, for example
-         by revealing differences in gene copy number between species.
-		</p>
-
-
-
-	  <h3>
-	  <a id="database-integrated-genome-screening-digs" class="anchor" href="#database-integrated-genome-screening-digs" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>What is database-integrated genome-screening (DIGS)</strong>
-	  </h3>
-      <hr>
-
-
-	  <p>
-		In <b>database-integrated genome-screening (DIGS)</b>, the output of sequence similarity
-		search-based screens is captured in a relational database
-		This allows for the interrogation and manipulation of output data using
-		structured query language (SQL).
-	  </p>
 
 
 	  <h3>
