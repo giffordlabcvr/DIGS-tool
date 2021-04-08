@@ -86,17 +86,18 @@
 	</p>
 
 		 
-<br>
+    <br>
 
 	<h3>
-		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>The genome's buried treasure</strong>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Buried treasure - how genomic information can be obscured</strong>
 	</h3>
 	<hr>
 
 
 	<p>
-	  As genomes evolve over time, some of the information they contain becomes 
-	  obscured. There are a number of processes that contribute to this:
+	  There are a number of phenomena that complicate and obscure the 
+	  evolutionary relationships between genes and other genome features.
+	  These include:
 
 	</p>
 
@@ -105,8 +106,10 @@
 	  (i) <b>Evolutionary 'dynamism'</b>. Whereas some genes undergo relatively
 	  measured change under natural selection, others evolve according to selective forces
 	  that strongly favor diversification, or are relatively ephemeral.
-	  These more 'chaotic' selective pressures may drive highly dynamic patterns of evolution
-	  (e.g. changes in structure and copy number) are to - to a greater or lesser extent -
+	  These kinds if selective pressures may generate relativey dynamic and unpredictable
+	  patterns of evolution
+	  (e.g. rapid change at specific loci, changes in gene structure and copy number) 
+	  with the result that evolutionary history is - to a greater or lesser extent -
 	  obscured when examining contemporary sequences. 
 	</p>
 
@@ -119,6 +122,8 @@
 	  of redundant information. 
 </blockquote>
 		 
+		 
+    <br>
 
 	<p>
 	  (ii) <b>Erosion</b>. 
@@ -130,8 +135,7 @@
       Progress in genomics has underlined the dynamic nature of genomes,
 	  which can not only diverge through macrogenomic processes such as chromosomal
 	  rearrangements and karyotype evolution, but also through the activity of
-	  transposable elements, and the incorporation of horizontally transferred
-	  genetic material. 
+	  transposable elements.
 	  
 
 	</p>
@@ -145,9 +149,14 @@
 <blockquote>
 	  Palimpsests - manuscript pages used in archaeology that
 	  have been written on more than once, with earlier writing incompletely erased.
+	  Overwriting can also occur at a genetic level, such that older information is obscured
+	  but not completely lost. Comparative sequence analysis can sometimes reveal
+	  these kinds of phenomena. 
 </blockquote>
 		 
 
+		 
+    <br>
 
 
 	<p>
@@ -169,75 +178,150 @@
 
 <blockquote>
 	  Tangled trees - horizontal gene transfer creates complex web-like relationships
-	  between the genomes of different species.
+	  between the genomes of different species, and makes the distribution of related
+	  genes somewhat unpredictable. Focussed investigations are often needed to identify 
+	  horizontally transferred genes and map their relationships.
 </blockquote>
 		 
+
+ 
+	<p>
+
+	  (iv) <b>Transposition</b>.
+	  The activity of transposable elements generates a great deal of genomic 'churn'.
+
+	</p>
+
+	<br>
+
+
+
+	<p>
+
+	  Because genomes can evolve in a very dynamic way, with exchange of genetic 
+	  material between species contributing to a large extent, reconstructing their
+	  evolutionary history can be hugely challenging, but also presents an interesting puzzle
+	  that can potentially be solved through the diligent use of comparative approaches.
+	  These kinds of investigations often rely heavily on <b>similarity search tools</b>.
+
+	</p>
 
 
 
     <br>
 	<h3>
-		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring genomes *in silico*</strong>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring genomes <i>in silico</i> using sequence similarity search tools</strong>
 	</h3>
 	<hr>
 
 
 	<p>
 
-	  Much like a web search engine, BLAST can be used to monitor and
-	  explore an unstable data
-	  source – the expanding pool of molecular
-	  sequence data represented in genome sequence
-	  databases. 
+      Many biologist are 
+	  familiar with similarity search tools - specifically <b>BLAST</b>- but may only use them on
+	  an <i>ad hoc</i> or confirmatory basis - e.g. asking 
+	  "<b><i>Is the sequence in this text file what I think it is?</b></i>", or
+	  "<b><i>Who else has published a sequence of this gene?</b></i>"
+	</p>
 
+	<p>
+	  However, similarity search tools are far more powerful than this.
+	  They are useful in many different scenarios: for example they can be used to
+	  (i) quickly generate pairwise and multiple sequence 
+	  alignments, (ii) perform rapid 'genotyping' of query sequences (e.g. assigning
+	  viral sequences to substrains), and (iii) help define the genetic structure of genome features
+	  (e.g. by identifying features such as inversions, repeats and conserved domains).  
 	</p>
 
 	<p>
 
-	  Indeed, similarity searches can be used to perform the further characterization of
-	  sequences retrieved via BLAST. For example, BLAST can be used to detect specific sequence
-	  features at protein or nucleic acid level (e.g. inversions, repeats, conserved protein
-	  motifs, oligonucleotide primer sites).  BLAST is also a useful tool for performing rapid
-	  genotyping of sequences, and for generating alignments, particularly when the sequences
-	  being aligned have heterogeneous structures.
+      But above and beyond all of this, similarity searches can be used to
+      <b>explore the continually expanding pool of
+      molecular sequence data</b> represented in genome sequence databases. 
 
 	</p>
+
+	<br>
 
 
     <p><img src="../assets/images/terra-incognita-squares.png" alt="Here be dragons" /></p>
 
 
 
-	<p>
+<blockquote>
+	  The complex world of genomes is only now beginning to be revealed. Go explore!
+</blockquote>
+		 
 
-	To facilitate efficient heuristic, similarity
-	search-based investigations, we developed an approach called
-	<strong>database-integrated genome screening</strong>
-	(DIGS), in which the output of similarity searches is captured in a
-	relational database.
+	<br>
+
+
+
+	<p>
+      For small-scale, similarity search-based investigations of this nature, 
+      it may be sufficient to simply
+      run <i>ad hoc</i> <b>BLAST</b> searches online via a web browser. However, larger-scale projects
+      will typically require a more systematic approach, wherein 
+      locally held sequence data are systematically 'screened' using a well-defined set of
+      query/probe and reference sequences. Since this will often entail large numbers of
+      searches, some degree of automation is typically required.
 
 	</p>
 
 
-
-	   <br>
-	   <h3>
-		 <a id="Publications" class="anchor" href="#Publications" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Related Publications</strong>
-	   </h3>
-	   <hr>
-
-	   <p>
-
-		 Zhu H, Dennis T, Hughes J, and RJ Gifford
-		 <b>(2018)</b>
-		 <br>
-		 Database-integrated genome screening (DIGS): exploring genomes heuristically using sequence similarity search tools and a relational database.
-		 <a href="https://www.biorxiv.org/content/early/2018/04/25/246835" target="_blank">[preprint]</a> 
-		 <br>
-		 <br>
+	<p>
+      Such automated screening procedures can be difficult to implement and manage.
+      Firstly, exploring genomes <i>in silico</i> is often a heuristic, iterative process,
+      and as such requires a degree of oversight.
+      This is a schallenge because screening can often generate large volumes of
+      output data that are difficult to organise
+      and interrogate without an appropriate analytical framework.
+      An additional complication is that the pool of publicly available data is continually
+      being updated, making it difficult to maintain up-to-date information.
+      
+ 
+	</p>
 
 
-	   </p>
+	<p>
+
+      To address these issues, we developed an approach called
+      <b>database-integrated genome screening (DIGS)</b>, in which a screening pipeline is
+      linked to a <b>relational database management system (RDBMS)</b>, and the outputs are captured
+      in a project-specific relational database.
+      
+      This, database-integrated approach not only provides a convenient and robust basis
+      for implementing automated screens that proceed in an efficient, non-redundant way,
+      it also allows screening data to be interrogated using <b>structured query language (SQL)</b>
+      - a well-established, powerful approach for querying relational databases.
+	</p>
+
+	<p>
+      Importantly, database integration also provides all the advantages of an RDBMS
+      with respect to features such as <b>data recoverability</b>, <b>multi-user support</b>,
+      and <b>networked data access</b>.
+	</p>
+
+ 
+
+	<br>
+	<h3>
+	  <a id="Publications" class="anchor" href="#Publications" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Related Publications</strong>
+	</h3>
+	<hr>
+
+	<p>
+
+	  Zhu H, Dennis T, Hughes J, and RJ Gifford
+	  <b>(2018)</b>
+	  <br>
+	  Database-integrated genome screening (DIGS): exploring genomes heuristically using sequence similarity search tools and a relational database.
+	  <a href="https://www.biorxiv.org/content/early/2018/04/25/246835" target="_blank">[preprint]</a> 
+	  <br>
+	  <br>
+
+
+	</p>
 
 
 
