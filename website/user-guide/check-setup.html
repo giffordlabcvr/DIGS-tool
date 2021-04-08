@@ -2,18 +2,16 @@
 <html lang="en-us">
   <head>
     <meta charset="UTF-8">
-    
-    <title>Digging for EVEs - Exploring DIGS results</title>
+    <title>How to run the DIGS tool</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="../stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="../stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
 
   </head>
   
   <body>
-  
     <section class="page-header">
     
       <h1 class="project-name">The DIGS Tool</h1>
@@ -25,36 +23,27 @@
       <a href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
       
     </section>
-    
 
     <section class="main-content">
 
 
 	   <h3>
-		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Exploring DIGS results</strong>
+		 <a id="howToRunDigs" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Check environment variables</strong>
 	   </h3>
        <hr>
 
-
 	   <p>
-		  Get counts of each.
- 	   </p>
+          Check you've set the $DIGS_HOME environment.
+ 	   
+ 
+   <pre>
+   <code>rob@alpha:~$ echo $DIGS_HOME
 
-	   <p>
-		  First download and upack the taxonomy DB from the NCBI FTP server.
-		  
-  <pre>
-  <code>SELECT  DISTINCT assigned_name, assigned_gene, COUNT(*) AS Number
-  FROM   digs_results
-  WHERE bitscore >= 60
-  GROUP BY  assigned_name, assigned_gene
-  ORDER BY  assigned_name, assigned_gene</code></pre>
- 
- 
- 
- 		
- 	   </p>
-
+   /home2/giff01r/DIGS/DIGS-tool/
+   
+   rob@alpha:~$</code></pre>
+   
+	   </p>
 
 
 

@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>How to run the DIGS tool</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
 
   </head>
   
@@ -175,6 +175,29 @@
 	   <p>
           A MySQL client like SequelPro
  	   </p>
+
+
+
+	   <p>
+		  Get counts of each.
+ 	   </p>
+
+	   <p>
+		  First download and upack the taxonomy DB from the NCBI FTP server.
+		  
+  <pre>
+  <code>SELECT  DISTINCT assigned_name, assigned_gene, COUNT(*) AS Number
+  FROM   digs_results
+  WHERE bitscore >= 60
+  GROUP BY  assigned_name, assigned_gene
+  ORDER BY  assigned_name, assigned_gene</code></pre>
+ 
+ 
+ 
+ 		
+ 	   </p>
+
+
  	   
  	   
        <br>
