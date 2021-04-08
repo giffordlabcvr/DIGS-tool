@@ -36,19 +36,17 @@
 
 
 	<h3>
-		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring uncharted genomic territory using similarity search tools</strong>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Explore uncharted genomic territory using similarity search tools</strong>
 	</h3>
 	<hr>
 
 
 <blockquote>
-		<p>
 		  <i>"As more scientists come to rely on genome annotation,
               it will become more important for the scientific community as a whole to
               contribute to this continuing process."
           </i>
           - <b>Lincoln Stein</b> (2001)
-		</p>
 </blockquote>
 
 	
@@ -73,7 +71,7 @@
 	  - in other words, by analysing genome sequence data using a computer.
 	  While experimental studies are required to characterise genome
 	  features at a functional level, comparative sequence analysis
-	  can often provide crucial insights. 
+	  can often provide crucial insights and inform the design of experiments. 
 	</p>
 
 
@@ -81,9 +79,10 @@
 	  <b>Sequence similarity searches</b>, such as those implemented in the  
 	  <a target="blank" href='https://blast.ncbi.nlm.nih.gov/Blast.cgi'><b>basic local alignment search tool (BLAST)</b></a> 
 	  program, can be powerful devices for investigating genome sequence data
-	  without relying on previously generated annotations. These searches can 
-	  be used to recover new information from genomes - especially the 'hidden'
-	  information that is not picked up by automated genome annotation tools.	</p>
+	  without relying on previously generated annotations. These searches, when applied strategically,
+	  can be used to recover valuable new information from genome sequence data - especially the 'hidden'
+	  information that is not picked up by automated genome annotation tools.
+	</p>
 
 
 		 
@@ -106,7 +105,7 @@
 
 	  (i) <b>Evolutionary 'dynamism'</b>. Whereas some genes undergo relatively
 	  measured change under natural selection, others evolve according to selective forces
-	  that strongly favor diversification, or are relatively ephemeral.
+	  that strongly favour diversification, or are relatively ephemeral.
 	  These kinds of selective pressures may generate dynamic and unpredictable
 	  patterns of evolution
 	  (e.g. rapid change at specific loci, changes in gene structure and copy number) 
@@ -120,6 +119,8 @@
 
 	  Genome features that become redundant for one reason or another will tend to decay,
 	  being gradually eroded and fragmented by mutation.
+	  The degenerated molecular sequences of previously functional genes (called ‘pseudogenes’)
+	  can contain useful information, even when they are non-functional.
 	</p>
 
 
@@ -263,8 +264,7 @@
 
 
 	<p>
-      For small-scale, similarity search-based investigations of this nature, 
-      it may be sufficient to simply
+      For small-scale investigations of this nature, it may be sufficient to simply
       run <i>ad hoc</i> BLAST searches online via a web browser. However, larger-scale projects
       will typically require a more systematic approach, wherein 
       locally held sequence data are systematically 'screened' using a well-defined set of
@@ -278,11 +278,10 @@
       Unfortunately, however, such automated screening procedures can be difficult to implement and manage.
       Firstly, exploring genomes <i>in silico</i> is often a heuristic, iterative process,
       and as such requires a degree of oversight.
-      This is a significant challenge because screening can often generate large volumes of
-      output data that are difficult to organise
-      and interrogate without an appropriate analytical framework.
+      This is a significant challenge because screening can generate substantial
+      output data that are difficult to manage without an appropriate analytical framework.
       An additional complication is that the pool of publicly available data is continually
-      being updated, making it difficult to keep track and maintain up-to-date information.
+      being updated, making it difficult to keep track of progress and maintain up-to-date information.
       
 	</p>
 
@@ -290,13 +289,14 @@
 	<p>
 
       To address these issues, we developed an approach called
-      <b>database-integrated genome screening (DIGS)</b>, in which a screening pipeline is
+      <b>database-integrated genome screening (DIGS)</b>, in which a similarity search-based
+      screening pipeline is
       linked to a <b>relational database management system (RDBMS)</b>, and the outputs are captured
       in a project-specific relational database.
       
-      This, database-integrated approach not only provides a convenient and robust basis
-      for implementing automated screens that proceed in an efficient, non-redundant way,
-      it also allows screening data to be interrogated using <b>structured query language (SQL)</b>
+      This database-integrated approach provides a robust basis
+      for implementing automated screens that proceed in an efficient, non-redundant way.
+      It also allows screening data to be analysed and managed using <b>structured query language (SQL)</b>
       - a well-established, powerful approach for querying relational databases.
 	</p>
 
