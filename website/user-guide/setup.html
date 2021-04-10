@@ -2,7 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="UTF-8">
-    <title>How to run the DIGS tool</title>
+    <title>How to set up and run the DIGS tool</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
@@ -17,7 +17,7 @@
       <h1 class="project-name">The DIGS Tool</h1>
       <h2 class="project-tagline">Explore genomes interactively using BLAST and a relational database.</h2>
       
-      <a href="../index.html" class="btn">Home</a>
+      <a href="../../index.html" class="btn">Home</a>
       <a href="https://github.com/giffordlabcvr/DIGS-tool/wiki/Installation-and-Setup" class="btn">User Guide</a>
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
       <a href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
@@ -27,14 +27,19 @@
     <section class="main-content">
 
 
+
+
 	   <h3>
-		 <a id="howToRunDigs" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>How to run the DIGS tool</strong>
+		 <a id="howToRunDigs" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>How to set up and run the DIGS tool</strong>
 	   </h3>
        <hr>
 
-	   <p>
-		  This tutorial assumes that you have installed the DIGS tool and comprises the following steps:
 
+	   <p>
+		  This web page explain how to set-up a similarity-search-based screen once 
+		  all of the component programs of the DIGS software framework have been installed.
+		  It comprises the following steps:
+This 
 		 <ol>
 		   <li> Set up target library</li>
 		   <li> Set up reference library</li>
@@ -47,6 +52,29 @@
 		 </ol>
 
  	   </p>
+	   <p>
+ 	   </p>
+
+
+
+	   <h3>
+		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Environment variables</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+          These can be checked using the echo command: e.g. to check you've set the $DIGS_HOME environment.
+ 	   
+ 
+   <pre>
+   <code>rob@alpha:~$ echo $DIGS_HOME
+
+   /home2/giff01r/DIGS/DIGS-tool/
+   
+   rob@alpha:~$</code></pre>
+   
+	   </p>
+
  	   
        <br>
 	   <h3>
