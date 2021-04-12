@@ -276,7 +276,7 @@
 
 			 <tr>
 				 <td><i>identity</i></td>
-				 <td>INT</td>
+				 <td>VARCHAR</td>
 				 <td>Percentage identity of hit to closest matching reference sequence</td>
 			 </tr>
 
@@ -326,6 +326,13 @@
 				 <td><i>query_end</i></td>
 				 <td>INT</td>
 				 <td>3’ (end) position of alignment (extracted hit)</td>
+			 </tr>
+			
+			 <tr>
+				 <td><i>locus_structure (loci table only)</i></td>
+				 <td>VARCHAR</td>
+				 <td>Captures the order of contiguous hits from digs_results table that were 
+				 merged (if multiple hits were merged) to create table row.</td>
 			 </tr>
 
 		 </tbody>
