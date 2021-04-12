@@ -110,6 +110,7 @@
 		<thead>
 			<tr>
 				<th>Field name</th>
+				<th>Field type</th>
 				<th>Description</th>
 			</tr>
 		</thead>
@@ -118,33 +119,40 @@
 
 			<tr>
 				<td><i>probe_lineage</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the lineage the probe derives from</td>
 			</tr>
 
 			<tr>
 				<td><i>probe_feature_name</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
 			<tr>
 				<td><i>organism</i></td>
-				<td>Name of the organism represented by the target database</td>
+				<td><i>VARCHAR</i></td>
+				<td>Name of the organism represented by the target database
+				(Latin binomial should be used)</td>
 
 			</tr>
 
 			<tr>
 				<td><i>Data type target database</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
 
 			<tr>
 				<td><i>Version</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
 			<tr>
 				<td><i>File name</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
@@ -165,6 +173,7 @@
 		<thead>
 			<tr>
 				<th>Field name</th>
+				<th>Field type</th>
 				<th>Description</th>
 			</tr>
 		</thead>
@@ -172,36 +181,120 @@
 		<tbody>
 
 			<tr>
-				<td><i>probe_lineage</i></td>
+				<td><i>organism</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Organism name (Latin binomial should be used)</td>
+			</tr>
+
+
+			<tr>
+				<td><i>target_data_type</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Genome data type (e.g. WGS, transcriptome)</td>
+			</tr>
+
+
+			<tr>
+				<td><i>target_version</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Genome build version details</td>
+			</tr>
+
+			<tr>
+				<td><i>target_name</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Name of the target file</td>
+			</tr>
+			
+			<tr>
+				<td><i>scaffold</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Name/ID of the scaffold in which the hit(s) were identified</td>
+			</tr>
+
+
+			<tr>
+				<td><i>extract_start</i></td>
+				<td><i>INT</i></td>
+				<td>5’ (start) position of BLAST hit within the scaffold</td>
+			</tr>
+
+			<tr>
+				<td><i>extract_end</i></td>
+				<td><i>INT</i></td>
+				<td>3’ (end) position of BLAST hit within the scaffold</td>
+			</tr>
+
+			<tr>
+				<td><i>orientation</i></td>
+				<td><i>VARCHAR</i></td>
+				<td>Orientation of the BLAST hit within the scaffold</td>
+			</tr>
+
+			<tr>
+				<td><i>sequence_length</i></td>
+				<td><i>INT</i></td>
+				<td>Length of the BLAST hit alignment</td>
+			</tr>
+
+			<tr>
+				<td><i>sequence</i></td>
+				<td><i>TEXT</i></td>
+				<td>DNA sequence of the hit</td>
+			</tr>
+
+
+			<tr>
+				<td><i>reference_lineage</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the lineage the probe derives from</td>
 			</tr>
 
 			<tr>
-				<td><i>probe_feature_name</i></td>
+				<td><i>reference_feature_name</i></td>
+				<td><i>VARCHAR</i></td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
 			<tr>
-				<td><i>organism</i></td>
-				<td>Name of the organism represented by the target database</td>
-
+				<td><i>query_start</i></td>
+				<td><i>INT</i></td>
+				<td>5’ (start) position of BLAST hit within the scaffold</td>
 			</tr>
 
 			<tr>
-				<td><i>Data type target database</i></td>
+				<td><i>query_end</i></td>
+				<td><i>INT</i></td>
+				<td>3’ (start) position of BLAST hit within the scaffold</td>
+			</tr>
+
+			<tr>
+				<td><i>bitscore</i></td>
+				<td><i>INT</i></td>
+				<td>Bitscore of the best match to the hit in the reference library</td>
+			</tr>
+
+			<tr>
+				<td><i>identity</i></td>
+				<td><i>INT</i></td>
 				<td>Name of the genome feature the probe represents</td>
+			</tr>
+
+			<tr>
+				<td><i>evalue_num</i></td>
+				<td><i>INT</i></td>
+				<td>e-value numerator</td>
 			</tr>
 
 
 			<tr>
-				<td><i>Version</i></td>
-				<td>Name of the genome feature the probe represents</td>
+				<td><i>evalue_exp</i></td>
+				<td><i>INT</i></td>
+				<td>e-value exponent</td>
 			</tr>
 
-			<tr>
-				<td><i>File name</i></td>
-				<td>Name of the genome feature the probe represents</td>
-			</tr>
+
+
 
 		</tbody>
 		
