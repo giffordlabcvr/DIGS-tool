@@ -251,12 +251,12 @@
 	<br>
 
 
-    <p><img src="../assets/images/terra-incognita-squares.png" alt="Here be dragons" /></p>
+    <p><img src="../assets/images/terra-incognita-squares.jpg" alt="Here be dragons" /></p>
 
 
 
 <blockquote>
-	  The complex world of genomes is only now beginning to be revealed. Go explore!
+	  The complex world of genomes is only now beginning to be revealed.
 </blockquote>
 		 
 
@@ -308,7 +308,7 @@
       and <b>networked data access</b>.
 	</p>
 
- 
+
  
     <br>
 	<h3>
@@ -318,16 +318,68 @@
 
  
 	<p>
-      Screening entails two stages – (i) running the similarity searches, and (ii) interrogating screening output.
-      The basic requirements for implementing a local, in silico screening procedure are:
-      (i) a software tool for performing sequence similarity searches;
-      (ii) one or more sequence database(s) to search;
-      (iii) a probe/reference sequence ‘library’ (i.e. a curated set of sequences representing
-      the genome feature(s) under investigation). To run the screen, query sequences and are
-      selected from the reference library and used to search selected target databases.
-      As well as identifying  matches (‘hits’) that show above-threshold similarity.  
+      Screening entails two stages:
+		 <ol>
+		   <li> Setting up and running similarity searches.</li>
+		   <li> Analysing screening output</li>
+		 </ol>
+
+
+      
+	</p>
+
+	<p>
+      
+      This process can be iterative, involving several rounds of screening and analysis.
+      Often, analysis of screening results reveals new information that can be used to
+      design more informative or comprehensive screens.
+      
  	</p>
 
+	<h4>
+		<a id="setUpAndRunScreen" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 1. Setting up and running an <i>in silico</i> screen</strong>
+	</h4>
+
+
+ 
+	<p>
+      The '<b>reference sequence library</b>'
+	  is a curated set of sequences relevant to the genome feature(s) under investigation). 
+	  Usually this will consist of:
+	  
+
+		 <ul>
+		   <li> A set of conserved DNA or polypeptide sequences derived from the genome feature of interest.</li>
+		 </ul>
+
+
+      
+	</p>
+ 
+
+	<p>
+	   
+
+      
+	  However, depending on the kind of investigation is performed, it may also contain :
+	  
+
+		 <ul>
+		   <li>Conserved genome features that do not derive from the genome feature under investigation,
+	       but which can provide useful information about the locus in which that genome feature occurs.</li>
+		   <li>Representatives of genome features that are not relevant to the investigation,
+	       but are sufficiently similar to them in sequence to generate 'false positive' hits in the screen.</li>
+		 </ul>
+	  
+	  
+	  Screening entails selecting particular sequences from the reference library for use as
+	  'queries' or 'probes' in a BLAST search of a particular sequence database.
+	  Sequences that match to the query ('hits') can then be extracted and classified.
+	  A convenient way of rapidly classifying or 'genotyping' hits is via BLAST-based comparison to the 
+	  reference library.
+ 	</p>
+
+		 
 
 
     <p><img src="../assets/images/exploration-phase.jpg" alt="Exploration phase" /></p>
@@ -335,21 +387,19 @@
 
 
 <blockquote>
-	  The complex world of genomes is only now beginning to be revealed.
-</blockquote>
-		 
- 
-	<p>
-      Screening entails two stages – (i) running the similarity searches, and (ii) interrogating screening output.
-      The basic requirements for implementing a local, in silico screening procedure are:
-      (i) a software tool for performing sequence similarity searches;
-      (ii) one or more sequence database(s) to search;
-      (iii) a probe/reference sequence ‘library’ (i.e. a curated set of sequences representing
-      the genome feature(s) under investigation). To run the screen, query sequences and are
-      selected from the reference library and used to search selected target databases.
-      As well as identifying  matches (‘hits’) that show above-threshold similarity.  
- 	</p>
 
+	  <b>Schematic representation of the <i>in silico</i> screening process</b>.
+	  The genome feature being investigated is a family of related genes
+	  (the phylogeny shows the relationships between different gene variants, which are
+	  represented by different colors)
+	   
+	     
+</blockquote>
+
+
+	<h4>
+		<a id="analyseScreenOutput" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 2. Analysing screening output</strong>
+	</h4>
 
 
     <p><img src="../assets/images/analysis-phase.jpg" alt="Analysis phase" /></p>
@@ -357,7 +407,7 @@
 
 
 <blockquote>
-	  The complex world of genomes is only now beginning to be revealed. Go explore!
+	  <b>Analysing screening output</b>.
 </blockquote>
 		 
 
