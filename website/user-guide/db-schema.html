@@ -76,7 +76,7 @@
       
 	  
 	  The DIGS tool can be used to execute a ‘<b>consolidation</b>’ process
-	  to generate a ‘<b>loci</b>’ table that comprises non-overlapping sets of
+	  that generates a ‘<b>loci</b>’ table that comprises non-overlapping sets of
 	  contiguous matches from the ‘digs_results’ table, based on predefined rules. 
 
     </p>
@@ -102,7 +102,7 @@
 	</h3>
 	<br>
 
-	<p><b>seaarches_performed table</b></p>
+	<p><b>searches_performed table</b></p>
 	
 	
 	<table>
@@ -119,41 +119,41 @@
 
 			<tr>
 				<td><i>probe_lineage</i></td>
-				<td><i>VARCHAR</i></td>
+				<td>VARCHAR</td>
 				<td>Name of the lineage the probe derives from</td>
 			</tr>
 
 			<tr>
 				<td><i>probe_feature_name</i></td>
-				<td><i>VARCHAR</i></td>
+				<td>VARCHAR</td>
 				<td>Name of the genome feature the probe represents</td>
 			</tr>
 
 			<tr>
 				<td><i>organism</i></td>
-				<td><i>VARCHAR</i></td>
+				<td>VARCHAR</td>
 				<td>Name of the organism represented by the target database
 				(Latin binomial should be used)</td>
 
 			</tr>
 
 			<tr>
-				<td><i>Data type target database</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the genome feature the probe represents</td>
+				<td><i>target_data_type</i></td>
+				<td>VARCHAR</td>
+				<td>Target data type (e.g. WGS, transcriptome)</td>
 			</tr>
 
 
 			<tr>
-				<td><i>Version</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the genome feature the probe represents</td>
+				<td><i>target_version</i></td>
+				<td>VARCHAR</td>
+				<td>Name/ID of the genome assembly version</td>
 			</tr>
 
 			<tr>
-				<td><i>File name</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the genome feature the probe represents</td>
+				<td><i>target_name</i></td>
+				<td>VARCHAR</td>
+				<td>Name of the target data file</td>
 			</tr>
 
 		</tbody>
@@ -165,147 +165,174 @@
 
 
 
-	<p><b>digs_results & loci tables</b></p>
+	 <p><b>digs_results & loci tables</b></p>
 	
 	
-	<table>
+	 <table>
 	
-		<thead>
-			<tr>
-				<th>Field name</th>
-				<th>Field type</th>
-				<th>Description</th>
-			</tr>
-		</thead>
+		 <thead>
+			 <tr>
+				 <th>Field name</th>
+				 <th>Field type</th>
+				 <th>Description</th>
+			 </tr>
+		 </thead>
 	
-		<tbody>
+		 <tbody>
 
-			<tr>
-				<td><i>organism</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Organism name (Latin binomial should be used)</td>
-			</tr>
-
-
-			<tr>
-				<td><i>target_data_type</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Genome data type (e.g. WGS, transcriptome)</td>
-			</tr>
+			 <tr>
+				 <td><i>organism</i></td>
+				 <td>VARCHAR</td>
+				 <td>Organism name (Latin binomial should be used)</td>
+			 </tr>
 
 
-			<tr>
-				<td><i>target_version</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Genome build version details</td>
-			</tr>
+			 <tr>
+				 <td><i>target_data_type</i></td>
+				 <td>VARCHAR</td>
+				 <td>Target data type (e.g. WGS, transcriptome)</td>
+			 </tr>
 
-			<tr>
-				<td><i>target_name</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the target file</td>
-			</tr>
+
+			 <tr>
+				 <td><i>target_version</i></td>
+				 <td>VARCHAR</td>
+				 <td>Genome build version details</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>target_name</i></td>
+				 <td>VARCHAR</td>
+				 <td>Name of the target file</td>
+			 </tr>
 			
-			<tr>
-				<td><i>scaffold</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name/ID of the scaffold in which the hit(s) were identified</td>
-			</tr>
+			 <tr>
+				 <td><i>scaffold</i></td>
+				 <td>VARCHAR</td>
+				 <td>Name/ID of the scaffold in which the hit(s) were identified</td>
+			 </tr>
 
 
-			<tr>
-				<td><i>extract_start</i></td>
-				<td><i>INT</i></td>
-				<td>5’ (start) position of BLAST hit within the scaffold</td>
-			</tr>
+			 <tr>
+				 <td><i>extract_start</i></td>
+				 <td>INT</td>
+				 <td>5’ (start) position of BLAST hit within the scaffold</td>
+			 </tr>
 
-			<tr>
-				<td><i>extract_end</i></td>
-				<td><i>INT</i></td>
-				<td>3’ (end) position of BLAST hit within the scaffold</td>
-			</tr>
+			 <tr>
+				 <td><i>extract_end</i></td>
+				 <td>INT</td>
+				 <td>3’ (end) position of BLAST hit within the scaffold</td>
+			 </tr>
 
-			<tr>
-				<td><i>orientation</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Orientation of the BLAST hit within the scaffold</td>
-			</tr>
+			 <tr>
+				 <td><i>orientation</i></td>
+				 <td>VARCHAR</td>
+				 <td>Orientation of the BLAST hit within the scaffold</td>
+			 </tr>
 
-			<tr>
-				<td><i>sequence_length</i></td>
-				<td><i>INT</i></td>
-				<td>Length of the BLAST hit alignment</td>
-			</tr>
+			 <tr>
+				 <td><i>sequence_length</i></td>
+				 <td>INT</td>
+				 <td>Length of the BLAST hit alignment</td>
+			 </tr>
 
-			<tr>
-				<td><i>sequence</i></td>
-				<td><i>TEXT</i></td>
-				<td>DNA sequence of the hit</td>
-			</tr>
-
-
-			<tr>
-				<td><i>reference_lineage</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the lineage the probe derives from</td>
-			</tr>
-
-			<tr>
-				<td><i>reference_feature_name</i></td>
-				<td><i>VARCHAR</i></td>
-				<td>Name of the genome feature the probe represents</td>
-			</tr>
-
-			<tr>
-				<td><i>query_start</i></td>
-				<td><i>INT</i></td>
-				<td>5’ (start) position of BLAST hit within the scaffold</td>
-			</tr>
-
-			<tr>
-				<td><i>query_end</i></td>
-				<td><i>INT</i></td>
-				<td>3’ (start) position of BLAST hit within the scaffold</td>
-			</tr>
-
-			<tr>
-				<td><i>bitscore</i></td>
-				<td><i>INT</i></td>
-				<td>Bitscore of the best match to the hit in the reference library</td>
-			</tr>
-
-			<tr>
-				<td><i>identity</i></td>
-				<td><i>INT</i></td>
-				<td>Name of the genome feature the probe represents</td>
-			</tr>
-
-			<tr>
-				<td><i>evalue_num</i></td>
-				<td><i>INT</i></td>
-				<td>e-value numerator</td>
-			</tr>
+			 <tr>
+				 <td><i>sequence</i></td>
+				 <td>TEXT</td>
+				 <td>DNA sequence of the hit</td>
+			 </tr>
 
 
-			<tr>
-				<td><i>evalue_exp</i></td>
-				<td><i>INT</i></td>
-				<td>e-value exponent</td>
-			</tr>
+			 <tr>
+				 <td><i>reference_lineage</i></td>
+				 <td>VARCHAR</td>
+				 <td>Name of the lineage the probe derives from</td>
+			 </tr>
 
+			 <tr>
+				 <td><i>reference_feature_name</i></td>
+				 <td>VARCHAR</td>
+				 <td>Name of the genome feature the probe represents</td>
+			 </tr>
 
+			 <tr>
+				 <td><i>query_start</i></td>
+				 <td>INT</td>
+				 <td>5’ (start) position of BLAST hit within the scaffold</td>
+			 </tr>
 
+			 <tr>
+				 <td><i>query_end</i></td>
+				 <td>INT</td>
+				 <td>3’ (start) position of BLAST hit within the scaffold</td>
+			 </tr>
 
-		</tbody>
+			 <tr>
+				 <td><i>bitscore</i></td>
+				 <td>INT</td>
+				 <td>Bitscore of the best match to the hit in the reference library</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>identity</i></td>
+				 <td>INT</td>
+				 <td>Percentage identity of hit to closest matching reference sequence</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>evalue_num</i></td>
+				 <td>INT</td>
+				 <td>BLAST 'expect' value numerator</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>evalue_exp</i></td>
+				 <td>INT</td>
+				 <td>BLAST 'expect' value exponent</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>align_len</i></td>
+				 <td>INT</td>
+				 <td>Length of alignment between hit and best-matching reference sequence</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>gap_openings</i></td>
+				 <td>INT</td>
+				 <td>Number of gaps in alignment between hit and best-matching reference sequence</td>
+			 </tr>
+
+			 <tr>
+				 <td><i>subject_start</i></td>
+				 <td>INT</td>
+				 <td>5’ (start) position of alignment (reference)</td>
+			 </tr>
+			
+			 <tr>
+				 <td><i>subject_end</i></td>
+				 <td>INT</td>
+				 <td>3’ (end) position of alignment (reference)</td>
+			 </tr>
+			
+			 <tr>
+				 <td><i>query_start</i></td>
+				 <td>INT</td>
+				 <td>5’ (start) position of alignment (extracted hit)</td>
+			 </tr>
+			
+			 <tr>
+				 <td><i>query_end</i></td>
+				 <td>INT</td>
+				 <td>3’ (end) position of alignment (extracted hit)</td>
+			 </tr>
+
+		 </tbody>
 		
-	</table>
-
-
-
-
-
-
-
+	 </table>
+	 <br>
+	 <br>
 
 
 	 <footer class="site-footer">
