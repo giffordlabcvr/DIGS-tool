@@ -2,7 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="UTF-8">
-    <title>DIGS tool: Installation</title>
+    <title>DIGS tool: User Guide</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
@@ -19,9 +19,10 @@
       
       <a href="../../index.html" class="btn">Home</a>
       <a href="./explore.html" class="btn">Background</a>
-      <a href="./db-schema.html" class="btn">DB Schema</a>      
+      <a href="./overview.html" class="btn">Overview</a>
+      <a href="./db-schema.html" class="btn">DB Schema</a>   
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
-      <a href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
+      <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
       
     </section>
 
@@ -100,9 +101,10 @@
 		 <ol>
 		   <li> Set up environment variables required by the DIGS tool</li>
 		   <li> Set up target library</li>
-		   <li> Set up reference sequence library</li>
-		   <li> Set up probe library</li>
+		   <li> Index genomes for BLAST</li>
+		   <li> Set up reference sequence library and probes</li>
 		   <li> Set up a control file</li>
+
 		 </ol>
 
 
@@ -111,7 +113,7 @@
 
 
 	   <h3>
-		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Environment variables</strong>
+		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Environment variables</strong>
 	   </h3>
        <hr>
 
@@ -128,10 +130,48 @@
    
 	   </p>
 
- 	   
+ 
+		 <p>
+Use the '-h' option to see options for running DIGS:
+
+  <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h
+
+
+
+	 ### DIGS version 1.13.2
+	 ### usage: ./digs_tool.pl m=[option] -i=[control file] -h=[help]
+
+	 ### Main functions
+
+	 -m=1  Prepare target files (index files for BLAST)
+	 -m=2  Do DIGS
+	 -m=3  Reassign loci
+	 -m=4  Defragment loci
+	 -m=5  Consolidate loci
+
+	 ### Summarising target databases
+
+	 -g=1  Summarise targets (brief summary, by species)
+	 -g=2  Summarise targets (long, by individual target file)
+
+	 ### Managing DIGS screening DBs
+
+	 -d=1  Import tab-delimited data
+	 -d=2  Flush core tables
+	 -d=3  Drop tables
+	 -d=4  Drop a screening DB
+	 -d=5  Append data to 'digs_results' table
+	 -d=6  Extract sequences using tabular file
+
+	 Target path variable '$DIGS_GENOMES' is set to '/home2/db/digs_genomes'</code></pre>		 
+
+  		 </p>
+
+	   
        <br>
 	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up target library</strong>
+		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Set up target library</strong>
 	   </h3>
        <hr>
 
@@ -143,6 +183,9 @@
  	   </p>
 
 
+       <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
+
+
 	   <p>
 		  The DIGS tool uses the BLAST program suite to perform similarity searches. 
 		  BLAST can be used to search any file containing FASTA-formatted sequences for
@@ -150,9 +193,66 @@
  	   </p>
 
 
+	   <p>
+
+The DIGS tool is designed for use with locally stored, FASTA formatted sequence data. Genome data should be stored in a directory tree with a specific structure. 
+ 	   </p>
+
+
+
+	   <p>
+
+         The 'target genomes directory' should have five levels, as illustrated above.
+         The top directory level should be the path specified under the DIGS environment
+         variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
+  	   </p>
+
+
+
+	   <p>
+
+         The bottom three levels should contain directories with names pertaining to the
+         data type (i.e. low coverage, assembly), version, and organism name (Latin binomial
+         with underscore – e.g. Homo_sapiens), of the sequence data files they contain*.
+ 	   </p>
+
+
+
+	   <p>
+
+
+In the above example, the file 'chrX.fa' would be under the path:
+
+
+$DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
+
+ 	   </p>
+
+
+	   <h3>
+		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Indexing genome data for BLAST*</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+
+
+BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the digs_tool.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
+
+To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
+
+```
+./digs_tool.pl –m=1
+
+
+ 	   </p>
+
+
+
+
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up reference library</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up reference library and probes</strong>
 	   </h3>
        <hr>
 
@@ -166,28 +266,30 @@
  	   </p>
 
 
+
+       <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
+
+
 	   <p>
 	   
           The DIGS tool uses a simple rule to capture data from the headers of
           FASTA-formatted reference (and probe) sequences; headers should be structured
           so as to define two hierarchical name elements; ‘name’ and ‘gene_name’,
           separated by an underscore. In the example shown above these are a virus name
-          and a gene name. Other two-level hierarchical naming schemes (e.g. species &
+          and a gene name.
+ 	   </p>
+
+
+
+	   <p>
+          
+          Other two-level hierarchical naming schemes (e.g. species &
           gene name, gene-subdomain name) can also be used, providing the same scheme is
           used consistently throughout the project. Reference sequences should be stored
           in a file, the path to which will be specified in the DIGS control file.
           
  	   </p>
 
-
-
- 
-
-       <br>
-	   <h3>
-		 <a id="setUpProbes" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up probe library</strong>
-	   </h3>
-       <hr>
 
 	   <p>
 	   
@@ -205,7 +307,7 @@
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up control file</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Set up control file</strong>
 	   </h3>
        <hr>
 
@@ -220,9 +322,61 @@
 
  	   </p>
 
+		  
+  <pre>
+  <code>Begin SCREENDB;
+  db_name=erv_0_delta_lenti_all;
+  mysql_server=localhost;
+  ENDBLOCK;
+
+  BEGIN SCREENSETS;
+	  query_aa_fasta=/home/rob/DIGS/projects/lenti-probes.DIGS.faa;
+	  reference_aa_fasta=/home/rob/DIGS/projects/ERV-reference.DIGS.faa;
+	  bitscore_min_tblastn=60;
+	  consolidated_reference_aa_fasta=/home/rob/DIGS/projects/;
+	  output_path=./tmp/;
+	  seq_length_minimum=50;
+	  defragment_range=10;
+
+	  #query_na_fasta=/home/rob/DIGS/projects/lenti-probes.fna
+	  #reference_na_fasta=/home/rob/DIGS/projects/lenti-probes.fna
+	  #bitscore_min_blastn=30;
+  ENDBLOCK;
+
+  BEGIN TARGETS;
+	  Mammalia/
+  ENDBLOCK;
+  </code></pre>
+
+
+
+
        <br>
 	   <h3>
-		 <a id="RunScreen" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Run a screen</strong>
+		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Performing Screening</strong>
+	   </h3>
+       <hr>
+
+
+
+
+	   <p>
+
+		 <ol>
+		   <li> Run a screen and inspect results</li>
+		   <li> Updating references & reclassifying data in the 'digs_results' table</li>
+		   <li> 'Consolidating' the DIGS results table</li>
+		   <li> Adding 'side data' tables</li>
+		 </ol>
+
+
+ 	   </p>
+
+
+
+       <br>
+	   <h3>
+		 <a id="RunScreenInspectResults" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running a screen & examining results</strong>
 	   </h3>
        <hr>
 
@@ -237,14 +391,6 @@
 	   </p>
 
 
-
-       <br>
-	   <h3>
-		 <a id="InspectResults" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Inspecting results</strong>
-	   </h3>
-       <hr>
-
-
 	   <p>
           DIGS expedites the interrogation of data derived from BLAST-based screening.
           Data can be interrogated within the framework of the DIGS tool (i.e. by using
@@ -254,7 +400,8 @@
 
 
 	   <p>
-          A MySQL client like SequelPro
+          A MySQL client with a graphical user interface (e.g. <b>SequelPro</b>)
+          can be used to connect to the screening database.
  	   </p>
 
 
@@ -283,26 +430,51 @@
  	   
        <br>
 	   <h3>
-		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Update reference sequences and reassign</strong>
+		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Update reference sequences and reassign</strong>
 	   </h3>
        <hr>
-
-
-		 <ol>
-
-		   <li> Run a screen</li>
-		   <li> Inspecting results</li>
-		   <li> Update reference sequences and reassign</li>
-		   <li> Consolidate</li>
-		 </ol>
 
  	   
        <br>
 	   <h3>
-		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Consolidate</strong>
+		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Consolidate</strong>
 	   </h3>
        <hr>
 
+
+
+	   <h3>
+		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Using 'side-data' in DIGS databases</strong>
+	   </h3>
+       <hr>
+
+
+		 <p>
+
+  To add a table with virus taxonomy:
+
+ <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl 
+
+	######################################################################
+	#                                                                    #
+	#                   DIGS (version: 1.13.2) 1.13.2                    #
+	#                Database-Integrated Genome Screening                #
+	#                         Robert J. Gifford                          #
+	#                   <robert.gifford@glasgow.ac.uk>                   #
+	#                                                                    #
+	######################################################################
+
+	 Connecting to DB:  eve_1_parvoviridae
+
+	 #### WARNING: This function expects a tab-delimited data table with column headers!
+
+	 Please enter the path to the file with the table data and column headings
+
+	 : ../projects/eve/tabular/ncbi_virus_taxonomy.txt</code></pre>		
+ 	
+ 	
+ 	 </p>
 
 
 

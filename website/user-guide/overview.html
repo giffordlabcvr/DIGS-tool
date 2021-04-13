@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+
+
+	<meta charset="UTF-8">
+	<title>Exploring Genomes Using DIGS</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
+	
+  </head>
+  
+  <body>
+  
+    <section class="page-header">
+
+
+    
+      <h1 class="project-name">The DIGS Tool</h1>
+      <h2 class="project-tagline">Explore genomes interactively using BLAST and a relational database.</h2>
+      
+      
+      <a href="../../index.html" class="btn">Home</a>
+      <a href="./explore.html" class="btn">Background</a>
+      <a href="./user-guide.html" class="btn">User Guide</a>
+      <a href="./db-schema.html" class="btn">DB Schema</a>
+      <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
+      <a target="blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">GitHub</a>
+
+    </section>
+
+    <section class="main-content">
+
+	<h3>
+		<a id="SearchStructure" class="anchor" href="#SearchStructure" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Structure of a similarity search-based screen</strong>
+	</h3>
+	<hr>
+
+ 
+	<p>
+      Screening entails two stages:
+		 <ol>
+		   <li> Setting up and running similarity searches.</li>
+		   <li> Analysing screening output</li>
+		 </ol>
+
+
+      
+	</p>
+
+	<p>
+      
+      This process can be iterative, involving several rounds of screening and analysis.
+      Often, analysis of screening results reveals new information that can be used to
+      design more informative or comprehensive screens.
+      
+ 	</p>
+
+	<h4>
+		<a id="setUpAndRunScreen" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 1. Setting up and running an <i>in silico</i> screen</strong>
+	</h4>
+
+
+ 
+	<p>
+      The '<b>reference sequence library</b>'
+	  is a curated set of sequences relevant to the genome feature(s) under investigation). 
+	  Usually this will consist of:
+	  
+
+		 <ul>
+		   <li> A set of conserved DNA or polypeptide sequences derived from the genome feature of interest.</li>
+		 </ul>
+
+
+      
+	</p>
+ 
+
+	<p>
+	   
+
+      
+	  However, depending on the kind of investigation is performed, it may also contain :
+	  
+
+		 <ul>
+		   <li>Conserved genome features that do not derive from the genome feature under investigation,
+	       but which can provide useful information about the locus in which that genome feature occurs.</li>
+		   <li>Representatives of genome features that are not relevant to the investigation,
+	       but are sufficiently similar to them in sequence to generate 'false positive' hits in the screen.</li>
+		 </ul>
+	  
+	  
+	  Screening entails selecting particular sequences from the reference library for use as
+	  'queries' or 'probes' in a BLAST search of a particular sequence database.
+	  Sequences that match to the query ('hits') can then be extracted and classified.
+	  A convenient way of rapidly classifying or 'genotyping' hits is via BLAST-based comparison to the 
+	  reference library.
+ 	</p>
+
+		 
+
+
+    <p><img src="../assets/images/exploration-phase.jpg" alt="Exploration phase" /></p>
+
+
+
+<blockquote>
+
+	  <b>Schematic representation of the <i>in silico</i> screening process</b>.
+	  The genome features being investigated in this case are a family of related genes
+	  (the phylogeny shows the relationships between different gene variants, which are
+	  represented by different colors). In addition, the library contains three
+	  sequences representing genome features distinct that are NOT being investigated,
+	  but that are understood <i>a piori</i> to be a source of false positive (FP) hits.
+	  <br>
+	  <br>
+	  In <b>step (1)</b> a sequence from the reference library is selected and used
+	  as a 'probe'  or 'query' in a BLAST-based search of a chosen target database.
+	  In <b>step (2)</b>, sequences identified in this search are extracted 
+	  and classified via BLAST-based comparison to the reference library.
+	  These searches provides a way to effectively 'delve in' to
+	  genomic databanks and recover related sequences and as such, they provide a means
+	  to survey unmapped regions of the genomic 'landscape'. 
+	     
+</blockquote>
+
+
+	<h4>
+		<a id="analyseScreenOutput" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 2. Analysing screening output</strong>
+	</h4>
+
+ 	<p>
+      In DIGS, a similarity search-based screening pipeline is linked to a relational
+      database management system (RDBMS), and the outputs of screening are captured
+      in a project-specific relational database.
+ 	</p>
+  	
+  	<p>
+      This approach not only provides a convenient and robust
+      basis for implementing systematic, automated screens that proceed in an efficient,
+      non-redundant way, it also allows screening data to be interrogated using
+      structured query language (SQL) - a well-established, powerful approach for
+      querying relational databases. 
+ 	</p>
+
+
+    <p><img src="../assets/images/analysis-phase.jpg" alt="Analysis phase" /></p>
+
+
+
+<blockquote>
+	  <b>Analysing screening output</b>.
+</blockquote>
+		 
+
+	<br>
+	<h3>
+	  <a id="Publications" class="anchor" href="#Publications" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Related Publications</strong>
+	</h3>
+	<hr>
+
+	<p>
+
+	  Zhu H, Dennis T, Hughes J, and RJ Gifford
+	  <b>(2018)</b>
+	  <br>
+	  Database-integrated genome screening (DIGS): exploring genomes heuristically using sequence similarity search tools and a relational database.
+	  <a href="https://www.biorxiv.org/content/early/2018/04/25/246835" target="_blank">[preprint]</a> 
+	  <br>
+	  <br>
+
+
+	</p>
+
+
+
+
+
+	 <footer class="site-footer">
+	   <span class="site-footer-owner"><a href="https://github.com/giffordlabcvr/DIGS-tool">DIGS for EVEs</a> is maintained by <a href="https://github.com/giffordlabcvr">giffordlabcvr</a>.</span>
+
+	   <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+	 </footer>
+
+    </section>
+
+
+  </body>
+  
+</html>
