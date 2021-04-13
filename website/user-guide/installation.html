@@ -2,7 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="UTF-8">
-    <title>How to set up and run the DIGS tool</title>
+    <title>DIGS tool: Installation</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
@@ -18,7 +18,8 @@
       <h2 class="project-tagline">Explore genomes interactively using BLAST and a relational database.</h2>
       
       <a href="../../index.html" class="btn">Home</a>
-      <a href="https://github.com/giffordlabcvr/DIGS-tool/wiki/Installation-and-Setup" class="btn">User Guide</a>
+      <a href="./explore.html" class="btn">Background</a>
+      <a href="./db-schema.html" class="btn">DB Schema</a>      
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
       <a href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
       
@@ -30,104 +31,277 @@
 
 
 	   <h3>
-		 <a id="installingDependencies" class="anchor" href="#installingDependencies" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Installing the DIGS tool</strong>
+		 <a id="Requirements" class="anchor" href="#Requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>DIGS tool Requirements</strong>
 	   </h3>
        <hr>
 
 
+
 	   <p>
-         The latest version of the DIGS tool can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>
+         <b>Scripting language</b>:
+         The DIGS tool requires <a target="_blank" href="https://www.perl.org/"><b>PERL</b></a>
+         with the <a target="_blank" href="http://dbi.Perl.org/)"><b>DBI (database interface)</b></a>
+         module installed. 
 	   </p>
-	   
+
+
+
 	   <p>
-         The DIGS tool can be installed on LINUX/UNIX.
-         Accordingly, Macintosh installation is also possible. However, due to the ongoing
+         <b>Similarity search tools</b>:
+         The DIGS tool uses the freely available
+         <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi"><b>BLAST+</b></a>
+         package to perform sequence similarity searches.
+	   </p>
+
+
+ 	   <p>
+        
+         <b>Relational database management system (RDBMS)</b>:
+         The DIGS tool uses the MySQL RDBMS.
+         <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
+         is a freely downloadable RDBMS that is supported by an active community of open source developers. 
+	   </p>
+
+	   
+
+	   <p>
+         The DIGS tool can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
+         Accordingly, Macintosh installation is also possible. However, due to 
          issues installing PERL's DBI module on Macintosh (discussed
          <a target="_blank" href="http://www.ensembl.info/2013/09/09/installing-perl-dbdmysql-and-ensembl-on-osx/">here</a>,
          <a target="_blank" href="http://www.dimasyusuf.com/installing-dbd-mysql-on-os-x-el-capitan/">here</a>, and
          <a target="_blank" href="https://josephhall.org/nqb2/index.php/dbdmysql_macosx">here</a>),
          I would not recommend attempting a Mac install unless you're familiar with troubleshooting
-         these kinds of issues. Similarly, installation on Windows 10 or above should be possible,
-         but I haven't investigated this personally.
+         these kinds of issues. Similarly, installation on Windows 10 or above via the 
+         LINUX subsystem should be possible, but I have not investigated this personally.
 	   </p>
 
 
 
+
+       <br>
 	   <h3>
-		 <a id="Requirements" class="anchor" href="#Requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Requirements</strong>
+		 <a id="Setting up the DIGS environment" class="anchor" href="#Requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Setting up the DIGS tool environment</strong>
+	   </h3>
+       <hr>
+
+
+
+	   <p>
+         The latest version of the DIGS tool can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>
+	   </p>
+
+
+	   <p>
+		  
+		  
+		  Before running DIGS tool, it is necessary to:
+ 
+		 <ol>
+		   <li> Set up environment variables required by the DIGS tool</li>
+		   <li> Set up target library</li>
+		   <li> Set up reference sequence library</li>
+		   <li> Set up probe library</li>
+		   <li> Set up a control file</li>
+		 </ol>
+
+
+
+ 	   </p>
+
+
+	   <h3>
+		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Environment variables</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+          These can be checked using the echo command: e.g. to check you've set the $DIGS_HOME environment.
+ 	   
+ 
+   <pre>
+   <code>rob@alpha:~$ echo $DIGS_HOME
+
+   /home2/giff01r/DIGS/DIGS-tool/
+   
+   rob@alpha:~$</code></pre>
+   
+	   </p>
+
+ 	   
+       <br>
+	   <h3>
+		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up target library</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+		  The DIGS tool is designed to perform systematic, simialrity-search based screening
+		  of <b>local DNA sequence 'databases'</b> - in other words, collections of FASTA
+		  formatted DNA sequences.
+		  This is the form that most genome and transcriptome assemblies are distributed. 
+ 	   </p>
+
+
+	   <p>
+		  The DIGS tool uses the BLAST program suite to perform similarity searches. 
+		  BLAST can be used to search any file containing FASTA-formatted sequences for
+		  similar sequences. 
+ 	   </p>
+
+
+       <br>
+	   <h3>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up reference library</strong>
 	   </h3>
        <hr>
 
 
 	   <p>
-         The DIGS tool requires <a target="_blank" href="https://www.perl.org/">here</a>,
-         the basic local alignment search tool <a target="_blank" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastHome"><b>BLAST</b></a>,
-         and the  <a target="_blank" href="http://www.mysql.com/">MySQL</a>
-         relational database management system (<b>RDBMS</b>). 
-	   </p>
+
+          DIGS requires a library of FASTA-formatted reference sequences for the gene
+          or genetic element under investigation. 
+          Probes for screening are selected from the reference library.
+          
+ 	   </p>
+
+
+	   <p>
 	   
+          The DIGS tool uses a simple rule to capture data from the headers of
+          FASTA-formatted reference (and probe) sequences; headers should be structured
+          so as to define two hierarchical name elements; ‘name’ and ‘gene_name’,
+          separated by an underscore. In the example shown above these are a virus name
+          and a gene name. Other two-level hierarchical naming schemes (e.g. species &
+          gene name, gene-subdomain name) can also be used, providing the same scheme is
+          used consistently throughout the project. Reference sequences should be stored
+          in a file, the path to which will be specified in the DIGS control file.
+          
+ 	   </p>
+
+
+
+ 
+
+       <br>
+	   <h3>
+		 <a id="setUpProbes" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up probe library</strong>
+	   </h3>
+       <hr>
+
+	   <p>
 	   
-	   <p>
-         The tool can be installed on any system that runs these programs, but some details
-         may vary across platforms.
-	   </p>
+
+          A subset of reference sequences should be selected as probes.
+          The entire reference library can be used - in which case there is no need to
+          create a separate file – but it is often sufficient to use only a subset of
+          sequences from the reference sequence library, in which case, a separate file
+          containing this subset should be created.
+          The path to this file is specified in the DIGS control file.
+
+ 	   </p>
 
 
 
+       <br>
 	   <h3>
-		 <a id="Perl" class="anchor" href="#Perl" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Perl</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up control file</strong>
+	   </h3>
+       <hr>
+
+
+
+	   <p>
+          The DIGS control file contains parameters and paths for DIGS.
+          Control files are structured as NEXUS style blocks delineated by BEGIN and
+          ENDBLOCK tokens.
+          An annotated example of a DIGS control file is shown below.
+          Note that not all parameters will need to be defined for every screen.
+
+ 	   </p>
+
+       <br>
+	   <h3>
+		 <a id="RunScreen" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Run a screen</strong>
 	   </h3>
        <hr>
 
 
 	   <p>
-         Perl is a high-level, general-purpose, interpreted programming language.
-         The DIGS tool requires Perl with the <a target="_blank" href="http://dbi.Perl.org/)">DBI (database interface)</a>
-         module installed. 
+          Run the DIGS tool as follows.
+ 	   
+ 
+   <pre>
+   <code>./digs_tool.pl -m=2 -i input.ctl</code></pre>
+   
 	   </p>
 
 
+
+       <br>
 	   <h3>
-		 <a id="BLAST" class="anchor" href="#BLAST" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>BLAST</strong>
+		 <a id="InspectResults" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Inspecting results</strong>
 	   </h3>
        <hr>
 
 
 	   <p>
-         The DIGS tool uses BLAST+, which can be obtained
-         <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi">BLAST</a>
-	   </p>
+          DIGS expedites the interrogation of data derived from BLAST-based screening.
+          Data can be interrogated within the framework of the DIGS tool (i.e. by using
+          structured query language (SQL)), or exported to external applications and
+          examined therein.
+ 	   </p>
 
 
 	   <p>
-		 Please follow the installation instructions distributed with the BLAST+ package.
-		 Note: if the BLAST programs are installed, but not currently in your local path,
-		 you will need to set the $blast_bin_path environment variable 
-		 with the correct path to a directory with the BLAST+ binaries.
-	   </p>
+          A MySQL client like SequelPro
+ 	   </p>
 
+
+
+	   <p>
+		  Get counts of each.
+ 	   </p>
+
+	   <p>
+		  First download and upack the taxonomy DB from the NCBI FTP server.
+		  
+  <pre>
+  <code>SELECT  DISTINCT assigned_name, assigned_gene, COUNT(*) AS Number
+  FROM   digs_results
+  WHERE bitscore >= 60
+  GROUP BY  assigned_name, assigned_gene
+  ORDER BY  assigned_name, assigned_gene</code></pre>
  
  
+ 
+ 		
+ 	   </p>
+
+
+ 	   
+ 	   
+       <br>
 	   <h3>
-		 <a id="MySQL" class="anchor" href="#MySQL" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>MySQL</strong>
+		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Update reference sequences and reassign</strong>
 	   </h3>
        <hr>
- 
-
-	   <p>
-
-         The DIGS framework is based on the use of an RDBMS
-         <a target="_blank" href="https://en.wikipedia.org/wiki/Relational_database_management_system"><b>RDBMS</b></a>
-         to manage data generated by screening, and to facilitate interrogation of this data.
-         [MySQL Community Edition](http://dev.mysql.com/downloads/mysql/) is a freely downloadable RDBMS that is supported by an active community of open source developers: 
-
-	   </p>
 
 
+		 <ol>
 
+		   <li> Run a screen</li>
+		   <li> Inspecting results</li>
+		   <li> Update reference sequences and reassign</li>
+		   <li> Consolidate</li>
+		 </ol>
 
-
-	   </p>
+ 	   
+       <br>
+	   <h3>
+		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Consolidate</strong>
+	   </h3>
+       <hr>
 
 
 
