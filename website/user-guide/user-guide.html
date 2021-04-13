@@ -349,6 +349,26 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
   </code></pre>
 
 
+**Parameters defined in the DIGS control file**
+
+| Parameter | Definition |
+|---|---|
+| SCREENDB BLOCK |  |
+| db_name | Name of the a screening database for this screening run |
+| mysql_server: | MySQL server to use (e.g. 'localhost' if using local database) |
+| mysql_username | Name of user with CREATE, DROP, SELECT, ALTER, DELETE privileges |
+| mysql_password: | Password of the above user |
+| SCREENSETS BLOCK |  |
+| query_aa_fasta* | Path to file with amino acid probe sequences |
+| query_na_fasta* | Path to file with nucleic acid probe sequences |
+| reference_aa_fasta ** | Path to file with amino acid reference sequences |
+| reference_na_fasta ** | Path to file with nucleic acid reference sequences |
+| bitscore_min_tblastn* | Minimum bit score of tBLASTn hit to extract |
+| bitscore_min_blastn** | Minimum bit score of BLASTn hit to extract |
+| seq_length_minimum | Minimum length of sequence to extract |
+| defragment_range| Range within which two BLAST hits in the target sequence will be merged  |
+
+Footnote: * Only required for screens utilizing protein sequences. ** Only required for screens utilizing nucleotide sequences.
 
 
        <br>
@@ -441,6 +461,14 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   </h3>
        <hr>
 
+	   <p>
+
+         The DIGS tool can be used to ‘consolidate’ contiguous hits in the ‘digs_results’ table
+         according to user-defined
+         rules based on (i) a minimum length threshold for intervening DNA; (ii) orientation;
+         (iii) gene order. A fourth database table (“loci”) contains the merged sequences
+         and information about their structure.
+ 	   </p>
 
 
 	   <h3>
