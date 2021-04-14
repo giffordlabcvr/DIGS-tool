@@ -104,7 +104,6 @@
 		   <li> Index genomes for BLAST</li>
 		   <li> Set up reference sequence library and probes</li>
 		   <li> Set up a control file</li>
-
 		 </ol>
 
 
@@ -116,17 +115,15 @@
 		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Environment variables</strong>
 	   </h3>
        <hr>
-
 	   <p>
-          These can be checked using the echo command: e.g. to check you've set the $DIGS_HOME environment.
- 	   
- 
+          The DIGS tool requires users to set four environment variables:
+          
    <pre>
-   <code>rob@alpha:~$ echo $DIGS_HOME
-
-   /home2/giff01r/DIGS/DIGS-tool/
-   
-   rob@alpha:~$</code></pre>
+   <code>$DIGS_GENOMES
+   $DIGS_HOME
+   $DIGS_MYSQL_USER
+   $DIGS_MYSQL_PASSWORD
+</code></pre>
    
 	   </p>
 
@@ -315,13 +312,15 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
 	   <p>
           The DIGS control file contains parameters and paths for DIGS.
-          Control files are structured as NEXUS style blocks delineated by BEGIN and
-          ENDBLOCK tokens.
-          An annotated example of a DIGS control file is shown below.
-          Note that not all parameters will need to be defined for every screen.
-
+ 
  	   </p>
 
+
+
+
+	   <p>
+         Control files are structured as NEXUS style blocks delineated by BEGIN and
+          ENDBLOCK tokens as shown below.
 		  
   <pre>
   <code>Begin SCREENDB;
@@ -349,26 +348,91 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
   </code></pre>
 
 
-**Parameters defined in the DIGS control file**
 
-| Parameter | Definition |
-|---|---|
-| SCREENDB BLOCK |  |
-| db_name | Name of the a screening database for this screening run |
-| mysql_server: | MySQL server to use (e.g. 'localhost' if using local database) |
-| mysql_username | Name of user with CREATE, DROP, SELECT, ALTER, DELETE privileges |
-| mysql_password: | Password of the above user |
-| SCREENSETS BLOCK |  |
-| query_aa_fasta* | Path to file with amino acid probe sequences |
-| query_na_fasta* | Path to file with nucleic acid probe sequences |
-| reference_aa_fasta ** | Path to file with amino acid reference sequences |
-| reference_na_fasta ** | Path to file with nucleic acid reference sequences |
-| bitscore_min_tblastn* | Minimum bit score of tBLASTn hit to extract |
-| bitscore_min_blastn** | Minimum bit score of BLASTn hit to extract |
-| seq_length_minimum | Minimum length of sequence to extract |
-| defragment_range| Range within which two BLAST hits in the target sequence will be merged  |
+ 	   </p>
 
-Footnote: * Only required for screens utilizing protein sequences. ** Only required for screens utilizing nucleotide sequences.
+
+	   <p>
+
+          Note that not all parameters will need to be defined for every screen.
+ 
+ 	   </p>
+
+
+
+	   <h4>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Parameters defined in the DIGS control file</strong>
+	   </h4>
+
+	
+
+       <br>
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Ctl file parameter</th>
+				   <th>Definition</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td><i>db_name</i></td>
+				   <td>Name of the project-specific screening database</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>mysql_server</i></td>
+				   <td>name of the mysql_server to use (set to 'localhost' to use local database) </td>
+			   </tr>
+
+			   <tr>
+				   <td><i>query_aa_fasta</i></td>
+				   <td>Path to file with amino acid probe sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>reference_aa_fasta</i></td>
+				   <td>Path to file with amino acid reference sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>query_na_fasta</i></td>
+				   <td>Path to file with nucleic acid probe sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>reference_na_fasta</i></td>
+				   <td>Path to file with nucleic acid reference sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>bitscore_min_tblastn</i></td>
+				   <td>Minimum bit-score of tBLASTn hit to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>bitscore_min_blastn</i></td>
+				   <td>PMinimum bit-score of BLASTn hit to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>seq_length_minimum</i></td>
+				   <td>Minimum length of sequence to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>defragment_range</i></td>
+				   <td>Range within which two BLAST hits in the target sequence will be merged</td>
+			   </tr>
+
+
+		   </tbody>
+		
+	   </table>
+
 
 
        <br>
