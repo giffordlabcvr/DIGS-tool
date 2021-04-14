@@ -44,8 +44,8 @@
 	<p>
       Screening entails two stages:
 		 <ol>
-		   <li> Setting up and running similarity searches.</li>
-		   <li> Analysing screening output</li>
+		   <b><li> Setting up and running similarity searches.</li>
+		   <li> Analysing screening output</li></b>
 		 </ol>
 
 
@@ -97,7 +97,12 @@
    
 	  
 	  Screening entails selecting particular sequences from the reference library for use as
-	  'queries' or 'probes' in a BLAST search of a particular sequence database.
+	  '<b>probes</b>' in a BLAST search of a specific '<b>target database</b>' - 
+	  e.g. a whole genome sequence (WGS) assembly of the domestic mouse.
+	</p>
+ 
+
+	<p>
 	  Sequences that match to the query ('hits') can then be extracted and classified.
 	  A convenient way of rapidly classifying or 'genotyping' hits is via BLAST-based comparison to the 
 	  reference library.
@@ -122,6 +127,8 @@
 	  <br>
 	  In <b>step (1)</b> a sequence from the reference library is selected and used
 	  as a 'probe'  or 'query' in a BLAST-based search of a chosen target database.
+	  <br>
+	  <br>
 	  In <b>step (2)</b>, sequences identified in this search are extracted 
 	  and classified via BLAST-based comparison to the reference library.
 	  These searches provides a way to effectively 'delve in' to
@@ -136,16 +143,16 @@
 	</h4>
 
  	<p>
-      In DIGS, a similarity search-based screening pipeline is linked to a relational
-      database management system (RDBMS), and the outputs of screening are captured
-      in a project-specific relational database.
+      In DIGS, a similarity search-based screening pipeline is linked to a <b>relational
+      database management system (RDBMS)</b>, and the outputs of screening are captured
+      in a <b>project-specific relational database</b>.
  	</p>
   	
   	<p>
       This approach not only provides a convenient and robust
       basis for implementing systematic, automated screens that proceed in an efficient,
       non-redundant way, it also allows screening data to be interrogated using
-      structured query language (SQL) - a well-established, powerful approach for
+      <b>structured query language (SQL)</b> - a well-established, powerful approach for
       querying relational databases. 
  	</p>
   	
@@ -155,9 +162,9 @@
 	  can usually be logically separated into three component parts:
 
 	  <ol>
-		<li> Investigation of output via the relational database.</li>
+		<b><li> Investigation of output via the relational database.</li>
 		<li> Export and alignment of sequences.</li>
-		<li> Comparative genomic analysis.</li>
+		<li> Comparative genomic analysis.</li></b>
 	  </ol>
 
 

@@ -28,10 +28,6 @@
 
     <section class="main-content">
 
-
-	   <!--<img src="../assets/images/user-guide-header.jpg"alt="DIGS User Guide"/>
-       <br>-->
-
  
 
 	   <h3>
@@ -82,10 +78,14 @@
 
 
 
+	   <!--<img src="../assets/images/user-guide-header.jpg"alt="DIGS User Guide"/>
+       <br>-->
+
+
 
        <br>
 	   <h3>
-		 <a id="Setting up the DIGS environment" class="anchor" href="#Requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Setting up the DIGS tool environment</strong>
+		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up the DIGS tool environment</strong>
 	   </h3>
        <hr>
 
@@ -103,8 +103,7 @@
  
 		 <ol>
 		   <li> Set up environment variables required by the DIGS tool</li>
-		   <li> Set up target library</li>
-		   <li> Index genomes for BLAST</li>
+		   <li> Set up target library and index genomes for BLAST</li>
 		   <li> Set up reference sequence library and probes</li>
 		   <li> Set up a control file</li>
 		 </ol>
@@ -115,24 +114,85 @@
 
 
 	   <h3>
-		 <a id="environmentVariables" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Environment variables</strong>
+		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Environment variables</strong>
 	   </h3>
        <hr>
 	   <p>
-          The DIGS tool requires users to set four environment variables:
+          The DIGS tool requires users to set four <b>environment variables</b>:
           
-   <pre>
-   <code>$DIGS_GENOMES
-   $DIGS_HOME
-   $DIGS_MYSQL_USER
-   $DIGS_MYSQL_PASSWORD
-</code></pre>
+
+
+
+       <br>
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Environment variable name</th>
+				   <th>Definition</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td><i>$DIGS_GENOMES</i></td>
+				   <td>Path to the top-level of the 'target-genomes' directory (see below)</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_HOME</i></td>
+				   <td>Path to the DIGS-Tool directory</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_MYSQL_USER</i></td>
+				   <td>Your mysql user name</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_MYSQL_PASSWORD</i></td>
+				   <td>Your mysql password</td>
+			   </tr>
+
+		   </tbody>
+		
+	   </table>
+
+
+
+       <br>
+
+
+
+
+
    
 	   </p>
 
- 
-		 <p>
-Use the '-h' option to see options for running DIGS:
+
+	   <p>
+		 Once environment variables have been set, you should be able to run the DIGS tool
+		 script: '<b>digs_tool.pl</b>'). This script provides 'one-stop-shopping' for
+		 DIGS-related tasks. It can be run in a variety of ways to:
+	   </p>
+
+
+
+	   <p>
+
+		 <ol>
+		   <li> Set-up and run screens</li>
+		   <li> Manage project database tables and data</li>
+		 </ol>
+
+
+ 	   </p>
+
+
+	
+	   <p>
+		 Run with the '-h' option, as shown below, to see options for running DIGS:
 
   <pre>
   <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h
@@ -171,7 +231,7 @@ Use the '-h' option to see options for running DIGS:
 	   
        <br>
 	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Set up target library</strong>
+		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Set up target library</strong>
 	   </h3>
        <hr>
 
@@ -229,20 +289,31 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
  	   </p>
 
 
-	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Indexing genome data for BLAST*</strong>
-	   </h3>
-       <hr>
+	   <p>
+
+
+         BLAST requires that FASTA files are indexed for similarity searches using the
+         'makeblastdb' program that is distributed with the BLAST+ package.
+         Because this can be time-consuming when screening many separate files, the digs_tool.pl
+         script includes an option to automatically format target FASTA files.
+         Note that for this to work properly, FASTA files MUST be labeled with the appropriate
+         file extensions (.fa, .fas, or .fasta).
+
+ 	   </p>
+
 
 	   <p>
 
 
-BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the digs_tool.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
-
 To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
 
-```
-./digs_tool.pl –m=1
+
+  <pre>
+  <code>./digs_tool.pl –m=1</code></pre>		 
+
+
+
+
 
 
  	   </p>
@@ -252,7 +323,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up reference library and probes</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Set up reference library and probes</strong>
 	   </h3>
        <hr>
 
@@ -307,7 +378,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Set up control file</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up control file</strong>
 	   </h3>
        <hr>
 
@@ -327,7 +398,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 		  
   <pre>
   <code>Begin SCREENDB;
-  db_name=erv_0_delta_lenti_all;
+  db_name=erv_lenti;
   mysql_server=localhost;
   ENDBLOCK;
 
@@ -440,7 +511,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
        <br>
 	   <h3>
-		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Performing Screening</strong>
+		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Performing DIGS and working with project databases</strong>
 	   </h3>
        <hr>
 
@@ -473,7 +544,42 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
  	   
  
    <pre>
-   <code>./digs_tool.pl -m=2 -i input.ctl</code></pre>
+   <code>./digs_tool.pl -m=2 -i input.ctl
+
+	  Connecting to DB:  eve_1_parvoviridae
+	  Created report directory
+	  Path: './tmp/result_set_38612_1618435290'
+	  Probe sequences:   22 amino acid FASTA sequences
+	  Reference library: 39902 amino acid sequences
+	  Targets:           1866 target files
+	  Previous queries:  41052 previous queries
+	  Skipped in set:    41008 (of 41052)
+	  Searches to run    44 </code></pre>
+
+   
+	   </p>
+
+
+	   <p>
+          From now, the console will report the results of screening as shown here:
+ 	   
+
+   <pre>
+   <code> ### Starting database-integrated genome screening
+
+	  tblastn: 1: 'Eurynorhynchus_pygmeus' (GCA_003697955, low_coverage)
+	  target: 'GCA_003697955.1_ASM369795v1_genomic.fna'
+	  probe:  'NC_001401-AAV2_NS'
+	  
+		 # 2 matches to probe: NC_001401-AAV2, NS
+		 # 0 matches above threshold (excluded: 0 < length; 2 < bitscore)
+		 # done 1 of 44 queries (%2.27)
+
+	  tblastn: 2: 'Hypophthalmichthys_nobilis' (HypNob1.0, low_coverage)
+	  target: 'GCA_004193235.1_HypNob1.0_genomic.fna'
+	  probe:  'NC_001401-AAV2_NS'
+
+ </code></pre>
    
 	   </p>
 
@@ -521,6 +627,24 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   </h3>
        <hr>
 
+		  
+  <pre>
+  <code>./digs_tool.pl -m=3 -i ../projects/eve/eve_1_parvo.ctl 
+     
+
+	  Connecting to DB:  erv_lenti
+	  Created report directory
+	  Path: './tmp/result_set_33636_1618435124'
+	  Reference library: 39902 amino acid sequences
+
+
+      Enter a WHERE statement to limit reaasign (Optional) :
+      </code></pre>
+
+
+
+
+
  	   
        <br>
 	   <h3>
@@ -532,9 +656,27 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
          The DIGS tool can be used to ‘consolidate’ contiguous hits in the ‘digs_results’ table
          according to user-defined
-         rules based on (i) a minimum length threshold for intervening DNA; (ii) orientation;
-         (iii) gene order. A fourth database table (“loci”) contains the merged sequences
-         and information about their structure.
+         rules based on:
+
+		 <ul>
+		   <li> a minimum length threshold for intervening DNA</li>
+		   <li> orientation</li>
+		   <li> gene order</li>
+		 </ul>
+
+
+
+ 	   </p>
+
+
+	   <p>
+
+         
+         A fourth database table (“loci”) contains the merged sequences and information about
+         their structure.
+
+
+
  	   </p>
 
 
@@ -560,7 +702,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	#                                                                    #
 	######################################################################
 
-	 Connecting to DB:  eve_1_parvoviridae
+	 Connecting to DB:  erv_lenti
 
 	 #### WARNING: This function expects a tab-delimited data table with column headers!
 
