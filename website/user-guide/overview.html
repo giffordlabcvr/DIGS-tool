@@ -20,8 +20,8 @@
 
 
     
-      <h1 class="project-name">The DIGS Tool</h1>
-      <h2 class="project-tagline">Explore genomes interactively using BLAST and a relational database.</h2>
+      <h1 class="project-name">DIGS Tool</h1>
+      <h2 class="project-tagline">A software framework for implementing Database-Integrated Genome Screening (DIGS).</h2>
       
       
       <a href="../../index.html" class="btn">Home</a>
@@ -86,15 +86,15 @@
 
       
 	  However, depending on the kind of investigation is performed, it may also contain :
-	  
+   
 
-		 <ul>
-		   <li>Conserved genome features that do not derive from the genome feature under investigation,
-	       but which can provide useful information about the locus in which that genome feature occurs.</li>
-		   <li>Representatives of genome features that are not relevant to the investigation,
-	       but are sufficiently similar to them in sequence to generate 'false positive' hits in the screen.</li>
-		 </ul>
-	  
+	  <ul>
+		<li>Conserved genome features that do not derive from the genome feature under investigation,
+		but which can provide useful information about the locus in which that genome feature occurs.</li>
+		<li>Representatives of genome features that are not relevant to the investigation,
+		but are sufficiently similar to them in sequence to generate 'false positive' hits in the screen.</li>
+	  </ul>
+   
 	  
 	  Screening entails selecting particular sequences from the reference library for use as
 	  'queries' or 'probes' in a BLAST search of a particular sequence database.
@@ -148,7 +148,17 @@
       structured query language (SQL) - a well-established, powerful approach for
       querying relational databases. 
  	</p>
+  	
+  	<p>
 
+      In a database-integrated framework, analysis
+	  can usually be logically separated into three component parts:
+
+	  <ol>
+		<li> Investigation of output via the relational database.</li>
+		<li> Export and alignment of sequences.</li>
+		<li> Comparative genomic analysis.</li>
+	  </ol>
 
 
 	<br>
@@ -160,7 +170,9 @@
 
 
 <blockquote>
-	  <b>Analysing screening output</b>.
+	  <b>Analysing screening output</b>: A schematic representation of the three component
+	  parts of the 'analysis' phase of DIGS-based screen.
+	  (some comparative analysis do not require an alignment, but most do)
 </blockquote>
 		 
 
