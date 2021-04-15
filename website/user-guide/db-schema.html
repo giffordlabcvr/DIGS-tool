@@ -75,8 +75,7 @@
 
 
     <p>
-      
-	  
+  
 	  The DIGS tool can be used to execute a ‘<b>consolidation</b>’ process
 	  that generates a ‘<b>loci</b>’ table that comprises non-overlapping sets of
 	  contiguous matches from the ‘digs_results’ table, based on predefined rules. 
@@ -92,21 +91,14 @@
 	  
     </p>
 
-
-
 	<br>
-
-
-
 
 	<h3>
 	  <a id="fieldDefinitions" class="anchor" href="#fieldDefinitions" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Field definitions</strong>
 	</h3>
 	<hr>
 
-
-
-	<p><b>searches_performed table</b></p>
+	<p><b>Searches_performed table</b></p>
 	
 	
 	<table>
@@ -137,14 +129,14 @@
 				<td><i>organism</i></td>
 				<td>VARCHAR</td>
 				<td>Name of the organism represented by the target database
-				(Latin binomial should be used)</td>
+				(Latin binomial recommended)</td>
 
 			</tr>
 
 			<tr>
 				<td><i>target_data_type</i></td>
 				<td>VARCHAR</td>
-				<td>Target data type (e.g. WGS, transcriptome)</td>
+				<td>Target data type (e.g. wgs, transcriptome)</td>
 			</tr>
 
 
@@ -169,15 +161,15 @@
 
 
 
-	 <p><b>digs_results & loci tables</b></p>
+	 <p><b>Digs_results & loci tables fields</b></p>
 	
 	
 	 <table>
 	
 		 <thead>
 			 <tr>
-				 <th>Field name</th>
-				 <th>Field type</th>
+				 <th>Name</th>
+				 <th>Type</th>
 				 <th>Description</th>
 			 </tr>
 		 </thead>
@@ -187,7 +179,7 @@
 			 <tr>
 				 <td><i>organism</i></td>
 				 <td>VARCHAR</td>
-				 <td>Organism name (Latin binomial should be used)</td>
+				 <td>Organism name (Latin binomial recommended)</td>
 			 </tr>
 
 
@@ -220,13 +212,13 @@
 			 <tr>
 				 <td><i>extract_start</i></td>
 				 <td>INT</td>
-				 <td>5’ (start) position of BLAST hit within the scaffold</td>
+				 <td><b>5’ (start)</b> position of BLAST hit within the scaffold</td>
 			 </tr>
 
 			 <tr>
 				 <td><i>extract_end</i></td>
 				 <td>INT</td>
-				 <td>3’ (end) position of BLAST hit within the scaffold</td>
+				 <td><b>3’ (end)</b> position of BLAST hit within the scaffold</td>
 			 </tr>
 
 			 <tr>
@@ -263,13 +255,13 @@
 			 <tr>
 				 <td><i>query_start</i></td>
 				 <td>INT</td>
-				 <td>5’ (start) position of BLAST hit within the scaffold</td>
+				 <td><b>5’ (start)</b> position of BLAST hit within the scaffold</td>
 			 </tr>
 
 			 <tr>
 				 <td><i>query_end</i></td>
 				 <td>INT</td>
-				 <td>3’ (start) position of BLAST hit within the scaffold</td>
+				 <td><b>3’ (start)</b> position of BLAST hit within the scaffold</td>
 			 </tr>
 
 			 <tr>
@@ -311,25 +303,25 @@
 			 <tr>
 				 <td><i>subject_start</i></td>
 				 <td>INT</td>
-				 <td>5’ (start) position of alignment (reference)</td>
+				 <td><b>5’ (start)</b> position of alignment (reference)</td>
 			 </tr>
 			
 			 <tr>
 				 <td><i>subject_end</i></td>
 				 <td>INT</td>
-				 <td>3’ (end) position of alignment (reference)</td>
+				 <td><b>3’ (end)</b> position of alignment (reference)</td>
 			 </tr>
 			
 			 <tr>
 				 <td><i>query_start</i></td>
 				 <td>INT</td>
-				 <td>5’ (start) position of alignment (extracted hit)</td>
+				 <td><b>5’ (start)</b> position of alignment (extracted hit)</td>
 			 </tr>
 			
 			 <tr>
 				 <td><i>query_end</i></td>
 				 <td>INT</td>
-				 <td>3’ (end) position of alignment (extracted hit)</td>
+				 <td><b>3’ (end)</b>  position of alignment (extracted hit)</td>
 			 </tr>
 			
 			 <tr>
