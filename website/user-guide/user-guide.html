@@ -304,16 +304,9 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
 
   <pre>
-  <code>./digs_tool.pl –m=1</code></pre>		 
-
-
-
-
-
+  <code>./digs_tool.pl –m=1</code></pre>
 
  	   </p>
-
-
 
 
        <br>
@@ -324,11 +317,9 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
 
 	   <p>
-
           DIGS requires a library of FASTA-formatted reference sequences for the gene
           or genetic element under investigation. 
-          Probes for screening are selected from the reference library.
-          
+          Probes for screening are selected from the reference library.    
  	   </p>
 
 
@@ -336,8 +327,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
        <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
 
 
-	   <p>
-	   
+	   <p>	   
           The DIGS tool uses a simple rule to capture data from the headers of
           FASTA-formatted reference (and probe) sequences; headers should be structured
           so as to define two hierarchical name elements; ‘name’ and ‘gene_name’,
@@ -346,30 +336,22 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
  	   </p>
 
 
-
-	   <p>
-          
+	   <p>      
           Other two-level hierarchical naming schemes (e.g. species &
           gene name, gene-subdomain name) can also be used, providing the same scheme is
           used consistently throughout the project. Reference sequences should be stored
           in a file, the path to which will be specified in the DIGS control file.
-          
  	   </p>
 
 
 	   <p>
-	   
-
           A subset of reference sequences should be selected as probes.
           The entire reference library can be used - in which case there is no need to
           create a separate file – but it is often sufficient to use only a subset of
           sequences from the reference sequence library, in which case, a separate file
           containing this subset should be created.
           The path to this file is specified in the DIGS control file.
-
  	   </p>
-
-
 
        <br>
 	   <h3>
@@ -377,15 +359,9 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   </h3>
        <hr>
 
-
-
 	   <p>
           The DIGS control file contains parameters and paths for DIGS.
- 
  	   </p>
-
-
-
 
 	   <p>
          Control files are structured as NEXUS style blocks delineated by BEGIN and
@@ -415,8 +391,6 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	  Mammalia/
   ENDBLOCK;
   </code></pre>
-
-
 
  	   </p>
 
@@ -622,6 +596,11 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   </h3>
        <hr>
 
+ 		
+ 	   <p>
+
+
+ 
 		  
   <pre>
   <code>./digs_tool.pl -m=3 -i ../projects/eve/eve_1_parvo.ctl 
@@ -637,31 +616,10 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
       </code></pre>
 
 
-
+ 	   </p>
 
 
  	   
-       <br>
-	   <h3>
-		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Consolidate</strong>
-	   </h3>
-       <hr>
-
-	   <p>
-
-         The DIGS tool can be used to ‘consolidate’ contiguous hits in the ‘digs_results’ table
-         according to user-defined
-         rules based on:
-
-		 <ul>
-		   <li> a minimum length threshold for intervening DNA</li>
-		   <li> orientation</li>
-		   <li> gene order</li>
-		 </ul>
-
-
-
- 	   </p>
 
 
 	   <h3>
@@ -696,6 +654,78 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
  	
  	
  	 </p>
+
+
+ 	   
+       <br>
+	   <h3>
+		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Consolidate</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+         When relying on sequence similarity as a means of recovering the sequences of 
+         related genome features, a limitation is that the sequences of many interesting
+         genome features are only partially conserved, and large regions of sequence
+         within these features may be rearranged or divergent.
+ 	   </p>
+
+       <p>
+         However, when two or more conserved features occur contiguously, their relationship
+         can be used to determine the coordinates of a more complete sequence for the 
+         genome feature of interest.
+ 	   </p>
+
+
+
+	   <p>
+         For example, retroviruses are comprised of three major coding domains
+         (<i>gag</i>, <i>pol</i>, <i>env</i> - in that order), flanked by terminal LTRs
+         that are usually (though not always entirely) non-coding.
+         But while this is the standard form of an integrated retrovirus ('provirus), 
+         endogenous retroviruses (ERVs) frequently have much complex genome arrangements,
+         with many being fragmentary or mosaic in structure, and large regions of 
+         the integrated provirus often being highly divergent from anything seen previously.
+ 	   </p>
+
+
+
+	   <p>
+         Accordingly, it makes semse to screen first using individual features 
+         (i.e. <i>Gag</i>, <i>Pol</i>, <i>Env</i> polypeptides, plus LTR nucleotide sequences),
+         as probes and references, then to '<b>consolidate</b>' the hits to these
+         probes into a larger sequences comprised of the hits, plus the intervening sequences.
+         At the same time, we can record the relationship between the component parts of
+         the merged sequence, where merging occurs.
+ 	   </p>
+
+	   <p>
+         The DIGS tool can be used to implement a ‘consolidation’ of this kind.
+         Contiguous hits in the ‘digs_results’ table are merged based on whether they
+         are within a user-defined distance of one another.
+	   </p>
+
+
+	   <p>
+           Running the consolidation process produces a set of merged sequences, and
+           also classifies these sequences using the same approach applied when
+           generating the digs_results table.
+           The results - i.e. a non-overlapping set of sequences, merged as determined by 
+           user-specified rules -  are entered into the 'loci' table
+           (see the <a href="./db-schema.html>"><b>database schema page</b></a> for details).
+           A separate reference sequence library that
+           is appropriate for classifying the longer sequences should be used
+           for the consolidation, and is
+           specified by a distinct parameter (see section 4 in the set-up stages above).
+ 	   </p>
+
+
+	   <p>
+           The loci table contains most of the same fields as the digs_results table,
+           but also includes a 'locus_structure' field that records the relationship
+           between merged hits, including their orientation.
+ 	   </p>
+
 
        <br>
 
