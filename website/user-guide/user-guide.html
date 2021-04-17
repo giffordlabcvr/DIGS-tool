@@ -47,7 +47,7 @@
 
 
 	   <p>
-         <b>Similarity search tools</b>:
+         <b>Similarity searches</b>:
          The DIGS tool uses the freely available
          <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi"><b>BLAST+</b></a>
          package to perform sequence similarity searches.
@@ -59,14 +59,14 @@
          <b>Relational database management system (RDBMS)</b>:
          The DIGS tool uses the MySQL RDBMS.
          <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
-         is a freely downloadable RDBMS that is supported by an active community of open source developers. 
+         - a freely downloadable RDBMS that is supported by an active community of open source developers. 
 	   </p>
 
 	   
 
 	   <p>
          The DIGS tool can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
-         Accordingly, Macintosh installation is also possible. However, due to 
+         So in theory, Macintosh installation is also possible. However, due to 
          issues installing PERL's DBI module on Macintosh (discussed
          <a target="_blank" href="http://www.ensembl.info/2013/09/09/installing-perl-dbdmysql-and-ensembl-on-osx/">here</a>,
          <a target="_blank" href="http://www.dimasyusuf.com/installing-dbd-mysql-on-os-x-el-capitan/">here</a>, and
@@ -78,9 +78,8 @@
 
 
 
-       <br>
 	   <h3>
-		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Set up the DIGS tool environment</strong>
+		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Setting up the DIGS tool environment</strong>
 	   </h3>
        <hr>
 
@@ -92,20 +91,26 @@
 
 
 	   <p>
-		  
-		  
+		  		  
 		  Before running DIGS tool, it is necessary to:
  
 		 <ol>
-		   <b><li> Set up environment variables required by the DIGS tool</li>
-		   <li> Set up target library and index genomes for BLAST</li>
-		   <li> Set up reference sequence library and probes</li>
-		   <li> Set up a control file</li></b>
+		   <b>
+			 <li> Set up environment variables</li>
+			 <li> Set up target library and index genomes for BLAST</li>
+			 <li> Set up reference sequence library and probes</li>
+			 <li> Set up a 'control file'</li>
+		   </b>
 		 </ol>
 
-
-
  	   </p>
+
+
+	   <p>
+          The sections below provide information about each of these steps.            
+ 	   </p>
+
+
 
 
 	   <h3>
@@ -249,8 +254,8 @@
 
 
 	   <p>
-
-The DIGS tool is designed for use with locally stored, FASTA formatted sequence data. Genome data should be stored in a directory tree with a specific structure. 
+         The DIGS tool is designed for use with locally stored, FASTA formatted sequence data.
+         Genome data should be stored in a directory tree with a specific structure. 
  	   </p>
 
 
@@ -285,22 +290,10 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
 
 
 	   <p>
+	     Target databases can be indexed for BLAST searching via the DIGS tool,
 
 
-         BLAST requires that FASTA files are indexed for similarity searches using the
-         'makeblastdb' program that is distributed with the BLAST+ package.
-         Because this can be time-consuming when screening many separate files, the digs_tool.pl
-         script includes an option to automatically format target FASTA files.
-         Note that for this to work properly, FASTA files MUST be labeled with the appropriate
-         file extensions (.fa, .fas, or .fasta).
-
- 	   </p>
-
-
-	   <p>
-
-
-To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
+         To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
 
 
   <pre>
@@ -488,9 +481,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
 	   <p>
 
-          Once screening has been set-up, we can move quickly to recovering and 
-          classifying sequences, and from there into more complicated kinds of comparative
-          analysis.
+          This section covers the database-integrated screening (DIGS) process:            
 
 
  	   </p>
@@ -500,10 +491,13 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   <p>
 
 		 <ol>
-		   <b><li> Run a screen and inspect results</li>
-		   <li> Updating references & reclassifying data in the 'digs_results' table</li>
-		   <li> 'Consolidating' the DIGS results table</li>
-		   <li> Adding 'side data' tables</li></b>
+		   <b>
+			 <li>  Running an <i>in silico</i> screen using the DIGS tool</li>
+			 <li> Investigating screening results using an SQL client</li>
+			 <li> Updating references & reclassifying data in the 'digs_results' table</li>
+			 <li> Merging hits in the DIGS results table into larger sequences</li>
+			 <li> Adding 'side data' tables</li>
+		   </b>
 		 </ol>
 
 
@@ -513,7 +507,7 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 
        <br>
 	   <h3>
-		 <a id="RunScreenInspectResults" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running a screen & examining results</strong>
+		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running an <i>in silico</i> screen using the DIGS tool</strong>
 	   </h3>
        <hr>
 
@@ -563,6 +557,12 @@ To run the DIGS tool's genome formatting utility, execute the digs_tool.pl scrip
 	   </p>
 
 
+
+       <br>
+	   <h3>
+		 <a id="InspectResults" class="anchor" href="#InspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Investigating screening results using an SQL client</strong>
+	   </h3>
+       <hr>
 
 
 	   <p>
