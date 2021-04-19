@@ -28,54 +28,6 @@
 
     <section class="main-content">
 
- 
-
-	   <h3>
-		 <a id="Requirements" class="anchor" href="#Requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Requirements</strong>
-	   </h3>
-       <hr>
-
-
-
-	   <p>
-         <b>Scripting language</b>:
-         The DIGS tool requires <a target="_blank" href="https://www.perl.org/"><b>PERL</b></a>
-         with the <a target="_blank" href="http://dbi.Perl.org/)"><b>DBI (database interface)</b></a>
-         module installed. 
-	   </p>
-
-
-
-	   <p>
-         <b>Similarity searches</b>:
-         The DIGS tool uses the freely available
-         <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi"><b>BLAST+</b></a>
-         package to perform sequence similarity searches.
-	   </p>
-
-
- 	   <p>
-        
-         <b>Relational database management system (RDBMS)</b>:
-         The DIGS tool uses the MySQL RDBMS.
-         <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
-         - a freely downloadable RDBMS that is supported by an active community of open source developers. 
-	   </p>
-
-	   
-
-	   <p>
-         The DIGS tool can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
-         So in theory, Macintosh installation is also possible. However, due to 
-         issues installing PERL's DBI module on Macintosh (discussed
-         <a target="_blank" href="http://www.ensembl.info/2013/09/09/installing-perl-dbdmysql-and-ensembl-on-osx/">here</a>,
-         <a target="_blank" href="http://www.dimasyusuf.com/installing-dbd-mysql-on-os-x-el-capitan/">here</a>, and
-         <a target="_blank" href="https://josephhall.org/nqb2/index.php/dbdmysql_macosx">here</a>),
-         I would not recommend attempting a Mac install unless you're familiar with troubleshooting
-         these kinds of issues. Similarly, installation on Windows 10 or above via the 
-         LINUX subsystem should be possible, but I have not investigated this personally.
-	   </p>
-
 
 
 	   <h3>
@@ -86,24 +38,21 @@
 
 
 	   <p>
-         The latest version of the DIGS tool can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>
-	   </p>
-
-
-	   <p>
 		  		  
 		  Before running DIGS tool, it is necessary to:
  
 		 <ol>
 		   <b>
-			 <li> Set up environment variables</li>
-			 <li> Set up target library and index genomes for BLAST</li>
-			 <li> Set up reference sequence library and probes</li>
-			 <li> Set up a 'control file'</li>
+			 <li> Install software requirements</li>
+			 <li> Set environment variables</li>
+			 <li> Set up target libraries</li>
+			 <li> Create project-specific sequence libraries</li>
+			 <li> Create a  project-specific 'control file'</li>
 		   </b>
 		 </ol>
 
  	   </p>
+
 
 
 	   <p>
@@ -113,16 +62,59 @@
 
 
 
+       <br>
 	   <h3>
-		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Set up environment variables</strong>
+		 <a id="installSoftware" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Software requirements</strong>
 	   </h3>
        <hr>
+       
+
 	   <p>
-          The DIGS tool requires users to set four <b>environment variables</b>:
+         <u><b>Scripting language</b></u>:<br>
+         The DIGS tool requires <a target="_blank" href="https://www.perl.org/"><b>PERL</b></a>.
+         The PERL <a target="_blank" href="http://dbi.Perl.org/)"><b>DBI (database interface)</b></a>
+         module should be installed via CPAN if it is not part of your PERL distribution. 
+	   </p>
+
+
+
+	   <p>
+         <u><b>Similarity searches</b></u>:<br>
+         The DIGS tool uses the freely available
+         <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi"><b>BLAST+</b></a>
+         package to perform sequence similarity searches.
+	   </p>
+
+
+ 	   <p>
+        
+         <u><b>Relational database management system (RDBMS)</b></u>:<br>
+         The DIGS tool uses the MySQL RDBMS.
+         <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
+         is free to download.
+	   </p>
+
+	   
+
+	   <p>
+         The latest version of the DIGS tool can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>.
+         It can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
+         Accordingly, installation on Macintosh OSX and Windows 10 and above, but I have not investigated this personally.
+	   </p>
+
+
+
+       <br>
+	   <h3>
+		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Setting up your local environment for DIGS</strong>
+	   </h3>
+       <hr>
+       
+       
+       
+	   <p>
+          The DIGS tool requires users to set four environment variables in their home environment:
           
-
-
-
        <br>
 	   <table>
 	
@@ -158,13 +150,25 @@
 		   </tbody>
 		
 	   </table>
+      <br>
+
+   
+	   </p>
 
 
+	   <p>
+         Note that one of the environment variables is the path to the 'target-genomes' directory.
+         DIGS requires that target sequence databases are contained within this folder,
+         which has a simple, pre-defined subdirectory structure (see below)
+	   </p>
 
-       <br>
 
-
-
+	   <p>
+		 Once environment variables have been set, you should be able to run the DIGS tool
+		 script with -h option as shown here: 
+		 
+  <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h'</code></pre>	
 
 
    
@@ -172,34 +176,11 @@
 
 
 	   <p>
-		 Once environment variables have been set, you should be able to run the DIGS tool
-		 script: '<b>digs_tool.pl</b>'), which provides 'one-stop-shopping' for
-		 DIGS-related tasks. It can be run in a variety of ways to:
-	   </p>
-
-
-
-	   <p>
-
-		 <ol>
-		   <li> Set-up and run screens</li>
-		   <li> Manage project database tables and data</li>
-		 </ol>
-
-
- 	   </p>
-
-
-	
-	   <p>
-		 Run with the '-h' option, as shown below, to see options for running DIGS:
+		 This should print the DIGS input help page to the console, as shown here: 
 
   <pre>
-  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h
-
-
-
-	 ### DIGS version 1.13.2
+  <code>### DIGS version 1.13.2
+  
 	 ### usage: ./digs_tool.pl m=[option] -i=[control file] -h=[help]
 
 	 ### Main functions
@@ -231,33 +212,11 @@
 	   
        <br>
 	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Set up target library</strong>
+		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Set up target libraries</strong>
 	   </h3>
        <hr>
 
-	   <p>
-		  The DIGS tool is designed to perform systematic, simialrity-search based screening
-		  of <b>local DNA sequence 'databases'</b> - in other words, collections of FASTA
-		  formatted DNA sequences.
-		  This is the form that most genome and transcriptome assemblies are distributed. 
- 	   </p>
-
-
        <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
-
-
-	   <p>
-		  The DIGS tool uses the BLAST program suite to perform similarity searches. 
-		  BLAST can be used to search any file containing FASTA-formatted sequences for
-		  similar sequences. 
- 	   </p>
-
-
-	   <p>
-         The DIGS tool is designed for use with locally stored, FASTA formatted sequence data.
-         Genome data should be stored in a directory tree with a specific structure. 
- 	   </p>
-
 
 
 	   <p>
@@ -266,8 +225,6 @@
          The top directory level should be the path specified under the DIGS environment
          variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
   	   </p>
-
-
 
 	   <p>
 
@@ -281,10 +238,10 @@
 	   <p>
 
 
-In the above example, the file 'chrX.fa' would be under the path:
+         In the above example, the file 'chrX.fa' would be under the path:
 
-
-$DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
+  <pre>
+  <code>$DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa</code></pre>	
 
  	   </p>
 
@@ -304,7 +261,7 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
 
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Set up reference library and probes</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up project-specific sequence librarie</strong>
 	   </h3>
        <hr>
 
@@ -348,7 +305,7 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up control file</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Create a project-specific control file</strong>
 	   </h3>
        <hr>
 
@@ -517,7 +474,16 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
  	   
  
    <pre>
-   <code>./digs_tool.pl -m=2 -i input.ctl
+   <code>./digs_tool.pl -m=2 -i input.ctl</code></pre>
+
+   
+	   </p>
+
+
+	   <p>
+
+   <pre>
+   <code>
 
 	  Connecting to DB:  eve_1_parvoviridae
 	  Created report directory
@@ -527,18 +493,8 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
 	  Targets:           1866 target files
 	  Previous queries:  41052 previous queries
 	  Skipped in set:    41008 (of 41052)
-	  Searches to run    44 </code></pre>
-
-   
-	   </p>
-
-
-	   <p>
-          From now, the console will report the results of screening as shown here:
- 	   
-
-   <pre>
-   <code> ### Starting database-integrated genome screening
+	  Searches to run    44 
+	   ### Starting database-integrated genome screening
 
 	  tblastn: 1: 'Eurynorhynchus_pygmeus' (GCA_003697955, low_coverage)
 	  target: 'GCA_003697955.1_ASM369795v1_genomic.fna'
