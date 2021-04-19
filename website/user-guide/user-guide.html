@@ -159,13 +159,13 @@
 	   <p>
          Note that one of the environment variables is the path to the 'target-genomes' directory.
          DIGS requires that target sequence databases are contained within this folder,
-         which has a simple, pre-defined subdirectory structure (see below)
+         which has a simple, pre-defined subdirectory structure (see section immediately below this one)
 	   </p>
 
 
 	   <p>
 		 Once environment variables have been set, you should be able to run the DIGS tool
-		 script with -h option as shown here: 
+		 script with -h (help) option as shown here: 
 		 
   <pre>
   <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h'</code></pre>	
@@ -176,7 +176,7 @@
 
 
 	   <p>
-		 This should print the DIGS input help page to the console, as shown here: 
+		 This should print the DIGS input help page to the console: 
 
   <pre>
   <code>### DIGS version 1.13.2
@@ -216,17 +216,18 @@
 	   </h3>
        <hr>
 
-       <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
-
 
 	   <p>
 
-         The 'target genomes directory' should have five levels, as illustrated above.
-         The top directory level should be the path specified under the DIGS environment
-         variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
+         The 'target genomes directory' should have five levels, as shown below.
   	   </p>
 
+
+       <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
+
 	   <p>
+         The top directory level should be the path specified under the DIGS environment
+         variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
 
          The bottom three levels should contain directories with names pertaining to the
          data type (i.e. low coverage, assembly), version, and organism name (Latin binomial
