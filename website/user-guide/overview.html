@@ -42,11 +42,15 @@
 
  
 	<p>
-      Screening entails two stages:
-		 <ol>
-		   <b><li> Setting up and running similarity searches.</li>
-		   <li> Analysing screening output</li></b>
-		 </ol>
+      Database-integrated genome screening entails separate 'exploration' and 'analysis' phases,
+      with each of these phases being split into two component parts:
+		 <ul>
+		   <b>
+		   <li> Exploration: Setting up and running similarity searches</li>
+		   <li> Analysis: inspecting screening output via a relational database, and (optionally)
+		        exporting data for comparative analysis</li>
+		   </b>
+		 </ul>
 
 
       
@@ -54,7 +58,7 @@
 
 	<p>
       
-      This process can be iterative, involving several rounds of screening and analysis, since
+      This process can be iterative, involving several rounds of exploration and analysis, since
       analysis of screening results often reveals new information that can be used to
       design more informative or comprehensive screens.
       
@@ -63,9 +67,11 @@
 	<p><img src="../assets/images/overview-phases.jpg" alt="Overview - phases" /></p>
 
 
-	<h4>
-		<a id="setUpAndRunScreen" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 1. Setting up and running an <i>in silico</i> screen</strong>
-	</h4>
+	<h3>
+		<a id="setUpAndRunScreen" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 1. Exploration: Setting up and running an <i>in silico</i> screen</strong>
+	</h3>
+	<hr>
+
 
 
  
@@ -141,9 +147,9 @@
 </blockquote>
 
 
-	<h4>
+	<h3>
 		<a id="analyseScreenOutput" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Part 2. Analysing screening output</strong>
-	</h4>
+	</h3>
 
  	<p>
       In DIGS, a similarity search-based screening pipeline is linked to a <b>relational
