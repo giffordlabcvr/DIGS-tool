@@ -56,7 +56,7 @@
 
 
 	   <p>
-          The sections below provide information about each of these steps.            
+         The sections below provide information about each step.            
  	   </p>
 
 
@@ -73,7 +73,7 @@
          <u><b>Scripting language</b></u>:<br>
          The DIGS tool requires <a target="_blank" href="https://www.perl.org/"><b>PERL</b></a>.
          The PERL <a target="_blank" href="http://dbi.Perl.org/)"><b>DBI (database interface)</b></a>
-         module should be installed via CPAN if it is not part of your PERL distribution. 
+         module should be installed via CPAN if it is not part of your native PERL distribution. 
 	   </p>
 
 
@@ -89,17 +89,18 @@
  	   <p>
         
          <u><b>Relational database management system (RDBMS)</b></u>:<br>
-         The DIGS tool uses the MySQL RDBMS.
+         The DIGS tool uses the <b>MySQL</b> relational database management system.
          <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
-         is free to download.
+         is a free to use version of this program.
 	   </p>
 
 	   
 
 	   <p>
-         The latest version of the DIGS tool can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>.
+         <u><b>DIGS tool</b></u>:<br>
+         The latest version can be obtained <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master"><b>here</b></a>.
          It can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
-         Accordingly, installation on Macintosh OSX and Windows 10 and above, but I have not investigated this personally.
+         Accordingly, installation on Macintosh OSX and Windows 10 and above should be possible, but I have not investigated this personally.
 	   </p>
 
 
@@ -129,7 +130,7 @@
 
 			   <tr>
 				   <td><i>$DIGS_GENOMES</i></td>
-				   <td>Path to the top-level of the 'target-genomes' directory (see below)</td>
+				   <td>Path to the top-level of the 'target-databases' directory (see below)</td>
 			   </tr>
 
 			   <tr>
@@ -157,9 +158,11 @@
 
 
 	   <p>
-         Note that one of the environment variables is the path to the 'target-genomes' directory.
-         DIGS requires that target sequence databases are contained within this folder,
-         which has a simple, pre-defined subdirectory structure (see section immediately below this one)
+         Note that one of the environment variables is the path to the 'target-databases' directory.
+         DIGS requires that all target sequence databases relevant to the investigation being
+         performed are contained within this folder.
+         The target genomes directory has a simple, pre-defined subdirectory structure
+         (see section immediately below this one).
 	   </p>
 
 
@@ -219,7 +222,7 @@
 
 	   <p>
 
-         The 'target genomes directory' should have five levels, as shown below.
+         The 'target database directory' should have five levels, as shown below.
   	   </p>
 
 
@@ -248,15 +251,19 @@
 
 
 	   <p>
-	     Target databases can be indexed for BLAST searching via the DIGS tool,
-
-
-         To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
+	     Target databases can be indexed for BLAST searching using the DIGS tool,
+         by executing as follows:
 
 
   <pre>
   <code>./digs_tool.pl –m=1</code></pre>
 
+ 	   </p>
+
+
+	   <p>
+         This will initiate a console-based interactive process in which the target 
+         database folder is scanned, and genomes that require indexing for BLAST are identified.
  	   </p>
 
 
@@ -268,9 +275,9 @@
 
 
 	   <p>
-          DIGS requires a library of FASTA-formatted reference sequences for the gene
-          or genetic element under investigation. 
-          Probes for screening are selected from the reference library.    
+          DIGS requires a library of FASTA-formatted sequences, called the 
+          'reference sequence library'. This library is used a source of 'probes' for screening, 
+          and also provides a means of classifying hits (i.e. similar sequences) identified in these screens.   
  	   </p>
 
 
@@ -280,18 +287,10 @@
 
 	   <p>	   
           The DIGS tool uses a simple rule to capture data from the headers of
-          FASTA-formatted reference (and probe) sequences; headers should be structured
-          so as to define two hierarchical name elements; ‘name’ and ‘gene_name’,
-          separated by an underscore. In the example shown above these are a virus name
-          and a gene name.
- 	   </p>
-
-
-	   <p>      
-          Other two-level hierarchical naming schemes (e.g. species &
-          gene name, gene-subdomain name) can also be used, providing the same scheme is
-          used consistently throughout the project. Reference sequences should be stored
-          in a file, the path to which will be specified in the DIGS control file.
+          FASTA-formatted reference (and probe) sequences, in which
+          everything to the left of the last underscore in the FASTA header
+          is taken as the 'species name' and everything to the left is taken 
+          as the 'genome feature name'.
  	   </p>
 
 
@@ -311,11 +310,11 @@
        <hr>
 
 	   <p>
-          The DIGS control file contains parameters and paths for DIGS.
+          The DIGS control file is a text file that specifies parameters and paths for DIGS.
  	   </p>
 
 	   <p>
-         Control files are structured as NEXUS style blocks delineated by BEGIN and
+         Control files are structured as NEXUS-style blocks delineated by BEGIN and
           ENDBLOCK tokens as shown below.
 		  
   <pre>
@@ -353,19 +352,19 @@
  	   </p>
 
 
-
-	   <h4>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Parameters defined in the DIGS control file</strong>
-	   </h4>
-
 	
 
        <br>
+
+
+	   <h4>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Parameters defined in the DIGS control file</u></strong>
+	   </h4>
 	   <table>
 	
 		   <thead>
 			   <tr>
-				   <th>Ctl file parameter</th>
+				   <th>Parameter</th>
 				   <th>Definition</th>
 			   </tr>
 		   </thead>
@@ -439,7 +438,8 @@
 
 	   <p>
 
-          This section covers the database-integrated screening (DIGS) process:            
+          This section covers a range of different aspects of the database-integrated
+          screening (DIGS) process:            
 
 
  	   </p>
@@ -450,11 +450,11 @@
 
 		 <ol>
 		   <b>
-			 <li>  Running an <i>in silico</i> screen using the DIGS tool</li>
-			 <li> Investigating screening results using an SQL client</li>
-			 <li> Updating references & reclassifying data in the 'digs_results' table</li>
-			 <li> Merging hits in the DIGS results table into larger sequences</li>
-			 <li> Adding 'side data' tables</li>
+			 <li> Running an <i>in silico</i> screen</li>
+			 <li> Investigating screening results via a GUI SQL client</li>
+			 <li> Updating the reference sequence library & reclassifying data in the 'digs_results' table</li>
+			 <li> Incorporating additional tables into a DIGS project database</li>
+			 <li> 'Consolidation': Merging & reclassifying hits in the DIGS results table.</li>
 		   </b>
 		 </ol>
 
@@ -465,7 +465,7 @@
 
        <br>
 	   <h3>
-		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running an <i>in silico</i> screen using the DIGS tool</strong>
+		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running an <i>in silico</i> screen</strong>
 	   </h3>
        <hr>
 
@@ -479,6 +479,13 @@
 
    
 	   </p>
+
+
+	   <p>
+	     This will initiate the screening process.
+	     A progress log is reported to the screen: 
+	   </p>
+
 
 
 	   <p>
@@ -512,6 +519,27 @@
  </code></pre>
    
 	   </p>
+
+
+
+	   <p>
+	     The first few lines of output report the properties of the probe, reference
+	     and target sequence libraries that compose the screen. 
+	   </p>
+
+	   <p>
+	     In addition, the status of the screen is reported - of all the individual BLAST
+	     searches that comprise the screen, how many have been performed, and how many are
+	     still outstanding. 
+	   </p>
+
+
+
+
+	   <p>
+	     Run with the -v (verbose) option for more granular logging.
+	   </p>
+
 
 
 
@@ -549,12 +577,11 @@
 
 
 	   <p>
-		  Firstly, 
-		  Get counts of each.
+		  For example, to get counts of matches to each kind of 
+		  sequence in our reference library:
  	   </p>
 
 	   <p>
-		  First download and upack the taxonomy DB from the NCBI FTP server.
 		  
   <pre>
   <code>SELECT  DISTINCT assigned_name, assigned_gene, COUNT(*) AS Number
@@ -573,7 +600,7 @@
  	   
        <br>
 	   <h3>
-		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Update reference sequences and reassign</strong>
+		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Updating reference sequences and reclassifying results</strong>
 	   </h3>
        <hr>
 
@@ -604,7 +631,7 @@
 
 
 	   <h3>
-		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Using 'side-data' in DIGS databases</strong>
+		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Incorporating additional tables into a DIGS project database</strong>
 	   </h3>
        <hr>
 
@@ -640,7 +667,7 @@
  	   
        <br>
 	   <h3>
-		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Consolidate</strong>
+		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Merging hits in the DIGS results table into larger sequences</strong>
 	   </h3>
        <hr>
 
