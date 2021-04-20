@@ -643,37 +643,15 @@
 
 	   <p>
           A MySQL client with a graphical user interface (e.g. <b>SequelPro</b>)
-          can be used to connect to the screening database.
+          can be used to connect to the screening database and select rows, as shown below.
  	   </p>
 
 
 
-	   <p>
-		  The following examples illustrate some of the basic ways in 
-		  which the RDBMS can be used to monitor and query screening
-		  results.
- 	   </p>
+        <p><img src="../assets/images/select-rows-recent.png" alt="DIGS screenshot" /></p>
 
 
-
-	   <p>
-		  For example, to get counts of matches to each kind of 
-		  sequence in our reference library:
- 	   </p>
-
-	   <p>
-		  
-  <pre>
-  <code>SELECT  DISTINCT assigned_name, assigned_gene, COUNT(*) AS Number
-  FROM   digs_results
-  WHERE bitscore >= 60
-  GROUP BY  assigned_name, assigned_gene
-  ORDER BY  assigned_name, assigned_gene</code></pre>
- 	   </p>
-
-
- 	   
- 	   
+   
        <br>
 	   <h3>
 		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
@@ -738,7 +716,6 @@
 
 
  	   <br>
-
 
 	   
 
@@ -839,12 +816,14 @@
 
      <p>
        Now that I have added the host_taxonomy table, I can select and count 
-       database entries based on any of the taxonomic ranks included in my file.
+       database entries based on any of the taxonomic ranks included in my file,
+       as shown below.
  	 </p>
 
 
-		 	   
-       <br>
+
+        <p><img src="../assets/images/taxonomy-table.png" alt="DIGS screenshot" /></p>
+
 	   <h3>
 		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
 	   </h3>
