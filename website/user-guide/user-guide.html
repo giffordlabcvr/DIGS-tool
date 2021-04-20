@@ -15,14 +15,14 @@
     <section class="page-header">
     
       <h1 class="project-name">DIGS</h1>
-      <h2 class="project-tagline">Database-Integrated Genome Screening (DIGS).</h2>
+      <h2 class="project-tagline">Database-Integrated Genome Screening</h2>
       
       <a href="../../index.html" class="btn">Home</a>
       <a href="./explore.html" class="btn">Background</a>
       <a href="./overview.html" class="btn">Overview</a>
       <a href="./db-schema.html" class="btn">DB Schema</a>   
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
-      <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">View on GitHub</a>
+      <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">GitHub</a>
       
     </section>
 
@@ -105,7 +105,7 @@
 	   
 
 	   <p>
-		 <u><strong>Optional - GUI Client for Relational Database</strong></u>:<br>
+		 <u><strong>GUI client for relational database (optional)</strong></u>:<br>
 		 To interface with DIGS project databases via a graphical user interface (GUI),
 		 please install one of the many SQL client programs that are compatible with MySQL,
 		 such as <a target="_blank" href="https://www.sequelpro.com/"><strong>SequelPro</strong></a>.
@@ -683,20 +683,45 @@
 	   </h3>
        <hr>
 
- 		
- 	   <p>
+ 
+	   <p>
+		  Inspecting screening results often reveals the deficiencies of the reference
+		  sequence library that was used to classify screening results. 
+	   </p>
 
+
+ 
+	   <p>
+		  In particular, screening can make it clear that there are certain variants of	  
+		  the genome feature being investigated that are not represented in the reference
+		  sequence library.
+	   </p>
+
+
+
+		
+ 	   <p>
+          Once this becomes clear, it is useful to reclassify sequences identified via 
+          screening using an updated reference sequence library that includes representatives of 
+          the missing variant(s).
+	   </p>
+
+	   <p>
+	   
+	      To do this, simply add the new sequences to your project-specific reference library 
+	      and run the digs_tool.pl script using you project control file and the -m=3 option,
+	      as shown here:
 
  
 		  
   <pre>
-  <code>./digs_tool.pl -m=3 -i ../projects/eve/eve_1_parvo.ctl 
+  <code>./digs_tool.pl -m=3 -i ../projects/eve/erv_1_lenti.ctl 
      
 
 	  Connecting to DB:  erv_lenti
 	  Created report directory
 	  Path: './tmp/result_set_33636_1618435124'
-	  Reference library: 39902 amino acid sequences
+	  Reference library: 59 amino acid sequences
 
 
       Enter a WHERE statement to limit reaasign (Optional) :
@@ -715,14 +740,38 @@
        <hr>
 
 
-		 <p>
+	   <p>
+		  Incorporating additional, linked data tables into DIGS project databases allows
+		  users to reference these data in SQL queries.
+	   </p>
 
-  To add a table with virus taxonomy:
 
- <pre>
-  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl 
+	   <p>
+		  For example, adding a table that contains taxonomic information about the species
+		  screened will allow SQL queries to reference higher taxonomic ranks than species.
+	   </p>
 
-	 Connecting to DB:  erv_lenti
+ 
+
+
+       <p>
+         The digs_tool.pl script provides functions for console based management of 
+         additional tables. For example, to add a table with virus taxonomy, first run DIGS as follows:
+
+  <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl
+  </code></pre>	
+
+	   </p>
+
+ 
+
+
+       <p>
+         The console will prompt for input, beginning with the path to a file containing tabular data
+
+  <pre>
+  <code>Connecting to DB:  erv_lenti
 
 	 #### WARNING: This function expects a tab-delimited data table with column headers!
 
@@ -733,6 +782,9 @@
  	
  	 </p>
 
+     <p>
+       If valid tabular input is received, a breakdown of the column headers will be shown:
+ 	 </p>
 
  	   
        <br>
@@ -757,10 +809,10 @@
 
 
 	   <p>
-         For example, retroviruses are comprised of three major coding domains
+         For example, integrated retroviruses ('proviruses') are comprised of internal coding domains
          (<i>gag</i>, <i>pol</i>, <i>env</i> - in that order), flanked by terminal LTRs
          that are usually (though not always entirely) non-coding.
-         But while this is the standard form of an integrated retrovirus ('provirus), 
+         However,
          endogenous retroviruses (ERVs) frequently have much complex genome arrangements,
          with many being fragmentary or mosaic in structure, and large regions of 
          the integrated provirus often being highly divergent from anything seen previously.
