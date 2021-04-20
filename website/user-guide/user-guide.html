@@ -28,10 +28,10 @@
 
     <section class="main-content">
 
-
+	<!--<img src="../assets/images/user-guide.jpg"alt="User guide"/>-->
 
 	   <h3>
-		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Setting up the DIGS tool environment</strong>
+		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 1. Setting up the DIGS tool environment</strong>
 	   </h3>
        <hr>
 
@@ -56,7 +56,7 @@
 
 
 	   <p>
-         The document sections below provide information about each step.            
+         The document sections below provide information about each od these steps.            
  	   </p>
 
 
@@ -64,7 +64,7 @@
 
        <br>
 	   <h3>
-		 <a id="installSoftware" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Software requirements</strong>
+		 <a id="installSoftware" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.1. Software requirements</strong>
 	   </h3>
        <hr>
        
@@ -117,7 +117,7 @@
 
        <br>
 	   <h3>
-		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Setting up your local environment for DIGS</strong>
+		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.2. Setting up your local environment for DIGS</strong>
 	   </h3>
        <hr>
        
@@ -224,28 +224,24 @@
 	   
        <br>
 	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Set up target libraries</strong>
+		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.3. Set up target libraries</strong>
 	   </h3>
        <hr>
 
 
 	   <p>
+		  The DIGS tool is designed to perform systematic, similarity-search based screening
+		  of <b>local DNA sequence 'databases'</b> - in other words, collections of FASTA-formatted
+		  DNA sequence data. 
+ 	   </p>
 
-         The 'target database directory' should have five levels, as shown below.
+
+	   <p>
+         Genome data should be stored in a directory tree with five subdirectory levels, as shown below.
   	   </p>
 
 
        <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
-
-	   <p>
-         The top directory level should be the path specified under the DIGS environment
-         variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
-
-         The bottom three levels should contain directories with names pertaining to the
-         data type (i.e. low coverage, assembly), version, and organism name (Latin binomial
-         with underscore – e.g. Homo_sapiens), of the sequence data files they contain*.
- 	   </p>
-
 
 
 	   <p>
@@ -259,9 +255,76 @@
  	   </p>
 
 
+
+	   <h4>
+		 <a id="TargetDirectoryTable" class="anchor" href="#TargetDirectoryTable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Directory levels in the 'target databases' directory</u></strong>
+	   </h4>
+	   
+	   
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Level</th>
+				   <th>Information</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td><i>1</i></td>
+				   <td>The top level directory - should be the path specified under the DIGS environment
+                       variable $DIGS_GENOMES.
+                   </td>
+			   </tr>
+
+			   <tr>
+				   <td><i>2</i></td>
+				   <td>Group - this level allows for categorisation of species or samples from
+				       which sequence data are derived, so as to facilitate data management.
+				       For example, if screening in a wide range of endothermic vertebrate
+				       species, we might have separate bird and mammal directories at this level.
+                   </td>
+			   </tr>
+
+
+			   <tr>
+				   <td><i>3</i></td>
+				   <td>Species or sample name - within the group directory, data are
+				   logically separated based on the provenance of sequence data.
+ 				   For example, genome data from distinct humans should be under
+				   a subdirectory named 'Homo_sapiens' or something equivalent.
+                  </td>
+			   </tr>
+
+			   <tr>
+				   <td><i>4</i></td>
+				   <td>Data type - name appropriately and (ideally) consistently (e.g. wgs, transcriptome)</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>5</i></td>
+				   <td>Assembly version - FASTA data files should be in this directory</td>
+			   </tr>
+
+
+		   </tbody>
+		
+	   </table>
+	   <br>
+
+
+
 	   <p>
-	     Target databases can be indexed for BLAST searching using the DIGS tool,
-         by executing as follows:
+		  
+		  Before we can use BLAST to screen target sequence databases, it is neccessary to 
+		  'index' these files for BLAST searching.
+ 	   </p>
+
+
+	   <p>
+	     This can be performed efficiently by running the digs_tool.pl script as follows:
 
 
   <pre>
@@ -278,21 +341,21 @@
 
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Set up project-specific sequence librarie</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Set up project-specific sequence libraries</strong>
 	   </h3>
        <hr>
 
 
 	   <p>
-          DIGS requires a library of FASTA-formatted sequences, called the 
-          'reference sequence library'. This library is used a source of 'probes' for screening, 
-          and also provides a means of classifying hits (i.e. similar sequences) identified in these screens.   
+          To perform DIGS we require a library of FASTA-formatted sequences, called the 
+          'reference sequence library'.
  	   </p>
 
 
-
-       <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
-
+	   <p>
+          The reference sequence library is used a source of 'probes' for screening, 
+          and also provides a means of classifying hits (i.e. similar sequences) identified in these screens.   
+ 	   </p>
 
 	   <p>	   
           The DIGS tool uses a simple rule to capture data from the headers of
@@ -301,6 +364,11 @@
           is taken as the 'species name' and everything to the right is taken 
           as the 'genome feature name'.
  	   </p>
+
+
+
+       <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
+
 
 
 	   <p>
@@ -314,7 +382,7 @@
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Create a project-specific control file</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Create a project-specific control file</strong>
 	   </h3>
        <hr>
 
@@ -369,6 +437,8 @@
 	   <h4>
 		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Parameters defined in the DIGS control file</u></strong>
 	   </h4>
+	   
+	   
 	   <table>
 	
 		   <thead>
@@ -439,7 +509,7 @@
 
        <br>
 	   <h3>
-		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Performing DIGS and working with project databases</strong>
+		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 2. Performing DIGS and working with project databases</strong>
 	   </h3>
        <hr>
 
@@ -474,7 +544,7 @@
 
        <br>
 	   <h3>
-		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1. Running an <i>in silico</i> screen</strong>
+		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.1. Running an <i>in silico</i> screen</strong>
 	   </h3>
        <hr>
 
@@ -554,7 +624,7 @@
 
        <br>
 	   <h3>
-		 <a id="InspectResults" class="anchor" href="#InspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2. Investigating screening results using an SQL client</strong>
+		 <a id="InspectResults" class="anchor" href="#InspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.2. Investigating screening results using an SQL client</strong>
 	   </h3>
        <hr>
 
@@ -609,7 +679,7 @@
  	   
        <br>
 	   <h3>
-		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Updating reference sequences and reclassifying results</strong>
+		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
 	   </h3>
        <hr>
 
@@ -640,7 +710,7 @@
 
 
 	   <h3>
-		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>4. Incorporating additional tables into a DIGS project database</strong>
+		 <a id="taxonomyOverview" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.4. Incorporating additional tables into a DIGS project database</strong>
 	   </h3>
        <hr>
 
@@ -676,7 +746,7 @@
  	   
        <br>
 	   <h3>
-		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>5. Merging hits in the DIGS results table into larger sequences</strong>
+		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
 	   </h3>
        <hr>
 
