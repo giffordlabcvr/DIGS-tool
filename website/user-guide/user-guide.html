@@ -391,13 +391,13 @@
  	   </p>
 
 	   <p>
-         Control files are structured as NEXUS-style blocks delineated by BEGIN and
-          ENDBLOCK tokens as shown below.
+         Control files are structured as <a target="_blank" href="https://www.nexusformat.org/"><b>NEXUS</b></a>-style
+         blocks bounded by BEGIN and ENDBLOCK statements as shown below.
 		  
   <pre>
   <code>Begin SCREENDB;
-  db_name=erv_lenti;
-  mysql_server=localhost;
+	 db_name=erv_lenti;
+	 mysql_server=localhost;
   ENDBLOCK;
 
   BEGIN SCREENSETS;
@@ -580,8 +580,9 @@
 	  Targets:           1866 target files
 	  Previous queries:  41052 previous queries
 	  Skipped in set:    41008 (of 41052)
-	  Searches to run    44 
-	   ### Starting database-integrated genome screening
+	  Searches to run    44
+	  
+	  ### Starting database-integrated genome screening
 
 	  tblastn: 1: 'Eurynorhynchus_pygmeus' (GCA_003697955, low_coverage)
 	  target: 'GCA_003697955.1_ASM369795v1_genomic.fna'
@@ -668,10 +669,6 @@
   WHERE bitscore >= 60
   GROUP BY  assigned_name, assigned_gene
   ORDER BY  assigned_name, assigned_gene</code></pre>
- 
- 
- 
- 		
  	   </p>
 
 
@@ -724,11 +721,20 @@
 	  Reference library: 59 amino acid sequences
 
 
-      Enter a WHERE statement to limit reaasign (Optional) :
+      Enter a WHERE statement to limit reaasign (Optional) : WHERE assigned_name = 'RELIK'
       </code></pre>
 
 
  	   </p>
+
+     <p>
+       The option to limit the reassign via a WHERE statement is presented.
+       This can save time when the aim is to reassign only a subset of hits 
+       in a digs_results table with a large number of entries.
+       If using a WHERE statement enter it as you would in a SQL client (i.e. using
+       appropriate syntax), as shown above.
+ 	 </p>
+
 
 
  	   <br>
@@ -786,10 +792,58 @@
  	 </p>
 
      <p>
-       If valid tabular input is received, a breakdown of the column headers will be shown:
+       If valid tabular input is received, a breakdown of the column headers will be shown.
+       If it looks correct enter 'y' (yes), and select appropriate options. For example:
  	 </p>
 
- 	   
+
+     <p>
+
+  <pre>
+  <code>The following cleaned column headers (i.e. table fields) were obtained
+
+		 Column 1: 'Target_species'
+		 Column 2: 'Target_class'
+		 Column 3: 'Target_superorder'
+		 Column 4: 'Target_order'
+		 Column 5: 'Target_family'
+		 Column 6: 'Target_genus'
+
+	 Is this correct? (y/n): y
+
+		 1. Create new ancillary table
+		 2. Append data to existing ancillary table
+		 3. Flush existing ancillary table and import fresh data
+
+	 Choose an option (1/2/3): 1
+
+	 What is the name of the new table? : host_taxonomy
+
+	 Creating ancillary table 'host_taxonomy' in eve_1_parvoviridae screening database
+
+	 #### IMPORTING to table 'host_taxonomy'
+
+	 # Exit
+</code></pre>
+
+ 	 </p>
+
+
+	 <p>
+	   <b>NOTE!</b> - in the example above I have deliberately prefixed the 
+	   column names - which are taxonomic ranks - with 'Target_'.
+	   This avoid conflicting with any of 
+	   MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
+	   - one of which is 'ORDER'.
+	 </p>
+
+     <p>
+       Now that I have added the host_taxonomy table, I can select and count 
+       database entries based on any of the taxonomic ranks included in my file.
+ 	 </p>
+
+
+		 	   
        <br>
 	   <h3>
 		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
