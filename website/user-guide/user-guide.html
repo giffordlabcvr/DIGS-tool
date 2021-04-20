@@ -20,7 +20,7 @@
       <a href="../../index.html" class="btn">Home</a>
       <a href="./explore.html" class="btn">Background</a>
       <a href="./overview.html" class="btn">Overview</a>
-      <a href="./db-schema.html" class="btn">DB Schema</a>   
+      <a href="./db-schema.html" class="btn">Schema</a>   
       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
       <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">GitHub</a>
       
@@ -28,7 +28,29 @@
 
     <section class="main-content">
 
-	<!--<img src="../assets/images/user-guide.jpg"alt="User guide"/>-->
+	   <img src="../assets/images/user-guide.jpg"alt="User guide"/>
+       <br>
+       
+        
+  <br>
+       
+
+	   <p>
+		  		  
+		  This user guide has two parts:
+ 
+		 <ol>
+		   <b>
+			 <li> Part 1. Setting up the DIGS tool environment</li>
+			 <li> Part 2. Performing DIGS and working with project databases</li>
+		   </b>
+		 </ol>
+
+ 	   </p>
+       <br>
+       
+
+
 
 	   <h3>
 		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 1. Setting up the DIGS tool environment</strong>
@@ -60,9 +82,6 @@
  	   </p>
 
 
-
-
-       <br>
 	   <h3>
 		 <a id="installSoftware" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.1. Software requirements</strong>
 	   </h3>
@@ -224,7 +243,7 @@
 	   
        <br>
 	   <h3>
-		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.3. Set up target libraries</strong>
+		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.3. Setting up target libraries</strong>
 	   </h3>
        <hr>
 
@@ -242,17 +261,6 @@
 
 
        <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
-
-
-	   <p>
-
-
-         In the above example, the file 'chrX.fa' would be under the path:
-
-  <pre>
-  <code>$DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa</code></pre>	
-
- 	   </p>
 
 
 
@@ -341,7 +349,7 @@
 
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Set up project-specific sequence libraries</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Creating project-specific sequence libraries</strong>
 	   </h3>
        <hr>
 
@@ -382,7 +390,7 @@
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Create a project-specific control file</strong>
+		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Creating a project-specific control file</strong>
 	   </h3>
        <hr>
 
@@ -427,11 +435,6 @@
           Note that not all parameters will need to be defined for every screen.
  
  	   </p>
-
-
-	
-
-       <br>
 
 
 	   <h4>
@@ -504,6 +507,12 @@
 		   </tbody>
 		
 	   </table>
+
+
+	
+
+       <br>
+       <br>
 
 
 
@@ -807,7 +816,7 @@
 
 
 	 <p>
-	   <b>NOTE!</b> - in the example above I have deliberately prefixed the 
+	   <b>NOTE</b> - in the example above I have deliberately prefixed the 
 	   column names - which are taxonomic ranks - with 'Target_'.
 	   This avoid conflicting with any of 
 	   MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
