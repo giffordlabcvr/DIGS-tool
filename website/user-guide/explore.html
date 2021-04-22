@@ -65,19 +65,11 @@
 	  Excitingly, much can now be discovered
 	  by exploring this 'uncharted genomic territory' <b><i>in silico</i></b>
 	  - in other words, by analysing genome sequence data using a computer.
-	  While experimental studies are required to characterise genome
+	  While experimental studies are usually required to characterise genome
 	  features at a functional level, comparative sequence analysis
 	  can often provide crucial insights and inform the design of experiments. 
 	</p>
 
- 
-<blockquote>
-		  <i>"As more scientists come to rely on genome annotation,
-              it will become more important for the scientific community as a whole to
-              contribute to this continuing process."
-          </i>
-          - <b>Lincoln Stein</b> (2001)
-</blockquote>
 
 	<p>
 	  <b>Sequence similarity searches</b>, such as those implemented in the  
@@ -157,21 +149,27 @@
 	  obscured when examining contemporary sequences. 
 	</p>
 
+	<p>
+      For example,
+	  the "Red Queen hypothesis", which takes it name from the character in 
+	  Lewis Caroll's Alice in Wonderland, relates to the idea that species can undergo
+	  rapid underlying evolutionary change while existing in an outwardly stable relationship
+	  (i.e. 'running to stand still')
+	  as they each acquire adaptations and counter-adaptations in a competition for survival. 
 
-	<img src="../assets/images/red-queen.jpg" alt="Terra incognita"/>
+	</p>
+
+	<img src="../assets/images/red-queen.jpg" alt="Alice and the Red Queen"/>
 
 
 <blockquote>
 	  <b>Red Queen dynamics</b>:
-	  "A slow sort of country!" said the Queen. "Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"
+	  "A slow sort of country!" said the Queen. "Now, here, you see, it takes all the
+	  running you can do, to keep in the same place. If you want to get somewhere else,
+	  you must run at least twice as fast as that!"
 </blockquote>
-		 
 
 	<br>
-
-	<br>
-
-
 
 	<p>
 
@@ -179,15 +177,16 @@
 	  Occasionally, metazoan species acquire genes from one another, or from microbes
 	  (e.g. viruses and bacteria).
 	  Sequences that have arisen through horizontal transmission have an unpredictable
-	  distribution across genomes, and are often highly degraded pseudogenes.
+	  distribution across genomes, and are often highly degraded by mutation.
 	  For these reasons, they are frequently absent from or incompletely captured by
 	  existing annotations.
 
 	</p>
+	<br>
 
 
 
-		<img src="../assets/images/tangled-tree.jpg"alt="Palimpsest"/>
+	<img src="../assets/images/tangled-tree.jpg"alt="Tangled tree"/>
 
  
 
@@ -224,33 +223,24 @@
      over the course of evolution.
  
 	</p>
-
-
- 
- 
 	<br>
 
-
-
-		<img src="../assets/images/transposition.jpg"alt="Embryo"/>
+    <img src="../assets/images/transposition.jpg"alt="Transposition and the embryo"/>
 
 
 <blockquote>
-	  Mouse blastocyst stage embryo.
+	  <b>Mouse embryo at blastocyst stage</b>.
  	  Genomic and experimental evidence indicates that the battle to suppress selfish DNA
  	  such as transposons during embryogenesis has been a source of dynamism and innovation
- 	  in the genomes of mammals.
-	  
+ 	  in the genomes of mammals.	  
 </blockquote>
 		 
-
 
     <br>
 	<h3>
 		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring genomes <i>in silico</i> using sequence similarity search tools</strong>
 	</h3>
 	<hr>
-
 
 
 	<p>
@@ -272,7 +262,7 @@
 
 	<p>
 	  
-	  "<i>Is the DNA/protein sequence in this text file what I think it is</i>"
+	  "<i>Is this DNA/protein sequence what I think it is, and if not what is it?</i>"
 	</p>
 
 	<p>
@@ -300,23 +290,20 @@
       molecular sequence data</b> represented in genome sequence databases. 
 
 	</p>
-
-	<br>
-
-
+	
+	
+<br>
     <p><img src="../assets/images/terra-incognita-squares.jpg" alt="Here be dragons" /></p>
 
 
-
 <blockquote>
-	  The complex world of genomes is only now beginning to be revealed.
+	  The complex world of genomes is only now beginning to be revealed - all kinds of 
+	  weird and wonderful biology lurks in public genome databases, awaiting discovery.
+	  Similarity searches provide a means to explore. 
 </blockquote>
-		 
+<br>
 
-	<br>
-
-
-
+	
 	<p>
       For small-scale investigations of this nature, it may be sufficient to simply
       run <i>ad hoc</i> BLAST searches online via a web browser.
@@ -333,16 +320,19 @@
       Unfortunately, however, such automated screening procedures can be difficult to implement and manage.
       Firstly, exploring genomes <i>in silico</i> is often a heuristic, iterative process,
       and as such requires a degree of oversight.
-      This is a significant challenge because screening can generate substantial
+      This is a significant challenge because screening can generate substantial quantities of 
       output data that are difficult to interpret and manage without an appropriate analytical framework.
       An additional complication is that the pool of publicly available data is continually
       being updated, making it difficult to keep track of progress and maintain up-to-date information.
-      
+     
 	</p>
 
 
-	<p>
+    <p><img src="../assets/images/hoskins.jpg" alt="Big data Hoskins" /></p>
 
+
+
+	<p>
       To address these issues, we developed an approach called
       <b>database-integrated genome screening (DIGS)</b>, in which a similarity search-based
       screening pipeline is
@@ -366,24 +356,45 @@
 
 	<br>
 	<h3>
-		<a id="WhatDigsProjects" class="anchor" href="#WhatDigsProjects" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>What has DIGS been used for?</strong>
+		<a id="WhatDigsProjects" class="anchor" href="#WhatDigsProjects" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>What has DIGS been used for, and what can it be used for?</strong>
 	</h3>
 	<hr>
 
-
+ 
 	<p>
-      The concept for DIGS grew out of early investigations of <b>endogenous retroviruses (ERVs)</b>
-      in the human genome. 
+      <u><b>DIGS can be used to investigate any genomic feature with sufficient sequence conservation</b></u>.
 	</p>
 
 
 	<p>
-      I have made extensive use of DIGS to search for ERVs and other kinds of <b>endogenous viral element</b>.
+      The concept for DIGS grew out of early investigations of  <a target="_blank" href="https://doi.org/10.1128/jvi.74.8.3715-3730.2000 "><b>endogenous retroviruses (ERVs)</b></a>,
+      and I have found the approach extremely useful to search for ERVs and other
+      kinds of <b>endogenous viral element (EVE)</b>.
+      However, this reflects only my own personal research interests in topics related to virus evolution 
+      - the potential uses of the approach are much broader.
 	</p>
 
+	<p>
+      In fact, my own use of DIGS has not been restricted to EVEs, increasingly I've
+      been using DIGS to investigate the evolutionary history of rapidly evolving gene
+      families in mammals, particularly those that interact  with viruses.
+      For some background on these projects,
+      please visit the <a target="_blank" href="../project/virus-host-interface.html"><b>Virus-Host Interface</b></a>
+      project page. 
+      For more information on the ongoing use of DIGS to investigate EVEs, please see the
+      <a target="_blank" href="../project/digs-for-eves.html"><b>DIGS-for-EVEs</b></a>
+      project page.
 
+    </p>
+ 
+	<p>
+      The current rate of genome data accumulation means that there are now far more
+      interesting things to explore than there is time to explore them. For example, I think 
+      that the DIGS framework would be very well-suited to explorations of <b>transposable element</b>
+      diversity, but I have not explored this except to the extent that it overlaps with ERV research.
+    </p>
 
-
+		 
 
 
 	<br>
