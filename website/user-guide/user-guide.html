@@ -622,13 +622,9 @@
 	     still outstanding. 
 	   </p>
 
-
-
-
 	   <p>
 	     Run with the -v (--verbose) option to see more detailed log output.
 	   </p>
-
 
 
 
@@ -652,7 +648,8 @@
 
 	   <p>
           A MySQL client with a graphical user interface (e.g. <b>SequelPro</b>)
-          can be used to connect to the screening database and select rows, as shown below.
+          can be used to connect to the screening database and select view 
+          the results of screening. For example, as shown below.
  	   </p>
 
 
@@ -660,10 +657,34 @@
         <p><img src="../assets/images/select-rows-recent.png" alt="DIGS screenshot" /></p>
 
 
+<blockquote>
+	  <b>Visualising DIGS results</b>: In the example shown above, an SQL statment is
+	  used to select sequences that matched to Miniopterus endogenous retrovirus (MinERVa)
+	  with a BLAST bitscore of at least 100. The 'ORDER BY' part of the SQL statement is
+	  used to sort the matching rows in order of the time they were entered into the results
+	  table (the TIMESTAMP field on each database table captures this information).	  
+</blockquote>
+		 
+       <br>
+	   <p>
+          As well as selecting rows, it is often useful to count rows based using
+          an SQL statement with a 'GROUP BY' clause, as shown in the example below.
+ 	   </p>
+
+
 
         <p><img src="../assets/images/digs-screenshot-count.png" alt="DIGS screenshot (counts)" /></p>
 
    
+<blockquote>
+	  <b>Use of a 'GROUP BY' statement to count by category</b>: In the example shown above, an SQL statment is
+	  used to select sequences that matched to Miniopterus endogenous retrovirus (MinERVa)
+	  with a BLAST bitscore of at least 100. The 'ORDER BY' part of the SQL statement is
+	  used to sort the matching rows in order of the time they were entered into the results
+	  table (the TIMESTAMP field on each database table captures this information).	  
+</blockquote>
+
+
        <br>
 	   <h3>
 		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
@@ -883,14 +904,8 @@
          are within a user-defined distance of one another.
 	   </p>
 
- 
-
 
         <p><img src="../assets/images/consolidate.jpg" alt="Overview - phases" /></p>
-
-
-
-
 
  
 	   <p>
@@ -900,9 +915,8 @@
            The results - i.e. a non-overlapping set of sequences, merged as determined by 
            user-specified rules -  are entered into the 'loci' table
            (see the <a target="_blank" href="db-schema.html"><b>database schema page</b></a> for details).
-           A separate reference sequence library that
-           is appropriate for classifying the longer sequences should be used
-           for the consolidation, and is
+           A separate reference sequence library that is appropriate for classifying
+           the longer sequences should be used for classifying the consolidated results, and is
            specified by a distinct parameter (see section 4 in the set-up stages above).
  	   </p>
 
