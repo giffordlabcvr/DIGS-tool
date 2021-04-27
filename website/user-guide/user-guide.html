@@ -543,7 +543,8 @@
 			 <li> Updating the reference sequence library & reclassifying data in the 'digs_results' table</li>
 			 <li> Incorporating additional tables into a DIGS project database</li>
 			 <li> 'Consolidation': Merging & reclassifying hits in the DIGS results table.</li>
-		   </b>
+		   </b>			 <li> Extracting hit sequences and their flanks using the DIGS tool</li>
+
 		 </ol>
 
 
@@ -715,7 +716,7 @@
 	   <p>
 	   
 	      To do this, simply add the new sequences to your project-specific reference library 
-	      and run the digs_tool.pl script using you project control file and the -m=3 option,
+	      and run the digs_tool.pl script using your project control file and the -m=3 option,
 	      as shown here:
 		  
   <pre>
@@ -832,29 +833,31 @@
 	 # Exit
 </code></pre>
 
- 	 </p>
+	   </p>
 
 
-	 <p>
-	   <b>NOTE</b> - in the example above I have deliberately prefixed the 
-	   column names - which are taxonomic ranks - with 'Target_'.
-	   This avoid conflicting with any of 
-	   MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
-	   - one of which is 'ORDER'.
-	 </p>
+	   <p>
+		 <b>NOTE</b> - in the example above I have deliberately prefixed the 
+		 column names - which are taxonomic ranks - with 'Target_'.
+		 This avoid conflicting with any of 
+		 MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
+		 - one of which is 'ORDER'.
+	   </p>
 
-     <p>
-       Now that I have added the host_taxonomy table, I can select
-       database entries based on any of the taxonomic ranks included in my file,
-       through reference to the 'host_taxonomy' table, as shown below.
- 	 </p>
+	   <p>
+		 Now that I have added the host_taxonomy table, I can select
+		 database entries based on any of the taxonomic ranks included in my file,
+		 through reference to the 'host_taxonomy' table, as shown below.
+	   </p>
 
 
 
-        <p><img src="../assets/images/taxonomy-table.png" alt="DIGS screenshot" /></p>
+	   <p><img src="../assets/images/taxonomy-table.png" alt="DIGS screenshot" /></p>
+
+       <br>
 
 	   <h3>
-		 <a id="Consolidate" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
+		 <a id="Consolidate" class="anchor" href="#Consolidate" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
 	   </h3>
        <hr>
 
@@ -922,6 +925,65 @@
            but also includes a 'locus_structure' field that records the relationship
            between merged hits, including their orientation relative to one another.
  	   </p>
+ 
+ 
+	   <p>
+           The locus table includes a field 'locus-structure' that shows the order 
+           and orientation of the individual hits from the digs-results table that 
+           were combined to create the merged hit, as shown below.
+ 	   </p>
+
+
+       <br>
+
+
+
+        <p><img src="../assets/images/digs-screenshot.png" alt="Consolidation - loci table query" /></p>
+
+ 
+
+
+       <br>
+
+
+		
+	   <h3>
+		 <a id="ExtractSequences" class="anchor" href="#ExtractSequences" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.6. Extracting hit sequences and their flanks using the DIGS tool</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+           Working within the framework of the DIGS tool (i.e. using SQL to query DIGS results,
+           and reclassifying sequences through merging and updates reference libraries) 
+           can provide many useful insights into the distribution and diversity of a given
+           genome feature.
+ 	   </p>
+
+	   <p>
+           For further investigations, however, it will often be necessary to export sequences
+           from the DIGS screening database so that they can be analysed using other kinds
+           of bioinformatic and comparative approaches. 
+ 	   </p>
+
+	   <p>
+           As well as extracting the sequence matches themselves, it is often helpful to extract 
+           the upstream and downstream flanking sequences. 
+ 	   </p>
+
+	   <p>
+	   
+	      To do this, run the digs_tool.pl script using the -d=6 option,
+	      and providing a tabular file containing locus data using the -i option 
+	      as illustrated here:
+		  
+  <pre>
+  <code>./digs_tool.pl -d=6 -i loci.tsv
+      </code></pre>
+
+
+ 	   </p>
+
 
 
        <br>
