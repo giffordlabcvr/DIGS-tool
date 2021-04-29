@@ -559,11 +559,20 @@
 
 
 	   <p>
-          Run the DIGS tool as follows.
+          Run the DIGS tool using the -m=2 option to start screening.
  	   
  
    <pre>
-   <code>./digs_tool.pl -m=2 -i input.ctl</code></pre>
+   <code>./digs_tool.pl -m=2 -i [path to your project control file]</code></pre>
+
+   
+	   </p>
+	   <p>
+          e.g.
+ 	   
+ 
+   <pre>
+   <code>./digs_tool.pl -m=2 -i myControlFile.ctl</code></pre>
 
    
 	   </p>
@@ -625,6 +634,13 @@
 	   <p>
 	     Run with the -v (--verbose) option to see more detailed log output.
 	   </p>
+
+
+	   <p>
+	     If screening is interrupted for any reason, simply restart the process.
+	     Screening will continue from the point at which the interruption occurred.
+	   </p>
+
 
 
 
