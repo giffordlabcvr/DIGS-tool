@@ -29,57 +29,55 @@
     <section class="main-content">
 
 	   <img src="../assets/images/user-guide.jpg"alt="User guide"/>
-       <br>
        
-        
-  <br>
-       
-
-	   <p>
-		  		  
-		  This user guide has two parts:
- 
-		 <ol>
-		   <b>
-			 <li> Part 1. Setting up the DIGS tool environment</li>
-			 <li> Part 2. Performing DIGS and working with project databases</li>
-		   </b>
-		 </ol>
-
- 	   </p>
-       <br>
-       
-
-
-
-	   <h3>
-		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 1. Setting up the DIGS tool environment</strong>
-	   </h3>
+	   <h2>
+		 <a id="Contents" class="anchor" href="#Contents" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Contents</strong>
+	   </h2>
        <hr>
 
 
 
-	   <p>
-		  		  
-		  Before running DIGS tool, it is necessary to:
- 
+	   <p> 
 		 <ol>
-		   <b>
-			 <li> Install software requirements</li>
-			 <li> Set environment variables</li>
-			 <li> Set up target libraries</li>
-			 <li> Create project-specific sequence libraries</li>
-			 <li> Create a  project-specific 'control file'</li>
-		   </b>
+			 <li> <a href="#Setup"><b>Part 1.</a> Setting up the DIGS tool environment</b>
+			 <br>
+			 <br>
+				<ol>
+					<a href="#installSoftware"><li> Software requirements</li></a>
+					<a href="#environmentVariables"><li> Program-specific environment variables</li></a>
+					<a href="#setUpTargetLibrary"><li> Setting up target libraries</li></a>
+					<a href="#setUpReferenceLibrary"><li> Creating a project-specific sequence libraries</li></a>
+					<a href="#setUpControlFile"><li> Creating a project-specific 'control file'</li></a>
+				</ol>
+			 </li>
+			 <br>
+			 <li> <a href="#performingScreening"><b>Part 2.</a> Performing DIGS and working with project databases</li></b>
+			 <br>
+				<ol>
+					<a href="#runScreen"><li> Running an <i>in silico</i> screen</li></a>
+					<a href="#inspectResults"><li> Investigating screening results via a GUI SQL client</li></a>
+					<a href="#updateRefSeqsAndReassign"><li> Updating the reference sequence library & reclassifying data in the 'digs_results' table</li></a>
+					<a href="#addingSideData"><li> Incorporating linked data into a DIGS project</li></a>
+					<a href="#consolidate"><li> 'Consolidate': Merging hits in the DIGS results table into larger sequences.</li></a>
+					<a href="#extractSequences"><li> Extracting hit sequences and their flanks using the DIGS tool</li></a>
+				</ol>
+			 </li>
 		 </ol>
 
+
  	   </p>
+       <br>
+       
 
 
 
-	   <p>
-         The document sections below provide information about each of these steps.            
- 	   </p>
+	   <h2>
+		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 1. Setting up the DIGS tool environment</strong>
+	   </h2>
+       <hr>
+
+
+
 
 
 	   <h3>
@@ -349,7 +347,7 @@
 
        <br>
 	   <h3>
-		 <a id="setUpReferenceLibrary" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Creating project-specific sequence libraries</strong>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#setUpReferenceLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Creating project-specific sequence libraries</strong>
 	   </h3>
        <hr>
 
@@ -390,7 +388,7 @@
 
        <br>
 	   <h3>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Creating a project-specific control file</strong>
+		 <a id="setUpControlFile" class="anchor" href="#setUpControlFile" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Creating a project-specific control file</strong>
 	   </h3>
        <hr>
 
@@ -438,7 +436,7 @@
 
 
 	   <h4>
-		 <a id="SetUpControlFile" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Parameters defined in the DIGS control file</u></strong>
+		 <a id="ControlFileTable" class="anchor" href="#ControlFileTable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Parameters defined in the DIGS control file</u></strong>
 	   </h4>
 	   
 	   
@@ -517,9 +515,9 @@
 
 
        <br>
-	   <h3>
-		 <a id="PerformingScreening" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 2. Performing DIGS and working with project databases</strong>
-	   </h3>
+	   <h2>
+		 <a id="performingScreening" class="anchor" href="#performingScreening" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 2. Performing DIGS and working with project databases</strong>
+	   </h2>
        <hr>
 
 
@@ -527,25 +525,7 @@
 	   <p>
 
           This section covers a range of different aspects of the database-integrated
-          screening (DIGS) process:            
-
-
- 	   </p>
-
-
-
-	   <p>
-
-		 <ol>
-		   <b>
-			 <li> Running an <i>in silico</i> screen</li>
-			 <li> Investigating screening results via a GUI SQL client</li>
-			 <li> Updating the reference sequence library & reclassifying data in the 'digs_results' table</li>
-			 <li> Incorporating additional tables into a DIGS project database</li>
-			 <li> 'Consolidation': Merging & reclassifying hits in the DIGS results table.</li>
-		   </b>			 <li> Extracting hit sequences and their flanks using the DIGS tool</li>
-
-		 </ol>
+          screening (DIGS) process.           
 
 
  	   </p>
@@ -554,7 +534,7 @@
 
        <br>
 	   <h3>
-		 <a id="RunScreen" class="anchor" href="#RunScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.1. Running an <i>in silico</i> screen</strong>
+		 <a id="runScreen" class="anchor" href="#runScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.1. Running an <i>in silico</i> screen</strong>
 	   </h3>
        <hr>
 
@@ -631,9 +611,10 @@
 
        <br>
 	   <h3>
-		 <a id="InspectResults" class="anchor" href="#InspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.2. Investigating screening results using an SQL client</strong>
+		 <a id="inspectResults" class="anchor" href="#inspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.2. Investigating screening results using an SQL client</strong>
 	   </h3>
        <hr>
+
 
 
 	   <p>
@@ -688,7 +669,7 @@
 
        <br>
 	   <h3>
-		 <a id="UpdateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
+		 <a id="updateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
 	   </h3>
        <hr>
 
@@ -751,7 +732,7 @@
 
 
 	   <h3>
-		 <a id="addingSideData" class="anchor" href="#addingSideData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.4. Incorporating additional tables into a DIGS project database</strong>
+		 <a id="addingSideData" class="anchor" href="#addingSideData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.4. Incorporating linked data into a DIGS project</strong>
 	   </h3>
        <hr>
 
@@ -763,7 +744,7 @@
 
 
 	   <p>
-		  For example, adding a table that contains taxonomic information about the species
+		  For example, adding a table that contains <b>taxonomic information</b> about the species
 		  screened will allow SQL queries to reference higher taxonomic ranks than species.
 	   </p>
 
@@ -771,8 +752,9 @@
 
 
        <p>
-         The digs_tool.pl script provides functions for console based management of 
-         additional tables. For example, to add a table with virus taxonomy, first run DIGS as follows:
+         The digs_tool.pl script provides functions for <b>console-based management</b> of 
+         additional tables in DIGS project databases.
+         For example, to add a table with virus taxonomy, first run DIGS as follows:
 
   <pre>
   <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl
@@ -844,6 +826,8 @@
 		 - one of which is 'ORDER'.
 	   </p>
 
+
+
 	   <p>
 		 Now that I have added the host_taxonomy table, I can select
 		 database entries based on any of the taxonomic ranks included in my file,
@@ -857,7 +841,7 @@
        <br>
 
 	   <h3>
-		 <a id="Consolidate" class="anchor" href="#Consolidate" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
+		 <a id="consolidate" class="anchor" href="#consolidate" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
 	   </h3>
        <hr>
 
@@ -948,7 +932,7 @@
 
 		
 	   <h3>
-		 <a id="ExtractSequences" class="anchor" href="#ExtractSequences" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.6. Extracting hit sequences and their flanks using the DIGS tool</strong>
+		 <a id="extractSequences" class="anchor" href="#extractSequences" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.6. Extracting hit sequences and their flanks using the DIGS tool</strong>
 	   </h3>
        <hr>
 
