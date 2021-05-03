@@ -277,6 +277,12 @@ sub create_reference_library {
 	
 	my ($self, $digs_obj, $ref_fasta, $reference_type) = @_;
 
+	unless ($ref_fasta) { 
+		print "\n\t  Reference library: $reference_type FASTA not found'\n\n"; 
+		print "\n\t  If you're running a nucleotide search, check that all amino acid (aa) related variables are commented out'\n\n"; 
+		die;
+	}
+	
 	my @path = split(/\//, $ref_fasta);
 	my $lib_file = pop @path;
 
