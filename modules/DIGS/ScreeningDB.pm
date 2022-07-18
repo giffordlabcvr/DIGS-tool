@@ -449,7 +449,7 @@ sub create_active_set_table {
 	  `target_version`   varchar(100) NOT NULL default '0',
 	  `target_name`      varchar(100) NOT NULL default '0',
 
-	  `scaffold`         varchar(100) NOT NULL default '0',
+	  `scaffold`         varchar(200) NOT NULL default '0',
 	  `orientation`      varchar(100) NOT NULL default '0',
 	  `subject_start`    int(11) NOT NULL default '0',
 	  `subject_end`      int(11) NOT NULL default '0',
@@ -487,7 +487,7 @@ sub create_digs_results_table {
 	  `target_version`   varchar(100) NOT NULL default '0',
 	  `target_name`      varchar(100) NOT NULL default '0',
 	  `probe_type`       varchar(100) NOT NULL default '0',
-	  `scaffold`         varchar(100) NOT NULL default '0',
+	  `scaffold`         varchar(200) NOT NULL default '0',
 	  `extract_start`    int(11) NOT NULL default '0',
 	  `extract_end`      int(11) NOT NULL default '0',
 	  `sequence_length`  int(11) NOT NULL default '0',
@@ -535,7 +535,7 @@ sub create_blast_chains_table {
 	  `target_version`  varchar(100) NOT NULL default '0',
 	  `target_name`     varchar(100) NOT NULL default '0',
 
-	  `scaffold`        varchar(100) default 'NULL',
+	  `scaffold`        varchar(200) default 'NULL',
 	  `orientation`     varchar(100) NOT NULL default '0',
 	  `subject_start`   int(11) NOT NULL default '0',
 	  `subject_end`     int(11) NOT NULL default '0',
@@ -574,7 +574,7 @@ sub create_loci_table {
         `target_version`    varchar(100) NOT NULL default '0',
         `target_name`       varchar(100) NOT NULL default '0',
 
-        `scaffold`          varchar(100) default 'NULL',
+        `scaffold`          varchar(200) default 'NULL',
         `orientation`       varchar(100) NOT NULL default '0',
         `extract_start`     int(11) NOT NULL default '0',
         `extract_end`       int(11) NOT NULL default '0',

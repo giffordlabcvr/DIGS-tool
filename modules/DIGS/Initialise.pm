@@ -323,7 +323,7 @@ sub setup_for_defrag_or_consolidate {
 	if ($option eq 4) { 
 
 		$digs_obj->{defragment_mode} = 'defragment';	
-		$devtools->print_hash($digs_obj); die;
+		#$devtools->print_hash($digs_obj); die;
 
 		# Get the target list
 		my $db = $digs_obj->{db};
