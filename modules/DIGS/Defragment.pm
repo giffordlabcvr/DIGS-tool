@@ -64,7 +64,7 @@ sub new {
 		# Set-up params
 		defragment_range       => $parameter_ref->{defragment_range}, 
 		defragment_mode        => $parameter_ref->{defragment_mode}, 
-	    defragment_settings    => $parameter_ref->{defragment_settings}, 
+		defragment_settings    => $parameter_ref->{defragment_settings}, 
 		
 		# Member classes 
 		db                     => $parameter_ref->{db},  

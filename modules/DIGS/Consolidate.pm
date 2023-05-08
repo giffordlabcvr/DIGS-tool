@@ -100,10 +100,10 @@ sub consolidate_loci {
 	unless ($settings_ref) { die; }
 	my $range = $settings_ref->{range};
 	unless ($range) { die; }
-	#$devtools->print_hash($settings_ref); exit;
 	my $defragment_obj = Defragment->new($self);
 	$defragment_obj->{defragment_mode} = 'consolidate';
 	$defragment_obj->{defragment_range} = $range;
+	
 
 	# Get the digs results sorted by scaffold and extract start
 	my $db = $self->{db};
@@ -121,6 +121,7 @@ sub consolidate_loci {
 	$defragment_obj->compose_clusters(\%consolidated, \@sorted, $settings_ref);
 	#$devtools->print_hash(\%consolidated);
 	
+
 	# Check the output
 	my @cluster_ids  = keys %consolidated;
 	my $num_clusters = scalar @cluster_ids;
@@ -188,7 +189,6 @@ sub derive_locus_table_from_clustered_digs_results {
 		# Turn this cluster into an annotated locus
 		my %locus;
 		$self->derive_locus_structure(\%locus, $cluster_ref);
-		#$devtools->print_hash(\%locus); die;
 
 		# Extract the consolidate locus if the flag is set
 		if ($reextract) {
@@ -230,8 +230,7 @@ sub derive_locus_table_from_clustered_digs_results {
 			$chain_data{locus_id}       = $locus_id;
 			$loci_chains_table->insert_row(\%chain_data);
 		}		
-	}
-	
+	}	
 }
 
 #***************************************************************************
@@ -357,7 +356,6 @@ sub extract_consolidated_locus {
 	
 	my $genome_use_path  = $self->{genome_use_path};
 	my $target_group_ref = $self->{target_groups};
-	#my $target_path = $self->get_target_file_path($target_ref);
 
 	my $organism        = $consolidated_ref->{organism};
 	my $target_version  = $consolidated_ref->{target_version};

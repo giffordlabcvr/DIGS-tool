@@ -83,7 +83,7 @@ sub new {
 		reference_aa_fasta     => '',   # Obtained from control file
 		
 
-        aa_reference_library   => '',   # Obtained from control file
+                aa_reference_library   => '',   # Obtained from control file
 		na_reference_library   => '',   # Obtained from control file
 
 		bitscore_min_tblastn   => '',   # Obtained from control file
@@ -145,21 +145,22 @@ sub initialise {
 
 	my $valid          = undef;
 	my $initialise_obj = Initialise->new($self);	
-	if ($option eq 1) { 
-		$valid = 1;	# An infile is optional for option -m=1
-	}
-	else {
 	
-		if ($ctl_file) { # Try to initialise using the input file
-			$valid = $initialise_obj->initialise($self, $option, $ctl_file);
-		}
-		elsif ($option > 1 and $option <= 5) { # Show error if no infile
-			print "\n\t  Option '-m=$option' requires an infile\n\n";	
-		}
-		else {	# Unavailable option error
-			print "\n\t  Unrecognized option '-m=$option'\n\n";
-		}
+	if ($ctl_file) { # Try to initialise using the input file
+		$valid = $initialise_obj->initialise($self, $option, $ctl_file);
 	}
+	elsif ($option eq 1) { 
+		$valid = 1; # An infile is optional for option -m=1
+	}
+	elsif ($option > 1 and $option <= 5) { # Show error if no infile
+		print "\n\t  Option '-m=$option' requires an infile\n\n";	
+	}
+
+
+	if ($option > 5) { # # Unavailable option error
+		print "\n\t  Unrecognized option '-m=$option'\n\n";
+	}
+
 
 	return $valid;
 }
@@ -196,7 +197,7 @@ sub hand_off_to_digs_fxns {
 			# Create a consolidate module
 			my $consolidate_obj = Consolidate->new($self);
 			# Combine hits to different genes into higher order locus structures
-			$consolidate_obj->consolidate_loci();
+            $consolidate_obj->consolidate_loci();
 		}
 	}
 	else { 
