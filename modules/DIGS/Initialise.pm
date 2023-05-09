@@ -314,7 +314,7 @@ sub setup_for_defrag_or_consolidate {
 		# Get the 'group' field for each target file (part of the path to the file)
 		my %target_groups;
 		$loader_obj->set_target_groups(\%targets, \%target_groups);
-		#$devtools->print_hash($digs_obj); die; # DEBUG
+		#$devtools->print_hash(\%target_groups); die; # DEBUG
 		
         $digs_obj->{target_groups} = \%target_groups; 
 	}

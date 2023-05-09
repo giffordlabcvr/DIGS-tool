@@ -720,8 +720,10 @@ sub parse_control_file {
 	$self->parse_target_block(\@ctl_file, $start_token, $stop_token, \@skipindex);
 	my %skipindex;
 	$self->set_skipindex_targets(\@skipindex, \%skipindex);
+	#$devtools->print_hash(\%skipindex); die;
+	
 	$self->{skipindexing_paths} = \%skipindex;
-
+	
 	
     # DEV $devtools->print_hash($self); die;
 	

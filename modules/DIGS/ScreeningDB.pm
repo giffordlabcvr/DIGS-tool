@@ -66,9 +66,9 @@ sub new {
 		searches_table        => 0,
 		active_set_table      => 0,
 		digs_results_table    => 0,
-		blast_chains_table    => 0,	
 		loci_table            => 0,	
 		loci_chains_table     => 0,
+		#blast_chains_table    => 0,	# For testing only
 
 		# Flags
 		verbose                => $parameters->{verbose},
