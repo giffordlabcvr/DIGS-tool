@@ -166,6 +166,31 @@ sub get_fasta_probes {
 	my @fasta;
 	$self->read_fasta($query_fasta, \@fasta);
 	my $num_fasta = scalar @fasta;
+	unless ($num_fasta) {
+		print "\n\t No Probes were loaded";
+		print "\n\t Check path is correct\n"; 
+		print "\n\t Check file is in unix text format (no mac linebreaks)\n\n\n"; 
+	}
+	
+	# Show probes if verbose flag set
+	if ($self->{verbose}) {
+		
+		#$devtools->print_array(\@fasta);
+		my $i;
+		print "\n\n";
+		foreach my $seq_ref (@fasta) {
+			
+			$i++;	
+			my $header = $seq_ref->{header};
+			my $seq_id = $seq_ref->{sequence_id};
+			my $sequence = $seq_ref->{sequence};
+			print "\n\t sequence $i: $header (alias $seq_id)";
+		
+		}
+		print "\n\n";
+	
+	}	
+	
 	print "\n\t  Probe sequences:   $num_fasta $probe_type sequences\n\n";
 	my $i = 0;
 	my $type = $self->{probe_library_type};
@@ -210,9 +235,9 @@ sub get_fasta_probes {
 		}
 	}
 	unless ($i) {
-		print "\n\t No Probes were loaded";
+		print "\n\t No Probes were loaded - please check FASTA header format";
 		print "\n\t Check path is correct\n"; 
-		print "\n\t Check file is in unix text format (no mac linebreaks)\n\n\n"; 
+		print "\n\t DIGS probes should be in FASTA format\n\n\n"; 
 	}
 }
 

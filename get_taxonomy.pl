@@ -457,9 +457,11 @@ sub show_title {
 sub show_help_page {
 
 	# Initialise usage statement to print if usage is incorrect
-	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[control file]\n";
+	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[input file]\n";
         $HELP  .= "\n\t ### Main functions\n"; 
-        $HELP  .= "\n\t -m=1  get taxonomy table from species name list"; 
+        $HELP  .= "\n\t -m=1  get taxonomy table from species name list\n\n"; 
+     
+    print "\n\t ### The input file for this script should be a list of species names (Latin binomial)\n";
 
 	print $HELP;
 }
