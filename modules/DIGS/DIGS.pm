@@ -387,9 +387,6 @@ sub reassign {
 		}
 	}
 	
-	# Write out the cross-matching matrix
-	$crossmatch_obj->show_cross_matching();
-
 	# Cleanup
 	my $output_dir = $self->{report_dir};
 	my $command1 = "rm -rf $output_dir";

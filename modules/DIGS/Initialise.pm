@@ -3,7 +3,8 @@
 use lib ('./modules/'); 
 ############################################################################
 # Module:      Initialise.pm
-# Description: Functions for carrying out basic initialisation in DIGS
+# Description: Functions for carrying out basic initialisation of 
+#              database integrated genome screening (DIGS)
 # History:     April  2017: Created by Robert Gifford 
 ############################################################################
 package Initialise;
@@ -166,9 +167,11 @@ sub create_output_directories {
 		$fileio->append_text_to_file($log_file, "DIGS process $process_id\n");
 		$digs_obj->{log_file} = $log_file;
 
-		# Add tore the ScreenBuilder object 
+		# Set paths
 		$loader_obj->{report_dir} = $digs_obj->{report_dir};
 		$loader_obj->{tmp_path}   = $digs_obj->{tmp_path};
+
+		# Store the ScreenBuilder object
 		$digs_obj->{loader_obj}   = $loader_obj;
 
 	}
@@ -290,7 +293,12 @@ sub index_previously_executed_searches {
 
 #***************************************************************************
 # Subroutine:  setup_for_defrag_or_consolidate
-# Description: do general set up for a defragment or consolidate process
+# Description: do general set up for a defragment or loci consolidation process
+# The defragment function merges overlapping or adjacent hits in the 'digs_results'
+# table, based on a length threshold.
+# The consolidate function is similar, but stores the merged hits in a separate 
+# database table ('loci') along with information about which hits were merged,
+# and in which order.
 #***************************************************************************
 sub setup_for_defrag_or_consolidate {
 
@@ -424,7 +432,8 @@ sub setup_for_reassign {
 
 #***************************************************************************
 # Subroutine:  set_up_consolidate_tables
-# Description: create the database tables to store consolidate results
+# Description: create the database tables to store results from a hit
+# consolidation process
 #***************************************************************************
 sub set_up_consolidate_tables {
 

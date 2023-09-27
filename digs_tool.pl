@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
-# Description: A tool for exploring genomes 'in silico' using BLAST and 
+# Description: A tool for exploring the dark genome in silico using BLAST & 
 #              a relational database
 # History:     Updated: February 2017
 ############################################################################
@@ -11,8 +11,8 @@ unless ($ENV{'DIGS_GENOMES'}) {
 	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{'DIGS_HOME'}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
+unless ($ENV{'DIGS_HOME2'}) {
+	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
 unless ($ENV{'DIGS_MYSQL_USER'}) {
@@ -25,7 +25,7 @@ unless ($ENV{'DIGS_MYSQL_PASSWORD'}) {
 }
 
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME}) . '/modules/'; 
+use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
@@ -141,20 +141,17 @@ sub main {
 	my $verbose      = undef;
 	my $force        = undef;
 	my $test         = undef;
-	my $create_ids   = undef;
 	
 	# Read in options using GetOpt::Long
 	GetOptions ('infile|i=s'     => \$infile,
-	
-	            'mode|m=i'       => \$mode,
-			    'database|d=i'   => \$database,
-			    'utility=i'      => \$utility,
-			    'genomes=i'      => \$genomes,
-			    'create_ids'     => \$create_ids,			      
-			    'verbose'        => \$verbose,
-			    'force'          => \$force,
-			    'help'           => \$help,
-			    'test'           => \$test,
+                'mode|m=i'       => \$mode,
+                'database|d=i'   => \$database,
+                'utility=i'      => \$utility,
+                'genomes=i'      => \$genomes,			      
+                'verbose'        => \$verbose,
+                'force'          => \$force,
+                'help'           => \$help,
+                'test'           => \$test,
 			    			    
 	) or die $USAGE;
 

@@ -6,13 +6,6 @@
 # History:     Version 1.0
 ############################################################################
 
-# NOTE! this script requires that you install the NCBI taxonomy database 
-# available here: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/
-
-
-
-
-
 # Include the PERL module library for DIGS 
 use lib ($ENV{DIGS_HOME2} . '/modules/'); 
 
@@ -460,8 +453,8 @@ sub show_help_page {
 	my ($HELP)  = "\n\t Usage: $0 -m=[option] -i=[input file]\n";
         $HELP  .= "\n\t ### Main functions\n"; 
         $HELP  .= "\n\t -m=1  get taxonomy table from species name list\n\n"; 
-     
-    print "\n\t ### The input file for this script should be a list of species names (Latin binomial)\n";
+
+	print "\n\t ### The input file for this script should be a list of species names (Latin binomial)\n";
 
 	print $HELP;
 }

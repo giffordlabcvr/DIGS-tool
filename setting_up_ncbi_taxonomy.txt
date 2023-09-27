@@ -50,6 +50,9 @@ CREATE TABLE `ncbi_nodes` (
   PRIMARY KEY  (`tax_id`),
   KEY `parent_tax_id` (`parent_tax_id`)
 );
+##  Important note.
+
+Bear in mind that some taxonomy fields conflict with MySQL's protected namespace - e.g. 'Order', 'Class'. Edit files as necessary to address this (e.g. change 'Class' to 'Tax_class').
 
 ## Populating the database
 
@@ -74,4 +77,7 @@ LINES TERMINATED BY '\t|\n'
  inherited_div_flag,genetic_code_id,inherited_GC_flag,
  mitochondrial_genetic_code_id,inherited_MGC_flag,
  GenBank_hidden_flag,hidden_subtree_root_flag,comments);
+
+
+
 
