@@ -118,7 +118,7 @@ sub run_digs_process {
 
 	$self->show_title();  
 
-    # Initialise the screen based on (i) options given and (ii) control file 
+	# Initialise the screen based on (i) options given and (ii) control file 
 	my $valid = $self->initialise($ctl_file, $option);  
 	
 	if ($valid) {
@@ -190,14 +190,14 @@ sub hand_off_to_digs_fxns {
 		if ($option eq 4) {
 			# Create a defragmenter module
 			my $defragment_obj = Defragment->new($self);
-		    # Interactively defragment contiguous hits to the same gene 	
+			# Interactively defragment contiguous hits to the same gene 	
 			$defragment_obj->interactive_defragment();
 		}
 		elsif ($option eq 5) {  
 			# Create a consolidate module
 			my $consolidate_obj = Consolidate->new($self);
 			# Combine hits to different genes into higher order locus structures
-            $consolidate_obj->consolidate_loci();
+			$consolidate_obj->consolidate_loci();
 		}
 	}
 	else { 
@@ -411,6 +411,8 @@ sub search_target_file_using_blast {
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
 	my $db_ref       = $self->{db};
+	my $verbose      = $self->{verbose};
+	#print "\n\tMinimum score $min_score"; die;
 
 	# Sanity checking
 	unless ($min_length) { die; }
@@ -469,14 +471,17 @@ sub search_target_file_using_blast {
 				$length_exclude_count++; 				
 			}
 		}
-		# Apply bitscore cutoff
+		# Apply bitscore cutoff if one has been set
 		if ($min_score) { 
-			# Skip sequences that have too low bit scores
+			# Skip hits below bitscore threshold
 			my $query_score = $hit_ref->{bitscore};
 			if ($query_score < $min_score) { 
 				unless ($skip) { # Don't count as a bit_score exclusion if already exclude via length
 					$skip = 'true';
 					$score_exclude_count++;
+					if ($verbose) {
+						print "\n\t\t # Excluding hit below bitscore threshold (threshold = $min_score, bitscore = $query_score)";
+					}
 				}
 			}
 		}	
