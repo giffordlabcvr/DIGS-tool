@@ -95,4 +95,57 @@ Add MySQL user and password variables to .profile and source it.
 1. Clone or download the DIGS-tool repository and move it to the DIGS directory.
 2. Run the DIGS tool help command to verify installation:
 
-sudo make install
+
+
+## Example control file
+
+```
+***********************************************************************
+Begin SCREENDB;
+        db_name=digs_chr1LTR_db;
+        mysql_server=localhost;
+        mysql_username=digs;		
+        mysql_password=digs-tool;
+ENDBLOCK;
+
+BEGIN SCREENSETS;
+        output_path=./tmp/;
+        query_na_fasta=./libraries/LTR_probes.faa;
+        reference_na_fasta=./libraries/LTR_references.faa;
+        seq_length_minimum=60;
+        bitscore_min_blastn=40;
+        defragment_range=100;
+ENDBLOCK;
+
+BEGIN TARGETS;
+        Mammalia/H_s/complete/goldenpath_hg38/chr1.fa
+ENDBLOCK;
+***********************************************************************
+```
+
+## Resources
+
+The DIGS-tool developers’ site on installation and use:
+
+https://giffordlabcvr.github.io/DIGS-tool/
+
+UNIX basic command line tools:
+
+http://www.westwind.com/reference/OS-X/commandline/navigation.html
+
+UNIX and Perl primer for biologists – excellent guide through UNIX commands and basic perl programming:
+
+http://korflab.ucdavis.edu/Unix_and_Perl
+
+Practical Computing for Biologists, by Haddock and Dunn – book and accompanying online material that covers UNIX, python, mysql, and more:
+
+http://practicalcomputing.org/downloads
+
+Mysql commands cheatsheet:
+
+https://gist.github.com/hofmannsven/9164408
+
+
+
+
+
