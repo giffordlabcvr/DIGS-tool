@@ -7,7 +7,7 @@
 ############################################################################
 
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME2} . '/modules/'); 
+use lib ($ENV{DIGS_HOME} . '/modules/'); 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
