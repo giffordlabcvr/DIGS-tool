@@ -7,8 +7,8 @@ DIGS (Database-Integrated Genome Screening) is a powerful approach for identifyi
 
 ## Key Features
 
-- **Efficient In Silico Genome Screening:** DIGS implements a robust, database-integrated approach for systematic genome screening.
-- **Relational Database Management System (RDBMS):** Integration with an RDBMS allows for efficient data exploration and structured querying.
+- **Efficient In Silico Genome Screening:** The DIGS tool implements a robust, database-integrated approach for systematic genome screening.
+- **Relational Database Management System (RDBMS):** Integration with the MySQL RDBMS allows for efficient data exploration and structured querying.
 - **Iterative Discovery Process:** The screening process is iterative, with the ability to incorporate novel diversity into the reference sequence library for subsequent screens.
 
 ## Implementation and Compatibility
@@ -56,6 +56,10 @@ The DIGS tool team is very open to further development of this software by the o
 If contributing to the DIGS tool, please review our [Contribution Guidelines](./md/CONTRIBUTING.md).
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./md/code_of_conduct.md) 
+
+## Contact
+
+For questions, issues, or feedback, please contact us at [robert.gifford@glasgow.ac.uk](mailto:robert.gifford@glasgow.ac.uk) or open an issue on the [GitHub repository](https://github.com/giffordlabcvr/DIGS-tool/issues).
 
 ## Credits
 
