@@ -59,7 +59,7 @@ If contributing to the DIGS tool, please review our [Contribution Guidelines](./
 
 ## Contact
 
-For questions, issues, or feedback, please contact us at [robert.gifford@glasgow.ac.uk](mailto:robert.gifford@glasgow.ac.uk) or open an issue on the [GitHub repository](https://github.com/giffordlabcvr/DIGS-tool/issues).
+For questions, issues, or feedback, please contact us at [digstool@gmail.com](mailto:digstool@gmail.com) or open an issue on the [GitHub repository](https://github.com/giffordlabcvr/DIGS-tool/issues).
 
 ## Credits
 
