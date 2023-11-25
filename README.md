@@ -59,7 +59,7 @@ If contributing to the DIGS tool, please review our [Contribution Guidelines](./
 
 ## Contact
 
-For questions, issues, or feedback, please contact us at [digstool@gmail.com](mailto:digstool@gmail.com) or open an issue on the [GitHub repository](https://github.com/giffordlabcvr/DIGS-tool/issues).
+For questions, issues, or feedback, please contact us at [digstool@gmail.com](mailto:digstool@gmail.com) or open an [issue](https://github.com/giffordlabcvr/DIGS-tool/issues).
 
 ## Credits
 
