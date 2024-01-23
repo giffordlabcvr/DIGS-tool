@@ -77,7 +77,7 @@ sub blast {
 	my $gapopen     = $options_ref->{gapopen};
 	my $gapextend   = $options_ref->{gapextend};
 	my $dust        = $options_ref->{dust};
-	my $softmask    = $options_ref->{softmask};
+	my $softmasking = $options_ref->{softmasking};
 	my $seg         = $options_ref->{seg};
 	my $outfmt      = $options_ref->{outfmt};
 	unless ($outfmt) { $outfmt = 7; } # default output format is tab-delimited ( -outfmt 7) 
@@ -111,8 +111,8 @@ sub blast {
 		$command .= " -gapopen $gapopen "; 
 	} 
 	if ($blast_type eq 'blastn') {
-		if ($softmask)    { 
-			$command .= " -soft_masking $softmask "; 
+		if ($softmasking)    { 
+			$command .= " -soft_masking $softmasking "; 
 		} 
 		if ($dust)    { 
 			$command .= " -dust $dust "; 

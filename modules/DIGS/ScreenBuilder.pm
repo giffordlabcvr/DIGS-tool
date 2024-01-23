@@ -793,7 +793,7 @@ sub parse_control_file {
 	$digs_obj->{gapopen}     = $self->{gapopen};
 	$digs_obj->{gapextend}   = $self->{gapextend};
 	$digs_obj->{dust}        = $self->{dust};
-	$digs_obj->{softmask}    = $self->{softmask};
+	$digs_obj->{softmasking} = $self->{softmasking};
 	$digs_obj->{seg}         = $self->{seg};
 
         # Set parameters for consolidation step

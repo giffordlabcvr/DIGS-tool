@@ -97,7 +97,7 @@ sub new {
 	        gapopen      => '',
 	        gapextend    => '',
 	        dust         => '',
-                softmask     => '',
+                softmasking     => '',
 
 		# Parameters for DIGS
 		bitscore_min_tblastn   => '',   # Minimum bitscore for extracting hits (tBLASTn)
@@ -470,7 +470,7 @@ sub search_targetdb_file {
 	$blast_run_params{gapopen}        = $self->{gapopen};
 	$blast_run_params{gapextend}      = $self->{gapextend};
 	$blast_run_params{dust}           = $self->{dust};
-	$blast_run_params{softmask}       = $self->{softmask};
+	$blast_run_params{softmasking}    = $self->{softmasking};
 	$blast_run_params{seg}            = $self->{seg};
 	#$devtools->print_hash(\%blast_run_params);
 	#$devtools->print_hash($self); die;
