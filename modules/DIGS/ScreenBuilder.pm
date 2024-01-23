@@ -794,6 +794,7 @@ sub parse_control_file {
 	$digs_obj->{gapextend}   = $self->{gapextend};
 	$digs_obj->{dust}        = $self->{dust};
 	$digs_obj->{softmask}    = $self->{softmask};
+	$digs_obj->{seg}         = $self->{seg};
 
         # Set parameters for consolidation step
 	$digs_obj->{consolidate_range}                = $self->{consolidate_range};

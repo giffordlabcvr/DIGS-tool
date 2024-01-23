@@ -471,6 +471,7 @@ sub search_targetdb_file {
 	$blast_run_params{gapextend}      = $self->{gapextend};
 	$blast_run_params{dust}           = $self->{dust};
 	$blast_run_params{softmask}       = $self->{softmask};
+	$blast_run_params{seg}            = $self->{seg};
 	#$devtools->print_hash(\%blast_run_params);
 	#$devtools->print_hash($self); die;
 
