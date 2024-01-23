@@ -110,7 +110,7 @@ sub blast {
 		$command .= " -reward $reward ";  
 		$command .= " -gapopen $gapopen "; 
 	} 
-	if ($blast_type eq 'blastn') {
+	if ($method eq 'blastn') {
 		if ($softmasking)    { 
 			$command .= " -soft_masking $softmasking "; 
 		} 
@@ -118,7 +118,7 @@ sub blast {
 			$command .= " -dust $dust "; 
 		} 
 	}
-	elsif ($blast_type eq 'tblastn') {
+	elsif ($method eq 'tblastn') {
 		if ($seg) { 
 			$command .= " -seg $seg "; 
 		} 
