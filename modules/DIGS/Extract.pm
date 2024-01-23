@@ -57,8 +57,8 @@ sub new {
 		verbose                => $parameter_ref->{verbose},
 		force                  => $parameter_ref->{force},
 		
-		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
+		# Paths 
+		blast_bin_path         => $parameter_ref->{blast_bin_path},
 
 		# Parameters for DIGS
 		extract_buffer         => '',   # Obtained from control file
@@ -81,8 +81,12 @@ sub extract_locus_sequence_using_blast {
 
 	my ($self, $locus_ref) = @_;
 
-	# Get paths, objects, data structures and variables from self
-	my $blast_obj = $self->{blast_obj};
+	# Interface to BLAST
+	my %blast_params;
+	$blast_params{blast_bin_path} = $self->{blast_bin_path};
+	my $blast_obj = BLAST->new(\%blast_params);
+	
+	# Get paths, obhects and variables from self
 	my $verbose   = $self->{verbose};
 	my $buffer    = $self->{extract_buffer};
 
@@ -100,6 +104,9 @@ sub extract_locus_sequence_using_blast {
 		sleep 1;
 		return;
 	}
+
+	
+
 
 	# Extract the sequence
 	my $target_path = $locus_ref->{target_path};

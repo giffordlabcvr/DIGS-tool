@@ -42,8 +42,9 @@ sub new {
 
 	# Member variables
 	my $self = {
+	    
+	    verbose         => $parameter_ref->{verbose},
 	    blast_bin_path  => $parameter_ref->{blast_bin_path},
-	    num_threads     => $parameter_ref->{num_threads},
 
 	};
 
@@ -63,24 +64,29 @@ sub blast {
 
 	my ($self, $method, $target_path, $probe_path, $result_path, $options_ref) = @_;
 		
-	# Get paths from self
+	# Get paths and flags from self
 	my $blast_path  = $self->{blast_bin_path};
+	my $verbose     = $self->{verbose};
+
+	# Get blast options if supplied
+	my $num_threads = $options_ref->{num_threads}; 
 	my $word_size   = $options_ref->{word_size}; 
-	my $evalue		= $options_ref->{evalue};
+	my $evalue      = $options_ref->{evalue};
 	my $penalty     = $options_ref->{penalty};
 	my $reward      = $options_ref->{reward};
 	my $gapopen     = $options_ref->{gapopen};
 	my $gapextend   = $options_ref->{gapextend};
+	my $dust        = $options_ref->{dust};
+	my $softmask    = $options_ref->{softmask};
 	my $outfmt      = $options_ref->{outfmt};
 	unless ($outfmt) { $outfmt = 7; } # default output format is tab-delimited ( -outfmt 7) 
-	
+
 	# Create BLAST command
 	$blast_path .= $method;
 	my $blast_type;  
-	my $set_params;  
+	my $set_params; 
 	if ($options_ref) {
 		$blast_type = $options_ref->{blast_type};
-		$set_params = $options_ref->{set_params};
 	}
 	my $command;
 	if ($blast_type) {
@@ -92,29 +98,32 @@ sub blast {
 		$command .= "-out $result_path ";
 	}
 	
-	my $num_threads  = $self->{num_threads};
 	if  ($num_threads) {
 		$command .= "-num_threads $num_threads ";
 	}
 
-	if ($set_params) {  
-		if ($word_size)  { $command .= " -word_size $word_size "; }
-		if ($evalue)     { $command .= " -evalue $evalue "; } 
-		if ($penalty and $reward and $gapopen and $gapextend)    { 
-			$command .= " -penalty $penalty ";  
-			$command .= " -reward $reward ";  
-			$command .= " -gapopen $gapopen "; 
-			$command .= " -gapextend $gapextend "; 
-		} 
-	}
+	if ($word_size)  { $command .= " -word_size $word_size "; }
+	if ($evalue)     { $command .= " -evalue $evalue "; } 
+	if ($penalty and $reward and $gapopen and $gapextend)    { 
+		$command .= " -penalty $penalty ";  
+		$command .= " -reward $reward ";  
+		$command .= " -gapopen $gapopen "; 
+	} 
+	if ($softmask)    { 
+		$command .= " -soft_masking $softmask "; 
+	} 
+	if ($dust)    { 
+		$command .= " -dust $dust "; 
+	} 
 
 	# Set the output format for BLAST
 	$command .= "-outfmt $outfmt";
 
 	# Execute the command 
-	#print "\n\t COMMAND $command"; sleep 1; exit;
+	if ($verbose) {
+		print "\n\n\t BLAST COMMAND $command\n\n"; 
+	}
 	system $command;
-	#die;		
 }
 
 #***************************************************************************
@@ -126,9 +135,9 @@ sub extract_sequence {
 
 	my ($self, $target_path, $data_ref) = @_;
 
-	# Get path to BLAST binary
+	# Get path to BLAST binary (note: may be NULL value if BLAST programs are in the users path)
 	my $blast_path  = $self->{blast_bin_path};
-	
+
 	# Get extraction parameters
 	my $start       = $data_ref->{start};
 	my $end         = $data_ref->{end};
@@ -148,7 +157,8 @@ sub extract_sequence {
 	# Command example: 
 	# /bin/blast/blastdbcmd -db hs_alt_HuRef_chrX.fa -entry 157734237 
 	# -range 10-60 -strand minus
-	my $command = $blast_path . "blastdbcmd -db $target_path";
+	$blast_path .= 'blastdbcmd';
+	my $command = $blast_path . " -db $target_path";
 	$command .= " -entry $scaffold ";
 	$command .= " -range $start-$end ";
 	if ($orientation eq '-') { $command .= ' -strand minus '; }

@@ -20,6 +20,9 @@ use Base::FileIO;
 use Base::Console;
 use Base::DevTools;
 
+# Interface
+use Interface::BLAST;
+
 # Program components
 use DIGS::Initialise;    # Initialises the DIGS tool
 use DIGS::ScreenBuilder; # To set up a DIGS run
@@ -28,6 +31,8 @@ use DIGS::Consolidate;   # Consolidate locus functions
 use DIGS::Extract;       # Extracting sequences for FASTA files using BLAST
 use DIGS::Classify;      # Classifying sequences using BLAST
 use DIGS::CrossMatch;    # Recording cross-matching during DIGS
+
+
 
 ############################################################################
 # Globals
@@ -67,7 +72,6 @@ sub new {
 		force                  => $parameter_ref->{force},
 		
 		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
 		crossmatch_obj         => $crossmatch_obj,
 		
 		# MySQL database connection parameters
@@ -76,27 +80,37 @@ sub new {
 		db_name                => '',   # Obtained from control file or console
 		mysql_server           => '',   # Obtained from control file or console
 
-		# Parameters for DIGS
-		query_na_fasta         => '',   # Obtained from control file
-		query_aa_fasta         => '',   # Obtained from control file
-		reference_na_fasta     => '',   # Obtained from control file
-		reference_aa_fasta     => '',   # Obtained from control file
-		
-
+		# Paths to probe and reference files
+		query_na_fasta         => '',   # Path to nuceotide seq probes
+		query_aa_fasta         => '',   # Path to AA seq probes
+		reference_na_fasta     => '',   # Path to an nucleotide reference seq library
+		reference_aa_fasta     => '',   # Path to an AA reference seq library
                 aa_reference_library   => '',   # Obtained from control file
 		na_reference_library   => '',   # Obtained from control file
+		
+		# Set parameters for forward BLAST (probe versus target database) 
+		num_threads  => '',
+	        word_size    => '',
+	        evalue       => '',
+	        penalty      => '',
+	        reward       => '',
+	        gapopen      => '',
+	        gapextend    => '',
+	        dust         => '',
+                softmask     => '',
 
-		bitscore_min_tblastn   => '',   # Obtained from control file
-		bitscore_min_blastn    => '',   # Obtained from control file
-		seq_length_minimum     => '',   # Obtained from control file
-		extract_buffer         => '',   # Obtained from control file
+		# Parameters for DIGS
+		bitscore_min_tblastn   => '',   # Minimum bitscore for extracting hits (tBLASTn)
+		bitscore_min_blastn    => '',   # Minimum bitscore for extracting hits (BLASTn)
+		seq_length_minimum     => '',   # Minimum seq length for extracting hits 
+		extract_buffer         => '',   # Size of lead/trailer sequence to extract upstream & downstream of a hit
 		defragment_mode        => '',   # Determined by input options
 		
 		# Paths used in DIGS process
+		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
 		tmp_path               => '',   # Created during set up
-		blast_threads          => '',   # Obtained from control file
 		
 	};
 	
@@ -274,7 +288,7 @@ sub run_digs_search_phase {
 	my ($self, $query_ref, $to_extract_ref, $to_delete_ref) = @_;
 
 	# Do the 1st BLAST (probe vs target)
-	$self->search_target_file_using_blast($query_ref);
+	$self->search_targetdb_file($query_ref);
 
 	# Create a non-redundant result set for this query
 	my @combined;
@@ -308,7 +322,7 @@ sub run_digs_classify_phase {
 	}	
 
 	# Do BLAST-based classification (new/extended hits from 1st search vs reference library)
-	$self->classify_sequences_using_blast(\@extracted, $query_ref);
+	$self->classify_hits(\@extracted, $query_ref);
 
 	# Update the digs_results table
 	$db_ref->update_db($to_delete_ref, \@extracted, 'digs_results_table');
@@ -327,8 +341,12 @@ sub reassign {
 	
 	my ($self) = @_;
 
+	# Interface to BLAST
+	my %blast_params;
+	$blast_params{blast_bin_path} = $self->{blast_bin_path};
+	my $blast_obj = BLAST->new(\%blast_params);
+
 	# Get data structures, paths and flags from self
-	my $blast_obj      = $self->{blast_obj};
 	my $crossmatch_obj = $self->{crossmatch_obj};
 	my $result_path    = $self->{report_dir};
 	my $verbose        = $self->{verbose};
@@ -398,20 +416,27 @@ sub reassign {
 ############################################################################
 
 #***************************************************************************
-# Subroutine:  search_target_file_using_blast
+# Subroutine:  search_targetdb_file
 # Description: execute a similarity search and parse the results
 #***************************************************************************
-sub search_target_file_using_blast {
+sub search_targetdb_file {
 	
 	my ($self, $query_ref) = @_;
 
+	# Get settings from self
+	my $verbose      = $self->{verbose};
+	
+	# Interface to BLAST
+	my %blast_params;
+	$blast_params{verbose}        = $verbose;
+	$blast_params{blast_bin_path} = $self->{blast_bin_path};
+	my $blast_obj = BLAST->new(\%blast_params);
+	
 	# Get relevant member variables and objects
-	my $blast_obj    = $self->{blast_obj};
 	my $tmp_path     = $self->{tmp_path};
 	my $min_length   = $self->{seq_length_minimum};
 	my $min_score    = $self->{bitscore_minimum};
 	my $db_ref       = $self->{db};
-	my $verbose      = $self->{verbose};
 	#print "\n\tMinimum score $min_score"; die;
 
 	# Sanity checking
@@ -434,13 +459,27 @@ sub search_target_file_using_blast {
 	my $target_path     = $query_ref->{target_path};
 	my $result_file     = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
 	unless ($probe_id and $blast_alg) { die; }
+        
+	# Set parameters for the forward BLAST
+	my %blast_run_params;
+	$blast_run_params{num_threads}    = $self->{num_threads};
+	$blast_run_params{word_size}      = $self->{word_size};
+	$blast_run_params{evalue}         = $self->{evalue};
+	$blast_run_params{penalty}        = $self->{penalty};
+	$blast_run_params{reward}         = $self->{reward};
+	$blast_run_params{gapopen}        = $self->{gapopen};
+	$blast_run_params{gapextend}      = $self->{gapextend};
+	$blast_run_params{dust}           = $self->{dust};
+	$blast_run_params{softmask}       = $self->{softmask};
+	#$devtools->print_hash(\%blast_run_params);
+	#$devtools->print_hash($self); die;
 
 	# Do BLAST similarity search
 	my $completed = $self->{current_query_num};	
 	print "\n\n\t  $blast_alg: $completed: '$organism' ($version, $datatype)";
 	print   "\n\t  target: '$target_name'";
 	print   "\n\t  probe:  '$probe_id'";   
-	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file);
+	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file, \%blast_run_params);
 	# TODO: catch error from BLAST and don't update "Searches_performed" table	
 	
 	# Extract the results from tabular format BLAST output
@@ -502,15 +541,16 @@ sub search_target_file_using_blast {
 }
 
 #***************************************************************************
-# Subroutine:  classify_sequences_using_blast
+# Subroutine:  classify_hits
 # Description: classify a set of sequences using blast
 #***************************************************************************
-sub classify_sequences_using_blast {
+sub classify_hits {
 
 	my ($self, $extracted_ref, $query_ref) = @_;
 
 	my $verbose = $self->{verbose};
 	my $classifier = Classify->new($self);
+	
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
 	unless ($query_ref) { die; }

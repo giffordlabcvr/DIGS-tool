@@ -54,7 +54,7 @@ sub new {
 		verbose                => $parameter_ref->{verbose},
 
 		# Member classes 
-		blast_obj              => $parameter_ref->{blast_obj},
+		blast_bin_path         => $parameter_ref->{blast_bin_path},
 
 		# Parameters for DIGS
 		# TODO: check why both these are neccessary
@@ -85,14 +85,19 @@ sub classify_sequence_using_blast {
 
 	my ($self, $locus_ref) = @_;
 
+	my $verbose = $self->{verbose};
+	
 	# Get paths and objects from self
 	my $result_path = $self->{tmp_path};
-	my $blast_obj   = $self->{blast_obj};
-	my $verbose     = $self->{verbose};
-	unless ($blast_obj)   { die; } 
-	unless ($result_path) { die; }
+	unless ($result_path) { die; } # Sanity checking
 	
-	# Get required data about the query sequence
+	# Create BLAST object for assign process
+	my %blast_params;
+        $blast_params{blast_bin_path} = $self->{blast_bin_path};
+	my $blast_obj = BLAST->new(\%blast_params);	
+	unless ($blast_obj)   { die; } # Sanity checking
+	
+	# Get data about this probe sequence 
 	my $sequence   = $locus_ref->{sequence};
 	my $probe_type = $locus_ref->{probe_type};
 	unless ($probe_type) { die; } # Sanity checking

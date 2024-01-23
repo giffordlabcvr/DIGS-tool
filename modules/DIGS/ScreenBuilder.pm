@@ -748,10 +748,9 @@ sub parse_control_file {
 	#$devtools->print_hash(\%skipindex); die;
 	
 	$self->{skipindexing_paths} = \%skipindex;
+        # DEV $devtools->print_hash($self); die;
 	
-	
-    # DEV $devtools->print_hash($self); die;
-	
+	# Set parameters for DIGS based on parameters stored in $self after after parsing
 	# Screening DB name and MySQL connection details
 	$digs_obj->{db_name}                = $self->{db_name};
 	$digs_obj->{mysql_server}           = $self->{mysql_server};
@@ -761,47 +760,49 @@ sub parse_control_file {
 	$digs_obj->{target_paths}           = $self->{target_paths};
 	$digs_obj->{skipindexing_paths}     = $self->{skipindexing_paths};
 
-	# Set parameters for screening
-	$digs_obj->{defragment_range}       = $self->{defragment_range};
-	$digs_obj->{extract_buffer}         = $self->{extract_buffer};
-
 	# Set paths to query/probe files
 	$digs_obj->{query_na_fasta}         = $self->{query_na_fasta};
 	$digs_obj->{reference_na_fasta}     = $self->{reference_na_fasta};
 	$digs_obj->{query_aa_fasta}         = $self->{query_aa_fasta};
 	$digs_obj->{reference_aa_fasta}     = $self->{reference_aa_fasta};
-	
-    # Set parameters for consolidation step
-	$digs_obj->{consolidate_range}                = $self->{consolidate_range};
-	$digs_obj->{consolidated_reference_aa_fasta}  = $self->{consolidated_reference_aa_fasta};
-	$digs_obj->{consolidated_reference_na_fasta}  = $self->{consolidated_reference_na_fasta};
 
-	
-	# Set numthreads in the BLAST object 
-	my $num_threads = $self->{num_threads};
-	unless ($num_threads) { $num_threads = 1; }  # Default setting
-	$digs_obj->{blast_obj}->{num_threads} = $num_threads;
+	# Set screening extract and defragment parameters
+	$digs_obj->{defragment_range}       = $self->{defragment_range};
+	$digs_obj->{extract_buffer}         = $self->{extract_buffer};
 
-	# READ the 'NOMENCLATURE' block
-	$start_token  = 'BEGIN NOMENCLATURE';
-	$stop_token   = 'ENDBLOCK';
-	$self->parse_nomenclature_block($digs_obj, \@ctl_file, $start_token, $stop_token);
-		
-	# Indexing 
-	$digs_obj->{skipindexing_paths} = \%skipindex;
-	
-	# Set the thresholds for filtering results
+	# Set minimum length thresholds for extracting hits
 	$digs_obj->{seq_length_minimum}     = $self->{seq_length_minimum};
 
-	# Set the bit score minimum for a tBLASTn screen
+	# Set the bit score minimum for extracting hits in a tBLASTn-based forward screen
 	if ($self->{bitscore_min_tblastn}) {
 		$digs_obj->{bitscore_minimum} = $self->{bitscore_min_tblastn};
 	}
-	# Set the bit score minimum for a BLASTn screen
+	# Set the bit score minimum for extracting hits in a BLASTn-based forward screen
 	if ($self->{bitscore_min_blastn}) {
 		$digs_obj->{bitscore_minimum} = $self->{bitscore_min_blastn};	
 	}
 
+	# Set parameters for forward BLAST (probe versus target database) 
+	my $num_threads = $self->{num_threads};
+	unless ($num_threads)  { $num_threads = 1; }  # Set to one  setting
+	$digs_obj->{num_threads} = $num_threads;
+	$digs_obj->{word_size}   = $self->{word_size};
+	$digs_obj->{evalue}      = $self->{evalue};
+	$digs_obj->{penalty}     = $self->{penalty};
+	$digs_obj->{reward}      = $self->{reward};
+	$digs_obj->{gapopen}     = $self->{gapopen};
+	$digs_obj->{gapextend}   = $self->{gapextend};
+	$digs_obj->{dust}        = $self->{dust};
+	$digs_obj->{softmask}    = $self->{softmask};
+
+        # Set parameters for consolidation step
+	$digs_obj->{consolidate_range}                = $self->{consolidate_range};
+	$digs_obj->{consolidated_reference_aa_fasta}  = $self->{consolidated_reference_aa_fasta};
+	$digs_obj->{consolidated_reference_na_fasta}  = $self->{consolidated_reference_na_fasta};
+	
+	# Capture list of any target databases to skip when formatting for BLAST
+	$digs_obj->{skipindexing_paths} = \%skipindex;
+	
 	# DEV $devtools->print_hash($digs_obj); die;
 
 }
