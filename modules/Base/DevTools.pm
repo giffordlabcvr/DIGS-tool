@@ -2,7 +2,6 @@
 ############################################################################
 # Module:       DevTools.pm 
 # Description:  Functions for viewing the contents of PERL data structures
-#               when debugging.
 # History:      Rob Gifford, Novemeber 2006: Creation
 ############################################################################
 package DevTools;
@@ -23,6 +22,7 @@ use Base::FileIO;
 # Globals
 ############################################################################
 
+# Create base objects
 1;
 
 ############################################################################
@@ -122,3 +122,41 @@ sub print_array {
 	}
 	print "\n";
 }
+#***************************************************************************
+# Subroutine:  print_web_hash
+# Description: prints the contents of a hash, including other arrays and
+#              hashes.
+# Arguments:   $hash_ref:  reference to the hash being printed
+#              $formatting: additional formatting for recursive fxn call
+#***************************************************************************
+sub print_web_hash {
+
+	my ($self, $hash_ref, $formatting) = @_;
+	
+	# don't show this line if it's a recursive call
+	unless ($formatting) {
+		print "<BR>&nbsp;#~o~ ~o~ ~o~ ~o~ ~o~ ~o~# Showing Hash Contents \n";
+	}
+
+	while ( my ($key, $value) = each(%$hash_ref) ) {
+		
+		unless ($value) {
+			$value = "&nbsp;&nbsp;&nbsp;>>> UNDEFINED <<<";
+		}
+
+		if (ref($value) eq 'HASH' ) {
+			print "<BR>&nbsp; Hash '$key' in hash:";
+			$self->print_web_hash($value, "&nbsp;");
+		}	
+		elsif (ref($value) eq 'ARRAY') { 
+			print "<BR>&nbsp; Array '$key' in hash:";
+			$self->print_web_array($value, "&nbsp;");
+		}
+		else {
+			if ($formatting) { print "<BR>&nbsp;$formatting $key => $value"; }
+			else             { print "<BR>&nbsp;$key => $value"; }
+		}
+	}	
+	print "<BR>";
+}
+
