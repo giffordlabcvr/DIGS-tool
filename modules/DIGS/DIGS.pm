@@ -85,20 +85,9 @@ sub new {
 		query_aa_fasta         => '',   # Path to AA seq probes
 		reference_na_fasta     => '',   # Path to an nucleotide reference seq library
 		reference_aa_fasta     => '',   # Path to an AA reference seq library
-                aa_reference_library   => '',   # Obtained from control file
+		aa_reference_library   => '',   # Obtained from control file
 		na_reference_library   => '',   # Obtained from control file
 		
-		# Set parameters for forward BLAST (probe versus target database) 
-		num_threads  => '',
-	        word_size    => '',
-	        evalue       => '',
-	        penalty      => '',
-	        reward       => '',
-	        gapopen      => '',
-	        gapextend    => '',
-	        dust         => '',
-                softmasking     => '',
-
 		# Parameters for DIGS
 		bitscore_min_tblastn   => '',   # Minimum bitscore for extracting hits (tBLASTn)
 		bitscore_min_blastn    => '',   # Minimum bitscore for extracting hits (BLASTn)
@@ -110,7 +99,7 @@ sub new {
 		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		genome_use_path        => $parameter_ref->{genome_use_path},
 		output_path            => $parameter_ref->{output_path},
-		tmp_path               => '',   # Created during set up
+		tmp_path               => $parameter_ref->{tmp_path},   
 		
 	};
 	
@@ -156,6 +145,9 @@ sub run_digs_process {
 sub initialise {
 
 	my ($self, $ctl_file, $option) = @_;
+
+	# Check tmp directory is set up
+	$self->check_tmp_directory();
 
 	my $valid          = undef;
 	my $initialise_obj = Initialise->new($self);	
@@ -270,8 +262,11 @@ sub do_digs {
 			$self->run_digs_search_phase($query_ref, \@to_extract, \@to_delete);
 			
 			# DIGS round two
-			$self->run_digs_classify_phase($query_ref, \@to_extract, \@to_delete);
-		
+			my $extract_count = scalar @to_extract;
+			if ($extract_count) {
+				$self->run_digs_classify_phase($query_ref, \@to_extract, \@to_delete);
+			}
+
 			# Show a status update in the console
 			$self->show_digs_progress();			
 		}	
@@ -312,6 +307,9 @@ sub run_digs_classify_phase {
 	my $classify_obj   = Classify->new($self);
 	my $extract_obj    = Extract->new($self);
 	
+	my $num_to_extract = scalar @$to_extract_ref;
+	print "\n\t\t# Extracting $num_to_extract hits from target database";
+	
 	# Extract newly identified or extended sequences
 	my @extracted;
 	foreach my $locus_ref (@$to_extract_ref) {			
@@ -320,6 +318,7 @@ sub run_digs_classify_phase {
 		my %copy_locus = %$locus_ref;
 		push (@extracted, \%copy_locus);
 	}	
+	if ($self->{verbose}) { print "\n\t\t # Extraction step DONE for this results set\n"; }
 
 	# Do BLAST-based classification (new/extended hits from 1st search vs reference library)
 	$self->classify_hits(\@extracted, $query_ref);
@@ -330,6 +329,8 @@ sub run_digs_classify_phase {
 	# Update the searches_performed table
 	my $searches_table = $db_ref->{searches_table};
 	$searches_table->insert_row($query_ref);
+	
+	if ($self->{verbose}) { print "\n\t\t # RESULTS recorded for this probe-target pair"; }
 
 }
 
@@ -361,7 +362,7 @@ sub reassign {
 	my $reassign_loci = $self->{reassign_loci};
 	unless ($reassign_loci) { die; }
 	my $num_to_reassign = scalar @$reassign_loci;
-	print "\n\n\t  Reassigning $num_to_reassign hits in the digs_results table\n";
+	print "\n\n\t  ### Reassigning $num_to_reassign hits in the digs_results table\n";
 
 	# Iterate through the loci, doing the reassign process for each
 	my $count = 0;
@@ -426,11 +427,24 @@ sub search_targetdb_file {
 	# Get settings from self
 	my $verbose      = $self->{verbose};
 	
-	# Interface to BLAST
+	# Set parameters for the forward BLAST
 	my %blast_params;
 	$blast_params{verbose}        = $verbose;
 	$blast_params{blast_bin_path} = $self->{blast_bin_path};
+	$blast_params{num_threads}    = $self->{fwd_num_threads};
+	$blast_params{word_size}      = $self->{fwd_word_size};
+	$blast_params{evalue}         = $self->{fwd_evalue};
+	$blast_params{penalty}        = $self->{fwd_penalty};
+	$blast_params{reward}         = $self->{fwd_reward};
+	$blast_params{gapopen}        = $self->{fwd_gapopen};
+	$blast_params{gapextend}      = $self->{fwd_gapextend};
+	$blast_params{dust}           = $self->{fwd_dust};
+	$blast_params{softmasking}    = $self->{fwd_softmasking};
+	$blast_params{seg}            = $self->{fwd_seg};
 	my $blast_obj = BLAST->new(\%blast_params);
+	#$devtools->print_hash(\%blast_params); die;
+	#unless ($blast_obj)  { die; } 
+	#$devtools->print_hash($self); die;
 	
 	# Get relevant member variables and objects
 	my $tmp_path     = $self->{tmp_path};
@@ -442,7 +456,6 @@ sub search_targetdb_file {
 	# Sanity checking
 	unless ($min_length) { die; }
 	unless ($min_score)  { die; }	
-	unless ($blast_obj)  { die; } 
 	unless ($tmp_path)   { $devtools->print_hash($self); die; } 
 
 	# Get query details
@@ -460,85 +473,70 @@ sub search_targetdb_file {
 	my $result_file     = $tmp_path . "/$probe_id" . "_$target_name.blast_result.tmp";
 	unless ($probe_id and $blast_alg) { die; }
         
-	# Set parameters for the forward BLAST
-	my %blast_run_params;
-	$blast_run_params{num_threads}    = $self->{num_threads};
-	$blast_run_params{word_size}      = $self->{word_size};
-	$blast_run_params{evalue}         = $self->{evalue};
-	$blast_run_params{penalty}        = $self->{penalty};
-	$blast_run_params{reward}         = $self->{reward};
-	$blast_run_params{gapopen}        = $self->{gapopen};
-	$blast_run_params{gapextend}      = $self->{gapextend};
-	$blast_run_params{dust}           = $self->{dust};
-	$blast_run_params{softmasking}    = $self->{softmasking};
-	$blast_run_params{seg}            = $self->{seg};
-	#$devtools->print_hash(\%blast_run_params);
-	#$devtools->print_hash($self); die;
-
-	# Do BLAST similarity search
+	# Do forward BLAST search (probe versus target genome)
 	my $completed = $self->{current_query_num};	
-	print "\n\n\t  $blast_alg: $completed: '$organism' ($version, $datatype)";
-	print   "\n\t  target: '$target_name'";
-	print   "\n\t  probe:  '$probe_id'";   
-	$blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file, \%blast_run_params);
-	# TODO: catch error from BLAST and don't update "Searches_performed" table	
+	print "\n\n\t  # $blast_alg: $completed: '$organism' ($version, $datatype)";
+	print   "\n\t  # target: '$target_name'";
+	print   "\n\t  # probe:  '$probe_id'";   
+	my $success = $blast_obj->blast($blast_alg, $target_path, $probe_path, $result_file, \%blast_params);
 	
-	# Extract the results from tabular format BLAST output
-	my @hits;
-	$blast_obj->parse_tab_format_results($result_file, \@hits);
-	my $rm_command = "rm $result_file";
-	system $rm_command; # Remove the result file
+	if ($success) {
 
-	# Summarise raw results of BLAST search
-	my $num_hits = scalar @hits;
-	if ($num_hits > 0) {
-		print "\n\t\t # $num_hits matches to probe: $probe_name, $probe_gene";
-	}
-	
-	# Apply filters & store results
-	my $num_retained_hits = 0;
-	my $score_exclude_count = '0';
-	my $length_exclude_count = '0';
-	foreach my $hit_ref (@hits) {
+		# Extract the results from tabular format BLAST output
+		my @hits;
+		$blast_obj->parse_tab_format_results($result_file, \@hits);
+		my $rm_command = "rm $result_file";
+		system $rm_command; # Remove the result file
 
-		my $skip = undef;
-		# Apply length cutoff
-		if ($min_length) { # Skip sequences that are too short
-			my $start  = $hit_ref->{aln_start};
-			my $end    = $hit_ref->{aln_stop};
-			if ($end - $start < $min_length) {  
-				$skip = 'true';
-				$length_exclude_count++; 				
-			}
+		# Summarise raw results of BLAST search
+		my $num_hits = scalar @hits;
+		if ($num_hits > 0) {
+			print "\n\n\t\t# $num_hits matches to probe: $probe_name, $probe_gene";
 		}
-		# Apply bitscore cutoff if one has been set
-		if ($min_score) { 
-			# Skip hits below bitscore threshold
-			my $query_score = $hit_ref->{bitscore};
-			if ($query_score < $min_score) { 
-				unless ($skip) { # Don't count as a bit_score exclusion if already exclude via length
+	
+		# Apply filters & store results
+		my $num_retained_hits = 0;
+		my $score_exclude_count = '0';
+		my $length_exclude_count = '0';
+		foreach my $hit_ref (@hits) {
+
+			my $skip = undef;
+			# Apply length cutoff
+			if ($min_length) { # Skip sequences that are too short
+				my $start  = $hit_ref->{aln_start};
+				my $end    = $hit_ref->{aln_stop};
+				if ($end - $start < $min_length) {  
 					$skip = 'true';
-					$score_exclude_count++;
-					if ($verbose) {
-						print "\n\t\t # Excluding hit below bitscore threshold (threshold = $min_score, bitscore = $query_score)";
-					}
+					$length_exclude_count++; 				
 				}
 			}
-		}	
-		unless ($skip) {		
-			# Insert values into 'active_set' table
-			$db_ref->insert_row_in_active_set_table($query_ref, $hit_ref);
-			$num_retained_hits++;			
-		}
-	} 
+			# Apply bitscore cutoff if one has been set
+			if ($min_score) { 
+				# Skip hits below bitscore threshold
+				my $query_score = $hit_ref->{bitscore};
+				if ($query_score < $min_score) { 
+					unless ($skip) { # Don't count as a bit_score exclusion if already exclude via length
+						$skip = 'true';
+						$score_exclude_count++;
+						if ($verbose) {
+							print "\n\t\t# Excluding hit below bitscore threshold (threshold = $min_score, bitscore = $query_score)";
+						}
+					}
+				}
+			}	
+			unless ($skip) {		
+				# Insert values into 'active_set' table
+				$db_ref->insert_row_in_active_set_table($query_ref, $hit_ref);
+				$num_retained_hits++;			
+			}
+		} 
 
-	# Show summary of BLAST results after filtering
-	if ($score_exclude_count or $length_exclude_count) {
-		print "\n\t\t # $num_retained_hits matches above threshold ";
-		print "(excluded: $length_exclude_count < length; $score_exclude_count < bitscore)";
+		# Show summary of BLAST results after filtering
+		if ($score_exclude_count or $length_exclude_count) {
+			print "\n\t\t# $num_retained_hits matches above threshold ";
+			print "(excluded: $length_exclude_count < length; $score_exclude_count < bitscore)";
+		}
 	}
-	
-	return $num_hits;
 }
 
 #***************************************************************************
@@ -549,37 +547,45 @@ sub classify_hits {
 
 	my ($self, $extracted_ref, $query_ref) = @_;
 
-	my $verbose = $self->{verbose};
 	my $classifier = Classify->new($self);
-	
+
 	my $assigned_count   = 0;
 	my $crossmatch_count = 0;
+	my $num_to_assign = scalar @$extracted_ref;
 	unless ($query_ref) { die; }
+	
+	if ($num_to_assign) {
+		print "\n\t\t# Assigning $num_to_assign hits by BLAST comparison to reference library";
+	}
+
 	foreach my $locus_ref (@$extracted_ref) { # Iterate through the matches
 
 		# Classify using BLAST
-		my $blast_alg = $classifier->classify_sequence_using_blast($locus_ref);
-		my $assigned  = $locus_ref->{assigned_name};
-		unless ($assigned) { die; }
-		if ($assigned) { $assigned_count++; }
+		my $success = $classifier->classify_sequence_using_blast($locus_ref);
+		
+		if ($success) {
 
-		# Get the unique key for this probe
-		my $probe_name  = $query_ref->{probe_name};
-		my $probe_gene  = $query_ref->{probe_gene};
-		my $probe_key   = $probe_name . '_' . $probe_gene; 		
+			my $assigned  = $locus_ref->{assigned_name};
+			$assigned_count++;
 
-		# Record cross-matching
-		if ($probe_key ne $assigned) {
-			$crossmatch_count++;
-			my $crossmatch_obj = $self->{crossmatch_obj};
-			$crossmatch_obj->update_cross_matching($probe_key, $assigned);
+			# Get the unique key for this probe
+			my $probe_name  = $query_ref->{probe_name};
+			my $probe_gene  = $query_ref->{probe_gene};
+			my $probe_key   = $probe_name . '_' . $probe_gene; 		
+
+			# Record cross-matching
+			if ($probe_key ne $assigned) {
+				$crossmatch_count++;
+				my $crossmatch_obj = $self->{crossmatch_obj};
+				$crossmatch_obj->update_cross_matching($probe_key, $assigned);
+			}
 		}
 	}
-	if ($assigned_count > 0) {
-		print "\n\t\t # $assigned_count extracted sequences classified";
-	}
-	if ($verbose) {	
-		print "\n\t\t # $crossmatch_count cross-matched to something other than the probe";
+
+	print "\n\t\t# $assigned_count of $num_to_assign extracted sequences successfully classified";
+	
+	if ($self->{verbose}) {	
+		print "\n\t\t# $crossmatch_count cross-matched to something other than the probe";
 	}
 }
 
@@ -603,7 +609,7 @@ sub created_combined_locus_set {
 	my $probe_type      = $query_ref->{probe_type};
 	my $where  = " WHERE organism = '$organism' ";
 	   $where .= " AND target_name = '$target_name' "; # Always limit by target
-	   $where .= " AND probe_type  = '$probe_type' ";  # EITHER utrs OR orfs NOT BOTH 
+	   $where .= " AND probe_type  = '$probe_type' ";  # WE MAY WANT EITHER non-coding OR coding sequence, BUT NEVER BOTH 
 
 	# Get the relevant set of DIGS results
 	my @digs_results;
@@ -611,7 +617,8 @@ sub created_combined_locus_set {
 	my $num_loci = scalar @digs_results;
 	if ($verbose) { print "\n\t\t # $num_loci previously extracted $probe_type loci"; }
 		
-	# Add the digs results to the BLAST hits in the active_set table
+	# Add the digs results from the main results table to the BLAST hits in the active_set table
+	# We want everything in one table so we can use MySQL to sort (Order) the results
 	$db_ref->add_digs_results_to_active_set(\@digs_results);
 
 	# Get sorted list of digs results and BLAST hits from active_set table
@@ -669,7 +676,8 @@ sub show_title {
 	unless ($version_num) {
 		$version_num = 'version undefined (use with caution)';
 	}
-	$console->refresh();
+	
+	#$console->refresh();
 	my $title       = "DIGS (version: $version_num)";
 	my $description = 'Database-Integrated Genome Screening';
 	my $author      = 'Robert J. Gifford';
@@ -734,7 +742,7 @@ sub show_digs_progress {
 	my $percent_prog    = ($completed / $total_queries) * 100;
 	my $f_percent_prog  = sprintf("%.2f", $percent_prog);
 	#print "\n\t\t  ";
-	print "\n\t\t # done $completed of $total_queries queries (%$f_percent_prog)";
+	print "\n\n\t### done $completed of $total_queries queries (%$f_percent_prog)";
 }
 
 #***************************************************************************
@@ -763,6 +771,46 @@ sub wrap_up {
 	# Print finished message
 	print "\n\n\t ### Process completed ~ + ~ + ~";
 
+}
+
+#***************************************************************************
+# Subroutine:  check_tmp_directory
+# Description: 
+#***************************************************************************
+sub check_tmp_directory {
+
+    my ($self) = @_;
+
+    my $tmp_path = $self->{tmp_path};
+
+    unless (-e $tmp_path && -d _) {
+        print "\t\t The directory '$tmp_path' doesn't exist.\n";
+        print "\t\t Do you want to create it? (y/n): ";
+        my $response = <STDIN>;
+        chomp $response;
+        if (lc($response) eq 'y') {
+            mkdir $tmp_path or die "Failed to create directory '$tmp_path': $!";
+            print "\t ### Directory '$tmp_path' created successfully.\n";
+        } else {
+            print "\t ### Directory creation aborted.\n";
+        }
+    } else {
+
+		my $total_size = 0;
+        opendir(my $dh, $tmp_path) or die "Unable to open directory '$tmp_path': $!";
+        while (my $file = readdir($dh)) {
+            next if $file =~ /^\.\.?$/; # Skip "." and ".." entries
+            my $file_path = "$tmp_path/$file";
+            $total_size += -s $file_path if -f $file_path;
+        }
+        closedir($dh);
+
+        my $threshold = 100 * 1024 * 1024; # 100 megabytes in bytes
+        if ($total_size > $threshold) {
+            my $excess_size_mb = sprintf("%.2f", $total_size / (1024 * 1024));
+            print "\t ### WARNING: Directory '$tmp_path' size is $excess_size_mb megabytes, which exceeds the threshold of 100 megabytes. Please consider cleaning it up.\n";
+        }
+    }
 }
 
 ############################################################################

@@ -68,7 +68,6 @@ sub new {
 		digs_results_table    => 0,
 		loci_table            => 0,	
 		loci_chains_table     => 0,
-		#blast_chains_table    => 0,	# For testing only
 
 		# Flags
 		verbose                => $parameters->{verbose},
@@ -113,7 +112,7 @@ sub update_db {
 		# Insert the data to the digs_results table
 		my $digs_result_id = $digs_results_table->insert_row($locus_ref);
 		unless ($digs_result_id) { die; }
-		if ($verbose) { print "\n\t\t    - Created new result row '$digs_result_id'"; }
+		if ($verbose) { print "\n\t\t\t # Created new result row '$digs_result_id'"; }
 	}	
 	
 	# Flush the active set table
@@ -160,7 +159,6 @@ sub load_screening_db {
 	$self->load_searches_table($dbh);	
 	$self->load_active_set_table($dbh);	
 	$self->load_digs_results_table($dbh, 'digs_results');	
-	$self->load_blast_chains_table($dbh);	
 
 	
 }
@@ -267,47 +265,6 @@ sub load_digs_results_table {
 	$self->{$table_name} = $digs_table;
 }
 
-#***************************************************************************
-# Subroutine:  load_blast_chains_table
-# Description: load screening database table 'digs_results'
-#***************************************************************************
-sub load_blast_chains_table {
-
-	my ($self, $dbh) = @_;
-
-	# Definition of the table
-	my %extract_fields = (
-	
-		digs_result_id   => 'int',
-		probe_name       => 'varchar',
-		probe_gene       => 'varchar',
-		probe_type       => 'varchar',
-		organism         => 'varchar',
-		target_datatype  => 'varchar',
-		target_version   => 'varchar',
-		target_name      => 'varchar',
-		scaffold         => 'varchar',
-		orientation      => 'varchar',
-		subject_start    => 'int',
-		subject_end      => 'int',
-		query_start      => 'int',
-		query_end        => 'int',
-		align_len        => 'int',
-		bitscore         => 'float',
-		identity         => 'varchar',
-		evalue_num       => 'float',
-		evalue_exp       => 'int',
-	  	subject_start    => 'int',
-	  	subject_end      => 'int',
-		query_start      => 'int',
-	  	query_end        => 'int',
-		gap_openings     => 'int',
-		mismatches       => 'int',
-
-	);
-	my $extract_table = MySQLtable->new('blast_chains', $dbh, \%extract_fields);
-	$self->{blast_chains_table} = $extract_table;
-}
 
 #***************************************************************************
 # Subroutine:  load_loci_table
@@ -398,7 +355,6 @@ sub create_screening_db {
 	$self->create_searches_table($dbh);
 	$self->create_active_set_table($dbh);
 	$self->create_digs_results_table($dbh);
-	#$self->create_blast_chains_table($dbh);
 }
 
 #***************************************************************************
@@ -512,49 +468,6 @@ sub create_digs_results_table {
 	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
 	my $sth = $dbh->prepare($digs_results);
 	unless ($sth->execute()) { print "\n\t$digs_results\n\n\n"; exit;}
-}
-
-#***************************************************************************
-# Subroutine:  create_blast_chains_table
-# Description: create MySQL 'active_set' table
-#***************************************************************************
-sub create_blast_chains_table {
-
-	my ($self, $dbh) = @_;
-
-	# Active result set table 
-	my $blast_chains = "CREATE TABLE `blast_chains` (
-	  `record_ID`       int(11) NOT NULL auto_increment,
-	  `digs_result_id`      int(11) NOT NULL default '0',
-
-	  `probe_name`      varchar(100) NOT NULL default '0',
-	  `probe_gene`      varchar(100) NOT NULL default '0',
-	  `probe_type`      varchar(100) NOT NULL default '0',
-	  `organism`        varchar(100) NOT NULL default '0',
-	  `target_datatype` varchar(100) NOT NULL default '0',
-	  `target_version`  varchar(100) NOT NULL default '0',
-	  `target_name`     varchar(100) NOT NULL default '0',
-
-	  `scaffold`        varchar(200) default 'NULL',
-	  `orientation`     varchar(100) NOT NULL default '0',
-	  `subject_start`   int(11) NOT NULL default '0',
-	  `subject_end`     int(11) NOT NULL default '0',
-	  `query_start`     int(11) NOT NULL default '0',
-	  `query_end`       int(11) NOT NULL default '0',
-	  `align_len`       int(11) NOT NULL default '0',
-
-	  `bitscore`        float   NOT NULL default '0',
-	  `identity`        float   NOT NULL default '0',
-	  `evalue_num`      float   NOT NULL default '0',
-	  `evalue_exp`      int(11) NOT NULL default '0',
-	  `gap_openings`    int(11) NOT NULL default '0',
-	  `mismatches`      int(11) NOT NULL default '0',
-
-	  `timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-	  PRIMARY KEY  (`record_id`)
-	) ENGINE=MyISAM DEFAULT CHARSET=latin1;";
-	my $sth = $dbh->prepare($blast_chains);
-	unless ($sth->execute()) { print "\n\t$blast_chains\n\n\n"; exit;}
 }
 
 #***************************************************************************
@@ -675,7 +588,6 @@ sub flush_screening_db {
 	my $active_set_table   = $self->{active_set_table};
 	my $digs_results_table = $self->{digs_results_table};
 	my $searches_table     = $self->{searches_table};
-	my $blast_chains_table = $self->{blast_chains_table};
 		
 	# Flush result tables
 	$active_set_table->flush();
@@ -684,8 +596,6 @@ sub flush_screening_db {
 	$digs_results_table->reset_primary_keys();
 	$searches_table->flush();
 	$searches_table->reset_primary_keys();
-	$blast_chains_table->flush();
-	$blast_chains_table->reset_primary_keys();
 
 }
 
@@ -848,8 +758,6 @@ sub get_ancillary_table_names {
 		foreach my $item (@$row) {
 			chomp $item;
 			$i++;
-			if ($item eq 'blast_chains')          { next; }
-			if ($item eq 'nomenclature_chains')   { next; }
 			if ($item eq 'searches_performed')    { next; }
 			elsif ($item eq 'active_set')         { next; }
 			elsif ($item eq 'digs_results')       { next; }
@@ -1432,10 +1340,6 @@ sub translate_schema {
 	my $digs_results_exists = $self->does_table_exist('digs_results');
 	unless ($digs_results_exists) {
 		$self->create_digs_results_table($dbh);
-	}
-	my $blast_chains_exists = $self->does_table_exist('blast_chains');
-	unless ($blast_chains_exists) {
-		$self->create_blast_chains_table($dbh);
 	}
 
 	# Translate 'Extracted' to 'digs_results'

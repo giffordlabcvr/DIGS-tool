@@ -46,26 +46,29 @@ sub new {
 	# Set member variables
 	my $self = {
 		
-		# Global settings
-		process_id             => $parameter_ref->{process_id},
-		program_version        => $parameter_ref->{program_version},
-		
 		# Flags
 		verbose                => $parameter_ref->{verbose},
 
-		# Member classes 
-		blast_bin_path         => $parameter_ref->{blast_bin_path},
+		# Parameters for reverse BLAST (hits versus reference sequence library)
+		num_threads  => $parameter_ref->{rev_num_threads},
+		word_size    => $parameter_ref->{rev_word_size},
+		evalue       => $parameter_ref->{rev_evalue},
+		penalty      => $parameter_ref->{rev_penalty},
+		reward       => $parameter_ref->{rev_reward},
+		gapopen      => $parameter_ref->{rev_gapopen},
+		gapextend    => $parameter_ref->{rev_gapextend},
+		dust         => $parameter_ref->{rev_dust},
+		softmasking  => $parameter_ref->{rev_softmasking},
+		seg          => $parameter_ref->{rev_seg},
 
-		# Parameters for DIGS
+		# Paths used in DIGS process
+		tmp_path               => $parameter_ref->{tmp_path},
+		blast_bin_path         => $parameter_ref->{blast_bin_path},
 		# TODO: check why both these are neccessary
 		aa_reference_library   => $parameter_ref->{aa_reference_library},
 		na_reference_library   => $parameter_ref->{na_reference_library},
 		blast_orf_lib_path     => $parameter_ref->{blast_orf_lib_path},
 		blast_utr_lib_path     => $parameter_ref->{blast_utr_lib_path},
-
-		# Paths used in DIGS process
-		tmp_path               => $parameter_ref->{tmp_path},
-		blast_threads          => $parameter_ref->{blast_threads},
 
 	};
 	
@@ -85,17 +88,10 @@ sub classify_sequence_using_blast {
 
 	my ($self, $locus_ref) = @_;
 
-	my $verbose = $self->{verbose};
-	
-	# Get paths and objects from self
+	# Set up BLAST object with parameters for the reverse BLAST (from $self)
+	my $blast_obj = BLAST->new($self);
 	my $result_path = $self->{tmp_path};
 	unless ($result_path) { die; } # Sanity checking
-	
-	# Create BLAST object for assign process
-	my %blast_params;
-        $blast_params{blast_bin_path} = $self->{blast_bin_path};
-	my $blast_obj = BLAST->new(\%blast_params);	
-	unless ($blast_obj)   { die; } # Sanity checking
 	
 	# Get data about this probe sequence 
 	my $sequence   = $locus_ref->{sequence};
@@ -121,8 +117,13 @@ sub classify_sequence_using_blast {
 	else  { die; }
 	unless ($lib_file)  { die; }
 
-	# Execute the call to BLAST and parse the results
-	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file);
+	# Set parameters for the reverse BLAST
+	#$devtools->print_hash(\%blast_run_params);
+	#$devtools->print_hash($self); die;
+	# Do reverse BLAST search (hits versus reference sequence library)
+	$blast_obj->blast($blast_alg, $lib_path, $query_file, $result_file, $self);
+	
+	# Parse the results
 	my @results;
 	$blast_obj->parse_tab_format_results($result_file, \@results);
 
@@ -134,11 +135,13 @@ sub classify_sequence_using_blast {
 	my $subject_end   = $top_match->{aln_stop};
 	my $assigned_key  = $top_match->{scaffold};	
 	my $assigned;
+	my $success = 1;
 
 	# Deal with a query that matched nothing in the 2nd BLAST search
 	unless ($assigned_key) {
 		$self->set_default_values_for_unassigned_locus($locus_ref);	
 		$assigned = undef;
+		$success = undef;
 	}
 	else {	# Assign the extracted sequence based on matches from 2nd BLAST search
 
@@ -161,11 +164,10 @@ sub classify_sequence_using_blast {
 		$locus_ref->{subject_end}    = $subject_end;
 		$locus_ref->{subject_start}  = $subject_start;
 		#$devtools->print_hash($locus_ref); die;
-		if ($verbose) { 
-			my $id = $locus_ref->{record_id};
-			print "\n\t\t    - Assigned as '$assigned_name ($assigned_gene)'";
-		 	print " via $blast_alg comparison to $lib_file";
-		 }
+	
+		my $id = $locus_ref->{record_id};
+		print "\n\t\t# Assigned as '$assigned_name ($assigned_gene)'";
+		print " via $blast_alg comparison to $lib_file";
 		$assigned = $assigned_name . '_' . $assigned_gene;
 	}
 
@@ -175,7 +177,7 @@ sub classify_sequence_using_blast {
 	system $command1;
 	system $command2;
 	
-	return $blast_alg;
+	return $success;
 }
 
 #***************************************************************************

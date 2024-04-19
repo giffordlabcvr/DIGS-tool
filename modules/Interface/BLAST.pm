@@ -66,7 +66,6 @@ sub blast {
 		
 	# Get paths and flags from self
 	my $blast_path  = $self->{blast_bin_path};
-	my $verbose     = $self->{verbose};
 
 	# Get blast options if supplied
 	my $num_threads = $options_ref->{num_threads}; 
@@ -81,6 +80,7 @@ sub blast {
 	my $seg         = $options_ref->{seg};
 	my $outfmt      = $options_ref->{outfmt};
 	unless ($outfmt) { $outfmt = 7; } # default output format is tab-delimited ( -outfmt 7) 
+	#$devtools->print_hash($options_ref); die;
 
 	# Create BLAST command
 	$blast_path .= $method;
@@ -111,6 +111,7 @@ sub blast {
 		$command .= " -gapopen $gapopen "; 
 	} 
 	if ($method eq 'blastn') {
+		
 		if ($softmasking)    { 
 			$command .= " -soft_masking $softmasking "; 
 		} 
@@ -127,11 +128,25 @@ sub blast {
 	# Set the output format for BLAST
 	$command .= "-outfmt $outfmt";
 
+	#if ($self->{verbose}) {
+	#	print "\n\n\t ### BLAST COMMAND $command\n"; 
+	#}
+	
 	# Execute the command 
-	if ($verbose) {
-		print "\n\n\t BLAST COMMAND $command\n\n"; 
-	}
 	system $command;
+
+	my $exit_status = system($command);
+
+	if ($exit_status == 0) {
+		# BLAST search was successful
+		return 1;
+
+    	} else {
+		# BLAST search failed
+		print "\n\n\t ### BLAST search failed with error code: $exit_status\n\n";
+		return 0;
+	}
+
 }
 
 #***************************************************************************

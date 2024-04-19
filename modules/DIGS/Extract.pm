@@ -105,16 +105,13 @@ sub extract_locus_sequence_using_blast {
 		return;
 	}
 
-	
-
-
 	# Extract the sequence
 	my $target_path = $locus_ref->{target_path};
 	my $sequence  = $blast_obj->extract_sequence($target_path, $locus_ref);
 	if ($sequence) {
 		
 		# If we extracted a sequence, update the data for this locus
-		if ($verbose) { print "\n\t\t    - Extracted sequence: $seq_length nucleotides "; }
+		if ($verbose) { print "\n\t\t\t # Extracted sequence: $seq_length nucleotides "; }
 		$locus_ref->{extract_start}   = $locus_ref->{start};
 		$locus_ref->{extract_end}     = $locus_ref->{end};
 		$locus_ref->{sequence}        = $sequence;

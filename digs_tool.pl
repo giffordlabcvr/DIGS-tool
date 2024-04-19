@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 ############################################################################
 # Script:      digs_tool.pl database-integrated genome screening (DIGS) tool
-# Description: A tool for exploring the dark genome in silico using BLAST & 
+# Description: A tool for exploring genomes 'in silico' using BLAST and 
 #              a relational database
 # History:     Updated: February 2017
 ############################################################################
@@ -11,7 +11,7 @@ unless ($ENV{'DIGS_GENOMES'}) {
 	print  "\n\n\t Required environment variable '\$DIGS_GENOMES' is undefined\n";
 	exit;
 }
-unless ($ENV{'DIGS_HOME2'}) {
+unless ($ENV{'DIGS_HOME'}) {
 	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
 	exit;
 }
@@ -25,13 +25,15 @@ unless ($ENV{'DIGS_MYSQL_PASSWORD'}) {
 }
 
 # Include the PERL module library for DIGS 
-use lib ($ENV{DIGS_HOME}) . '/modules/'; 
+use lib ($ENV{DIGS_HOME2}) . '/modules/'; 
 
 ############################################################################
 # Import statements/packages (externally developed packages)
 ############################################################################
 use strict;
 use Getopt::Long;
+use Getopt::Long;
+#use Carp;
 
 ############################################################################
 # Import statements/packages (internally developed packages)
@@ -44,7 +46,7 @@ use Base::FileIO;
 # Third party program interface modules
 use Interface::BLAST;   # Interface to BLAST 
 use Interface::MySQLtable;   # Interface to BLAST 
-
+	
 # DIGS framework modules
 use DIGS::DIGS;
 use DIGS::ScreenBuilder;
@@ -57,10 +59,12 @@ use DIGS::Utility;
 # Paths & Globals
 ############################################################################
 
-# Paths
+# Paths and database connection details from environment variables
+my $mysql_username = ($ENV{DIGS_MYSQL_USER}); 
+my $mysql_password = ($ENV{DIGS_MYSQL_PASSWORD}); 
 my $genome_use_path = $ENV{DIGS_GENOMES} . '/'; 
-$genome_use_path =~ s/\/\//\//g; # Remove any double backslashes
 my $blast_bin_path  = '';  # left empty if BLAST+ programs are in your path 
+my $tmp_path  = './tmp';
 
 # Version number	
 my $program_version = '1.13.2';
@@ -77,14 +81,7 @@ my $process_id  = $pid . '_' . $time;
 # Base utilites
 my $fileio     = FileIO->new();
 my $console    = Console->new();
-
-# Interface to BLAST
-my %blast_params;
-$blast_params{blast_bin_path} = $blast_bin_path;
-my $blast_obj = BLAST->new(\%blast_params);
-
-my $mysql_username = ($ENV{DIGS_MYSQL_USER}); 
-my $mysql_password = ($ENV{DIGS_MYSQL_PASSWORD}); 
+my $devtools   = DevTools->new();
 
 # Instantiate main program classes using global settings
 my %params;
@@ -92,11 +89,11 @@ $params{program_version} = $program_version;
 $params{process_id}      = $process_id;
 $params{blast_bin_path}  = $blast_bin_path; 
 $params{genome_use_path} = $genome_use_path;
-$params{blast_obj}       = $blast_obj;
 $params{mysql_username}  = $mysql_username ; 
 $params{mysql_password}  = $mysql_password; 
-
+$params{tmp_path}        = $tmp_path; 
 my $digs_tool_obj = DIGS->new(\%params);
+#$devtools->print_hash(\%params); die;
 
 ############################################################################
 # Set up USAGE statement
@@ -124,8 +121,6 @@ exit;
 #***************************************************************************
 sub main {
 
-	# Set version
-	
 	# Options that require a file path
 	my $infile      = undef;
 	
@@ -141,17 +136,20 @@ sub main {
 	my $verbose      = undef;
 	my $force        = undef;
 	my $test         = undef;
+	my $create_ids   = undef;
 	
 	# Read in options using GetOpt::Long
 	GetOptions ('infile|i=s'     => \$infile,
-                'mode|m=i'       => \$mode,
-                'database|d=i'   => \$database,
-                'utility=i'      => \$utility,
-                'genomes=i'      => \$genomes,			      
-                'verbose'        => \$verbose,
-                'force'          => \$force,
-                'help'           => \$help,
-                'test'           => \$test,
+	
+	            'mode|m=i'       => \$mode,
+		    'database|d=i'   => \$database,
+		    'utility=i'      => \$utility,
+		    'genomes=i'      => \$genomes,
+		    'create_ids'     => \$create_ids,			      
+		    'verbose'        => \$verbose,
+		    'force'          => \$force,
+		    'help'           => \$help,
+		    'test'           => \$test,
 			    			    
 	) or die $USAGE;
 
@@ -180,6 +178,7 @@ sub main {
 	# Exit script
 	print "\n\n\t # Exit\n\n";
 }
+
 
 ############################################################################
 # End of file 

@@ -104,12 +104,10 @@ sub setup_screen  {
 	# Show output about the number of oustanding targets and number of queries loaded
 	my @keys        = keys %targets;
 	my $unique      = scalar @keys;
-	print "\n\t  Targets:           $unique target files\n\n";
-
+	print "\n\t  Targets:           $unique target files";
 
 	# Create the BLAST queries for this screen
 	my $num_queries = $self->set_queries($digs_obj, \@probes, \%targets, $queries_ref);
-	
 
 	unless ($num_queries) {
 		print "\n\n\t ### No outstanding queries were loaded\n";
@@ -318,7 +316,7 @@ sub create_reference_library {
 	my $num_fasta = scalar @fasta;
 	unless ($num_fasta) { die "\n\t  Reference library: $reference_type FASTA not found'\n\n"; }
 
-	print "\n\t  Reference library: $num_fasta $reference_type sequences\n\n";
+	print "\n\t  Reference library: $num_fasta $reference_type sequences";
 	my $i = 0;
 	#$devtools->print_array(\@fasta); die;
 	my @references;
@@ -355,7 +353,7 @@ sub create_reference_library {
 	}
 
 	if ($nonunique) {
-		print "\t   - Warning: $nonunique non-unique names identified in reference library\n";
+		print "\n\n\t  ### Warning: $nonunique non-unique names identified in reference library\n";
 		sleep 1;
 		#print "\n\t\t  Warning: non-unique reference name '$refseq_id'";
 	}
@@ -442,6 +440,7 @@ sub set_target_groups {
 	
 	# Iterate through targets
 	my @keys = keys %$targets_ref;
+	my %shown;
 	foreach my $target_id (@keys) {
 			
 		# Get target data
@@ -462,9 +461,12 @@ sub set_target_groups {
 		#print "\n\t ### old '$target_id' \n\t ### new '$new_target_id'";
 		
 		# Set a key to get the top level group name in the target path
-		if ($self->{verbose}) {
-			print "\n\t Based on your target directory structure, organism $organism is a member of group '$group'";
-
+		unless ($shown{$organism}) {
+			$shown{$organism} = 1;
+			if ($self->{verbose}) {
+				print "\n\t  Based on your target directory structure, organism $organism is a member of group '$group'";
+	
+			}
 		}
 		$target_groups_ref->{$target_id} = $group;
 	}
@@ -748,7 +750,7 @@ sub parse_control_file {
 	#$devtools->print_hash(\%skipindex); die;
 	
 	$self->{skipindexing_paths} = \%skipindex;
-        # DEV $devtools->print_hash($self); die;
+	#$devtools->print_hash($self); die;
 	
 	# Set parameters for DIGS based on parameters stored in $self after after parsing
 	# Screening DB name and MySQL connection details
@@ -783,20 +785,34 @@ sub parse_control_file {
 	}
 
 	# Set parameters for forward BLAST (probe versus target database) 
-	my $num_threads = $self->{num_threads};
-	unless ($num_threads)  { $num_threads = 1; }  # Set to one  setting
-	$digs_obj->{num_threads} = $num_threads;
-	$digs_obj->{word_size}   = $self->{word_size};
-	$digs_obj->{evalue}      = $self->{evalue};
-	$digs_obj->{penalty}     = $self->{penalty};
-	$digs_obj->{reward}      = $self->{reward};
-	$digs_obj->{gapopen}     = $self->{gapopen};
-	$digs_obj->{gapextend}   = $self->{gapextend};
-	$digs_obj->{dust}        = $self->{dust};
-	$digs_obj->{softmasking} = $self->{softmasking};
-	$digs_obj->{seg}         = $self->{seg};
+	my $fwd_num_threads = $self->{fwd_num_threads};
+	unless ($fwd_num_threads)  { $fwd_num_threads = 1; }  # Set to one  setting
+	$digs_obj->{fwd_num_threads} = $fwd_num_threads;
+	$digs_obj->{fwd_word_size}   = $self->{fwd_word_size};
+	$digs_obj->{fwd_evalue}      = $self->{fwd_evalue};
+	$digs_obj->{fwd_penalty}     = $self->{fwd_penalty};
+	$digs_obj->{fwd_reward}      = $self->{fwd_reward};
+	$digs_obj->{fwd_gapopen}     = $self->{fwd_gapopen};
+	$digs_obj->{fwd_gapextend}   = $self->{fwd_gapextend};
+	$digs_obj->{fwd_dust}        = $self->{fwd_dust};
+	$digs_obj->{fwd_softmasking} = $self->{fwd_softmasking};
+	$digs_obj->{fwd_seg}         = $self->{fwd_seg};
 
-        # Set parameters for consolidation step
+	# Set parameters for forward BLAST (probe versus target database) 
+	my $rev_num_threads = $self->{rev_num_threads};
+	unless ($rev_num_threads)  { $rev_num_threads = 1; }  # Set to one  setting
+	$digs_obj->{rev_num_threads} = $rev_num_threads;
+	$digs_obj->{rev_word_size}   = $self->{rev_word_size};
+	$digs_obj->{rev_evalue}      = $self->{rev_evalue};
+	$digs_obj->{rev_penalty}     = $self->{rev_penalty};
+	$digs_obj->{rev_reward}      = $self->{rev_reward};
+	$digs_obj->{rev_gapopen}     = $self->{rev_gapopen};
+	$digs_obj->{rev_gapextend}   = $self->{rev_gapextend};
+	$digs_obj->{rev_dust}        = $self->{rev_dust};
+	$digs_obj->{rev_softmasking} = $self->{rev_softmasking};
+	$digs_obj->{rev_seg}         = $self->{rev_seg};
+
+	# Set parameters for consolidation step
 	$digs_obj->{consolidate_range}                = $self->{consolidate_range};
 	$digs_obj->{consolidated_reference_aa_fasta}  = $self->{consolidated_reference_aa_fasta};
 	$digs_obj->{consolidated_reference_na_fasta}  = $self->{consolidated_reference_na_fasta};

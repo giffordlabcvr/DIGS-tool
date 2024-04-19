@@ -115,9 +115,9 @@ sub compose_clusters {
 	my $cluster_high_end = undef; # Variable to track highest end within a cluster of loci
 	
 	# Iterate through loci, grouping them into clusters when they are within range
-	foreach my $locus_ref (@$loci_ref)  {
-
-	    $locus_count++;
+	foreach my $locus_ref (@$loci_ref) {
+		
+		$locus_count++;
 		my $id = $locus_ref->{digs_result_id};
 		my $sc = $locus_ref->{scaffold};
 		my $organism = $locus_ref->{organism};
@@ -125,7 +125,7 @@ sub compose_clusters {
 		my $end = $locus_ref->{$end_token}; 
 		unless ($end) {
 			$start = $locus_ref->{subject_start};
-			$end = $locus_ref->{subject_start};
+			$end = $locus_ref->{subject_end};
 			unless ($start and $end) { 
 				
 				print "\n\t # WARNING! start and end not found!\n";
@@ -135,51 +135,52 @@ sub compose_clusters {
 		}
 
 		if ($verbose) {
-			print "\n\t\t # Processing locus $locus_count in $organism - '$sc': '$start-$end'";
+			print "\n\n\t\t # Processing locus $locus_count in $organism - '$sc': '$start-$end'";
 			#$devtools->print_hash($locus_ref);
 		}
-	
-        # Have we seen this scaffold before?
-        $initialised = undef;
-        unless ($cluster_tracking_data{scaffold}) {  # This is the first hit
+		
+		# Have we seen this scaffold before?
+		$initialised = undef;
+		unless ($cluster_tracking_data{scaffold}) {  # This is the first hit
 			$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
 			$cluster_tracking_data{scaffold} = $locus_ref->{scaffold};
 			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
 			$cluster_high_end = $end;
 		}
-        elsif ($cluster_tracking_data{scaffold} ne $locus_ref->{scaffold}) { # This is the first hit on this scaffold
+		elsif ($cluster_tracking_data{scaffold} ne $locus_ref->{scaffold}) { # This is the first hit on this scaffold
 			$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
 			$cluster_tracking_data{scaffold} = $locus_ref->{scaffold};
 			$self->set_tracking_data($locus_ref, \%cluster_tracking_data);
 			$cluster_high_end = $end;
 		}
 		else { # Seen this scaffold before
-            $initialised = 'true'; # Set flag 
+			$initialised = 'true'; # Set flag 
 		}
-
-        # if on same scaffold as last hit - should it be merged?
-		if ($initialised) {
-
-            # Test if we need to merge this one
+		
+		# if on same scaffold as last hit - should it be merged?
+		if ($initialised and $cluster_high_end) {
+			
+			# Test if we need to merge this one
 			my $is_distinct = $self->is_distinct_locus($locus_ref, \%cluster_tracking_data, $cluster_high_end);
 						
 			if ($is_distinct) { # Distinct hit on same scaffold - create new cluster set
 				$i = $self->initialise_cluster($defragmented_ref, $locus_ref, $i);
 			}
 			else { # Non-distinct locus - check whether to merge
-               
+				
 				my $merge;
-                if ($self->{defragment_mode} eq 'consolidate') { 
-                    # Should locus be merged based on consolidation rules?
+				if ($self->{defragment_mode} eq 'consolidate') { 
+					
+					# Test whether locus should be merged based on consolidation parameters
 					#$merge = $self->should_locus_be_merged($locus_ref, $data_ref);
-                    $merge = 'true';
+					$merge = 'true';
 				}
-                else {
-                    # In normal/default defragment mode then simply merge if in range
-                    $merge = 'true';
+				else { # ordinary defragment (normal/default process)
+					$merge = 'true'; # merge
 				}
- 
-				if ($merge) { # Extend record
+				
+				# Merge if the flag is set
+				if ($merge) { # Extend record for this cluster of merged
 					$self->extend_cluster($defragmented_ref, $locus_ref, $i);
 				}
 			}
@@ -193,6 +194,9 @@ sub compose_clusters {
 			
 		}	
 	}
+
+	if ($self->{verbose}) { print "\n\t\t # Defragmentation step DONE for this results set\n"; }
+
 }
 
 #***************************************************************************
@@ -204,7 +208,8 @@ sub is_distinct_locus {
 	my ($self, $locus_ref, $data_ref, $high_end) = @_;
 
 	my $is_distinct = 'true';
-	
+	#$devtools->print_hash($locus_ref); die;
+
 	# Is it on the same scaffold?
 	my $same_scaffold = $self->is_locus_on_same_scaffold($locus_ref, $data_ref);
 
@@ -212,18 +217,14 @@ sub is_distinct_locus {
 	my $is_in_range;
 	if ($same_scaffold) {
 		if ($self->{verbose}) {
-			print "\n\t\t\t\t # '$locus_ref->{organism}'";
-			print "\n\t\t\t\t # '$locus_ref->{scaffold}'";
-			print "\n\t\t\t\t # '$locus_ref->{assigned_name}'";
-			print "\n\t\t\t\t # '$locus_ref->{extract_start}' - '$locus_ref->{extract_end}'";
+			if ($locus_ref->{assigned_name}) {
+				print "\n\t\t\t # previously assigned to: '$locus_ref->{assigned_name}'";
+			}
 		}
 		$is_in_range = $self->is_locus_in_range($locus_ref, $high_end);
 	}
-
-    # Check orientation 
-    
-
-    # If its on same scaffold and in range set merge flag to be 'true'
+	
+	# If its on same scaffold and in range set merge flag to be 'true'
 	if ($same_scaffold and $is_in_range) {	
 		$is_distinct = undef;
 	}
@@ -269,39 +270,53 @@ sub is_locus_on_same_scaffold {
 
 #***************************************************************************
 # Subroutine:  is_locus_in_range
-# Description: determine if a locus is merging range of another
+# Description: determine if a locus overlaps, or is within  merging range 
+#              of another locus.
 #***************************************************************************
 sub is_locus_in_range {
 
 	my ($self, $locus_ref, $high_end) = @_;
-
-	my $in_range = undef;
-	my $verbose = $self->{verbose};
 	
-	# Get data structures and values
+	# Get defragment buffer range
 	my $range        = $self->{defragment_range};
-	unless ($range) { die; }	
+	unless ($range and $high_end) { die; }	
+	
+	# Get defragment start and end coordinates
 	my $start        = $self->get_locus_start($locus_ref);
 	my $end          = $self->get_locus_end($locus_ref);
 	unless ($start and $end) { die; }	
 
+	# Add buffers to extract coordinates
+	my $in_range = undef;
 	my $buffered_start = $start - $range;
 	my $buffered_high_end = $high_end + $range;
-    if ($verbose) {
-		print "\n\t\t\t\t Buffered start: $start - $range\t= $buffered_start";
-		print "\n\t\t\t\t Buffered end:   $high_end + $range\t= $buffered_high_end";
-	}
-	if ($buffered_start <= $buffered_high_end) {
-        if ($verbose) {
-			print "\n\t\t\t ### MERGING because '$buffered_start' <= '$buffered_high_end'";
-		}
-		$in_range = 'true';
-	}
-	elsif ($self->{verbose}) {
-        my $diff = $buffered_start - $buffered_high_end; 
-		print "\n\t\t\t ### DISTINCT because '$buffered_start' > '$buffered_high_end'  (Difference = '$diff' nucleotides')";
-	}
 	
+	# Deal with negative start values
+	if ($buffered_start < 1) {
+		$buffered_start = 1;
+	}
+
+    # Check whether to merge
+	if ($buffered_start <= $buffered_high_end) {	
+		$in_range = 'true';  # Loci overlap when buffer is taken into consideration
+	}
+
+	# Show output if verbose flag set
+	my $verbose = $self->{verbose};
+	if ($verbose) {
+		
+		print "\n\t\t\t # Buffered start of this match: $start - $range\t= $buffered_start";
+		print "\n\t\t\t # Buffered end of previous match:   $high_end + $range\t= $buffered_high_end";
+		if ($in_range) {
+			print "\n\t\t\t # MERGING because this match starts within previous";
+		}
+
+		else {
+			my $diff = $buffered_start - $buffered_high_end; 
+			print "\n\t\t\t # DISTINCT because '$buffered_start' > '$buffered_high_end'  (Difference = '$diff' nucleotides')";
+		}
+	}
+
 	return $in_range;
 }
 
@@ -324,13 +339,8 @@ sub should_locus_be_merged {
 
 	# Check orientation
 	if ($orientation ne $last_orientation) {
-		unless ($mode eq 'consolidate') { 
-			print "\n\t\t Identified pair of loci that are in range, but different orientations";
-			return 0;
-		}
-		else {
-			unless ($last_gene and $gene) { die; } # Should never get here		
-		}
+		print "\n\t\t Identified pair of loci that are in range, but different orientations";
+		return 0;
 	}
 
 	unless ($gene) { # If there is no assigned gene set, use probe gene	
@@ -339,17 +349,10 @@ sub should_locus_be_merged {
 	unless ($last_gene) {  # If there is no assigned gene set, use probe gene	
 		$last_gene = $data_ref->{probe_gene};
 	}
+	if ($gene ne $last_gene) {
+		return 0; # Don't merge if they match different genes
+	}
 	
-	# Take action depending on whether we are DEFRAGMENTING or CONSOLIDATING
-	if ($mode eq 'defragment') {
-		if ($gene ne $last_gene) { return 0; }  # different genes
-	}
-	elsif ($mode eq 'consolidate' or $mode eq 'consolidate2') { 
-		# do nothing (these loci can be merged, even though different genes)
-	}
-	else { # Shouldn't get here
-		die;
-	}
 	return 1;	
 }
 
@@ -454,7 +457,7 @@ sub initialise_cluster {
 
 	$count = $count + 1;
 	if ($self->{verbose}) {
-		print "\n\t\t\t ### INITIALISING NEW CLUSTER!";
+		print "\n\t\t # Starting new locus recording!";
 	}
 
     my @array;
@@ -474,7 +477,7 @@ sub extend_cluster {
 	my ($self, $defragmented_ref, $hit_ref, $count) = @_;
 
 	if ($self->{verbose}) {
-		print "\n\t\t # Extending cluster '$count''";
+		print "\n\t\t\t ### Extending cluster '$count''";
 	}
     my $array_ref = $defragmented_ref->{$count};
     push (@$array_ref, $hit_ref);
@@ -530,7 +533,9 @@ sub merge_cluster {
 	my $previous_digs_result_id = undef;
 	foreach my $locus_ref (@$cluster_ref) {
  													
-		# Work out if we need to delete this row when we update
+		# Record the ID of rows in the cluster - these will be deleted and
+		# replaced with a new row representing the coordinates of the
+		# merged cluster
 		my $id  = $locus_ref->{digs_result_id};					
 		if ($id) {
 			push(@$delete_ref, $id);
@@ -604,7 +609,7 @@ sub get_loci_to_extract {
 		unless ($start and $end ) { die; } # Should definitely have these
 		$locus_ref->{start} = $start;
 		$locus_ref->{end}   = $end;
-		if ($verbose) { print "\n\t\t    - Adding locus '$start - $end'"; }
+		if ($verbose) { print "\n\t\t\t    - Adding locus '$start - $end'"; }
 		
 		push (@$to_extract_ref, $locus_ref);
 
@@ -727,8 +732,8 @@ sub defragment {
 	my %singletons;
 	my @to_delete;
 	$self->merge_clustered_loci(\%clusters, \%merged, \%singletons, \@to_delete);
-    # DEBUG $devtools->print_array(\@to_delete); # die;
-		
+	
+	# DEBUG $devtools->print_array(\@to_delete); # die;
 	if ($preview) {
 	
 		$self->display_config();
@@ -739,11 +744,11 @@ sub defragment {
 	# Get loci to extract
 	my @to_extract;
 	$self->get_loci_to_extract(\%merged, \%singletons, \@to_extract);
-    # DEBUG $devtools->print_array(\@to_extract); # die;
+	# DEBUG $devtools->print_array(\@to_extract); # die;
 
 	# Extract newly identified or extended sequences
 	my $target_groups_ref = $self->{target_groups};
-    # DEBUG $devtools->print_hash($target_groups_ref); # die;
+	# DEBUG $devtools->print_hash($target_groups_ref); # die;
   	my %by_target;
 	my @extracted;
 

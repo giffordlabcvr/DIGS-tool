@@ -419,7 +419,7 @@ sub check_genome_formatting {
 		# Check if the file looks like a BLAST sequence database file	
 		my $result = $self->check_filetype($type);
 		unless ($result) {
-			print "\n\t   File '$file' is not a recognized BLAST sequence database associated filetype";
+			print "\n\t   File '$file' is not a recognized BLAST-associated filetype";
 		}
 		
 		# Add this filestem to the list of filestems we have seen the stem
@@ -489,8 +489,11 @@ sub check_genome_formatting {
 sub check_filetype {
 
 	my ($self, $type) = @_;
+
 	my $result = undef;
+
 	if( $type eq 'fa'  or $type eq 'ol' or $type eq 'gz' or
+
 		$type eq 'nnd' or $type eq 'nni' or 
 		$type eq 'nsd' or $type eq 'nsi' or 
 		$type eq 'nsq' or $type eq 'ntm' or
@@ -498,11 +501,19 @@ sub check_filetype {
 		$type eq 'nin' or $type eq 'nhr' or
 		$type eq 'nhd' or $type eq 'nhi' or
 		$type eq 'nog' or $type eq 'nal' or
-		$type eq 'fai' or $type eq 'txt') {
+		$type eq 'nog' or $type eq 'nos' or
+		$type eq 'nog' or $type eq 'ntf' or
+		$type eq 'nog' or $type eq 'nto' or
+		$type eq 'nog' or $type eq 'not' or
+		$type eq 'fai' or $type eq 'ndb' or
+		$type eq 'txt') {
 
 		$result = 1;
+	
 	}
+
 	return $result;
+
 }
 
 #***************************************************************************
