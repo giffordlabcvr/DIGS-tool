@@ -15,7 +15,6 @@
 | bit_score_min_tblastn* | Minimum bit score of tBLASTn hit to extract |
 | bit_score_min_blastn** | Minimum bit score of BLASTn hit to extract |
 | seq_length_minimum | Minimum length of sequence to extract |
-| redundancy mode | A flag for setting how [overlapping, redundant and fragmented sequence hits are handled](https://github.com/giffordlabcvr/DIGS-tool/wiki/Redundant,-overlapping-&-fragmented-hits) |
 | defragment_range| Range within which two BLAST hits in the target sequence will be merged  |
 
 Footnote: * Only required for screens utilizing protein sequences. ** Only required for screens utilizing nucleotide sequences.
