@@ -23,6 +23,24 @@ The program is accessible through a text-based console interface.
 
 To run the DIGS tool and see options type: `./digs_tool.pl`
 
+
+## Quick Start
+
+To install DIGS:
+
+- Install Perl `DBI` and `DBD::MySQL` packages (if they are not already installed)
+- Set `$DIGS_HOME` and `$DIGS_GENOMES` environment variables
+- `$DIGS_HOME` = path to this repository
+- `$DIGS_GENOMES` = path to the top level of the target genomes directory
+- Create a MySQL user for DIGS
+- Set `$DIGS_MYSQL_USER` and `$DIGS_MYSQL_PASSWORD` environment variables
+
+To see options for screening: 
+
+```
+./digs_tool.pl -h
+```
+
 ## Input Data Components
 
 1. **Target Database (TDb):** A collection of whole genome sequence or transcriptome assemblies serving as the target for similarity searches.
@@ -44,10 +62,6 @@ The DIGS tool console allows the reclassification of sequences held in the resul
 BLAST algorithms emphasize local similarity and tend to fragment contiguous matches into several separate hits if similarity across some internal regions of the match is low. The DIGS tool allows screening pipelines to be configured with respect to how overlapping/adjacent hits are handled. This feature enables the screening process to be tailored to the specific needs of diverse projects.
 
 Additionally, the DIGS tool provides a ‘consolidation’ function that concatenates, rather than merges, adjacent hits. The consolidated results, along with information about their structure, are stored in a new screening database table.
-
-## Getting Started
-
-To use DIGS, follow the steps outlined in the previous sections for installing dependencies, setting up input data, running DIGS, and exploring results.
 
 ## Contributing
 
