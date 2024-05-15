@@ -1,6 +1,6 @@
 # DIGS tool Contributor Guidelines
 
-Welcome to DIGS tool ! We appreciate your interest in contributing to our project. By contributing, you help make DIGS tool  a better resource for the community.
+Welcome to the DIGS tool ! We appreciate your interest in contributing to our project. By contributing, you help make DIGS tool  a better resource for the community.
 
 ## Table of Contents
 
@@ -48,6 +48,6 @@ Please follow the existing code style within the DIGS tool project to maintain c
 
 ## License
 
-By contributing to DIGS tool , you agree that your contributions will be licensed under the [GNU Affero General Public License v. 3.0](https://www.gnu.org/licenses/agpl-3.0.en.html).
+By contributing to DIGS tool, you agree that your contributions will be licensed under the [GNU Affero General Public License v. 3.0](https://www.gnu.org/licenses/agpl-3.0.en.html).
 
 Thank you for contributing to DIGS tool !
