@@ -44,19 +44,13 @@ So far, we have not attempted to install DIGS on a Windows computer, though this
 
 Before setting up your own, bespoke screening pipeline, you may want to test-run DIGS using some of the examples included in this repo.
 
-&nbsp;
-
 *Step 2: setting up your DIGS screen*
 
 Setting up a screen means choosing probes, references and targets, and formatting these for use within DIGS. As much as you may want to get going with screening, it is vital to take some time here. At this point you will need to frame the question that you hope to answer through screening. Which target genomes and why? What kind of sequences are you looking for? Do you expect there to be cross-matching to other kinds of sequences that your are not interested in? 
 
-&nbsp;
-
 *Step 3: creating a control file*
 
 This should only take a few minutes. You can use the template example ('template.ctl') included in this repo.
-
-&nbsp;
 
 *Step 4: running the screen*
 
