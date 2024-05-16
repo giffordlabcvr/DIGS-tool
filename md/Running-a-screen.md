@@ -3,9 +3,10 @@
 Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
 
 ```
-./digs_tool.pl –m=1 –i=[path to control file]
+./digs_tool.pl –m=1 
 ```
-Once the screening database is successfully created, a screen can be executed as follows:
+
+Once the TDb has been prepared, a screen can be executed as follows:
 
 ```
 ./digs_tool.pl –m=2 –i=[path to control file]

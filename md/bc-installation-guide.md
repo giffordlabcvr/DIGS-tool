@@ -1,4 +1,4 @@
-# DIGS Tool Installation and Usage Guide
+# DIGS Tool Installation and Usage Guide (Boston College)
 
 ## Background
 
