@@ -67,7 +67,7 @@ Additionally, the DIGS tool provides a ‘consolidation’ function that concate
 
 The DIGS tool team is very open to further development of this software by the open source bioinformatics community. It is probably worth raising any ideas you have with the team before embarking on development. 
 
-If contributing to the DIGS tool, please review our [Contribution Guidelines](./md/CONTRIBUTING.md).
+If contributing to the DIGS tool, please review our [Contribution Guidelines](./md/contributing.md).
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./md/code_of_conduct.md) 
 
