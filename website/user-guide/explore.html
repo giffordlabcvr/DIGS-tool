@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+
+
+	<meta charset="UTF-8">
+	<title>Exploring Genomes Using DIGS</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
+	
+  </head>
+  
+  <body>
+  
+    <section class="page-header">
+
+
+    
+      <h1 class="project-name">DIGS</h1>
+      <h2 class="project-tagline">Database-Integrated Genome Screening</h2>
+     
+      
+      <a href="../../index.html" class="btn">Home</a>       
+       <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
+      <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">GitHub</a>
+      <a target="_blank" href="https://twitter.com/DigsTool" class="btn">Twitter</a>
+
+    </section>
+
+    <section class="main-content">
+
+
+
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring uncharted genomic territory using similarity search tools</strong>
+	</h3>
+	<hr>
+	
+
+	<p>
+	  Genomes are immensely complex and densely packed with multiple layers of information.
+	  Consequently, <strong>genome annotation</strong> is a challenging, long-term endeavour, and
+	  most published genome sequences are comprised of DNA that is
+	  incompletely understood in terms of its evolutionary origins and functional significance.
+	</p>
+	<br>
+
+
+
+	<img src="../assets/images/terra-incognita.jpg" alt="Terra incognita"/>
+	<br>
+
+	<br>
+
+
+
+
+	<p>
+	  Excitingly, however, this means that much can now be discovered
+	  by exploring this 'uncharted genomic territory' <b><i>in silico</i></b>
+	  - in other words, by analysing genome sequence data using a computer.
+	  While experimental studies are usually required to characterise genome
+	  features at a functional level, comparative sequence analysis
+	  can often provide crucial insights and inform the design of experiments. 
+	</p>
+
+
+	<p>
+	  <b>Sequence similarity searches</b>, such as those implemented in the  
+	  <a target="blank" href='https://blast.ncbi.nlm.nih.gov/Blast.cgi'><b>basic local alignment search tool (BLAST)</b></a> 
+	  program, can be powerful devices for performing comparative genomic investigations
+	  without relying on previously generated annotations.
+	  This approach is particularly useful for investigating the <b>hidden genomic
+	  information</b> that is missed by automated genome annotation tools
+	  - sometimes referred to as the <b>dark genome</b>.
+	</p>
+
+
+		 
+    <br>
+
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Buried treasure - how genomic information gets obscured</strong>
+	</h3>
+	<hr>
+
+
+	<p>
+	  There are a number of phenomena that obscure the 
+	  evolutionary relationships between genes and other genome features.
+	  These include:
+
+	</p>
+
+	<p>
+	  (i) <b>Erosion/Decay</b>. 
+
+	  Genome features that become redundant for one reason or another will tend to decay,
+	  being gradually eroded and fragmented by mutation.
+	  The degenerated molecular sequences of previously functional genes (called ‘pseudogenes’)
+	  can contain useful information, even when they are non-functional.
+	</p>
+
+
+
+	<img src="../assets/images/bryce-erosion.jpg"alt="Bryce Canyon"/>
+
+<blockquote>
+	  <b>Bryce Canyon</b>: Geological structures show the impact of erosion over macroevolutionary time scales.	  
+	  Similar processes operate in genomes, which are in part shaped by mutational decay
+	  of redundant information. 
+</blockquote>
+		 
+		 
+    <br>
+
+
+		<img src="../assets/images/palimpsest.jpg"alt="Palimpsest"/>
+
+
+<blockquote>
+	  <b>A palimpsest</b> - these are manuscript pages used in archaeology that
+	  have been written on more than once, with earlier writing incompletely erased.
+	  Overwriting can also occur at a genetic level, such that older information is obscured
+	  but not completely lost. Comparative sequence analysis can sometimes reveal
+	  these kinds of phenomena. 
+</blockquote>
+		 
+
+		 
+    <br>
+
+
+	<p>
+
+	  (ii) <b>Evolutionary 'dynamism'</b>. Whereas some genes undergo relatively
+	  measured change under natural selection, others evolve according to selective forces
+	  that strongly favour diversification, or are relatively ephemeral.
+	  These kinds of selective pressures may generate dynamic and unpredictable
+	  patterns of evolution
+	  (e.g. rapid change at specific loci, changes in gene structure and copy number) 
+	  with the result that evolutionary history is - to a greater or lesser extent -
+	  obscured when examining contemporary sequences. 
+	</p>
+
+	<p>
+      For example,
+	  the "Red Queen hypothesis", which takes it name from the character in 
+	  Lewis Caroll's Alice in Wonderland, relates to the idea that species can undergo
+	  rapid underlying evolutionary change while existing in an outwardly stable relationship
+	  (i.e. 'running to stand still')
+	  as they each acquire adaptations and counter-adaptations in a competition for survival. 
+
+	</p>
+
+	<img src="../assets/images/red-queen.jpg" alt="Alice and the Red Queen"/>
+
+
+<blockquote>
+	  <b>Red Queen dynamics</b>:
+	  "A slow sort of country!" said the Queen. "Now, here, you see, it takes all the
+	  running you can do, to keep in the same place. If you want to get somewhere else,
+	  you must run at least twice as fast as that!"
+</blockquote>
+
+	<br>
+
+	<p>
+
+	  (iii) <b>Horizontal transfer</b>.
+	  Occasionally, metazoan species acquire genes from one another, or from microbes
+	  (e.g. viruses and bacteria).
+	  Sequences that have arisen through horizontal transmission have an unpredictable
+	  distribution across genomes, and are often highly degraded by mutation.
+	  For these reasons, they are frequently absent from or incompletely captured by
+	  existing annotations.
+
+	</p>
+	<br>
+
+
+
+	<img src="../assets/images/tangled-tree.jpg"alt="Tangled tree"/>
+
+ 
+
+<blockquote>
+	  <b>Tangled trees</b> - horizontal gene transfer creates complex web-like relationships
+	  between the genomes of different species, and makes the distribution of related
+	  genes somewhat unpredictable. Focussed investigations are often needed to identify 
+	  horizontally transferred genes and map their relationships.
+</blockquote>
+ 
+	<br>
+ 
+	<p>
+
+	  (iv) <b>Transposition</b>. Transposable elements (TEs) are DNA sequences that are capable
+	  of replicating their sequences within species genomes using either 'copy-and-paste'
+	  or 'cut-and-paste' mechanisms.
+	  The activity of TEs has profoundly shaped metazoan genome evolution and the accompanying
+	  genomic 'churn' has driven the accumulation of immense complexity.
+
+	</p>
+
+
+ 
+	<p>
+
+     For example, studies in multicellular organisms have shown that <b>regulatory sequences</b>
+     involved in switching genes on or off during development are often comprised - at least in
+     part - of transposons.
+     This likely reflects a role for transposons in '<b>rewiring</b>' gene expression networks
+     over the course of evolution.
+ 
+	</p>
+	<br>
+
+    <img src="../assets/images/transposition.jpg"alt="Transposition and the embryo"/>
+
+
+<blockquote>
+	  <b>Mouse embryo at blastocyst stage</b>.
+ 	  Genomic and experimental evidence indicates that the battle to suppress selfish DNA
+ 	  such as transposons during embryogenesis has been a source of dynamism and innovation
+ 	  in the genomes of mammals.	  
+</blockquote>
+		 
+
+    <br>
+	<h3>
+		<a id="header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Exploring genomes <i>in silico</i> using sequence similarity search tools</strong>
+	</h3>
+	<hr>
+
+
+	<p>
+
+	  Because genomes can evolve in a very dynamic way, reconstructing their
+	  evolutionary history can be hugely challenging, but also presents an interesting puzzle
+	  that can potentially be solved through the diligent use of comparative approaches.
+	  These kinds of investigations often rely heavily on <b>similarity search tools</b>.
+
+	</p>
+
+
+	<p>
+
+      Many biologist are 
+	  familiar with similarity search tools - specifically <b>BLAST</b>- but typically only use them on
+	  an <i>ad hoc</i> or confirmatory basis - e.g. to answer questions like:
+	  
+
+	<p>
+	  
+	  "<i>Is this DNA/protein sequence what I think it is, and if not what is it?</i>"
+	</p>
+
+	<p>
+	  
+	  or
+	</p>
+
+	<p>
+	  "<i>Who else has published the sequence of this gene?</i>"
+	</p>
+
+	<p>
+	  However, similarity search tools are far more powerful than this.
+	  They are useful in many different scenarios: for example they can be used to:
+	  (i) quickly generate pairwise and multiple sequence 
+	  alignments, (ii) perform rapid 'genotyping' of query sequences (e.g. assigning
+	  viral sequences to substrains), and (iii) help define the genetic structure of genome features
+	  (e.g. by identifying features such as inversions, repeats and conserved domains).  
+	</p>
+
+	<p>
+
+      Moreover, similarity searches can be used to
+      <b>explore the continually expanding pool of
+      molecular sequence data</b> represented in genome sequence databases. 
+
+	</p>
+	
+	
+<br>
+    <p><img src="../assets/images/terra-incognita-squares.jpg" alt="Here be dragons" /></p>
+
+
+<blockquote>
+	  The complex world of genomes is only now beginning to be revealed - all kinds of 
+	  weird and wonderful biology lurks in public genome databases, awaiting discovery.
+	  Similarity searches provide a means to explore. 
+</blockquote>
+<br>
+
+	
+	<p>
+      For small-scale investigations of this nature, it may be sufficient to simply
+      run <i>ad hoc</i> BLAST searches online via a web browser.
+      However, larger-scale projects
+      will typically require a more systematic approach, wherein 
+      locally held sequence data are systematically 'screened' using a well-defined set of
+      query/probe and reference sequences. Since this will often entail large numbers of
+      searches, some degree of automation is typically required.
+
+	</p>
+
+
+	<p>
+      Unfortunately, however, such automated screening procedures can be difficult to implement and manage.
+      Firstly, exploring genomes <i>in silico</i> is often a heuristic, iterative process,
+      and as such requires a degree of oversight.
+      This is a significant challenge because screening can generate substantial quantities of 
+      output data that are difficult to interpret and manage without an appropriate analytical framework.
+      An additional complication is that the pool of publicly available data is continually
+      being updated, making it difficult to keep track of progress and maintain up-to-date information.
+     
+	</p>
+
+
+    <p><img src="../assets/images/hoskins.jpg" alt="Big data Hoskins" /></p>
+
+
+
+	<p>
+      To address these issues, we developed an approach called
+      <b>database-integrated genome screening (DIGS)</b>, in which a similarity search-based
+      screening pipeline is
+      linked to a <b>relational database management system (RDBMS)</b>, and the outputs are captured
+      in a project-specific relational database.
+      
+      This database-integrated approach provides a robust basis
+      for implementing automated screens that proceed in an efficient, non-redundant way.
+      It also allows screening data to be analysed and managed using <b>structured query language (SQL)</b>
+      - a well-established, powerful approach for querying relational databases.
+	</p>
+
+	<p>
+      Finally database integration provides all the advantages of an RDBMS
+      with respect to features such as <b>data recoverability</b>, <b>multi-user support</b>,
+      and <b>networked data access</b>.
+	</p>
+
+
+	
+
+	   <br>
+	   <h3>
+		 <a id="Publications" class="anchor" href="#Publications" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Publications Utilising DIGS</strong>
+	   </h3>
+	   <hr>
+
+	   <p>
+
+  
+		 Campbell M, Loncar S, Gifford RJ, Kotin R, and RJ Gifford
+		 <b>(2022)</b>
+		 <br>
+		 Comparative analysis reveals the long-term co-evolutionary history of parvoviruses and vertebrates.
+		 <br>
+		 <i>Plos Biology</i>
+		 <a href="https://doi.org/10.1371/journal.pbio.3001867" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+
+		 Bamford CGG, de Souza WM, Parry R and RJ Gifford
+		 <b>(2022)</b>
+		 <br>
+		 Comparative analysis of genome-encoded viral sequences reveals the evolutionary history of the <i>Flaviviridae</i>.
+         <br>
+		 <i>Virus Evolution</i>
+		 <a href="https://doi.org/10.1093/ve/veac085" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+         Wickenhagen A, Sugrue E, Lytras S, Kuchi S, Noerenberg M, Turnbull ML, Loney C, Herder V, Allan J, Jarmson I, Cameron-Ruiz N, Varjak M, Pinto RM, Lee JY, Iselin L, Palmalux N, Stewart DG, Swingler S, Greenwood EJD, Crozier TWM, Gu Q, Davies EL, Clohisey S, Wang B, Trindade Maranhão Costa F, Freire Santana M, de Lima Ferreira LC, Murphy L, Fawkes A, Meynert A, Grimes G, Da Silva Filho JL, Marti M, Hughes J, Stanton RJ, Wang ECY, Ho A, Davis I, Jarrett RF, Castello A, Robertson DL, Semple MG, Openshaw PJM, Palmarini M, Lehner PJ, Baillie JK, Rihn SJ, and SJ Wilson
+		 <b>(2021)</b>
+		 <br>
+         A prenylated dsRNA sensor protects against severe COVID-19.
+         <br>
+		 <i>Science</i>
+		 <a href="http://dx.doi.org/10.1126/science.abj3624" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+		 
+		 Lytras S, Arriagada G, and RJ Gifford
+		 <b>(2021)</b>
+		 <br>
+		 Ancient evolution of hepadnaviral paleoviruses and their impact on host genomes.
+		 <br>
+		 <i>Virus Evolution</i>
+		 <a href="https://academic.oup.com/ve/advance-article/doi/10.1093/ve/veab012/6157734" target="_blank">[view]</a>
+		 <br>
+		 <br>
+
+		 Hildebrandt E, Penzes J, Gifford RJ, Agbandje-Mckenna M, and R Kotin
+		 <b>(2020)</b>
+		 <br>
+		 Evolution of dependoparvoviruses across geological timescales – implications for design of AAV-based gene therapy vectors.
+		 <i>Virus Evolution</i> 
+		 <a href="https://academic.oup.com/ve/article/doi/10.1093/ve/veaa043/5842153">[view]</a> 
+		 <br>
+		 <br>
+
+		 Pénzes JJ, de Souza WM, Agbandje-Mckenna M, and RJ Gifford
+		 <b>(2019)</b>
+		 <br>
+		 An ancient lineage of highly divergent parvoviruses infects both vertebrate and invertebrate hosts.
+		 <br>
+		 <i>Viruses</i>
+		 <a href="https://www.mdpi.com/1999-4915/11/6/525" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+		 Ito J, Gifford RJ, and Kei Sato
+		 <b>(2019)</b>
+		 <br>
+		 Retroviruses drive the rapid evolution of mammalian APOBEC3 genes.
+		 <br>
+		 <i>PNAS</i>
+		 <a href="https://www.pnas.org/content/early/2019/12/11/1914183116" target="_blank">[view]</a>
+		 <br>
+		 <br>
+
+		 Shaw AE, Hughes J, Gu Q, Behdenna A, Singer J, Dennis T, Orton RJ, Varela M, Gifford RJ, Wilson SJ and M Palmarini
+		 <b>(2017)</b>
+		 <br>
+		 Fundamental properties of the mammalian innate immune system revealed by multi-species comparison of type I interferon responses.
+		 <br>
+		 <i>Plos Biology</i>
+		 <a href="http://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2004086" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+		 Hron T, Elleder D, and RJ Gifford
+		 <b>(2019)</b>
+		 <br>
+		 Deltaretroviruses have circulated since at least the Paleogene and infected a broad range of mammalian species.
+		 <br>
+		 <i>Retrovirology</i>
+		 <a href="https://retrovirology.biomedcentral.com/articles/10.1186/s12977-019-0495-9" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+		 Pénzes JJ, Marsile-Medun S, Agbandje-McKenna M, and RJ Gifford
+		 <b>(2018)</b>
+		 <br>
+		 Endogenous amdoparvovirus-related elements reveal insights into the biology and evolution of vertebrate parvoviruses.
+		 <br>
+		 <i>Virus Evolution</i>
+		 <a href="https://academic.oup.com/ve/article/4/2/vey026/5179240" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+		 Blanco Melo D, Gifford RJ, and P. Bieniasz
+		 <b>(2018)</b>
+		 <br>
+		 Reconstruction of a replication-competent ancestral murine endogenous retrovirus-L.
+		 <br>
+		 <i>Retrovirology</i>
+		 <a href="https://retrovirology.biomedcentral.com/articles/10.1186/s12977-018-0416-3" target="_blank">[view]</a>
+		 <br>
+		 <br>
+
+		 Dennis TPW, Flynn PJ, de Souza WM, Singer JB, Moreau CS, Wilson SJ, and RJ Gifford 
+		 <b>(2018)</b>
+		 <br>
+		 Insights into circovirus host range from the genomic fossil record.
+		 <br>
+		 <i>Journal of Virology</i>
+		 <a href="http://jvi.asm.org/content/92/16/e00145-18.full" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+		 Dennis TPW, de Souza WM, Marsile-Medun S, Singer JB, Wilson SJ, and RJ Gifford 
+		 <b>(2018)</b>
+		 <br>
+		 The evolution, distribution and diversity of endogenous circoviral elements in vertebrate genomes.
+		 <br>
+		 <i>Virus Research</i>
+		 <a href="https://www.sciencedirect.com/science/article/pii/S0168170217309048" target="_blank">[view]</a> 
+		 <br>
+		 <br>
+
+
+		 Blanco-Melo D, Gifford RJ, and PD Bieniasz
+		 <b>(2017)</b>
+		 <br>
+		 Co-option of an endogenous retrovirus envelope for host defense in hominid ancestors.
+		 <br>
+		 <i>Elife</i>
+		 <a href="https://elifesciences.org/articles/22519" target="_blank">[view]</a>
+		 <br>
+		 <br>
+
+
+	   </p>
+
+
+	 <footer class="site-footer">
+	   <span class="site-footer-owner"><a href="https://github.com/giffordlabcvr/DIGS-tool">DIGS</a> is maintained by <a href="https://github.com/giffordlabcvr">giffordlabcvr</a>.</span>
+
+	   <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+	 </footer>
+
+
+    </section>
+
+
+  </body>
+  
+</html>
