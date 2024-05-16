@@ -15,12 +15,24 @@ $DIGS_GENOMES/Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrX.fa
 
 **Indexing genome data for BLAST**
 
-BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the pipeline.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
+BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the digs_tool.pl.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
 
-To run the DIGS tool's genome formatting utility, execute the pipeline.pl script as follows:
+To run the DIGS tool's genome formatting utility, execute the digs_tool.pl.pl script as follows:
 
 ```
-./pipeline –m=8
+./digs_tool.pl –m=8
 ```
+
+**Some common FTP sources for genome sequence data**
+
+| Name | URL |
+|---|---|
+|NCBI genomes |	ftp://bio-mirror.net/biomirror/ncbigenomes/ |
+| Broad Institute genomes | http://www.broadinstitute.org/ftp/pub/assemblies/ |
+| Ensembl genomes	| ftp://ftp.ensembl.org/pub/release-67/fasta/ |
+| UCSC Goldenpath	| http://hgdownload.soe.ucsc.edu/goldenPath/ |
+
+
+
 
 

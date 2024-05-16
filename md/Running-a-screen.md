@@ -28,7 +28,7 @@ bg
 You should then see this output:
 
 ```
-./digs_tool.pl.pl -i ctl/example_1_EVE.ctl -m=2 > screen.log &
+./digs_tool.pl -i ctl/example_1_EVE.ctl -m=2 > screen.log &
 ```
 
 To check progress on the backgrounded screen, view the log file. For example using:
@@ -36,4 +36,33 @@ To check progress on the backgrounded screen, view the log file. For example usi
 tail screen.log 
 ```
 
+
+**Iterating and refining DIGS**
+
+Exploratory screening is a dynamic discovery process, and it is likely that early screening databases will be superseded by later ones that incorporate more refined probe sets and reference sequence libraries.
+
+For example, an initial screen may lead to the creation of a more refined reference sequence library that incorporates a finer-grained classification of reference sequences, or includes novel references identified through the first round of screening.
+
+To update the contents of the Extracted table to reflect changes in the reference library, execute the digs_tool.pl.pl script as follows.
+
+```
+./digs_tool.pl –m=3 –i=[path to control file]
+```
+
+**Refreshing and deleting DIGS databases**
+
+The digs_tool.pl script can also be used to 'flush' (empty/reset) and delete databases. Execute digs_tool.pl as follows to flush data a screening database.
+
+```
+./digs_tool.pl –m=5 –i=[path to control file]
+```
+
+To delete a screening database, execute digs_tool.pl.pl as follows:
+
+```
+./digs_tool.pl –m=6 –i=[path to control file]
+```
+
+
+This will drop (delete) the screening database specified in the control file.
 

@@ -1,4 +1,4 @@
-**Tristan's guide to installing the DIGS tool on Mac**
+**Installing the DIGS tool on Mac**
 
 Installing the DIGS tool on your Mac PC can be a convenient way to perform screens without the need for a network connection. Do bear in mind that you'll need to keep local copies of all the genomes you plan to screen, which may eat up a fair amount of disk space.  
 
