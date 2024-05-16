@@ -1,4 +1,4 @@
-**Quick start**
+## Quick start
 
 Steps involved in installing the DIGS tool and using it to perform DIGS:
 
