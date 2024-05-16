@@ -11,7 +11,7 @@ This directory should contain sub-directories that organise tDB files by species
 
 Within the 'species group' directory, tDB files are grouped accoridng to the species from which they were generated. We advise the use of Latin binomial species names (e.g. homo_sapiens).
 
-The directory level mmediately below 'species' is used for organising tDB files by type, e.g. low coverage, wgs_assembly, transcriptome.
+The directory level immediately below 'species' is used for organising tDB files by type, e.g. low coverage, wgs_assembly, transcriptome.
 
 Finally, within the 'data_type' level, tDB files should be grouped according to the assembly version.
 
