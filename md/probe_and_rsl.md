@@ -2,9 +2,7 @@
 
 DIGS requires a library of FASTA-formatted sequences to provide (i) **probes** for the first step pf paired BLAST, and (ii) **reference sequences** for the second step of paired BLAST. 
 
-[[images/FASTA-format.png]]
-
-The DIGS tool uses a simple rule to capture data from the headers of FASTA-formatted reference (and probe) sequences; headers should be structured so as to define two hierarchical name elements; ‘name’ and ‘gene_name’, separated by an underscore. In the example shown above these are a virus name and a gene name. Other two-level hierarchical naming schemes (e.g. species & gene name, gene-subdomain name) can also be used, providing the same scheme is used consistently throughout the project. Reference sequences should be stored in a file, the path to which will be specified in the DIGS [control file](https://github.com/giffordlabcvr/DIGS-tool/wiki/Setting-up-a-control-file).
+The DIGS tool uses a simple rule to capture data from the headers of FASTA-formatted reference (and probe) sequences; headers should be structured so as to define two hierarchical name elements; ‘name’ and ‘gene_name’, separated by an underscore. In the example shown above these are a virus name and a gene name. Other two-level hierarchical naming schemes (e.g. species & gene name, gene-subdomain name) can also be used, providing the same scheme is used consistently throughout the project. Reference sequences should be stored in a file, the path to which will be specified in the DIGS control file.
 
 **Selecting probe sequences for BLAST-based screening**
 
