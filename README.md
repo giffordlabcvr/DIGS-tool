@@ -3,7 +3,9 @@
 
 ## Overview
 
-DIGS (Database-Integrated Genome Screening) is a powerful approach for identifying genome features within the dark genome. It extends the concept of similarity searches, such as those implemented in [BLAST](https://blast.ncbi.nlm.nih.gov/), by incorporating multiple query sequences and/or target databases. It also involves the classification of matching sequences ('hits') via comparison to a user-curated reference sequence library, providing a structured and efficient approach to *in silico* genome screening. The DIGS tool is a software framework for implementing DIGS.
+DIGS (Database-Integrated Genome Screening) is a powerful approach for identifying genome features within the dark genome. It extends the concept of similarity searches, such as those implemented in [BLAST](https://blast.ncbi.nlm.nih.gov/), by incorporating multiple query sequences and/or target databases. It also involves the classification of matching sequences ('hits') via comparison to a user-curated reference sequence library, providing a structured and efficient approach to *in silico* genome screening.
+
+The DIGS tool is a software framework for implementing DIGS.
 
 ## Key Features
 
