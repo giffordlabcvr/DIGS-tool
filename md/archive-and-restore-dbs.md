@@ -1,13 +1,21 @@
-Screening database dump files can be generated using the 'mysqldump program (part of MySQL distribution). For example to backup a single database:
+# Archiving and Restoring Databases
 
-```
-mysqldump -u root -p[root_password] [database_name] > dumpfilename.sql
-```
+Database dump files can be generated using the `mysqldump` program (part of the MySQL distribution). For example:
 
-Databases can be restored as follows:
-
-```
-mysql -u root -p[root_password] [database_name] < dumpfilename.sql
+```bash
+mysqldump -u root -p [database_name] > dumpfilename.sql
 ```
 
-**Note**: you must create the database before you perform the above command.
+To restore a database, use the following command:
+
+```
+mysql -u root -p [database_name] < dumpfilename.sql
+```
+
+**Note**:  Make sure you create the database before running the restore command. You can create a database with:
+
+```
+mysql -u root -p -e "CREATE DATABASE [database_name];"
+```
+
+Replace [database_name] with the name of your database and dumpfilename.sql with the name of your dump file.
