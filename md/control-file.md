@@ -1,4 +1,4 @@
-**Parameters defined in the DIGS control file**
+# Parameters Defined in the DIGS Control File
 
 The DIGS control file contains parameters and paths for DIGS. Not all parameters are necessary for every screening configuration. 
 
