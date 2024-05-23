@@ -1,3 +1,5 @@
+# Database querying examples
+
 **How many rows in the digs_results table?**
 
 ```
