@@ -1,6 +1,6 @@
 # Target database
 
-**Organizing genome data for screening**
+## Organizing genome data for screening
 
 The DIGS tool is designed for screening local sequence databases. This 'target database' (tDB) comprises sets files containing FASTA-formatted nucleotide sequence data that has been indexed for BLAST screening (a function of the BLASTx progra suite). Files in the tDB should be stored in a directory tree with a specific structure. 
 
@@ -17,7 +17,7 @@ The directory level immediately below 'species' is used for organising tDB files
 
 Finally, within the 'data_type' level, tDB files should be grouped according to the assembly version.
 
-**Indexing genome data for BLAST**
+## Indexing genome data for BLAST
 
 BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the digs_tool.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
 
