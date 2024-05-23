@@ -2,7 +2,7 @@
 
 The DIGS tool is designed for use with locally stored, FASTA formatted sequence data. Genome data should be stored in a directory tree with a specific structure. 
 
-[[images/TargetFileDirectory.png]]
+
 
 The 'target genomes directory' should have five levels, as illustrated above. The top directory level should be the path specified under the DIGS environment variable ($DIGS_GENOMES). The top two directory levels can be named anything. 
 
@@ -24,3 +24,4 @@ To run the DIGS tool's genome formatting utility, execute the pipeline.pl script
 ```
 
 
+[genome-data.md](https://github.com/giffordlabcvr/DIGS-tool/files/15422633/genome-data.md)
