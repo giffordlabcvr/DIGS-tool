@@ -1,28 +1,33 @@
 **Parameters defined in the DIGS control file**
 
+The DIGS control file contains parameters and paths for DIGS. Not all parameters are necessary for every screening configuration. 
+
 | Parameter | Definition |
 |---|---|
 | SCREENDB BLOCK |  |
-| db_name | Name of the a screening database for this screening run |
-| mysql_server: | MySQL server to use (e.g. 'localhost' if using local database) |
+| db_name | Name of the screening database for this screening run |
+| mysql_server: | MySQL server to use (e.g. 'localhost' for a local database) |
 | SCREENSETS BLOCK |  |
 | query_aa_fasta* | Path to FASTA file with amino acid probe sequences |
 | query_na_fasta* | Path to FASTA file with nucleic acid probe sequences |
 | reference_aa_fasta ** | Path to FASTA file with amino acid reference sequences |
 | reference_na_fasta ** | Path to FASTA file with nucleic acid reference sequences |
-| bit_score_min_tblastn* | Minimum bit score of tBLASTn hit to extract |
-| bit_score_min_blastn** | Minimum bit score of BLASTn hit to extract |
-| seq_length_minimum | Minimum length of sequence to extract |
+| bit_score_min_tblastn* | Minimum bit score for recording hits (tBLASTn) |
+| bit_score_min_blastn** | Minimum bit score for recording hits (BLASTn) |
+| seq_length_minimum | Minimum length (nucleotides) for recording hits  |
 | defragment_range| Range within which two BLAST hits in the target sequence will be merged  |
 
 Footnote: * Only required for screens utilizing protein sequences. ** Only required for screens utilizing nucleotide sequences.
 
-The DIGS control file contains parameters and paths for DIGS. Control files are structured as NEXUS style blocks  delineated by BEGIN and ENDBLOCK tokens. An annotated example of a DIGS control file is shown below.  Note that not all parameters will need to be defined for every screen. 
 
-**Example control file for a polypeptide-based screen**
+## Structure of the DIGS Control File
+
+Control files are structured as NEXUS-style blocks delineated by BEGIN and ENDBLOCK tokens.
+
+Below is an annotated example of a DIGS control file for a polypeptide-based screen:
 
 ```
-Begin SCREENDB;
+BEGIN SCREENDB;
     db_name=[your screening database name];
     mysql_server=[localhost];
 ENDBLOCK;
@@ -42,18 +47,27 @@ BEGIN TARGETS;
 ENDBLOCK;
 ```
 
-**SCREENDB block**
+# SCREENDB Block
 
-Block used to define the DB connection details. These include the name of the screening database, and three parameters for connecting to MySQL; (i) server, (ii) user and (iii) password. Note that the user should have CREATE, DROP, SELECT, ALTER, and DELETE privileges
+The SCREENDB block defines the database connection details:
 
+- **db_name**: The name of the screening database.
+- **mysql_server**: The MySQL server (e.g., 'localhost' for local databases).
 
-**SCREENSETS block**
+Ensure the MySQL user has the necessary privileges: CREATE, DROP, SELECT, ALTER, and DELETE.
 
-This block is used to set paths and parameters for BLAST-based screening. These include the paths to probe and reference libraries, and thresholds for BLAST significance. See [here](https://github.com/giffordlabcvr/DIGS-tool/wiki/Appendices) for a complete description of the parameters that can be specified in this block.
+# SCREENSETS Block
 
-**TARGETS block**
+The SCREENSETS block sets paths and parameters for BLAST-based screening:
 
-The targets block should contains the paths to the target files in a directory hierarchy as shown on [this page](https://github.com/giffordlabcvr/DIGS-tool/wiki/Creating-a-target-genome-directory). The DIGS tools will include every FASTA file below the specified path as a target. For example, if only the top two levels are specified, as follows:
+- Paths to probe and reference libraries.
+- Thresholds for BLAST significance.
+
+For a complete description of all possible parameters, refer to the DIGS tool wiki.
+
+# TARGETS Block
+
+The TARGETS block specifies the paths to target files within a directory hierarchy. The DIGS tool will include every FASTA file under the specified path. For example:
 
 ```
 BEGIN TARGETS;
@@ -61,7 +75,10 @@ BEGIN TARGETS;
 ENDBLOCK;
 ```
 
-...all types and versions of all genomes stored under the path '$DIGS_GENOMES/Mammals' would be included in the screen. To target a screen to individual files, write the complete path. For example:
+This includes all genomes stored under the path $DIGS_GENOMES/Mammals.
+
+To target specific files, specify the complete paths:
+
 
 ```
 BEGIN TARGETS;
@@ -69,4 +86,3 @@ BEGIN TARGETS;
     Mammals/Homo_sapiens/Complete/ncbi_37.3_june_11/ChrY.fa
 ENDBLOCK;
 ```
-
