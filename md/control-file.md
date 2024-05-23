@@ -25,8 +25,6 @@ The DIGS control file contains parameters and paths for DIGS. Control files are 
 Begin SCREENDB;
     db_name=[your screening database name];
     mysql_server=[localhost];
-    mysql_username=[your username];
-    mysql_password=[your password];
 ENDBLOCK;
 
 BEGIN SCREENSETS;
@@ -35,7 +33,6 @@ BEGIN SCREENSETS;
     output_path=[path to output folder];
     bit_score_min_tblastn=100;
     seq_length_minimum=100;
-    redundancy_mode=2;
     defragment_range=100;
 ENDBLOCK;
 
