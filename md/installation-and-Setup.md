@@ -34,7 +34,7 @@ Information regarding the installation of MySQL on LINUX can be found [here](htt
 
 ### MySQL GUI client
 
-A MySQL client with a graphical user interface (GUI) - e.g. [Sequel Pro](http://www.sequelpro.com) - is a useful tool for interacting with screening databases. 
+A MySQL client with a graphical user interface (GUI) - e.g. [Sequel Ace](https://sequel-ace.com/) - is a useful tool for interacting with screening databases. 
 
 
 
