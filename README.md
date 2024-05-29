@@ -101,19 +101,6 @@ Similarity search based screening is a computationally intensive procedure, and 
 2. **Query Sequences (Probes):** Input sequences for similarity searches of the Target Database.
 3. **Reference Sequence Library (RSL):** Represents the genetic diversity associated with the genome feature(s) under investigation.
 
-## Screening Process
-
-To initiate screening using the DIGS tool, researchers provide a project-specific command file that serves as the blueprint for the screening process. This command file specifies parameters, including the user-defined name of the screening database, and file paths to the TDb, RSL, and probe sequences.
-
-When a screen is initiated, a project-specific database is created. The core schema of this database can be extended to include any relevant "side data," such as taxonomic information related to the species and sequences included in the screen. This extension increases the power of SQL queries to reveal informative patterns.
-
-Systematic screening proceeds automatically until all searches have been completed. If the process is interrupted at any point or if novel probe/target sequences are incorporated into the project, screening will proceed in a non-redundant way on restarting. Thus, screening projects can readily be expanded to incorporate new TDb files (e.g., recently published WGS assemblies) or novel probe/reference sequences as they become available.
-
-The DIGS tool console allows the reclassification of sequences held in the results table, for example, following an RSL update. To increase efficiency, this process can be tailored to specific subsets of database sequences by supplying SQL constraints via the DIGS tool console.
-
-
-## Target Database
-
 Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
 
 ```
