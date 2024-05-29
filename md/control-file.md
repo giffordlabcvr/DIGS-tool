@@ -1,4 +1,4 @@
-# Parameters Defined in the DIGS Control File
+## Parameters Defined in the DIGS Control File
 
 The DIGS control file contains parameters and paths for DIGS. Not all parameters are necessary for every screening configuration. 
 
@@ -47,7 +47,7 @@ BEGIN TARGETS;
 ENDBLOCK;
 ```
 
-# SCREENDB Block
+#### SCREENDB Block
 
 The SCREENDB block defines the database connection details:
 
@@ -56,7 +56,7 @@ The SCREENDB block defines the database connection details:
 
 Ensure the MySQL user has the necessary privileges: CREATE, DROP, SELECT, ALTER, and DELETE.
 
-# SCREENSETS Block
+#### SCREENSETS Block
 
 The SCREENSETS block sets paths and parameters for BLAST-based screening:
 
@@ -65,7 +65,7 @@ The SCREENSETS block sets paths and parameters for BLAST-based screening:
 
 For a complete description of all possible parameters, refer to the DIGS tool wiki.
 
-# TARGETS Block
+#### TARGETS Block
 
 The TARGETS block specifies the paths to target files within a directory hierarchy. The DIGS tool will include every FASTA file under the specified path. For example:
 
