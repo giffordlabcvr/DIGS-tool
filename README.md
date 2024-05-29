@@ -16,10 +16,6 @@ The DIGS tool is a software framework for implementing DIGS.
 
 ## Implementation and Compatibility
 
-The DIGS tool is implemented using the [PERL](https://www.perl.org/) scripting language and is compatible with UNIX/LINUX operating systems.
-
-The DIGS tool uses the [BLAST+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) program suite to perform similarity searches, and the [MySQL](https://dev.mysql.com/downloads/mysql/) relational database management system to capture their output.
-
 To run the DIGS tool requires PERL, BLAST+, and MySQL (or a supported fork of MySQL such as MariaDB).
 
 The program is accessible through a text-based console interface.
