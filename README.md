@@ -92,6 +92,40 @@ This should only take a few minutes. You can use the template example ('template
 
 Similarity search based screening is a computationally intensive procedure, and can take hours to days to complete. The DIGS output will show how far along the screen is in terms of queries executed, but bear in mind that the length of time each query takes will depend on the size of the target file and the scarcity/abundance of sequences matching the probe in the target file. 
 
+# Running a screen 
+
+
+## Input Data Components
+
+1. **Target Database (TDb):** A collection of whole genome sequence or transcriptome assemblies serving as the target for similarity searches.
+2. **Query Sequences (Probes):** Input sequences for similarity searches of the Target Database.
+3. **Reference Sequence Library (RSL):** Represents the genetic diversity associated with the genome feature(s) under investigation.
+
+## Screening Process
+
+To initiate screening using the DIGS tool, researchers provide a project-specific command file that serves as the blueprint for the screening process. This command file specifies parameters, including the user-defined name of the screening database, and file paths to the TDb, RSL, and probe sequences.
+
+When a screen is initiated, a project-specific database is created. The core schema of this database can be extended to include any relevant "side data," such as taxonomic information related to the species and sequences included in the screen. This extension increases the power of SQL queries to reveal informative patterns.
+
+Systematic screening proceeds automatically until all searches have been completed. If the process is interrupted at any point or if novel probe/target sequences are incorporated into the project, screening will proceed in a non-redundant way on restarting. Thus, screening projects can readily be expanded to incorporate new TDb files (e.g., recently published WGS assemblies) or novel probe/reference sequences as they become available.
+
+The DIGS tool console allows the reclassification of sequences held in the results table, for example, following an RSL update. To increase efficiency, this process can be tailored to specific subsets of database sequences by supplying SQL constraints via the DIGS tool console.
+
+
+## Target Database
+
+Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
+
+```
+./digs_tool.pl –m=1 –i=[path to control file]
+```
+Once the screening database is successfully created, a screen can be executed as follows:
+
+```
+./digs_tool.pl –m=2 –i=[path to control file]
+```
+Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
+
 
 ## Contributing
 
