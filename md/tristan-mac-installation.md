@@ -128,32 +128,22 @@ Try navigating to them by cd’ing into them from the command line - you should 
 
 Next step is to set up your screen. You will need a files of reference and probe sequences (in FASTA), and a control file. Read the relevant parts of this wiki for more information.
 
-Once your files are in order, navigate to DIGS directory and check to see if pipeline.pl (the main DIGS script) works. Executing:
+Once your files are in order, navigate to DIGS directory and check to see if digs_tool.pl (the main DIGS script) works. Executing:
 
 ```
-./pipeline.pl -h
+./digs_tool.pl -h
 ```
 
 Should give you something like this:
 
 ```
-pc231-222:~ tristandennis$ pipeline.pl -h
-
- Usage: /Users/tristandennis/DIGS/pipeline.pl -m=[option] -i=[control file]
-
- -m=1  Create screening DB
- -m=2  Screen
- -m=3  Reassign
- -m=4  Flush screening DB
- -m=5  Drop screening DB
- -m=6  Manage ancillary tables
- -m=7  Format genome directory ($DIGS_GENOMES)
+pc231-222:~ tristandennis$ digs_tool.pl -h
 
 ```
 Now you need to create your screening database, so first run as follows:
 
 ```
-./pipeline –m=1 –i=[path to control file]
+./digs_tool –m=1 –i=[path to control file]
 ```
 
 Check to see if it’s worked by opening your SQL client and logging in with your MySQL credentials:
