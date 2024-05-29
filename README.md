@@ -72,9 +72,7 @@ Steps involved in installing the DIGS tool and using it to perform DIGS:
 
 #### Step 1: installing the required components for DIGS
 
-In principle this step should be straightforward, but there is some uncertainty as it depends on your platform and operating system. All of the components of DIGS (PERL, BLAST, MySQL) and well-established and widely used within bioinformatics, and in theory should be straightforward to install. A typical bioinformatics server will usually have most if not all of these programs installed already. If installations are required, they should only take a few minutes, especially for experienced bioinformaticians working on LINUX/UNIX operating systems.
-
-Away from LINUX, things are less predicable. On Macintosh computers one PERL library (DBD::MySQL) does not come as standard, and may not work 'out-of-the-box'). We have created a [wiki page dedicated to addressing this issue](https://github.com/giffordlabcvr/DIGS-tool/wiki/Installing-the-DIGS-tool-on-your-mac). Hopefully, these instructions will help resolve such issues, should they arise, within a few minutes.
+In principle this step should be straightforward, but there is some uncertainty as it depends on your platform and operating system. All of the components of DIGS (PERL, BLAST, MySQL) and well-established and widely used within bioinformatics, and in theory should be straightforward to install. A typical bioinformatics server will usually have most if not all of these programs installed already. If installations are required, they should only take a few minutes, especially for experienced bioinformaticians working on LINUX/UNIX operating systems. Away from LINUX, things are less predicable. On Macintosh computers one PERL library (DBD::MySQL) does not come as standard, and may not work 'out-of-the-box'). 
 
 #### Step 2: setting up your DIGS screen
 
