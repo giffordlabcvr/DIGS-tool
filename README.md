@@ -94,18 +94,6 @@ Similarity search based screening is a computationally intensive procedure, and 
 2. **Query Sequences (Probes):** Input sequences for similarity searches of the Target Database.
 3. **Reference Sequence Library (RSL):** Represents the genetic diversity associated with the genome feature(s) under investigation.
 
-Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
-
-```
-./digs_tool.pl –m=1 –i=[path to control file]
-```
-Once the screening database is successfully created, a screen can be executed as follows:
-
-```
-./digs_tool.pl –m=2 –i=[path to control file]
-```
-Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
-
 ### Organizing genome data for screening
 
 The DIGS tool is designed for screening local sequence databases. This 'target database' (tDB) comprises sets files containing FASTA-formatted nucleotide sequence data that has been indexed for BLAST screening (a function of the BLASTx progra suite). Files in the tDB should be stored in a directory tree with a specific structure. 
@@ -123,15 +111,23 @@ The directory level immediately below 'species' is used for organising tDB files
 
 Finally, within the 'data_type' level, tDB files should be grouped according to the assembly version.
 
+
 ### Indexing genome data for BLAST
 
-BLAST requires that FASTA files are indexed for similarity searches using the 'makeblastdb' program that is distributed with the BLAST+ package. Because this can be time-consuming when screening many separate files, the digs_tool.pl script includes an option to automatically format target FASTA files. Note that for this to work properly, FASTA files MUST be labeled with the appropriate file extensions (.fa, .fas, or .fasta).
-
-To run the DIGS tool's genome formatting utility, execute the digs_tool.pl script as follows:
+Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
 
 ```
-./digs_tool.pl –m=1
+./digs_tool.pl –m=1 –i=[path to control file]
 ```
+
+### Running a sceen
+
+Once the screening database is successfully created, a screen can be executed as follows:
+
+```
+./digs_tool.pl –m=2 –i=[path to control file]
+```
+Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
 
 
 ## Contributing
