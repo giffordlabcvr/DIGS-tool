@@ -107,6 +107,17 @@ The directory level immediately below 'species' is used for organising tDB files
 
 Finally, within the 'data_type' level, tDB files should be grouped according to the assembly version.
 
+### Creating a reference sequence library
+
+DIGS requires a library of FASTA-formatted sequences to provide (i) **probes** for the first step pf paired BLAST, and (ii) **reference sequences** for the second step of paired BLAST. 
+
+The DIGS tool uses a simple rule to capture data from the headers of FASTA-formatted reference (and probe) sequences; headers should be structured so as to define two hierarchical name elements; ‘name’ and ‘gene_name’, separated by an underscore. In the example shown above these are a virus name and a gene name. Other two-level hierarchical naming schemes (e.g. species & gene name, gene-subdomain name) can also be used, providing the same scheme is used consistently throughout the project. Reference sequences should be stored in a file, the path to which will be specified in the DIGS control file.
+
+### Selecting probe sequences for BLAST-based screening
+
+A subset of reference sequences should be selected as probes. The entire reference library can be used - in which case there is no need to create a separate file – but it is often sufficient to use only a subset of sequences from the reference sequence library, in which case, a separate file containing this subset should be created. The path to this file is specified in the DIGS [control file](https://github.com/giffordlabcvr/DIGS-tool/wiki/Setting-up-a-control-file).
+
+**NOTE:** DIGS can utilize both polypeptide and nucleotide sequences within the same project and database, but separate probe and reference files should be created for nucleotide and polypeptide sequences, and separate screens using distinct control file parameters should be performed for each. 
 
 ### Indexing genome data for BLAST
 
@@ -124,6 +135,7 @@ Once the screening database is successfully created, a screen can be executed as
 ./digs_tool.pl –m=2 –i=[path to control file]
 ```
 Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
+
 
 
 ## Contributing
