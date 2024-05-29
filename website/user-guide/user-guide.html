@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>DIGS tool: User Guide</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
+
+  </head>
+  
+  <body>
+    <section class="page-header">
+    
+      <h1 class="project-name">DIGS</h1>
+      <h2 class="project-tagline">Database-Integrated Genome Screening</h2>
+      
+      <a href="../../index.html" class="btn">Home</a>
+      <a href="./explore.html" class="btn">Background</a>
+      <a href="./overview.html" class="btn">DIGS</a>
+      <a href="https://github.com/giffordlabcvr/DIGS-tool/zipball/master" class="btn">Download</a>
+      <a target="_blank" href="https://github.com/giffordlabcvr/DIGS-tool" class="btn">GitHub</a>
+      <a target="_blank" href="https://twitter.com/DigsTool" class="btn">Twitter</a>
+      
+    </section>
+
+    <section class="main-content">
+
+	   <img src="../assets/images/user-guide.jpg"alt="User guide"/>
+       
+	   <h2>
+		 <a id="Contents" class="anchor" href="#Contents" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Contents</strong>
+	   </h2>
+       <hr>
+
+
+	   <p> 
+	   
+	   
+		 <ol>
+			 <li> <a href="#Setup"><b>Part 1. Setting up for DIGS</b></a>
+			 <br>
+			 <br>
+				<ol>
+					<a href="#installSoftware"><li> Software requirements</li></a>
+					<a href="#environmentVariables"><li> Program-specific environment variables</li></a>
+					<a href="#setUpTargetLibrary"><li> Setting up target libraries</li></a>
+					<a href="#setUpReferenceLibrary"><li> Creating project-specific sequence libraries</li></a>
+					<a href="#setUpControlFile"><li> Creating a project-specific 'control file'</li></a>
+				</ol>
+			 </li>
+			 <br>
+			 <li> <a href="#performingScreening"><b>Part 2. Performing DIGS and working with project databases</li></b></a>
+			 <br>
+				<ol>
+					<a href="#runScreen"><li> Running an <i>in silico</i> screen</li></a>
+					<a href="#inspectResults"><li> Investigating screening results via a GUI SQL client</li></a>
+					<a href="#updateRefSeqsAndReassign"><li> Updating reference sequences and reclassifying results</li></a>
+					<a href="#addingSideData"><li> Incorporating linked data into a DIGS project</li></a>
+					<a href="#consolidate"><li> 'Consolidate': Merging hits in the DIGS results table into larger sequences.</li></a>
+					<a href="#extractSequences"><li> Extracting hit sequences and their flanks using the DIGS tool</li></a>
+				</ol>
+			 </li>
+		 </ol>
+
+
+ 	   </p>
+ 	   
+ 	   
+       <br>
+       
+
+
+
+	   <h2>
+		 <a id="Setup" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 1. Setting up for DIGS</strong>
+	   </h2>
+       <hr>
+
+
+
+
+
+	   <h3>
+		 <a id="installSoftware" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.1. Software requirements</strong>
+	   </h3>
+       <hr>
+       
+
+	   <p>
+         <u><b>DIGS tool</b></u>:<br>
+         The latest version can be obtained by clicking the 'Download' button at the top of this page.
+         All software used within the DIGS framework can be installed on <b>LINUX</b> or <b>UNIX</b> systems.
+	   </p>
+
+
+
+	   <p>
+          
+         <b>*</b> Since <b>Macintosh</b> (OSX and above) and <b>Windows</b> (10 and above)
+         both have LINUX/UNIX subsystems, 
+         implementation on these platforms is - in theory - also possible.
+         In practice, however, this may require some troubleshooting, and should probably
+         only be attempted by users comfortable with tackling issues related to use of
+         PERL's <a target="_blank" href="http://dbi.Perl.org/)">DBI (database interface)</a>
+         on these platforms.
+         
+	   </p>
+
+
+	   <p>
+         <u><b>Scripting language</b></u>:<br>
+         The DIGS tool requires <a target="_blank" href="https://www.perl.org/"><b>PERL</b></a>.
+         The <a target="_blank" href="http://dbi.Perl.org/)"><b>DBI (database interface)
+         module</b></a> should be installed via <a target="_blank" href="https://www.cpan.org/"><b>CPAN</b></a> if it is not part of your native PERL distribution. 
+	   </p>
+
+
+
+	   <p>
+         <u><b>Similarity searches</b></u>:<br>
+         The DIGS tool uses the freely available
+         <a target="_blank" href="https://blast.ncbi.nlm.nih.gov/Blast.cgi"><b>BLAST+</b></a>
+         package to perform sequence similarity searches.
+	   </p>
+
+
+ 	   <p>
+        
+         <u><b>Relational database management system (RDBMS)</b></u>:<br>
+         The DIGS tool uses the <b>MySQL</b> relational database management system.
+         <a target="_blank" href="http://dev.mysql.com/downloads/mysql/"><b>MySQL Community Server</b></a>
+         is a free-to-use, open source version of this program.
+	   </p>
+
+	   
+
+	   <p>
+		 <u><strong>GUI client for relational database (optional)</strong></u>:<br>
+		 To interface with DIGS project databases via a graphical user interface (GUI),
+		 please install one of the many SQL client programs that are compatible with MySQL,
+		 such as <a target="_blank" href="https://www.sequelpro.com/"><strong>SequelPro</strong></a>.
+	   </p>
+
+
+
+
+
+       <br>
+	   <h3>
+		 <a id="environmentVariables" class="anchor" href="#environmentVariables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.2. Setting up your local environment for DIGS</strong>
+	   </h3>
+       <hr>
+       
+       
+       
+	   <p>
+          The DIGS tool requires users to set four environment variables in their home environment:
+          
+       <br>
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Name</th>
+				   <th>Definition</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td><i>$DIGS_GENOMES</i></td>
+				   <td>Path to the top-level of the 'target-databases' directory (see below)</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_HOME</i></td>
+				   <td>Path to the DIGS-Tool directory</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_MYSQL_USER</i></td>
+				   <td>Your mysql user name</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>$DIGS_MYSQL_PASSWORD</i></td>
+				   <td>Your mysql password</td>
+			   </tr>
+
+		   </tbody>
+		
+	   </table>
+      <br>
+
+   
+	   </p>
+
+
+	   <p>
+         Note that one of the environment variables is the path to the '<b>target-databases</b>' directory.
+         DIGS requires that all project-relevant sequence databases
+         are contained within this directory, which has a simple, pre-defined subdirectory
+         structure (see <a href="#setUpTargetLibrary"><b>section 1.3</b></a> below).
+	   </p>
+
+
+	   <p>
+		 Once environment variables have been set, you should be able to run the DIGS tool
+		 script with the  -h (--help) option as shown here: 
+		 
+  <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -h</code></pre>	
+
+
+   
+	   </p>
+
+
+	   <p>
+		 This should print the DIGS input help page to the console: 
+
+  <pre>
+  <code>### DIGS version 1.13.2
+  
+	 ### usage: ./digs_tool.pl m=[option] -i=[control file] -h=[help]
+
+	 ### Main functions
+
+	 -m=1  Prepare target files (index files for BLAST)
+	 -m=2  Do DIGS
+	 -m=3  Reassign loci
+	 -m=4  Defragment loci
+	 -m=5  Consolidate loci
+
+	 ### Summarising target databases
+
+	 -g=1  Summarise targets (brief summary, by species)
+	 -g=2  Summarise targets (long, by individual target file)
+
+	 ### Managing DIGS screening DBs
+
+	 -d=1  Import tab-delimited data
+	 -d=2  Flush core tables
+	 -d=3  Drop tables
+	 -d=4  Drop a screening DB
+	 -d=5  Append data to 'digs_results' table
+	 -d=6  Extract sequences using tabular file
+
+	 Target path variable '$DIGS_GENOMES' is set to '/home2/db/digs_genomes'</code></pre>		 
+
+  		 </p>
+
+	   
+       <br>
+	   <h3>
+		 <a id="setUpTargetLibrary" class="anchor" href="#setUpTargetLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.3. Setting up target libraries</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+		  The DIGS tool is designed to perform systematic, similarity-search based screening
+		  of <b>local DNA sequence 'databases'</b> - in other words, collections of FASTA-formatted
+		  DNA sequence data. 
+ 	   </p>
+
+
+	   <p>
+         Genome data should be stored in a directory tree with five subdirectory levels, as shown below.
+  	   </p>
+
+
+       <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
+
+
+
+	   <p>
+         To illustrate this another way - the figure below shows how a very simple target directory
+         (in this example, it is only the Y chromosome of the human genome)
+         might look on the (macintosh) desktop.
+  	   </p>
+	   
+       <br>
+
+
+       <p><img src="../assets/images/targets-mac.png" alt="DIGS target directory structure" /></p>
+
+	   
+       <br>
+
+	   <h4>
+		 <a id="TargetDirectoryTable" class="anchor" href="#TargetDirectoryTable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Directory levels in the 'target databases' directory</u></strong>
+	   </h4>
+	   
+	   
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Level</th>
+				   <th>Information</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td>1</td>
+				   <td>The top level directory - should be the path specified under the DIGS environment
+                       variable $DIGS_GENOMES.
+                   </td>
+			   </tr>
+
+			   <tr>
+				   <td>2</td>
+				   <td>Group - this level allows for categorisation of species or samples from
+				       which sequence data are derived, so as to facilitate data management.
+				       For example, if screening in a wide range of endothermic vertebrate
+				       species, we might have separate bird and mammal directories at this level.
+                   </td>
+			   </tr>
+
+
+			   <tr>
+				   <td>3</td>
+				   <td>Species or sample name - within the group directory, data are
+				   logically separated based on the provenance of sequence data.
+ 				   For example, genome data from distinct humans should be under
+				   a subdirectory named 'Homo_sapiens' or something equivalent.
+                  </td>
+			   </tr>
+
+			   <tr>
+				   <td>4</td>
+				   <td>Data type - name appropriately and (ideally) consistently (e.g. wgs, transcriptome)</td>
+			   </tr>
+
+			   <tr>
+				   <td>5</td>
+				   <td>Assembly version - FASTA data files should be in this directory</td>
+			   </tr>
+
+
+		   </tbody>
+		
+	   </table>
+	   <br>
+
+
+
+	   <p>
+		  
+		  Before we can use BLAST to screen target sequence databases, it is neccessary to 
+		  'index' these files for BLAST searching.
+ 	   </p>
+
+
+	   <p>
+	     This can be performed efficiently by running the digs_tool.pl script as follows:
+
+
+  <pre>
+  <code>./digs_tool.pl –m=1</code></pre>
+
+ 	   </p>
+
+
+	   <p>
+         This will initiate a console-based interactive process in which the target 
+         database folder is scanned, and genomes that require indexing for BLAST are identified.
+ 	   </p>
+
+
+       <br>
+	   <h3>
+		 <a id="setUpReferenceLibrary" class="anchor" href="#setUpReferenceLibrary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.4. Creating project-specific sequence libraries</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+          To perform DIGS we require a library of FASTA-formatted sequences, called the 
+          'reference sequence library'.
+ 	   </p>
+
+
+	   <p>
+          The reference sequence library is used a source of 'probes' for screening, 
+          and also provides a means of classifying hits (i.e. similar sequences) identified in these screens.   
+ 	   </p>
+
+	   <p>	   
+          The DIGS tool uses a simple rule to capture data from the headers of
+          FASTA-formatted reference (and probe) sequences, in which
+          everything to the left of the last underscore in the FASTA header
+          is taken as the 'species name' and everything to the right is taken 
+          as the 'genome feature name'.
+ 	   </p>
+
+
+
+       <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
+
+
+
+	   <p>
+          A subset of reference sequences should be selected as probes.
+          The entire reference library can be used - in which case there is no need to
+          create a separate file – but it is often sufficient to use only a subset of
+          sequences from the reference sequence library, in which case, a separate file
+          containing this subset should be created.
+          The path to this file is specified in the DIGS control file.
+ 	   </p>
+
+       <br>
+	   <h3>
+		 <a id="setUpControlFile" class="anchor" href="#setUpControlFile" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>1.5. Creating a project-specific control file</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+          The DIGS control file is a text file that specifies parameters and paths for DIGS.
+ 	   </p>
+
+	   <p>
+         Control files are structured as <a target="_blank" href="https://www.nexusformat.org/"><b>NEXUS</b></a>-style
+         blocks bounded by BEGIN and ENDBLOCK statements as shown below.
+		  
+  <pre>
+  <code>Begin SCREENDB;
+	 db_name=erv_lenti;
+	 mysql_server=localhost;
+  ENDBLOCK;
+
+  BEGIN SCREENSETS;
+	  query_aa_fasta=/home/rob/DIGS/projects/lenti-probes.DIGS.faa;
+	  reference_aa_fasta=/home/rob/DIGS/projects/ERV-reference.DIGS.faa;
+	  bitscore_min_tblastn=60;
+	  consolidated_reference_aa_fasta=/home/rob/DIGS/projects/;
+	  output_path=./tmp/;
+	  seq_length_minimum=50;
+	  defragment_range=10;
+
+	  #query_na_fasta=/home/rob/DIGS/projects/lenti-probes.fna
+	  #reference_na_fasta=/home/rob/DIGS/projects/lenti-probes.fna
+	  #bitscore_min_blastn=30;
+  ENDBLOCK;
+
+  BEGIN TARGETS;
+	  Mammalia/
+  ENDBLOCK;
+  </code></pre>
+
+ 	   </p>
+
+
+	   <p>
+
+          Note that not all parameters will need to be defined for every screen.
+ 
+ 	   </p>
+
+
+	   <h4>
+		 <a id="ControlFileTable" class="anchor" href="#ControlFileTable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong><u>Table: Parameters defined in the DIGS control file</u></strong>
+	   </h4>
+	   
+	   
+	   <table>
+	
+		   <thead>
+			   <tr>
+				   <th>Parameter</th>
+				   <th>Definition</th>
+			   </tr>
+		   </thead>
+	
+		   <tbody>
+
+			   <tr>
+				   <td><i>db_name</i></td>
+				   <td>Name of the project-specific screening database</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>mysql_server</i></td>
+				   <td>name of the mysql_server to use (set to 'localhost' to use local database) </td>
+			   </tr>
+
+			   <tr>
+				   <td><i>query_aa_fasta</i></td>
+				   <td>Path to file with amino acid probe sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>reference_aa_fasta</i></td>
+				   <td>Path to file with amino acid reference sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>query_na_fasta</i></td>
+				   <td>Path to file with nucleic acid probe sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>reference_na_fasta</i></td>
+				   <td>Path to file with nucleic acid reference sequences</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>bitscore_min_tblastn</i></td>
+				   <td>Minimum bit-score of tBLASTn hit to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>bitscore_min_blastn</i></td>
+				   <td>PMinimum bit-score of BLASTn hit to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>seq_length_minimum</i></td>
+				   <td>Minimum length of sequence to extract</td>
+			   </tr>
+
+			   <tr>
+				   <td><i>defragment_range</i></td>
+				   <td>Range within which two BLAST hits in the target sequence will be merged</td>
+			   </tr>
+
+
+		   </tbody>
+		
+	   </table>
+
+
+	
+
+       <br>
+       <br>
+
+
+
+       <br>
+	   <h2>
+		 <a id="performingScreening" class="anchor" href="#performingScreening" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>Part 2. Performing DIGS and working with project databases</strong>
+	   </h2>
+       <hr>
+
+
+
+	   <h3>
+		 <a id="runScreen" class="anchor" href="#runScreen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.1. Running an <i>in silico</i> screen</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+          Run the DIGS tool using the -m=2 option to start screening.
+ 	   
+ 
+   <pre>
+   <code>./digs_tool.pl -m=2 -i [path to your project control file]</code></pre>
+
+   
+	   </p>
+	   <p>
+          e.g.
+ 	   
+ 
+   <pre>
+   <code>./digs_tool.pl -m=2 -i myControlFile.ctl</code></pre>
+
+   
+	   </p>
+
+
+	   <p>
+	     This will initiate the screening process.
+	     A progress log is reported to the screen: 
+	   </p>
+
+
+
+	   <p>
+
+   <pre>
+   <code>
+
+	  Connecting to DB:  eve_1_parvoviridae
+	  Created report directory
+	  Path: './tmp/result_set_38612_1618435290'
+	  Probe sequences:   22 amino acid FASTA sequences
+	  Reference library: 39902 amino acid sequences
+	  Targets:           1866 target files
+	  Previous queries:  41052 previous queries
+	  Skipped in set:    41008 (of 41052)
+	  Searches to run    44
+	  
+	  ### Starting database-integrated genome screening
+
+	  tblastn: 1: 'Eurynorhynchus_pygmeus' (GCA_003697955, low_coverage)
+	  target: 'GCA_003697955.1_ASM369795v1_genomic.fna'
+	  probe:  'NC_001401-AAV2_NS'
+	  
+		 # 2 matches to probe: NC_001401-AAV2, NS
+		 # 0 matches above threshold (excluded: 0 < length; 2 < bitscore)
+		 # done 1 of 44 queries (%2.27)
+
+	  tblastn: 2: 'Hypophthalmichthys_nobilis' (HypNob1.0, low_coverage)
+	  target: 'GCA_004193235.1_HypNob1.0_genomic.fna'
+	  probe:  'NC_001401-AAV2_NS'
+
+ </code></pre>
+   
+	   </p>
+
+
+
+	   <p>
+	     The first few lines of output report the properties of the probe, reference
+	     and target sequence libraries that compose the screen. 
+	   </p>
+
+	   <p>
+	     In addition, the status of the screen is reported - of all the individual BLAST
+	     searches that comprise the screen, how many have been performed, and how many are
+	     still outstanding. 
+	   </p>
+
+	   <p>
+	     Run with the -v (--verbose) option to see more detailed log output.
+	   </p>
+
+
+	   <p>
+	     If screening is interrupted for any reason, simply restart the process.
+	     Screening will continue from the point at which the interruption occurred.
+	   </p>
+
+
+
+
+       <br>
+	   <h3>
+		 <a id="inspectResults" class="anchor" href="#inspectResults" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.2. Investigating screening results using an SQL client</strong>
+	   </h3>
+       <hr>
+
+
+
+	   <p>
+
+          The relational database component allows efficient
+          monitoring and summarising the output of screening. 
+          Particularly when the screening project database is enriched with additional
+          data (e.g. taxonomic data, see below) this greatly
+          enhances users capacity to interrogate the data generated by screening.
+
+
+ 	   </p>
+
+	   <p>
+          A MySQL client with a graphical user interface (e.g. <b>SequelPro</b>)
+          can be used to connect to the screening database and select view 
+          the results of screening. For example, as shown below.
+ 	   </p>
+
+
+
+        <p><img src="../assets/images/select-rows-recent.png" alt="DIGS screenshot" /></p>
+
+
+<blockquote>
+	  <b>Visualising DIGS results</b>: In the example shown above, an SQL statment is
+	  used to select sequences that matched to Miniopterus endogenous retrovirus (MinERVa)
+	  with a BLAST bitscore of at least 100. The 'ORDER BY' part of the SQL statement is
+	  used to sort the matching rows in order of the time they were entered into the results
+	  table (the TIMESTAMP field on each database table captures this information).	  
+</blockquote>
+		 
+       <br>
+	   <p>
+          As well as selecting rows, it is often useful to count rows based using
+          an SQL statement with a 'GROUP BY' clause, as shown in the example below.
+ 	   </p>
+
+
+
+        <p><img src="../assets/images/digs-screenshot-count.png" alt="DIGS screenshot (counts)" /></p>
+
+   
+<blockquote>
+	  <b>Use of a 'GROUP BY' statement to count by category</b>: In the example shown above, an SQL statment is
+	  used to select sequences that matched to Miniopterus endogenous retrovirus (MinERVa)
+	  with a BLAST bitscore of at least 100. The 'ORDER BY' part of the SQL statement is
+	  used to sort the matching rows in order of the time they were entered into the results
+	  table (the TIMESTAMP field on each database table captures this information).	  
+</blockquote>
+
+
+       <br>
+	   <h3>
+		 <a id="updateRefSeqsAndReassign" class="anchor" href="#sequenceData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.3. Updating reference sequences and reclassifying results</strong>
+	   </h3>
+       <hr>
+
+ 
+	   <p>
+		  Inspecting screening results often reveals the deficiencies of the reference
+		  sequence library that was used to classify screening results. 
+	   </p>
+
+
+ 
+	   <p>
+		  In particular, screening can make it clear that there are certain variants of	  
+		  the genome feature being investigated that are not represented in the reference
+		  sequence library.
+	   </p>
+
+		
+ 	   <p>
+          When this happens it is useful to reclassify sequences identified via 
+          screening using an updated reference sequence library that includes representatives of 
+          the missing variant(s).
+	   </p>
+
+	   <p>
+	   
+	      To do this, simply add the new sequences to your project-specific reference library 
+	      and run the digs_tool.pl script using your project control file and the -m=3 option,
+	      as shown here:
+		  
+  <pre>
+  <code>./digs_tool.pl -m=3 -i ../projects/eve/erv_1_lenti.ctl 
+     
+
+	  Connecting to DB:  erv_lenti
+	  Created report directory
+	  Path: './tmp/result_set_33636_1618435124'
+	  Reference library: 59 amino acid sequences
+
+
+      Enter a WHERE statement to limit reaasign (Optional) : WHERE assigned_name = 'RELIK'
+      </code></pre>
+
+
+ 	   </p>
+
+     <p>
+       The option to limit the reassign via a WHERE statement is presented.
+       This can save time when the aim is to reassign only a subset of hits 
+       in a digs_results table with a large number of entries.
+       If using a WHERE statement enter it as you would in a SQL client (i.e. using
+       appropriate syntax), as shown above.
+ 	 </p>
+
+
+
+ 	   <br>
+
+	   
+
+
+	   <h3>
+		 <a id="addingSideData" class="anchor" href="#addingSideData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.4. Incorporating linked data into a DIGS project</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+		  Incorporating additional, linked data tables into DIGS project databases allows
+		  users to reference these data in SQL queries.
+	   </p>
+
+
+	   <p>
+		  For example, adding a table that contains <b>taxonomic information</b> about the species
+		  screened will allow SQL queries to reference higher taxonomic ranks than species.
+	   </p>
+
+ 
+
+
+       <p>
+         The digs_tool.pl script provides functions for <b>console-based management</b> of 
+         additional tables in DIGS project databases.
+         For example, to add a table with virus taxonomy, first run DIGS as follows:
+
+  <pre>
+  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl
+  </code></pre>	
+
+	   </p>
+
+ 
+
+
+       <p>
+         The console will prompt for input, beginning with the path to a file containing tabular data
+
+  <pre>
+  <code>Connecting to DB:  erv_lenti
+
+	 #### WARNING: This function expects a tab-delimited data table with column headers!
+
+	 Please enter the path to the file with the table data and column headings
+
+	 : ../projects/eve/tabular/ncbi_virus_taxonomy.txt</code></pre>		
+ 	
+ 	
+ 	 </p>
+
+     <p>
+       If valid tabular input is received, a breakdown of the column headers will be shown.
+       If it looks correct enter 'y' (yes), and select appropriate options. For example:
+ 	 </p>
+
+
+     <p>
+
+  <pre>
+  <code>The following cleaned column headers (i.e. table fields) were obtained
+
+		 Column 1: 'Target_species'
+		 Column 2: 'Target_class'
+		 Column 3: 'Target_superorder'
+		 Column 4: 'Target_order'
+		 Column 5: 'Target_family'
+		 Column 6: 'Target_genus'
+
+	 Is this correct? (y/n): y
+
+		 1. Create new ancillary table
+		 2. Append data to existing ancillary table
+		 3. Flush existing ancillary table and import fresh data
+
+	 Choose an option (1/2/3): 1
+
+	 What is the name of the new table? : host_taxonomy
+
+	 Creating ancillary table 'host_taxonomy' in eve_1_parvoviridae screening database
+
+	 #### IMPORTING to table 'host_taxonomy'
+
+	 # Exit
+</code></pre>
+
+	   </p>
+
+
+	   <p>
+		 <b>NOTE</b> - in the example above I have deliberately prefixed the 
+		 column names - which are taxonomic ranks - with 'Target_'.
+		 This avoid conflicting with any of 
+		 MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
+		 - one of which is 'ORDER'.
+	   </p>
+
+
+
+	   <p>
+		 Now that I have added the host_taxonomy table, I can select
+		 database entries based on any of the taxonomic ranks included in my file,
+		 through reference to the 'host_taxonomy' table, as shown below.
+	   </p>
+
+
+
+	   <p><img src="../assets/images/taxonomy-table.png" alt="DIGS screenshot" /></p>
+
+       <br>
+
+	   <h3>
+		 <a id="consolidate" class="anchor" href="#consolidate" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
+	   </h3>
+       <hr>
+
+	   <p>
+         When relying on sequence similarity as a means of recovering the sequences of 
+         related genome features, a limitation is that the sequences of many interesting
+         genome features are only partially conserved, and large regions of sequence
+         within these features may be rearranged or divergent.
+ 	   </p>
+
+       <p>
+         However, when two or more conserved features occur contiguously, their relationship
+         can be used to determine the coordinates of a more complete sequence for the 
+         genome feature of interest.
+ 	   </p>
+
+
+
+	   <p>
+         For example, integrated retroviruses ('proviruses') are comprised of internal coding domains
+         (<i>gag</i>, <i>pol</i>, <i>env</i> - in that order), flanked by terminal LTRs
+         that are usually (though not always entirely) non-coding.
+         However,
+         endogenous retroviruses (ERVs) frequently have much complex genome arrangements,
+         with many being fragmentary or mosaic in structure, and large regions of 
+         the integrated provirus often being highly divergent from anything seen previously.
+ 	   </p>
+
+
+
+	   <p>
+         Accordingly, it makes semse to screen first using individual features 
+         (i.e. <i>Gag</i>, <i>Pol</i>, <i>Env</i> polypeptides, plus LTR nucleotide sequences),
+         as probes and references, then to '<b>consolidate</b>' the hits to these
+         probes into a larger sequences comprised of the hits, plus the intervening sequences.
+         At the same time, we can record the relationship between the component parts of
+         the merged sequence, where merging occurs.
+ 	   </p>
+
+	   <p>
+         The DIGS tool can be used to implement a ‘consolidation’ of this kind.
+         Contiguous hits in the ‘digs_results’ table are merged based on whether they
+         are within a user-defined distance of one another.
+	   </p>
+
+
+        <p><img src="../assets/images/consolidate.jpg" alt="Consolidate" /></p>
+
+ 
+	   <p>
+           Running the consolidation process produces a set of merged sequences, and
+           also classifies these sequences using the same approach applied when
+           generating the digs_results table.
+           The results - i.e. a non-overlapping set of sequences, merged as determined by 
+           user-specified rules -  are entered into the 'loci' table
+           (see the <a target="_blank" href="db-schema.html"><b>database schema page</b></a> for details).
+           A separate reference sequence library that is appropriate for classifying
+           the longer sequences should be used for classifying the consolidated results, and is
+           specified by a distinct parameter (see section 4 in the set-up stages above).
+ 	   </p>
+
+
+	   <p>
+           The loci table contains most of the same fields as the digs_results table,
+           but also includes a 'locus_structure' field that records the relationship
+           between merged hits, including their orientation relative to one another.
+ 	   </p>
+ 
+ 
+	   <p>
+           The locus table includes a field 'locus-structure' that shows the order 
+           and orientation of the individual hits from the digs-results table that 
+           were combined to create the merged hit, as shown below.
+ 	   </p>
+
+
+       <br>
+
+
+
+        <p><img src="../assets/images/digs-screenshot.png" alt="Consolidation - loci table query" /></p>
+
+ 
+
+
+       <br>
+
+
+		
+	   <h3>
+		 <a id="extractSequences" class="anchor" href="#extractSequences" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.6. Extracting hit sequences and their flanks using the DIGS tool</strong>
+	   </h3>
+       <hr>
+
+
+	   <p>
+           Working within the framework of the DIGS tool (i.e. using SQL to query DIGS results,
+           and reclassifying sequences through merging and updates reference libraries) 
+           can provide many useful insights into the distribution and diversity of a given
+           genome feature.
+ 	   </p>
+
+	   <p>
+           For further investigations, however, it will often be necessary to export sequences
+           from the DIGS screening database so that they can be analysed using other kinds
+           of bioinformatic and comparative approaches. 
+ 	   </p>
+
+	   <p>
+           As well as extracting the sequence matches themselves, it is often helpful to extract 
+           the upstream and downstream flanking sequences. 
+ 	   </p>
+
+	   <p>
+	   
+	      To do this, run the digs_tool.pl script using the -d=6 option,
+	      and providing a tabular file containing locus data using the -i option 
+	      as illustrated here:
+		  
+  <pre>
+  <code>  giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=6 -i loci.tsv</code></pre>
+
+
+ 	   </p>
+
+
+
+       <br>
+
+       <br>
+
+       <br>
+
+
+
+	 <footer class="site-footer">
+	   <span class="site-footer-owner"><a href="https://github.com/giffordlabcvr/DIGS-tool">DIGS</a> is maintained by <a href="https://github.com/giffordlabcvr">giffordlabcvr</a>.</span>
+
+	   <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+	 </footer>
+
+    </section>
+
+
+  </body>
+  
+</html>
