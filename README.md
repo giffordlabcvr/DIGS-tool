@@ -76,10 +76,6 @@ In principle this step should be straightforward, but there is some uncertainty 
 
 Away from LINUX, things are less predicable. On Macintosh computers one PERL library (DBD::MySQL) does not come as standard, and may not work 'out-of-the-box'). We have created a [wiki page dedicated to addressing this issue](https://github.com/giffordlabcvr/DIGS-tool/wiki/Installing-the-DIGS-tool-on-your-mac). Hopefully, these instructions will help resolve such issues, should they arise, within a few minutes.
 
-So far, we have not attempted to install DIGS on a Windows computer, though this is in theory possible, since all the required components including [BLAST](http://www.ncbi.nlm.nih.gov/books/NBK52637/), [MySQL](https://www.mysql.com/why-mysql/windows/) and [PERL](http://learn.perl.org/installing/windows.html) are available for this platform. If you have attempted this, we'd like to hear about your experience and support you if possible - send us an email!
-
-Before setting up your own, bespoke screening pipeline, you may want to test-run DIGS using some of the examples included in this repo.
-
 #### Step 2: setting up your DIGS screen
 
 Setting up a screen means choosing probes, references and targets, and formatting these for use within DIGS. As much as you may want to get going with screening, it is vital to take some time here. At this point you will need to frame the question that you hope to answer through screening. Which target genomes and why? What kind of sequences are you looking for? Do you expect there to be cross-matching to other kinds of sequences that your are not interested in? 
