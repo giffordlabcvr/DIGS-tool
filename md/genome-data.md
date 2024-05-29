@@ -11,7 +11,7 @@ The top directory level should be the path to the tDB specified under the DIGS e
 
 This directory should contain sub-directories that organise tDB files by species group (e.g. plants, animals, mammals, insects). The group names are up to the user.
 
-Within the 'species group' directory, tDB files are grouped accoridng to the species from which they were generated. We advise the use of Latin binomial species names (e.g. homo_sapiens).
+Within the 'species group' directory, tDB files are grouped according to the species from which they were generated. We advise the use of Latin binomial species names (e.g. homo_sapiens).
 
 The directory level immediately below 'species' is used for organising tDB files by type, e.g. low coverage, wgs_assembly, transcriptome.
 
