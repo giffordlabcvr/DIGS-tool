@@ -79,7 +79,7 @@ This should only take a few minutes. See [here](https://github.com/giffordlabcvr
 
 #### Step 4: running the screen
 
-Similarity search based screening is a computationally intensive procedure, and can take hours to days to complete. The DIGS output will show how far along the screen is in terms of queries executed, but bear in mind that the length of time each query takes will depend on the size of the target file and the scarcity/abundance of sequences matching the probe in the target file. 
+Similarity search based screening is a computationally intensive procedure, and can take hours to days to complete. The DIGS output will show how far along the screen is in terms of queries executed, but bear in mind that the length of time each query takes will depend on the size of the target file and the scarcity/abundance of sequences matching the probe in the target file. Where screens are being run on a server, and are expected to take several hours or days to complete, you may want to run them in the background, as described [here](https://github.com/giffordlabcvr/DIGS-tool/blob/master/md/background-screen.md), so that your DIGS run is not dependent on maintaining a connection to the server.
 
 ## Overview of the screening process
 
