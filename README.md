@@ -71,7 +71,7 @@ In principle this step should be straightforward, but there is some uncertainty 
 
 #### Step 2: setting up your DIGS screen
 
-Setting up a screen means choosing probes, references and targets, and formatting these for use within DIGS. As much as you may want to get going with screening, it is vital to take some time here. At this point you will need to frame the question that you hope to answer through screening. Which target genomes and why? What kind of sequences are you looking for? Do you expect there to be cross-matching to other kinds of sequences that your are not interested in? 
+Setting up a screen means choosing probes, references and targets, and formatting these for use within DIGS. As much as you may want to get going with screening, it is vital to take some time here. At this point you will need to frame the question that you hope to answer through screening. Which target genomes and why? What kind of sequences are you looking for? Do you expect there to be cross-matching to other kinds of sequences that you're not interested in? 
 
 #### Step 3: creating a control file
 
