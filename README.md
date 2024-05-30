@@ -75,7 +75,7 @@ Setting up a screen means choosing probes, references and targets, and formattin
 
 #### Step 3: creating a control file
 
-This should only take a few minutes. You can use the template example ('template.ctl') included in this repo.
+This should only take a few minutes. See [here](https://github.com/giffordlabcvr/DIGS-tool/blob/master/md/control-file-structure.md) for information about the control file structure.
 
 #### Step 4: running the screen
 
