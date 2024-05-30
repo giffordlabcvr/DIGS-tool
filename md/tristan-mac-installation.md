@@ -1,4 +1,4 @@
-**Tristan's guide to installing the DIGS tool on Mac**
+## Tristan's guide to installing the DIGS tool on Mac
 
 Installing the DIGS tool on your Mac PC can be a convenient way to perform screens without the need for a network connection. Do bear in mind that you'll need to keep local copies of all the genomes you plan to screen, which may eat up a fair amount of disk space.  
 
@@ -159,4 +159,3 @@ $ sudo ln -s /usr/local/mysql/lib/libmysqlclient.18.dylib /usr/lib/libmysqlclien
 
 If it's genome related, make sure your genome FASTAs are in a BLAST friendly format. (The format genome directory option included in the DIGS tool will handily format all your genome files for you).
 
-Any questions, send an email to t.dennis.1@research.gla.ac.uk
