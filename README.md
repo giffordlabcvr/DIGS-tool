@@ -11,7 +11,7 @@ Welcome to the GitHub repository for the **DIGS Tool**!
  1. Performing multiple searches systematically, involving various **query sequences** and/or **target databases**.
  2. Classifying matching sequences (“**hits**”) via comparison to a **reference sequence library** curated by the investigator.
 
-In **database-integrated genome screening (DIGS)**, systematic, similarity search-based genome screening is linked to a relational database, providing a structured and efficient approach.
+In **database-integrated genome screening (DIGS)**, a relational database management system (RDBMS) is linked to a sequence similarity search-based genome-screening pipeine. This provides a structured and efficient approach.
 
 **The DIGS Tool is a software framework for implementing DIGS on UNIX/LINUX and Macintosh OSX platforms**.
 
