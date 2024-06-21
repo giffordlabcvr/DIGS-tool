@@ -13,7 +13,7 @@ Welcome to the GitHub repository for the **DIGS Tool**!
 
 **Database-integrated genome screening (DIGS)** is a form of systematic genome screening. It links a relational database management system (RDBMS) to a sequence similarity search-based screening pipeine. This provides a robust foundation for implementing large-scale, automated screens, and allows screening output to be investigated via database-querying.
 
-**The DIGS Tool is a software framework for implementing DIGS on UNIX/LINUX and Macintosh OSX platforms**.
+**The DIGS Tool is a software framework for implementing DIGS on UNIX/LINUX and Macintosh OSX platforms**. It uses the [BLAST+ program suite](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) to perform similarity search-based screening, and the [MySQL RDBMS](https://dev.mysql.com/downloads/mysql/) to capture screen output. 
 
 
 ## Implementation and Compatibility
@@ -41,7 +41,7 @@ Steps involved in installing the DIGS tool and using it to perform DIGS:
 
 1. Install and configure DIGS
     - Download the DIGS tool
-    - Install PERL, BLAST, and MySQL
+    - Install [PERL](https://www.perl.org/), [BLAST](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and [MySQL](https://dev.mysql.com/downloads/mysql/)
     - Install Perl `DBI` and `DBD::MySQL` packages (if they are not already installed)
     - Set `$DIGS_HOME` and `$DIGS_GENOMES` environment variables
         - `$DIGS_HOME` = path to DIGS tool directory
