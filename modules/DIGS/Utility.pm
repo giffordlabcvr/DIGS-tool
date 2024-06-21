@@ -359,7 +359,6 @@ sub extract_track_sequences {
 
 }
 
-	
 #***************************************************************************
 # Subroutine:  check_input_and_set_flank_params
 # Description: 
