@@ -1,12 +1,17 @@
 # Database-Integrated Genome Screening (DIGS) Tool 
 
-## Overview
+## Overview <img src="md/logo_digs.png" align="right" alt="" width="220" />
 
-<img src="md/logo_digs.png" align="right" alt="" width="220" />
 
-Systematic in silico genome screening is a powerful approach for identifying genome features within the dark genome. It extends the basic concept of a sequence similarity search in two ways: (i) inclusion of multiple query sequences and/or target databases and (ii) similarity-based classification of matching sequences (“hits”) via comparison to a reference sequence library 
 
-In DIGS, a pipeline for performing systematic in silico genome screening is linked to a relational database, providing a structured and efficient approach.
+Welcome to the GitHub repository for **DIGS Tool**!
+
+**Systematic, sequence similarity search-based genome screening** is a powerful approach for identifying and characterising genome features in silico. This approach extends the basic concept of a [sequence similarity search](https://blast.ncbi.nlm.nih.gov/) search through: 
+
+ 1. Inclusion of multiple query sequences and/or target databases.
+ 2. Similarity-based classification of matching sequences (“hits”) via comparison to a reference sequence library.
+
+In **database-integrated genome screening (DIGS)**, systematic, similarity search-based genome screening is linked to a relational database, providing a structured and efficient approach.
 
 The DIGS tool is a software framework for implementing DIGS.
 
