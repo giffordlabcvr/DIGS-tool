@@ -24,16 +24,6 @@ The program is accessible through a text-based console interface.
 
 To run the DIGS tool and see options type: `./digs_tool.pl`
 
-## Quick Start
-
-To install DIGS:
-
-
-To see options for screening: 
-
-```
-./digs_tool.pl -h
-```
 
 ## Installation
 
