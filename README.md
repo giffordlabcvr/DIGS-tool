@@ -1,7 +1,7 @@
-# Database-Integrated Genome Screening (DIGS) Tool 
+# Database-Integrated Genome Screening (DIGS) Tool
 
-## Overview <img src="md/logo_digs.png" align="right" alt="" width="220" />
 
+## Overview  <img src="md/logo_digs.png" align="right" alt="" width="220" />
 
 
 Welcome to the GitHub repository for **DIGS Tool**!
@@ -13,7 +13,7 @@ Welcome to the GitHub repository for **DIGS Tool**!
 
 In **database-integrated genome screening (DIGS)**, systematic, similarity search-based genome screening is linked to a relational database, providing a structured and efficient approach.
 
-The DIGS tool is a software framework for implementing DIGS.
+The **DIGS tool** is a software framework for implementing DIGS.
 
 ## Key Features
 
