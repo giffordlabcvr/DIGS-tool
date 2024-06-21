@@ -1,4 +1,4 @@
-# Database-Integrated Genome Screening (DIGS) Tool
+# Database-Integrated Genome Screening (DIGS) Tool <img src="md/logo_digs.png" align="right" alt="" width="220" />
 
 ## Overview
 
