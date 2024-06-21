@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 ############################################################################
-# Module:      Console.pm 
-# Description: Basic console functions
-# History:     Rob Gifford, November 2006: Creation
+# Module:       Console.pm 
+# Description:  Functions for text console programs 
+# History:      Rob Gifford, November 2006: Creation
 ############################################################################
 package Console;
 
@@ -16,7 +16,7 @@ use strict;
 ############################################################################
 
 # Base classes
-use Base::FileIO;
+use FileIO;
 
 ############################################################################
 # Globals
@@ -55,7 +55,7 @@ sub new {
 
 #***************************************************************************
 # Subroutine:  refresh_console
-# Description: Refresh the console screenview 
+# Description: Clear the screen by sending the 'clear' command via 'system'
 #***************************************************************************
 sub refresh {
 
@@ -170,6 +170,49 @@ sub ask_simple_choice_question {
 }
 
 #***************************************************************************
+# Subroutine:  ask_float_question
+# Description: ask a question and accept only float or int as a response
+# Arguments:   $question: the question to ask 
+# Returns:     $answer: the float value entered by the user
+#***************************************************************************
+sub ask_float_question {
+
+	my ($self, $question) = @_;
+	
+	my $answer;
+	do {
+		print "$question : ";
+		$answer = <STDIN>;
+		chomp $answer; 
+	} until ($answer =~ /^-?\d+\.?\d*$/);
+	return $answer;
+}
+
+#***************************************************************************
+# Subroutine:  ask_float_with_bounds_question
+# Description: ask a question and accept only a float or int that falls
+#              within a defined range as a response
+# Arguments:   $question: the question to ask 
+#              $lower_bound, $upper_bound: the specified bounds
+# Returns:     $answer: the  value entered by the user
+#***************************************************************************
+sub ask_float_with_bounds_question {
+
+	my ($self, $question, $lower_bound, $upper_bound) = @_;
+	
+	my $answer;
+	do {
+		print "$question \($lower_bound-$upper_bound\): ";
+		$answer = <STDIN>;
+		chomp $answer; 
+	} until ($answer >= $lower_bound 
+         and $answer <= $upper_bound
+         and $answer =~ /^-?\d+\.?\d*$/
+    );
+	return $answer;
+}
+
+#***************************************************************************
 # Subroutine:  ask_int_question
 # Description: ask a question and accept only an integer as a response
 # Arguments:   $question: the question to ask 
@@ -184,7 +227,7 @@ sub ask_int_question {
 		print "$question : ";
 		$answer = <STDIN>;
 		chomp $answer; 
-	} until ($answer =~ /\d/); 
+	} until ($answer =~ /\d/); # TODO: this isn't strict enough
 	return $answer;
 }
 
@@ -195,30 +238,18 @@ sub ask_int_question {
 # Arguments:   $question: the question to ask 
 #              $lower_bound, $upper_bound: the specified bounds
 # Returns:     $answer: the integer value entered by the user
+# TODO:        doesn't discriminate ints and floats
 #***************************************************************************
 sub ask_int_with_bounds_question {
 
 	my ($self, $question, $lower_bound, $upper_bound) = @_;
 	
 	my $answer;
-	my $valid_answer;
-	my $is_number;
-	my $in_range;
 	do {
-	    $is_number = undef;
-	    $in_range = undef;
-	    $valid_answer = undef;
 		print "$question \($lower_bound-$upper_bound\): ";
 		$answer = <STDIN>;
-		chomp $answer;
-        $is_number = $answer =~ /^\d*$/; 
-		if ($is_number) {
-            if ($answer >= $lower_bound and $answer <= $upper_bound) {
-				$valid_answer = 'true';
-		    }
-
-        }
-	} until ($valid_answer and $is_number);
+		chomp $answer; 
+	} until ($answer >= $lower_bound and $answer <= $upper_bound);
 	return $answer;
 }
 
@@ -231,23 +262,28 @@ sub ask_int_with_bounds_question {
 #***************************************************************************
 sub ask_list_question {
 
-	my ($self, $question, $list_length) = @_;
+    my ($self, $question, $list_length) = @_;
 
-	my $answer;
-	my $return = undef;
-	do {
-		print "$question \(1-$list_length\): ";
-		$answer = <STDIN>;
-		chomp $answer; 
-		if ($answer =~ /^-?\d/) {
-			if ($answer <= $list_length) {
-				$return = 1;
-			}
-		} 
-	} until ($return eq 1);
-	
-	return $answer;
+    my $answer;
+    my $return = 0;  # Initialize $return to a defined value
+    do {
+        print "$question (1-$list_length): ";
+        $answer = <STDIN>;
+        chomp $answer;
+        if ($answer =~ /^\d+$/) {  # Check if the answer is a positive integer
+            if ($answer >= 1 && $answer <= $list_length) {
+                $return = 1;
+            } else {
+                print "Please enter a number between 1 and $list_length.\n";
+            }
+        } else {
+            print "\n\t Please enter a valid number.";
+        }
+    } until ($return == 1);
+
+    return $answer;
 }
+
 
 #***************************************************************************
 # Subroutine:  do_read_tabdelim_dialogue
@@ -299,7 +335,6 @@ sub do_read_tabdelim_dialogue {
 		print "\n\t\t Aborted!\n\n\n"; exit;
 	}
 }
-
 
 ############################################################################
 # Private Member Functions
