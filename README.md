@@ -30,7 +30,7 @@ Steps involved in installing the DIGS tool and using it to perform DIGS are as f
     - Create a MySQL user for DIGS
     - Set `$DIGS_MYSQL_USER` and `$DIGS_MYSQL_PASSWORD` environment variables
 
-3. Create reference sequence library (RSL) and set up target database
+3. Set up the target database (tDB), create a reference sequence library (RSL) and select query (probe) sequences
 
 4. Create a [control file](https://github.com/giffordlabcvr/DIGS-tool/wiki/DIGS-Tool-Control-File) for a DIGS project
 
