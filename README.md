@@ -31,7 +31,7 @@ Steps involved in installing the DIGS tool and using it to perform DIGS:
 
 3. Create reference sequence library and set up target sequence databases
 
-4. Create [control file](https://github.com/giffordlabcvr/DIGS-tool/blob/master/md/control-file-structure.md) for a DIGS project
+4. Create a [control file](https://github.com/giffordlabcvr/DIGS-tool/blob/master/md/control-file-structure.md) for a DIGS project
 
 5. Run the DIGS screen based on the control file
 
