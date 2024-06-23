@@ -14,7 +14,7 @@ Welcome to the GitHub repository for the **DIGS Tool**!
 
 **The DIGS Tool is a software framework for implementing DIGS on UNIX/LINUX and Macintosh OSX platforms**. The program is accessible through a text-based console interface. It uses the [BLAST+ ](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) program suite to perform similarity search-based screening, and the [MySQL](https://dev.mysql.com/downloads/mysql/) RDBMS to capture screen output. 
 
-## Overview 
+## Installation and Setup 
 
 To run the DIGS tool requires [PERL](https://www.perl.org/), [BLAST](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and [MySQL](https://dev.mysql.com/downloads/mysql/) (or a supported fork of MySQL such as MariaDB).
 
