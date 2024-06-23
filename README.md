@@ -5,7 +5,7 @@
 
 Welcome to the GitHub repository for the **DIGS Tool**!
 
-**Systematic, sequence similarity search-based genome screening** is a powerful approach for identifying and characterising genome features in silico. This approach extends the basic [sequence similarity search](https://blast.ncbi.nlm.nih.gov/) search by: 
+**Systematic, sequence similarity search-based genome screening** is a powerful approach for identifying and characterising genome features in silico. This approach extends the basic [sequence similarity search](https://blast.ncbi.nlm.nih.gov/) by: 
 
  1. Performing multiple searches systematically, involving various **query sequences** and/or **target databases**.
  2. Classifying “**hits**” (matching sequences) via comparison to a **reference sequence library** curated by the investigator.
