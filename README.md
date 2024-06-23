@@ -20,7 +20,7 @@ To run the DIGS tool requires PERL, BLAST+, and MySQL (or a supported fork of My
 Steps involved in installing the DIGS tool and using it to perform DIGS:
 
 1. Install and configure DIGS
-    - Download the DIGS tool
+    - [Download](https://github.com/giffordlabcvr/DIGS-tool/zipball/master) the DIGS tool
     - Install [PERL](https://www.perl.org/), [BLAST](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and [MySQL](https://dev.mysql.com/downloads/mysql/)
     - Install Perl `DBI` and `DBD::MySQL` packages (if they are not already installed)
     - Set `$DIGS_HOME` and `$DIGS_GENOMES` environment variables
