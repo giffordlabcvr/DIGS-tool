@@ -10,14 +10,15 @@ Welcome to the GitHub repository for the **DIGS Tool**!
  1. Performing multiple searches systematically, involving various **query sequences** and/or **target databases**.
  2. Classifying “**hits**” (matching sequences) via comparison to a **reference sequence library** curated by the investigator.
 
-**Database-integrated genome screening (DIGS)** is a form of systematic genome screening in which a sequence similarity search-based screening pipeline is linked to a relational database management system (RDBMS). This provides a robust foundation for implementing large-scale, automated screens, and allows screening output to be investigated via database-querying.
+**Database-integrated genome screening (DIGS)** is a form of systematic genome screening in which a sequence similarity search-based screening pipeline is linked to a **relational database management system** ([RDBMS](https://www.w3schools.com/mysql/mysql_rdbms.asp)). This provides a robust foundation for implementing large-scale, automated screens, and allows screening output to be investigated via database-querying.
 
 **The DIGS Tool is a software framework for implementing DIGS on UNIX/LINUX and Macintosh OSX platforms**. The program is accessible through a text-based console interface. It uses the [BLAST+ ](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) program suite to perform similarity search-based screening, and the [MySQL](https://dev.mysql.com/downloads/mysql/) RDBMS to capture screen output. 
 
 ## Overview 
 
-To run the DIGS tool requires PERL, BLAST+, and MySQL (or a supported fork of MySQL such as MariaDB). 
-Steps involved in installing the DIGS tool and using it to perform DIGS:
+To run the DIGS tool requires [PERL](https://www.perl.org/), [BLAST](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and [MySQL](https://dev.mysql.com/downloads/mysql/) (or a supported fork of MySQL such as MariaDB).
+
+Steps involved in installing the DIGS tool and using it to perform DIGS are as follows:
 
 1. Install and configure DIGS
     - [Download](https://github.com/giffordlabcvr/DIGS-tool/zipball/master) the DIGS tool
@@ -25,11 +26,11 @@ Steps involved in installing the DIGS tool and using it to perform DIGS:
     - Install Perl `DBI` and `DBD::MySQL` packages (if they are not already installed)
     - Set `$DIGS_HOME` and `$DIGS_GENOMES` environment variables
         - `$DIGS_HOME` = path to DIGS tool directory
-        - `$DIGS_GENOMES` = path to the top level of the target genomes directory
+        - `$DIGS_GENOMES` = path to the top level of the target database (tDB) directory (see below)
     - Create a MySQL user for DIGS
     - Set `$DIGS_MYSQL_USER` and `$DIGS_MYSQL_PASSWORD` environment variables
 
-3. Create reference sequence library and set up target sequence databases
+3. Create reference sequence library (RSL) and set up target database
 
 4. Create a [control file](https://github.com/giffordlabcvr/DIGS-tool/blob/master/md/control-file-structure.md) for a DIGS project
 
