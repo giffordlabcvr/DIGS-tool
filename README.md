@@ -61,7 +61,7 @@ To run DIGS, the following input data components are required:
 3. **Query Sequences ([Probes](https://github.com/giffordlabcvr/DIGS-tool/wiki/Query-Sequences-(Probes))):** Input sequences for similarity searches of the Target Database.
 
 
-Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
+Before running a screen for the first time, you will need to index the TDb for BLAST searching:
 
 `./digs_tool.pl –m=1 –i=[path to control file]`
 
