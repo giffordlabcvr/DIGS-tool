@@ -58,7 +58,7 @@ To see options for screening:
 
 1. **Target Database ([TDb](https://github.com/giffordlabcvr/DIGS-tool/wiki/Target-Database-%28tDB%29)):** A collection of whole genome sequence or transcriptome assemblies serving as the target for similarity searches.
 2. **Reference Sequence Library ([RSL](https://github.com/giffordlabcvr/DIGS-tool/wiki/Reference-Sequence-Library-%28RSL%29)):** Represents the genetic diversity associated with the genome feature(s) under investigation.
-3. **Query Sequences ([Probes](https://github.com/giffordlabcvr/DIGS-tool/wiki/Selecting-Probes)):** Input sequences for similarity searches of the Target Database.
+3. **Query Sequences ([Probes](https://github.com/giffordlabcvr/DIGS-tool/wiki/Query-Sequences-(Probes))):** Input sequences for similarity searches of the Target Database.
 
 
 Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
