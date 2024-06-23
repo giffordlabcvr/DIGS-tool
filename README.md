@@ -54,7 +54,7 @@ To see options for screening:
 
 `./digs_tool.pl -h` 
 
-### Input Data Components
+To run DIGS, the following input data components are required:
 
 1. **Target Database ([TDb](https://github.com/giffordlabcvr/DIGS-tool/wiki/Target-Database-%28tDB%29)):** A collection of whole genome sequence or transcriptome assemblies serving as the target for similarity searches.
 2. **Reference Sequence Library ([RSL](https://github.com/giffordlabcvr/DIGS-tool/wiki/Reference-Sequence-Library-%28RSL%29)):** Represents the genetic diversity associated with the genome feature(s) under investigation.
