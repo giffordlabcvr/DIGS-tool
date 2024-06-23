@@ -7,10 +7,10 @@
 	<meta charset="UTF-8">
 	<title>DIGS: User Guide</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/normalize.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="assets/stylesheets/normalize.css" media="screen">
 	<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/stylesheet.css" media="screen">
-	<link rel="stylesheet" type="text/css" href="../assets/stylesheets/github-light.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="assets/stylesheets/stylesheet.css" media="screen">
+	<link rel="stylesheet" type="text/css" href="assets/stylesheets/github-light.css" media="screen">
 	
   </head>
   
@@ -71,14 +71,6 @@
 				</ol>
 			 </li>
 			 <br>
-			 <li> <a href="#investigationStructure"><b>Structure of a DIGS-based investigation</li></b></a>
-			 <br>
-				<ol>
-					<a href="#screenStructure"><li> Overview of a DIGS-based investigation</li></a>
-					<a href="#explorationPhase"><li> Exploration phase</li></a>
-					<a href="#analysisPhase"><li> Analysis phase</li></a>
-				</ol>
-			 </li>
 		 </ol>
 
 
@@ -271,7 +263,7 @@
   	   </p>
 
 
-       <p><img src="../assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
+       <p><img src="assets/images/target-directory.jpg" alt="DIGS target directory structure" /></p>
 
 
 
@@ -284,7 +276,7 @@
        <br>
 
 
-       <p><img src="../assets/images/targets-mac.png" alt="DIGS target directory structure" /></p>
+       <p><img src="assets/images/targets-mac.png" alt="DIGS target directory structure" /></p>
 
 	   
        <br>
@@ -400,7 +392,7 @@
 
 
 
-       <p><img src="../assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
+       <p><img src="assets/images/digs-sequence-format.jpg" alt="DIGS target directory structure" /></p>
 
 
 
@@ -666,7 +658,7 @@
 
 
 
-        <p><img src="../assets/images/select-rows-recent.png" alt="DIGS screenshot" /></p>
+        <p><img src="assets/images/select-rows-recent.png" alt="DIGS screenshot" /></p>
 
 
 <blockquote>
@@ -685,7 +677,7 @@
 
 
 
-        <p><img src="../assets/images/digs-screenshot-count.png" alt="DIGS screenshot (counts)" /></p>
+        <p><img src="assets/images/digs-screenshot-count.png" alt="DIGS screenshot (counts)" /></p>
 
    
 <blockquote>
@@ -758,431 +750,12 @@
 
  	   <br>
 
-	   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	   <h3>
-		 <a id="addingSideData" class="anchor" href="#addingSideData" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.4. Incorporating linked data into a DIGS project</strong>
-	   </h3>
-       <hr>
-
-
-	   <p>
-		  Incorporating additional, linked data tables into DIGS project databases allows
-		  users to reference these data in SQL queries.
-	   </p>
-
-
-	   <p>
-		  For example, adding a table that contains <b>taxonomic information</b> about the species
-		  screened will allow SQL queries to reference higher taxonomic ranks than species.
-	   </p>
-
- 
-
-
-       <p>
-         The digs_tool.pl script provides functions for <b>console-based management</b> of 
-         additional tables in DIGS project databases.
-         For example, to add a table with virus taxonomy, first run DIGS as follows:
-
-  <pre>
-  <code>giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=1 -i ../projects/eve/eve_1_parvo.ctl
-  </code></pre>	
-
-	   </p>
-
- 
-
-
-       <p>
-         The console will prompt for input, beginning with the path to a file containing tabular data
-
-  <pre>
-  <code>Connecting to DB:  erv_lenti
-
-	 #### WARNING: This function expects a tab-delimited data table with column headers!
-
-	 Please enter the path to the file with the table data and column headings
-
-	 : ../projects/eve/tabular/ncbi_virus_taxonomy.txt</code></pre>		
- 	
- 	
- 	 </p>
-
-     <p>
-       If valid tabular input is received, a breakdown of the column headers will be shown.
-       If it looks correct enter 'y' (yes), and select appropriate options. For example:
- 	 </p>
-
-
-     <p>
-
-  <pre>
-  <code>The following cleaned column headers (i.e. table fields) were obtained
-
-		 Column 1: 'Target_species'
-		 Column 2: 'Target_class'
-		 Column 3: 'Target_superorder'
-		 Column 4: 'Target_order'
-		 Column 5: 'Target_family'
-		 Column 6: 'Target_genus'
-
-	 Is this correct? (y/n): y
-
-		 1. Create new ancillary table
-		 2. Append data to existing ancillary table
-		 3. Flush existing ancillary table and import fresh data
-
-	 Choose an option (1/2/3): 1
-
-	 What is the name of the new table? : host_taxonomy
-
-	 Creating ancillary table 'host_taxonomy' in eve_1_parvoviridae screening database
-
-	 #### IMPORTING to table 'host_taxonomy'
-
-	 # Exit
-</code></pre>
-
-	   </p>
-
-
-	   <p>
-		 <b>NOTE</b> - in the example above I have deliberately prefixed the 
-		 column names - which are taxonomic ranks - with 'Target_'.
-		 This avoid conflicting with any of 
-		 MySQLs <a target="_blank" href="https://dev.mysql.com/doc/refman/8.0/en/keywords.html"><b>reserved words</b></a>
-		 - one of which is 'ORDER'.
-	   </p>
-
-
-
-	   <p>
-		 Now that I have added the host_taxonomy table, I can select
-		 database entries based on any of the taxonomic ranks included in my file,
-		 through reference to the 'host_taxonomy' table, as shown below.
-	   </p>
-
-
-
-	   <p><img src="../assets/images/taxonomy-table.png" alt="DIGS screenshot" /></p>
-
        <br>
-
-	   <h3>
-		 <a id="consolidate" class="anchor" href="#consolidate" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.5. Merging hits in the DIGS results table into larger sequences</strong>
-	   </h3>
-       <hr>
-
-	   <p>
-         When relying on sequence similarity as a means of recovering the sequences of 
-         related genome features, a limitation is that the sequences of many interesting
-         genome features are only partially conserved, and large regions of sequence
-         within these features may be rearranged or divergent.
- 	   </p>
-
-       <p>
-         However, when two or more conserved features occur contiguously, their relationship
-         can be used to determine the coordinates of a more complete sequence for the 
-         genome feature of interest.
- 	   </p>
-
-
-
-	   <p>
-         For example, integrated retroviruses ('proviruses') are comprised of internal coding domains
-         (<i>gag</i>, <i>pol</i>, <i>env</i> - in that order), flanked by terminal LTRs
-         that are usually (though not always entirely) non-coding.
-         However,
-         endogenous retroviruses (ERVs) frequently have much complex genome arrangements,
-         with many being fragmentary or mosaic in structure, and large regions of 
-         the integrated provirus often being highly divergent from anything seen previously.
- 	   </p>
-
-
-
-	   <p>
-         Accordingly, it makes semse to screen first using individual features 
-         (i.e. <i>Gag</i>, <i>Pol</i>, <i>Env</i> polypeptides, plus LTR nucleotide sequences),
-         as probes and references, then to '<b>consolidate</b>' the hits to these
-         probes into a larger sequences comprised of the hits, plus the intervening sequences.
-         At the same time, we can record the relationship between the component parts of
-         the merged sequence, where merging occurs.
- 	   </p>
-
-	   <p>
-         The DIGS tool can be used to implement a ‘consolidation’ of this kind.
-         Contiguous hits in the ‘digs_results’ table are merged based on whether they
-         are within a user-defined distance of one another.
-	   </p>
-
-
-        <p><img src="../assets/images/consolidate.jpg" alt="Consolidate" /></p>
-
- 
-	   <p>
-           Running the consolidation process produces a set of merged sequences, and
-           also classifies these sequences using the same approach applied when
-           generating the digs_results table.
-           The results - i.e. a non-overlapping set of sequences, merged as determined by 
-           user-specified rules -  are entered into the 'loci' table
-           (see the <a target="_blank" href="db-schema.html"><b>database schema page</b></a> for details).
-           A separate reference sequence library that is appropriate for classifying
-           the longer sequences should be used for classifying the consolidated results, and is
-           specified by a distinct parameter (see section 4 in the set-up stages above).
- 	   </p>
-
-
-	   <p>
-           The loci table contains most of the same fields as the digs_results table,
-           but also includes a 'locus_structure' field that records the relationship
-           between merged hits, including their orientation relative to one another.
- 	   </p>
- 
- 
-	   <p>
-           The locus table includes a field 'locus-structure' that shows the order 
-           and orientation of the individual hits from the digs-results table that 
-           were combined to create the merged hit, as shown below.
- 	   </p>
-
-
-       <br>
-
-
-
-        <p><img src="../assets/images/digs-screenshot.png" alt="Consolidation - loci table query" /></p>
-
- 
-
-
-       <br>
-
-
-		
-	   <h3>
-		 <a id="extractSequences" class="anchor" href="#extractSequences" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>2.6. Extracting hit sequences and their flanks using the DIGS tool</strong>
-	   </h3>
-       <hr>
-
-
-	   <p>
-           Working within the framework of the DIGS tool (i.e. using SQL to query DIGS results,
-           and reclassifying sequences through merging and updates reference libraries) 
-           can provide many useful insights into the distribution and diversity of a given
-           genome feature.
- 	   </p>
-
-	   <p>
-           For further investigations, however, it will often be necessary to export sequences
-           from the DIGS screening database so that they can be analysed using other kinds
-           of bioinformatic and comparative approaches. 
- 	   </p>
-
-	   <p>
-           As well as extracting the sequence matches themselves, it is often helpful to extract 
-           the upstream and downstream flanking sequences. 
- 	   </p>
-
-	   <p>
-	   
-	      To do this, run the digs_tool.pl script using the -d=6 option,
-	      and providing a tabular file containing locus data using the -i option 
-	      as illustrated here:
-		  
-  <pre>
-  <code>  giff01r@Alpha:~/DIGS/DIGS-tool$ ./digs_tool.pl -d=6 -i loci.tsv</code></pre>
 
 
  	   </p>
 
        <br>
-
-	   <h2>
-		 <a id="screenStructure" class="anchor" href="#Setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><strong>3. Structure of a DIGS-based investigation</strong>
-	   </h2>
-
-
-	<h3>
-		<a id="screenStructure" class="anchor" href="#SearchStructure" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>3.1 Overview</strong>
-	</h3>
-	<hr>
-
- 
-	<p>
-      Comparative studies using database-integrated genome screening (DIGS) entail
-      separate 'exploration' and 'analysis' phases,
-      with each of these phases being split into two component parts as follows:
-
-
-	  <ul>
-	   
-		<li> <b>Exploration</b>: (1) Setting up and (2) running a similarity search-based screen.</li>
-		<li> <b>Analysis</b>: (3) Inspecting screening output via a relational database, and (4)
-			 performing comparative analysis of exported sequence data.</li>	   
-	  </ul>
-
-
-      
-	</p>
-
-
-	<p><img src="../assets/images/overview-phases.jpg" alt="Overview - phases" /></p>
-
-	<p>
-      
-      As shown above, this process is usually iterative - at least to some degree - since
-      analysis of screening results often reveals new information that can be used to
-      design more informative or comprehensive screens.
-      
- 	</p>
-
-
-	<br>
-
-
-
-	<h3>
-		<a id="explorationPhase" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>3.2 Exploration phase: Setting up and running an <i>in silico</i> screen</strong>
-	</h3>
-	<hr>
-
-	<p>
-      
-       DIGS is a <b>project-based framework</b> in which investigations are centred around 
-       a <b>genome feature</b> of interest. Any genome feature can be investigated in principle,
-       so long as it contains sufficient sequence conservation to be reliably detected in a similarity
-       search. 
-      
- 	</p>
-
- 
-	<p>
-      The '<b>reference sequence library</b>'
-	  is a curated set of sequences relevant to the genome feature under investigation). 
-	  Usually this will consist of:
-	  
-
-	  <ul>
-		<li> A set of conserved DNA or polypeptide sequences derived from the genome feature of interest.</li>
-	  </ul>
-   
-	</p>
- 
-
-	<p>
-	  However, depending on the kind of investigation being performed, it may also contain :
-   
-
-	  <ul>
-		<li>Sequences that do not derive from the genome feature under investigation,
-		but can provide useful information about the locus in which it occurs.</li>
-		<li>Sequences representing genome features that are not relevant to the investigation,
-		but are sufficiently similar to them to generate 'false positive' matches.</li>
-	  </ul>
-   
-	  
-	  Screening entails selecting particular sequences from the reference library for use as
-	  '<b>probes</b>' in a BLAST search of a specific '<b>target database</b>'.
-	</p>
- 
-
-	<p>
-	  Sequences that match to the query ('<b>hits</b>') can then be extracted and <b>classified</b>.
-	  A convenient way of rapidly classifying or 'genotyping' hits is via BLAST-based comparison to the 
-	  reference library, as indicated in the illustration below.
- 	</p>
-
-		 
-
-
-    <p><img src="../assets/images/exploration-phase.jpg" alt="Exploration phase" /></p>
-
-
-
-<blockquote>
-
-	  <b>Schematic representation of the <u>exploration</u> phase of a DIGS-based investigation</b>.
-	  <br>
-	  Here, the genome features being investigated are a set of related genes
-	  In <b>step (1)</b> a sequence from the reference library is selected and used
-	  as a 'probe'  or 'query' in a BLAST-based search of a chosen target database.
-	  In <b>step (2)</b>, sequences identified in this search are extracted 
-	  and classified via BLAST-based comparison to the reference library.
-	  These searches provides a way to effectively 'delve in' to
-	  genomic databanks and recover related sequences and as such, they provide a means
-	  to survey unmapped regions of the genomic 'landscape'. 
-	     
-</blockquote>
-
-
-	<br>
-	<h3>
-		<a id="analysisPhase" class="anchor" href="#setUpAndRunScreen" aria-hidden="true"><span class="octicon octicon-link"></span></a><strong>Analysis phase: Inspecting results and exporting data for comparative analysis</strong>
-	</h3>
-	<hr>
-
-
- 	<p>
-      In DIGS, a similarity search-based screening pipeline is linked to a <b>relational
-      database management system (RDBMS)</b>, and the outputs of screening are captured
-      in a <b>project-specific relational database</b>.
- 	</p>
-  	
-  	<p>
-      This approach not only provides a convenient and robust
-      basis for implementing systematic, automated screens that proceed in an efficient,
-      non-redundant way, it also allows screening data to be interrogated using
-      <b>structured query language (SQL)</b> - a well-established, powerful approach for
-      querying relational databases. 
- 	</p>
-  	
-  	<p>
-
-	  <ol>
-		<b>
-		<li> Investigation of output via the relational database.</li>
-		<li> Comparative genomic analysis of exported sequence data </li>
-		</b>
-	  </ol>
-
-
-	<br>
-
-
-
-    <p><img src="../assets/images/analysis-phase.png" alt="Analysis phase" /></p>
-
-
-
-<blockquote>
-	  <b>Analysing screening output</b>: A schematic representation of the two component
-	  parts of the 'analysis' phase of DIGS-based screen
-	  (some comparative analysis do not require an alignment, but most do).
-</blockquote>
-		 
        <br>
 
 
