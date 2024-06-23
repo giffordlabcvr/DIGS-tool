@@ -48,6 +48,30 @@ Steps involved in installing the DIGS tool and using it to perform DIGS are as f
 
 Please see the [User Guide](https://github.com/giffordlabcvr/DIGS-tool/wiki) for more details.
 
+## Quick Start
+
+To see options for screening: 
+
+`./digs_tool.pl -h` 
+
+
+Before running a screen for the first time, you will need to index the target database (TDb) for BLAST searching:
+
+`./digs_tool.pl –m=1 –i=[path to control file]`
+
+
+### Running a sceen
+
+Once the target database has been indexed, a screen can be executed as follows:
+
+```
+./digs_tool.pl –m=2 –i=[path to control file]
+```
+Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
+
+
+
+
 ## Contributing
 
 The DIGS tool team is very open to further development of this software by the open source bioinformatics community. It is probably worth raising any ideas you have with the team before embarking on development. 
