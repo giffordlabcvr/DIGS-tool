@@ -34,7 +34,7 @@ Steps involved in installing the DIGS tool and using it to perform DIGS are as f
 
 3. Set up the target database (tDB), create a reference sequence library (RSL) and select query (probe) sequences
 
-4. Create a [control file](https://github.com/giffordlabcvr/DIGS-tool/wiki/DIGS-Tool-Control-File) for a DIGS project
+4. Create a [control file](https://github.com/giffordlabcvr/DIGS-tool/wiki/Control-File) for a DIGS project
 
 5. Run the DIGS screen based on the control file
 
