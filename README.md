@@ -46,6 +46,8 @@ Steps involved in installing the DIGS tool and using it to perform DIGS are as f
 
 **Steps 4-6** encapsulate the actual DIGS process. **Step 5** can entail analysis within the screening database (i.e. using [SQL](https://github.com/giffordlabcvr/DIGS-tool/wiki/Example-SQL), but may also entail the analysis of DIGS output in external programs (e.g. phylogeny packages, statistical analysis programs). Iterating on a DIGS project (**Step 6**) is optional. However, it is anticipated that many DIGS projects will be heuristic in nature, and these will commonly require iteration.
 
+Please see the [User Guide](https://github.com/giffordlabcvr/DIGS-tool/wiki) for more details.
+
 ## Quick Start
 
 To see options for screening: 
