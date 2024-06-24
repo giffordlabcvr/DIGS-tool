@@ -74,6 +74,13 @@ Once the target database has been indexed, a screen can be executed as follows:
 
 Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
 
+## Citation
+
+A [paper describing the DIGS tool](https://doi.org/10.1186/s13059-024-03258-y) has been published in the journal Genome Biology:
+
+Blanco-Melo D, Campbell MA, Zhu H, Dennis TPW, Modha S, Lytras S, Hughes J, Gatseva A, and Gifford RJ (**2024**)
+A novel approach to exploring the dark genome and its application to mapping of the vertebrate virus fossil record.
+_Genome Biology_ May 13;25(1):120
 
 ## Contributing
 
