@@ -46,8 +46,6 @@ Steps involved in installing the DIGS tool and using it to perform DIGS are as f
 
 **Steps 4-6** encapsulate the actual DIGS process. **Step 5** can entail analysis within the screening database (i.e. using [SQL](https://github.com/giffordlabcvr/DIGS-tool/wiki/Example-SQL), but may also entail the analysis of DIGS output in external programs (e.g. phylogeny packages, statistical analysis programs). Iterating on a DIGS project (**Step 6**) is optional. However, it is anticipated that many DIGS projects will be heuristic in nature, and these will commonly require iteration.
 
-Please see the [User Guide](https://github.com/giffordlabcvr/DIGS-tool/wiki) for more details.
-
 ## Quick Start
 
 To see options for screening: 
@@ -73,6 +71,8 @@ Once the target database has been indexed, a screen can be executed as follows:
 `./digs_tool.pl –m=2 –i=[path to control file]`
 
 Progress is written to the terminal, and can also be monitored by issuing SQL queries against the relevant screening database. A screen can be stopped at any time. The next time the tool is restarted, it will initiate screening at the point it left off.
+
+Please see the [User Guide](https://github.com/giffordlabcvr/DIGS-tool/wiki) for more details.
 
 ## Citation
 
