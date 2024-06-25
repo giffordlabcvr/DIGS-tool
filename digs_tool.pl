@@ -140,7 +140,7 @@ sub main {
 	# Read in options using GetOpt::Long
 	GetOptions ('infile|i=s'     => \$infile,
 	
-	            'mode|m=i'       => \$mode,
+            'mode|m=i'       => \$mode,
 		    'database|d=i'   => \$database,
 		    'utility=i'      => \$utility,
 		    'genomes=i'      => \$genomes,

@@ -694,30 +694,29 @@ sub show_help_page {
 	my ($self) = @_;
 
 	# Create help menu
-	$console->refresh();
 	my $program_version = $self->{program_version};
 	
-    my $HELP   = "\n\n\t ### DIGS version $program_version";
+    my $HELP   = "\n\n\t ### DIGS tool version $program_version";
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
-	   $HELP  .= "\n\t -m=1  Prepare target files (index files for BLAST)";		
-	   $HELP  .= "\n\t -m=2  Do DIGS"; 
-	   $HELP  .= "\n\t -m=3  Reassign loci"; 
-	   $HELP  .= "\n\t -m=4  Defragment loci"; 
-	   $HELP  .= "\n\t -m=5  Consolidate loci"; 
+	   $HELP  .= "\n\t  -m=1  Prepare target files (index files for BLAST)";		
+	   $HELP  .= "\n\t  -m=2  Do DIGS"; 
+	   $HELP  .= "\n\t  -m=3  Reassign loci"; 
+	   $HELP  .= "\n\t  -m=4  Defragment loci"; 
+	   $HELP  .= "\n\t  -m=5  Consolidate loci"; 
 
        $HELP  .= "\n\n\t ### Summarising target databases\n"; 	   
-	   $HELP  .= "\n\t -g=1  Summarise targets (brief summary, by species)";
-	   $HELP  .= "\n\t -g=2  Summarise targets (long, by individual target file)\n";
+	   $HELP  .= "\n\t  -g=1  Summarise targets (brief summary, by species)";
+	   $HELP  .= "\n\t  -g=2  Summarise targets (long, by individual target file)\n";
 
        $HELP  .= "\n\t ### Managing DIGS screening DBs\n"; 
-	   $HELP  .= "\n\t -d=1  Import tab-delimited data"; 
-	   $HELP  .= "\n\t -d=2  Flush core tables"; 
-	   $HELP  .= "\n\t -d=3  Drop tables";
-	   $HELP  .= "\n\t -d=4  Drop a screening DB"; 
-	   $HELP  .= "\n\t -d=5  Append data to 'digs_results' table"; 
-	   $HELP  .= "\n\t -d=6  Extract sequences using tabular file"; 
+	   $HELP  .= "\n\t  -d=1  Import tab-delimited data"; 
+	   $HELP  .= "\n\t  -d=2  Flush core tables"; 
+	   $HELP  .= "\n\t  -d=3  Drop tables";
+	   $HELP  .= "\n\t  -d=4  Drop a screening DB"; 
+	   $HELP  .= "\n\t  -d=5  Append data to 'digs_results' table"; 
+	   $HELP  .= "\n\t  -d=6  Extract sequences using tabular file"; 
 
 	   $HELP  .= "\n\n\t Target path variable '\$DIGS_GENOMES' is set to '$ENV{DIGS_GENOMES}'";
 	   $HELP  .= "\n\n"; 
