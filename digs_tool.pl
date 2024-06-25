@@ -12,7 +12,7 @@ unless ($ENV{'DIGS_GENOMES'}) {
 	exit;
 }
 unless ($ENV{'DIGS_HOME'}) {
-	print  "\n\n\t Required environment variable '\$DIGS_HOME2' is undefined\n";
+	print  "\n\n\t Required environment variable '\$DIGS_HOME' is undefined\n";
 	exit;
 }
 unless ($ENV{'DIGS_MYSQL_USER'}) {
