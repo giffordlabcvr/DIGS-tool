@@ -239,6 +239,10 @@ sub do_digs {
 
 	my ($self, $mode) = @_;
 
+	# Get the DB tables we will use in this fxn
+	my $db_ref         = $self->{db};
+	my $searches_table = $db_ref->{searches_table};
+	
 	# Iterate through the list of DIGS queries, dealing each in turn 
 	# Each DIGS query constitutes a probe sequence and a target FASTA file
 	my $current_query_num = 0;
@@ -267,6 +271,9 @@ sub do_digs {
 				$self->run_digs_classify_phase($query_ref, \@to_extract, \@to_delete);
 			}
 
+			# Update the searches_performed table
+			$searches_table->insert_row($query_ref);
+	
 			# Show a status update in the console
 			$self->show_digs_progress();			
 		}	
@@ -326,10 +333,6 @@ sub run_digs_classify_phase {
 	# Update the digs_results table
 	$db_ref->update_db($to_delete_ref, \@extracted, 'digs_results_table');
 
-	# Update the searches_performed table
-	my $searches_table = $db_ref->{searches_table};
-	$searches_table->insert_row($query_ref);
-	
 	if ($self->{verbose}) { print "\n\t\t # RESULTS recorded for this probe-target pair"; }
 
 }
@@ -534,7 +537,7 @@ sub search_targetdb_file {
 		# Show summary of BLAST results after filtering
 		if ($score_exclude_count or $length_exclude_count) {
 			print "\n\t\t# $num_retained_hits matches above threshold ";
-			print "(excluded: $length_exclude_count < length; $score_exclude_count < bitscore)";
+			print "(excluded: $length_exclude_count < min. length; $score_exclude_count < min. bitscore)";
 		}
 	}
 }
@@ -694,29 +697,30 @@ sub show_help_page {
 	my ($self) = @_;
 
 	# Create help menu
+	$console->refresh();
 	my $program_version = $self->{program_version};
 	
-    my $HELP   = "\n\n\t ### DIGS tool version $program_version";
+    my $HELP   = "\n\n\t ### DIGS version $program_version";
        $HELP .= "\n\t ### usage: $0 m=[option] -i=[control file] -h=[help]\n";
 
        $HELP  .= "\n\t ### Main functions\n"; 
-	   $HELP  .= "\n\t  -m=1  Prepare target files (index files for BLAST)";		
-	   $HELP  .= "\n\t  -m=2  Do DIGS"; 
-	   $HELP  .= "\n\t  -m=3  Reassign loci"; 
-	   $HELP  .= "\n\t  -m=4  Defragment loci"; 
-	   $HELP  .= "\n\t  -m=5  Consolidate loci"; 
+	   $HELP  .= "\n\t -m=1  Prepare target files (index files for BLAST)";		
+	   $HELP  .= "\n\t -m=2  Do DIGS"; 
+	   $HELP  .= "\n\t -m=3  Reassign loci"; 
+	   $HELP  .= "\n\t -m=4  Defragment loci"; 
+	   $HELP  .= "\n\t -m=5  Consolidate loci"; 
 
        $HELP  .= "\n\n\t ### Summarising target databases\n"; 	   
-	   $HELP  .= "\n\t  -g=1  Summarise targets (brief summary, by species)";
-	   $HELP  .= "\n\t  -g=2  Summarise targets (long, by individual target file)\n";
+	   $HELP  .= "\n\t -g=1  Summarise targets (brief summary, by species)";
+	   $HELP  .= "\n\t -g=2  Summarise targets (long, by individual target file)\n";
 
        $HELP  .= "\n\t ### Managing DIGS screening DBs\n"; 
-	   $HELP  .= "\n\t  -d=1  Import tab-delimited data"; 
-	   $HELP  .= "\n\t  -d=2  Flush core tables"; 
-	   $HELP  .= "\n\t  -d=3  Drop tables";
-	   $HELP  .= "\n\t  -d=4  Drop a screening DB"; 
-	   $HELP  .= "\n\t  -d=5  Append data to 'digs_results' table"; 
-	   $HELP  .= "\n\t  -d=6  Extract sequences using tabular file"; 
+	   $HELP  .= "\n\t -d=1  Import tab-delimited data"; 
+	   $HELP  .= "\n\t -d=2  Flush core tables"; 
+	   $HELP  .= "\n\t -d=3  Drop tables";
+	   $HELP  .= "\n\t -d=4  Drop a screening DB"; 
+	   $HELP  .= "\n\t -d=5  Append data to 'digs_results' table"; 
+	   $HELP  .= "\n\t -d=6  Extract sequences using tabular file"; 
 
 	   $HELP  .= "\n\n\t Target path variable '\$DIGS_GENOMES' is set to '$ENV{DIGS_GENOMES}'";
 	   $HELP  .= "\n\n"; 
